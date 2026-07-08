@@ -1,100 +1,148 @@
-import { BorderBeamCard } from "@/components/shared";
-import { alvaAccentTextureClass } from "@/lib/alva-texture";
+import { motion, AnimatePresence } from "framer-motion";
+import Microphone3 from "@solar-icons/react/video/Microphone3";
+import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
+import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
+import { BorderBeam } from "border-beam";
 import { cn } from "@/lib/utils";
 
-export type StackCard = {
+export type PromptCard = {
   id: number;
-  name: string;
-  designation: string;
-  content: string;
+  prompt: string;
 };
 
 type StudioPromptStackProps = {
-  items: StackCard[];
+  items: PromptCard[];
   current: number;
+  onNext: () => void;
+  onPrevious: () => void;
   className?: string;
 };
+
+const MAX_VISIBLE = 4;
+const CARD_OFFSET = 12;
+const SCALE_FACTOR = 0.05;
 
 export function StudioPromptStack({
   items,
   current,
+  onNext,
+  onPrevious,
   className,
 }: StudioPromptStackProps) {
   const len = items.length;
   const idx = ((current % len) + len) % len;
   const rotated = [...items.slice(idx), ...items.slice(0, idx)];
-  const stack = rotated.slice(0, Math.min(4, rotated.length));
+  const stack = rotated.slice(0, Math.min(MAX_VISIBLE, len));
 
   return (
-    <div className={cn("relative min-h-[20rem] w-full", className)}>
-      {stack
-        .slice()
-        .reverse()
-        .map((card, reversedIndex) => {
-          const index = stack.length - reversedIndex - 1;
-          const cardBody = (
-            <div
-              className={cn(
-                alvaAccentTextureClass,
-                "flex min-h-[20rem] w-full flex-col justify-between rounded-[28px] px-5 py-5 shadow-[0_18px_32px_rgba(0,0,0,0.28)]"
-              )}
-            >
-              <div>
-                <span className="inline-flex rounded-full bg-alva-bg/18 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-alva-bg/85">
-                  {card.designation}
-                </span>
-                <p className="mt-4 text-xl font-semibold leading-tight text-alva-bg">
-                  {card.content}
-                </p>
-              </div>
+    <div className={cn("relative", className)}>
+      <div className="relative mx-auto h-[19rem] w-full max-w-[22rem]">
+        {stack
+          .slice()
+          .reverse()
+          .map((card, reversedIndex) => {
+            const index = stack.length - reversedIndex - 1;
+            const isTop = index === 0;
 
-              <div>
-                <p className="text-sm font-semibold text-alva-bg">{card.name}</p>
-                <p className="mt-1 text-sm text-alva-bg/76">{card.designation}</p>
-              </div>
-            </div>
-          );
-
-          return (
-            <div
-              key={card.id}
-              className="absolute inset-x-0 transition-all duration-300"
-              style={{
-                top: index * 10,
-                transform: `scale(${1 - index * 0.05})`,
-                transformOrigin: "top center",
-                zIndex: stack.length - index,
-              }}
-            >
-              {index === 0 ? (
-                <BorderBeamCard beam="pulse-outside" className="rounded-[28px]">
-                  {cardBody}
-                </BorderBeamCard>
-              ) : (
-                <div className="rounded-[28px] bg-alva-surface/60 p-[1px]">
-                  <div className="rounded-[27px] bg-alva-card/88 px-5 py-5 opacity-[0.92]">
-                    <div>
-                      <span className="inline-flex rounded-full bg-alva-bg/35 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/70">
-                        {card.designation}
-                      </span>
-                      <p className="mt-4 line-clamp-4 text-lg font-semibold leading-tight text-foreground/88">
-                        {card.content}
-                      </p>
-                    </div>
-                    <div className="mt-8">
-                      <p className="text-sm font-semibold text-foreground/88">
-                        {card.name}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {card.designation}
-                      </p>
-                    </div>
-                  </div>
+            return (
+              <motion.div
+                key={card.id}
+                className="absolute inset-x-0"
+                style={{ transformOrigin: "top center" }}
+                animate={{
+                  top: index * CARD_OFFSET,
+                  scale: 1 - index * SCALE_FACTOR,
+                  zIndex: stack.length - index,
+                }}
+                transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                drag={isTop ? "x" : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.5}
+                onDragEnd={(_, info) => {
+                  if (info.offset.x < -80) onNext();
+                  else if (info.offset.x > 80) onPrevious();
+                }}
+              >
+                <div className="relative overflow-hidden rounded-[28px]">
+                  {isTop && (
+                    <BorderBeam
+                      size="md"
+                      colorVariant="mono"
+                      theme="dark"
+                      strength={1}
+                      duration={2}
+                      borderRadius={28}
+                    >
+                      <PromptFace prompt={card.prompt} active />
+                    </BorderBeam>
+                  )}
+                  {!isTop && <PromptFace prompt={card.prompt} />}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </motion.div>
+            );
+          })}
+      </div>
+
+      <div className="mt-4 flex items-center justify-center gap-6">
+        <button
+          type="button"
+          onClick={onPrevious}
+          aria-label="Previous prompt"
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <AltArrowLeft size={20} weight="Outline" />
+        </button>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={idx}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="text-xs text-muted-foreground"
+          >
+            Swipe to move
+          </motion.span>
+        </AnimatePresence>
+        <button
+          type="button"
+          onClick={onNext}
+          aria-label="Next prompt"
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <AltArrowRight size={20} weight="Outline" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PromptFace({ prompt, active }: { prompt: string; active?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex h-[19rem] w-full flex-col items-center justify-center rounded-[28px] px-6 text-center",
+        active
+          ? "bg-alva-card shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
+          : "bg-alva-surface/70"
+      )}
+    >
+      <div
+        className={cn(
+          "mb-5 inline-flex items-center gap-1.5 text-xs",
+          active ? "text-muted-foreground" : "text-muted-foreground/70"
+        )}
+      >
+        <Microphone3 size={14} weight="BoldDuotone" className="text-alva-accent" />
+        Read this sentence aloud
+      </div>
+      <p
+        className={cn(
+          "text-balance text-xl font-semibold leading-snug",
+          active ? "text-foreground" : "text-foreground/70"
+        )}
+      >
+        {prompt}
+      </p>
     </div>
   );
 }

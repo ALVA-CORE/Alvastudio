@@ -1,3 +1,4 @@
+import { alvaAccentTextureClass } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 type StudioProgressProps = {
@@ -24,9 +25,9 @@ export function StudioProgress({
           {current}/{safeTotal}
         </span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-md bg-alva-surface">
+      <div className="h-2.5 overflow-hidden rounded-full bg-alva-surface">
         <div
-          className="h-full rounded-md bg-[linear-gradient(90deg,hsl(var(--alva-gradient-a)),hsl(var(--alva-gradient-b)),hsl(var(--alva-gradient-c)))] transition-all duration-500"
+          className={cn(alvaAccentTextureClass, "h-full rounded-full transition-all duration-500")}
           style={{ width: `${progress}%` }}
         />
       </div>

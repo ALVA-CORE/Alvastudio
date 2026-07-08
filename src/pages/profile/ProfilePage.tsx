@@ -26,7 +26,7 @@ export default function ProfilePage() {
     <div className="relative min-h-full overflow-hidden px-4 py-6">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] bg-[radial-gradient(ellipse_at_left,hsl(var(--alva-accent)/0.2),transparent_58%),radial-gradient(ellipse_at_right,hsl(var(--alva-accent)/0.14),transparent_62%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] bg-[radial-gradient(circle_at_top,hsl(var(--alva-accent)/0.22),transparent_68%)]"
       />
 
       <div className="relative">
@@ -37,7 +37,7 @@ export default function ProfilePage() {
           seed={user?.email ?? firstName}
         />
 
-        <section className="mt-8">
+        <section className="mt-8 [&_.alva-row]:py-2.5">
         <ProfileActionRow
           icon={<UserId size={20} weight="Outline" />}
           title="Account details"
@@ -120,15 +120,15 @@ export default function ProfilePage() {
           </div>
         </ProfileActionRow>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-6 flex justify-center">
             <TextureButton
               variant="destructive"
-              size="lg"
-              className="w-full max-w-[220px]"
+              size="sm"
+              className="w-auto"
               onClick={handleLogout}
             >
               <span className="flex items-center justify-center gap-2">
-                <Logout size={18} weight="Outline" />
+                <Logout size={16} weight="Outline" />
                 Sign out
               </span>
             </TextureButton>

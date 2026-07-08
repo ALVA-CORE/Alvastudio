@@ -9,7 +9,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { alvaAccentTextureClass } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 type ProfileActionRowProps = {
@@ -37,14 +36,9 @@ export function ProfileActionRow({
         <SheetTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-3 py-4 text-left"
+            className="alva-row flex w-full items-center gap-3 py-4 text-left"
           >
-            <div
-              className={cn(
-                alvaAccentTextureClass,
-                "flex size-10 shrink-0 items-center justify-center rounded-full text-alva-bg"
-              )}
-            >
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-alva-surface text-muted-foreground">
               {icon}
             </div>
 
