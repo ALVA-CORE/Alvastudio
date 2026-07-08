@@ -2,42 +2,31 @@ import { useMemo, useState } from "react";
 import Restart from "@solar-icons/react/arrows/Restart";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import Diskette from "@solar-icons/react/devices/Diskette";
-import { StudioModeSwitcher, type StudioMode } from "@/components/studio/StudioModeSwitcher";
+import {
+  FOCUS_GROUP_PROMPTS,
+  PROMPT_READER_PROMPTS,
+  STIMULI_PROMPTS,
+} from "@/data/prompts";
+import { useStudioRecorder } from "@/hooks/useStudioRecorder";
+import { StudioModeDropdown, type StudioMode } from "@/components/studio/StudioModeDropdown";
 import { StudioProgress } from "@/components/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/studio/StudioPromptStack";
-import {
-  StudioSiriControl,
-  type RecordStatus,
-} from "@/components/studio/StudioSiriControl";
+import { StudioSiriControl } from "@/components/studio/StudioSiriControl";
 import { TextureButton } from "@/components/ui/texture-button";
 
-const promptCards: PromptCard[] = [
-  { id: 1, prompt: "Tell us about the first place in Nigeria that really feels like home to you." },
-  { id: 2, prompt: "Describe a market near you and the kinds of sounds somebody would hear there." },
-  { id: 3, prompt: "The network dropped for five minutes before it came back again." },
-  { id: 4, prompt: "Talk about one food you miss whenever you travel away from home." },
-];
-
-const stimuliCards: PromptCard[] = [
-  { id: 11, prompt: "Tell a story about a day when everything that could go wrong actually went wrong." },
-  { id: 12, prompt: "Explain a difficult decision you made recently and how you arrived at it." },
-  { id: 13, prompt: "Walk us through how you would prepare for an important journey." },
-];
-
-const focusCards: PromptCard[] = [
-  { id: 21, prompt: "Discuss one habit young people have that older people always complain about." },
-  { id: 22, prompt: "Debate whether remote work is better than going to the office every day." },
-];
+function toCards(items: { id: number; text: string }[]): PromptCard[] {
+  return items.map((item) => ({ id: item.id, prompt: item.text }));
+}
 
 export default function StudioPage() {
   const [mode, setMode] = useState<StudioMode>("prompt");
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [status, setStatus] = useState<RecordStatus>("idle");
+  const recorder = useStudioRecorder();
 
   const items = useMemo(() => {
-    if (mode === "stimuli") return stimuliCards;
-    if (mode === "focus") return focusCards;
-    return promptCards;
+    if (mode === "stimuli") return toCards(STIMULI_PROMPTS);
+    if (mode === "focus") return toCards(FOCUS_GROUP_PROMPTS);
+    return toCards(PROMPT_READER_PROMPTS);
   }, [mode]);
 
   const total = items.length;
@@ -45,30 +34,46 @@ export default function StudioPage() {
   const handleModeChange = (nextMode: StudioMode) => {
     setMode(nextMode);
     setCurrentIndex(0);
-    setStatus("idle");
+    recorder.discardRecording();
   };
 
   const goTo = (updater: (prev: number) => number) => {
     setCurrentIndex((prev) => (updater(prev) + total) % total);
-    setStatus("idle");
+    recorder.discardRecording();
   };
 
-  const handlePrimary = () => {
-    setStatus((prev) =>
-      prev === "idle" ? "recording" : prev === "recording" ? "recorded" : "recording"
-    );
+  const handlePrimary = async () => {
+    if (recorder.phase === "idle") {
+      await recorder.startRecording();
+      return;
+    }
+    if (recorder.phase === "recording") {
+      recorder.stopRecording();
+      return;
+    }
+    if (recorder.phase === "recorded" || recorder.phase === "playing") {
+      await recorder.playRecording();
+    }
   };
+
+  const progressLabel =
+    mode === "focus" ? "Session progress" : "Queue progress";
 
   return (
     <div className="px-4 py-6">
-      <StudioModeSwitcher value={mode} onChange={handleModeChange} allowFocusGroup />
-
-      <StudioProgress
-        current={currentIndex + 1}
-        total={total}
-        label={mode === "focus" ? "Session progress" : "Queue progress"}
-        className="mt-5"
-      />
+      <div className="flex items-start gap-3">
+        <StudioModeDropdown
+          value={mode}
+          onChange={handleModeChange}
+          allowFocusGroup
+        />
+        <StudioProgress
+          className="min-w-0 flex-1"
+          current={currentIndex + 1}
+          total={total}
+          label={progressLabel}
+        />
+      </div>
 
       <StudioPromptStack
         className="mt-8"
@@ -79,18 +84,23 @@ export default function StudioPage() {
       />
 
       <StudioSiriControl
-        className="mt-10 h-24"
-        status={status}
+        className="mt-10 h-28"
+        phase={recorder.phase}
+        levels={recorder.levels}
         onPrimary={handlePrimary}
       />
 
-      {status === "recorded" && (
+      {recorder.error && (
+        <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
+      )}
+
+      {recorder.phase === "recorded" && (
         <div className="mt-8 flex items-center justify-center gap-3">
           <TextureButton
             variant="minimal"
             size="sm"
             className="w-auto"
-            onClick={() => setStatus("idle")}
+            onClick={recorder.discardRecording}
           >
             <span className="flex items-center gap-2">
               <Restart size={16} weight="Outline" />
@@ -103,7 +113,7 @@ export default function StudioPage() {
             size="icon"
             className="h-10 w-10 rounded-full"
             aria-label="Delete take"
-            onClick={() => setStatus("idle")}
+            onClick={recorder.discardRecording}
           >
             <TrashBinMinimalistic size={16} weight="Outline" />
           </TextureButton>

@@ -1,8 +1,9 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import { BorderBeam } from "border-beam";
+import { alvaAccentTextureClass } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 export type PromptCard = {
@@ -19,8 +20,8 @@ type StudioPromptStackProps = {
 };
 
 const MAX_VISIBLE = 4;
-const CARD_OFFSET = 12;
-const SCALE_FACTOR = 0.05;
+const CARD_OFFSET = 16;
+const SCALE_FACTOR = 0.045;
 
 export function StudioPromptStack({
   items,
@@ -35,8 +36,8 @@ export function StudioPromptStack({
   const stack = rotated.slice(0, Math.min(MAX_VISIBLE, len));
 
   return (
-    <div className={cn("relative", className)}>
-      <div className="relative mx-auto h-[19rem] w-full max-w-[22rem]">
+    <div className={cn("relative w-full", className)}>
+      <div className="relative h-[18.5rem] w-full">
         {stack
           .slice()
           .reverse()
@@ -57,33 +58,34 @@ export function StudioPromptStack({
                 transition={{ type: "spring", stiffness: 260, damping: 26 }}
                 drag={isTop ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.5}
+                dragElastic={0.45}
                 onDragEnd={(_, info) => {
                   if (info.offset.x < -80) onNext();
                   else if (info.offset.x > 80) onPrevious();
                 }}
               >
-                <div className="relative overflow-hidden rounded-[28px]">
-                  {isTop && (
+                {isTop ? (
+                  <div className="relative overflow-visible rounded-[28px]">
                     <BorderBeam
-                      size="md"
+                      size="pulse-outside"
                       colorVariant="mono"
                       theme="dark"
-                      strength={1}
-                      duration={2}
+                      strength={0.95}
+                      duration={2.2}
                       borderRadius={28}
                     >
                       <PromptFace prompt={card.prompt} active />
                     </BorderBeam>
-                  )}
-                  {!isTop && <PromptFace prompt={card.prompt} />}
-                </div>
+                  </div>
+                ) : (
+                  <PromptFace prompt={card.prompt} depth={index} />
+                )}
               </motion.div>
             );
           })}
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-6">
+      <div className="mt-5 flex items-center justify-center gap-6">
         <button
           type="button"
           onClick={onPrevious}
@@ -92,17 +94,7 @@ export function StudioPromptStack({
         >
           <AltArrowLeft size={20} weight="Outline" />
         </button>
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={idx}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            className="text-xs text-muted-foreground"
-          >
-            Swipe to move
-          </motion.span>
-        </AnimatePresence>
+        <span className="text-xs text-muted-foreground">Swipe to move</span>
         <button
           type="button"
           onClick={onNext}
@@ -116,29 +108,47 @@ export function StudioPromptStack({
   );
 }
 
-function PromptFace({ prompt, active }: { prompt: string; active?: boolean }) {
+function PromptFace({
+  prompt,
+  active,
+  depth = 0,
+}: {
+  prompt: string;
+  active?: boolean;
+  depth?: number;
+}) {
   return (
     <div
       className={cn(
-        "flex h-[19rem] w-full flex-col items-center justify-center rounded-[28px] px-6 text-center",
+        "flex h-[18.5rem] w-full flex-col items-center justify-center rounded-[28px] px-6 text-center",
         active
-          ? "bg-alva-card shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
-          : "bg-alva-surface/70"
+          ? cn(alvaAccentTextureClass, "shadow-[0_20px_40px_rgba(0,0,0,0.35)]")
+          : "border border-alva-border bg-alva-card"
       )}
+      style={
+        !active
+          ? { opacity: Math.max(0.55, 0.92 - depth * 0.12) }
+          : undefined
+      }
     >
       <div
         className={cn(
           "mb-5 inline-flex items-center gap-1.5 text-xs",
-          active ? "text-muted-foreground" : "text-muted-foreground/70"
+          active ? "text-alva-bg/75" : "text-muted-foreground"
         )}
       >
-        <Microphone3 size={14} weight="BoldDuotone" className="text-alva-accent" />
-        Read this sentence aloud
+        Click
+        <Microphone3
+          size={14}
+          weight="BoldDuotone"
+          className={active ? "text-alva-bg" : "text-alva-accent"}
+        />
+        and read the sentence aloud
       </div>
       <p
         className={cn(
           "text-balance text-xl font-semibold leading-snug",
-          active ? "text-foreground" : "text-foreground/70"
+          active ? "text-alva-bg" : "text-foreground/80"
         )}
       >
         {prompt}

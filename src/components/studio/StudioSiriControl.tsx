@@ -4,50 +4,51 @@ import Play from "@solar-icons/react/video/Play";
 import Stop from "@solar-icons/react/video/Stop";
 import { BorderBeam } from "border-beam";
 import { cn } from "@/lib/utils";
-
-export type RecordStatus = "idle" | "recording" | "recorded";
+import type { RecorderPhase } from "@/hooks/useStudioRecorder";
 
 type StudioSiriControlProps = {
-  status: RecordStatus;
+  phase: RecorderPhase;
+  levels: number[];
   onPrimary: () => void;
   className?: string;
 };
 
-const WAVE_BARS = 28;
-
 export function StudioSiriControl({
-  status,
+  phase,
+  levels,
   onPrimary,
   className,
 }: StudioSiriControlProps) {
-  const isRecording = status === "recording";
+  const waveActive = phase === "recording" || phase === "playing";
 
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
-      <AudioWave active={isRecording} />
+      <AudioWave active={waveActive} levels={levels} />
 
       <button
         type="button"
         onClick={onPrimary}
         aria-label={
-          status === "idle"
+          phase === "idle"
             ? "Start recording"
-            : status === "recording"
+            : phase === "recording"
               ? "Stop recording"
-              : "Replay recording"
+              : phase === "playing"
+                ? "Playing recording"
+                : "Replay recording"
         }
         className="relative z-[2]"
       >
-        <div className="relative overflow-hidden rounded-full">
+        <div className="relative overflow-visible rounded-full">
           <BorderBeam
-            size="md"
+            size="pulse-outside"
             colorVariant="mono"
             theme="dark"
             strength={1}
-            duration={isRecording ? 1.4 : 2.6}
+            duration={phase === "recording" ? 1.6 : 2.4}
             borderRadius={999}
           >
-            <SiriBlob status={status} />
+            <SiriBlob phase={phase} />
           </BorderBeam>
         </div>
       </button>
@@ -55,8 +56,8 @@ export function StudioSiriControl({
   );
 }
 
-function SiriBlob({ status }: { status: RecordStatus }) {
-  const isRecording = status === "recording";
+function SiriBlob({ phase }: { phase: RecorderPhase }) {
+  const isRecording = phase === "recording";
 
   return (
     <div className="relative flex size-24 items-center justify-center rounded-full bg-alva-bg">
@@ -105,47 +106,40 @@ function SiriBlob({ status }: { status: RecordStatus }) {
 
       <div className="absolute inset-[3px] rounded-full bg-alva-bg/78 backdrop-blur-sm" />
 
-      <div className="relative z-[1] text-foreground">
-        {status === "idle" && (
-          <Microphone3 size={30} weight="BoldDuotone" className="text-alva-accent" />
+      <div className="relative z-[1] text-alva-bg">
+        {phase === "idle" && (
+          <Microphone3 size={30} weight="BoldDuotone" />
         )}
-        {status === "recording" && (
-          <Stop size={28} weight="Bold" className="text-alva-accent" />
-        )}
-        {status === "recorded" && (
-          <Play size={28} weight="Bold" className="text-alva-accent" />
+        {phase === "recording" && <Stop size={28} weight="Bold" />}
+        {(phase === "recorded" || phase === "playing") && (
+          <Play size={28} weight="Bold" />
         )}
       </div>
     </div>
   );
 }
 
-function AudioWave({ active }: { active: boolean }) {
+function AudioWave({
+  active,
+  levels,
+}: {
+  active: boolean;
+  levels: number[];
+}) {
+  if (!active) return null;
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 z-[1] flex h-24 items-center justify-center gap-1 overflow-hidden opacity-90">
-      {Array.from({ length: WAVE_BARS }).map((_, index) => {
-        const distance = Math.abs(index - WAVE_BARS / 2);
-        const base = 8 + Math.max(0, 14 - distance) * 1.6;
+    <div className="pointer-events-none absolute inset-x-0 z-[1] flex h-28 items-center justify-center gap-[3px] overflow-hidden px-2">
+      {levels.map((level, index) => {
+        const min = 6;
+        const max = 72;
+        const height = min + level * (max - min);
 
         return (
-          <motion.span
+          <span
             key={index}
-            className="w-1 rounded-full bg-[linear-gradient(180deg,hsl(var(--alva-gradient-a)),hsl(var(--alva-gradient-b)),hsl(var(--alva-gradient-c)))]"
-            animate={
-              active
-                ? { height: [base * 0.4, base * 1.7, base * 0.7, base * 1.3, base * 0.4] }
-                : { height: base * 0.35 }
-            }
-            transition={
-              active
-                ? {
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    duration: 0.9 + (index % 5) * 0.12,
-                  }
-                : { duration: 0.3 }
-            }
-            style={{ height: base * 0.35 }}
+            className="w-[3px] rounded-full bg-[linear-gradient(180deg,hsl(var(--alva-gradient-a)),hsl(var(--alva-gradient-b)),hsl(var(--alva-gradient-c)))] transition-[height] duration-75 ease-out"
+            style={{ height }}
           />
         );
       })}
