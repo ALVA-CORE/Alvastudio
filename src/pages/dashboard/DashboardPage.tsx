@@ -1,8 +1,8 @@
 import { useAuth } from "@/lib/auth/context";
 import { HomeHeader } from "@/components/dashboard/HomeHeader";
 import { PointsBalanceCard } from "@/components/dashboard/PointsBalanceCard";
-import { LeaderboardPodium } from "@/components/dashboard/LeaderboardPodium";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { QualityProgressBar } from "@/components/dashboard/QualityProgressBar";
 
 /** Mock until backend — replace with API data */
 const MOCK_POINTS = 1420;
@@ -15,11 +15,15 @@ export default function DashboardPage() {
     <div className="pb-6 pt-5">
       <HomeHeader firstName={firstName} className="px-4" />
 
-      <PointsBalanceCard points={MOCK_POINTS} className="mt-5" />
+      <PointsBalanceCard
+        points={MOCK_POINTS}
+        currentUserId="1"
+        className="mt-5"
+      />
 
-      <LeaderboardPodium currentUserId="1" />
+      <DashboardCharts className="px-4" />
 
-      <DashboardCharts />
+      <QualityProgressBar />
     </div>
   );
 }
