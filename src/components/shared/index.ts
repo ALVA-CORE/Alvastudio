@@ -1,0 +1,1 @@
+export { BorderBeamCard } from "./BorderBeamCard";

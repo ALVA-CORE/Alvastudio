@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Alva Studio design system — dark mode only. See docs/design-tokens.md */
+
+@layer base {
+  :root {
+    /* Raw palette */
+    --alva-bg: 0 0% 3.5%;
+    --alva-surface: 0 0% 8.2%;
+    --alva-card: 0 0% 12.5%;
+    --alva-text: 60 6% 96%;
+    --alva-text-muted: 240 5% 65%;
+    --alva-accent: 72 100% 50%;
+    --alva-border: 0 0% 16.5%;
+
+    /* shadcn semantic tokens */
+    --background: var(--alva-bg);
+    --foreground: var(--alva-text);
+
+    --card: var(--alva-card);
+    --card-foreground: var(--alva-text);
+
+    --popover: var(--alva-surface);
+    --popover-foreground: var(--alva-text);
+
+    --primary: var(--alva-accent);
+    --primary-foreground: var(--alva-bg);
+
+    --secondary: var(--alva-surface);
+    --secondary-foreground: var(--alva-text);
+
+    --muted: var(--alva-surface);
+    --muted-foreground: var(--alva-text-muted);
+
+    --accent: var(--alva-surface);
+    --accent-foreground: var(--alva-accent);
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: var(--alva-text);
+
+    --border: var(--alva-border);
+    --input: var(--alva-border);
+    --ring: var(--alva-accent);
+
+    --radius: 0.75rem;
+
+    --sidebar-background: var(--alva-surface);
+    --sidebar-foreground: var(--alva-text);
+    --sidebar-primary: var(--alva-accent);
+    --sidebar-primary-foreground: var(--alva-bg);
+    --sidebar-accent: var(--alva-card);
+    --sidebar-accent-foreground: var(--alva-text);
+    --sidebar-border: var(--alva-border);
+    --sidebar-ring: var(--alva-accent);
+
+    --font-sans: "Schibsted Grotesk", system-ui, sans-serif;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-sans;
+  }
+}
