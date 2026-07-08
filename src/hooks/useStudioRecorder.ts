@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type RecorderPhase = "idle" | "recording" | "recorded" | "playing";
 
-const BAR_COUNT = 32;
+const BAR_COUNT = 40;
 
 export function useStudioRecorder() {
   const [phase, setPhase] = useState<RecorderPhase>("idle");
@@ -21,6 +21,7 @@ export function useStudioRecorder() {
   >(null);
   const rafRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const smoothLevelsRef = useRef<number[]>(Array(BAR_COUNT).fill(0));
 
   const stopTicker = useCallback(() => {
     if (rafRef.current != null) {
@@ -30,6 +31,7 @@ export function useStudioRecorder() {
   }, []);
 
   const resetLevels = useCallback(() => {
+    smoothLevelsRef.current = Array(BAR_COUNT).fill(0);
     setLevels(Array(BAR_COUNT).fill(0));
   }, []);
 
@@ -40,14 +42,27 @@ export function useStudioRecorder() {
     const buffer = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(buffer);
 
-    const step = Math.floor(buffer.length / BAR_COUNT);
-    const next = Array.from({ length: BAR_COUNT }, (_, i) => {
-      const slice = buffer.slice(i * step, (i + 1) * step);
-      const avg = slice.reduce((sum, v) => sum + v, 0) / Math.max(slice.length, 1);
-      return Math.min(1, avg / 100);
-    });
+    const half = BAR_COUNT / 2;
+    const usable = Math.min(buffer.length, 96);
+    const next = Array(BAR_COUNT).fill(0);
 
-    setLevels(next);
+    for (let i = 0; i < half; i++) {
+      const start = Math.floor((i / half) * usable);
+      const end = Math.floor(((i + 1) / half) * usable);
+      const slice = buffer.slice(start, Math.max(start + 1, end));
+      const avg =
+        slice.reduce((sum, value) => sum + value, 0) / Math.max(slice.length, 1);
+      const level = Math.min(1, avg / 90);
+
+      next[half - 1 - i] = level;
+      next[half + i] = level;
+    }
+
+    const smoothed = smoothLevelsRef.current.map(
+      (prev, index) => prev * 0.72 + next[index] * 0.28
+    );
+    smoothLevelsRef.current = smoothed;
+    setLevels(smoothed);
     rafRef.current = requestAnimationFrame(tickLevels);
   }, []);
 
@@ -76,8 +91,8 @@ export function useStudioRecorder() {
       const ctx = getAudioContext();
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.82;
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.88;
       source.connect(analyser);
       sourceRef.current = source;
       analyserRef.current = analyser;
@@ -113,7 +128,6 @@ export function useStudioRecorder() {
         cleanupStream();
         disconnectSource();
         setPhase("recorded");
-        resetLevels();
       };
 
       mediaRecorderRef.current = recorder;
@@ -158,7 +172,6 @@ export function useStudioRecorder() {
 
     audio.onended = () => {
       stopTicker();
-      resetLevels();
       setPhase("recorded");
       disconnectSource();
       URL.revokeObjectURL(url);
@@ -170,8 +183,8 @@ export function useStudioRecorder() {
 
       const source = ctx.createMediaElementSource(audio);
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.82;
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.88;
       source.connect(analyser);
       analyser.connect(ctx.destination);
       sourceRef.current = source;
@@ -182,17 +195,10 @@ export function useStudioRecorder() {
       rafRef.current = requestAnimationFrame(tickLevels);
     } catch {
       setError("Could not play back this recording.");
-      resetLevels();
       setPhase("recorded");
       URL.revokeObjectURL(url);
     }
-  }, [
-    disconnectSource,
-    getAudioContext,
-    resetLevels,
-    stopTicker,
-    tickLevels,
-  ]);
+  }, [disconnectSource, getAudioContext, stopTicker, tickLevels]);
 
   const discardRecording = useCallback(() => {
     stopTicker();

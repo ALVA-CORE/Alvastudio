@@ -20,8 +20,8 @@ type StudioPromptStackProps = {
 };
 
 const MAX_VISIBLE = 4;
-const CARD_OFFSET = 16;
-const SCALE_FACTOR = 0.045;
+const CARD_OFFSET = 20;
+const SCALE_FACTOR = 0.04;
 
 export function StudioPromptStack({
   items,
@@ -85,7 +85,7 @@ export function StudioPromptStack({
           })}
       </div>
 
-      <div className="mt-5 flex items-center justify-center gap-6">
+      <div className="mt-10 flex items-center justify-center gap-6">
         <button
           type="button"
           onClick={onPrevious}
@@ -117,38 +117,40 @@ function PromptFace({
   active?: boolean;
   depth?: number;
 }) {
+  const accentOpacity = Math.max(0.22, 0.72 - depth * 0.18);
+
   return (
     <div
       className={cn(
-        "flex h-[18.5rem] w-full flex-col items-center justify-center rounded-[28px] px-6 text-center",
+        "flex h-[18.5rem] w-full flex-col items-center justify-center rounded-[28px] px-6 text-center shadow-[0_12px_28px_rgba(0,0,0,0.22)]",
         active
           ? cn(alvaAccentTextureClass, "shadow-[0_20px_40px_rgba(0,0,0,0.35)]")
-          : "border border-alva-border bg-alva-card"
+          : "border border-alva-accent/25"
       )}
       style={
         !active
-          ? { opacity: Math.max(0.55, 0.92 - depth * 0.12) }
+          ? { backgroundColor: `hsl(var(--alva-accent) / ${accentOpacity})` }
           : undefined
       }
     >
       <div
         className={cn(
           "mb-5 inline-flex items-center gap-1.5 text-xs",
-          active ? "text-alva-bg/75" : "text-muted-foreground"
+          active ? "text-alva-bg/75" : "text-alva-bg/70"
         )}
       >
         Click
         <Microphone3
           size={14}
           weight="BoldDuotone"
-          className={active ? "text-alva-bg" : "text-alva-accent"}
+          className={active ? "text-alva-bg" : "text-alva-bg/90"}
         />
         and read the sentence aloud
       </div>
       <p
         className={cn(
           "text-balance text-xl font-semibold leading-snug",
-          active ? "text-alva-bg" : "text-foreground/80"
+          active ? "text-alva-bg" : "text-alva-bg/85"
         )}
       >
         {prompt}

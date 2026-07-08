@@ -94,7 +94,7 @@ export default function StudioPage() {
         <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
       )}
 
-      {recorder.phase === "recorded" && (
+      {recorder.hasBlob && recorder.phase !== "idle" && (
         <div className="mt-8 flex items-center justify-center gap-3">
           <TextureButton
             variant="minimal"

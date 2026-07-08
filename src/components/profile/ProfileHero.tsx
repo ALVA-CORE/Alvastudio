@@ -49,31 +49,22 @@ export function ProfileHero({
   return (
     <section className={cn("flex flex-col items-center text-center", className)}>
       <div className="relative">
-        <div className="relative overflow-visible rounded-full">
-          <BorderBeam
-            size="pulse-outside"
-            colorVariant="mono"
-            theme="dark"
-            strength={0.8}
-            borderRadius={999}
-          >
-            <Avatar
-              className={cn(
-                alvaAccentTextureClass,
-                "size-24 border-0 bg-transparent shadow-none ring-0"
-              )}
-            >
-              <AvatarImage src={diceBearAvatarUrl(seed, "202020")} alt={name} />
-              <AvatarFallback className="bg-alva-card text-xl font-semibold text-foreground">
-                {name
-                  .split(" ")
-                  .slice(0, 2)
-                  .map((part) => part[0])
-                  .join("")}
-              </AvatarFallback>
-            </Avatar>
-          </BorderBeam>
-        </div>
+        <Avatar
+          className={cn(
+            alvaAccentTextureClass,
+            "size-24 border-0 bg-transparent shadow-none ring-0"
+          )}
+        >
+          <AvatarImage src={diceBearAvatarUrl(seed, "202020")} alt={name} />
+          <AvatarFallback className="bg-alva-card text-xl font-semibold text-foreground">
+            {name
+              .split(" ")
+              .slice(0, 2)
+              .map((part) => part[0])
+              .join("")}
+          </AvatarFallback>
+        </Avatar>
+
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>

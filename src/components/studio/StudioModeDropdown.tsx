@@ -45,8 +45,8 @@ export function StudioModeDropdown({
           aria-label="Switch recording mode"
           className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-alva-surface px-3 text-foreground"
         >
-          <AltArrowDown size={16} weight="Outline" className="text-muted-foreground" />
           <ActiveIcon size={18} weight="BoldDuotone" className="text-alva-accent" />
+          <AltArrowDown size={16} weight="Outline" className="text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

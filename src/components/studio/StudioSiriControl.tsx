@@ -20,10 +20,11 @@ export function StudioSiriControl({
   className,
 }: StudioSiriControlProps) {
   const waveActive = phase === "recording" || phase === "playing";
+  const waveFrozen = phase === "recorded";
 
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
-      <AudioWave active={waveActive} levels={levels} />
+      <AudioWave active={waveActive} frozen={waveFrozen} levels={levels} />
 
       <button
         type="button"
@@ -122,24 +123,29 @@ function SiriBlob({ phase }: { phase: RecorderPhase }) {
 function AudioWave({
   active,
   levels,
+  frozen,
 }: {
   active: boolean;
   levels: number[];
+  frozen?: boolean;
 }) {
-  if (!active) return null;
+  if (!active && !frozen) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 z-[1] flex h-28 items-center justify-center gap-[3px] overflow-hidden px-2">
+    <div className="pointer-events-none absolute left-1/2 z-[1] flex h-16 w-[min(100vw-1.5rem,26rem)] -translate-x-1/2 items-center justify-between px-1">
       {levels.map((level, index) => {
-        const min = 6;
-        const max = 72;
-        const height = min + level * (max - min);
+        const height = 4 + level * 22;
 
         return (
           <span
             key={index}
-            className="w-[3px] rounded-full bg-[linear-gradient(180deg,hsl(var(--alva-gradient-a)),hsl(var(--alva-gradient-b)),hsl(var(--alva-gradient-c)))] transition-[height] duration-75 ease-out"
-            style={{ height }}
+            className="rounded-full bg-[linear-gradient(180deg,hsl(var(--alva-gradient-a)),hsl(var(--alva-gradient-b)),hsl(var(--alva-gradient-c)))]"
+            style={{
+              width: "4px",
+              height,
+              opacity: frozen ? 0.55 : 0.65 + level * 0.35,
+              transition: frozen ? "none" : "height 90ms linear, opacity 120ms linear",
+            }}
           />
         );
       })}
