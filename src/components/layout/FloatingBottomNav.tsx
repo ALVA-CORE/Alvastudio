@@ -6,6 +6,7 @@ import Microphone3 from "@solar-icons/react/video/Microphone3";
 import UserRounded from "@solar-icons/react/users/UserRounded";
 import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import { cn } from "@/lib/utils";
+import { alvaAccentTextureClass } from "@/lib/alva-texture";
 
 type NavId = "home" | "record" | "review" | "profile";
 
@@ -77,7 +78,10 @@ export function FloatingBottomNav({ isIntern = false }: FloatingBottomNavProps) 
               className={cn(
                 "flex items-center rounded-full transition-all duration-300 ease-out",
                 isActive
-                  ? "relative gap-2 overflow-hidden bg-gradient-to-br from-alva-gradient-a via-alva-gradient-b to-alva-gradient-c px-3 py-2 text-alva-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] before:pointer-events-none before:absolute before:inset-0 before:rounded-full before:bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.2),transparent_55%)]"
+                  ? cn(
+                      "relative gap-2 rounded-full px-3 py-2",
+                      alvaAccentTextureClass
+                    )
                   : "px-2.5 py-2 text-muted-foreground hover:text-foreground"
               )}
             >

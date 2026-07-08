@@ -6,7 +6,7 @@ export function AuthLayout() {
     <div className="relative min-h-screen bg-alva-bg">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[30vh] min-h-[220px] bg-gradient-to-b from-alva-accent via-alva-accent/25 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[30vh] min-h-[220px] bg-gradient-to-b from-alva-accent via-alva-accent/20 to-transparent"
       />
       <div
         aria-hidden

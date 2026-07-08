@@ -1,8 +1,8 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva } from "class-variance-authority"
-
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva } from "class-variance-authority";
+import { alvaAccentTextureClass } from "@/lib/alva-texture";
+import { cn } from "@/lib/utils";
 
 const buttonVariantsOuter = cva("", {
   variants: {
@@ -18,8 +18,7 @@ const buttonVariantsOuter = cva("", {
       minimal:
         "group/texture-button w-full border-[1px] dark:border-[2px] border-black/20 bg-white/50 dark:border-neutral-950 dark:bg-neutral-600/80 p-[1px] active:bg-neutral-200 dark:active:bg-neutral-800 hover:bg-gradient-to-t hover:from-neutral-100 to-white dark:hover:from-neutral-600/50 dark:hover:to-neutral-600/70",
       icon: "group/texture-button rounded-full border dark:border-neutral-950 border-black/10 dark:bg-neutral-600/50 bg-white/50 p-[1px] active:bg-neutral-200 dark:active:bg-neutral-800 hover:bg-gradient-to-t hover:from-neutral-100 to-white dark:hover:from-neutral-700 dark:hover:to-neutral-600",
-      alva:
-        "group/texture-button w-full rounded-full border-0 bg-gradient-to-br from-alva-gradient-a/35 via-alva-gradient-b/25 to-alva-gradient-c/35 p-[1px] transition duration-300 ease-in-out hover:from-alva-gradient-a/45 hover:via-alva-gradient-b/35 hover:to-alva-gradient-c/45",
+      alva: "w-full rounded-full border-0 bg-transparent p-0",
     },
     size: {
       sm: "rounded-full",
@@ -32,15 +31,15 @@ const buttonVariantsOuter = cva("", {
     variant: "primary",
     size: "default",
   },
-})
+});
 
 const innerDivVariants = cva(
-  "w-full h-full flex items-center justify-center text-muted-foreground",
+  "relative z-[1] flex w-full items-center justify-center",
   {
     variants: {
       variant: {
         primary:
-          "gap-2 bg-gradient-to-b from-neutral-800 to-black  dark:from-neutral-200 dark:to-neutral-50 text-sm text-white/90 dark:text-black/80 transition duration-300 ease-in-out  hover:from-stone-800 hover:to-neutral-800/70 dark:hover:from-stone-200 dark:hover:to-neutral-200 dark:active:from-stone-300 dark:active:to-neutral-300 active:bg-gradient-to-b active:from-black active:to-black ",
+          "gap-2 bg-gradient-to-b from-neutral-800 to-black dark:from-neutral-200 dark:to-neutral-50 text-sm text-white/90 dark:text-black/80 transition duration-300 ease-in-out hover:from-stone-800 hover:to-neutral-800/70 dark:hover:from-stone-200 dark:hover:to-neutral-200 dark:active:from-stone-300 dark:active:to-neutral-300 active:bg-gradient-to-b active:from-black active:to-black",
         accent:
           "gap-2 bg-gradient-to-b from-indigo-400 to-indigo-600 text-sm text-white/90 transition duration-300 ease-in-out hover:bg-gradient-to-b hover:from-indigo-400/70 hover:to-indigo-600/70 dark:hover:from-indigo-400/70 dark:hover:to-indigo-600/70 active:bg-gradient-to-b active:from-indigo-400/80 active:to-indigo-600/80 dark:active:from-indigo-400 dark:active:to-indigo-600",
         destructive:
@@ -49,15 +48,17 @@ const innerDivVariants = cva(
           "bg-gradient-to-b from-neutral-100/80 to-neutral-200/50 dark:from-neutral-800 dark:to-neutral-700/50 text-sm transition duration-300 ease-in-out hover:bg-gradient-to-b hover:from-neutral-200/40 hover:to-neutral-300/60 dark:hover:from-neutral-700 dark:hover:to-neutral-700/60 active:bg-gradient-to-b active:from-neutral-200/60 active:to-neutral-300/70 dark:active:from-neutral-800 dark:active:to-neutral-700",
         minimal:
           "bg-gradient-to-b from-white to-neutral-50/50 dark:from-neutral-800 dark:to-neutral-700/50 text-sm transition duration-300 ease-in-out group-hover/texture-button:bg-gradient-to-b group-hover/texture-button:from-neutral-50/50 group-hover/texture-button:to-neutral-100/60 dark:group-hover/texture-button:from-neutral-700 dark:group-hover/texture-button:to-neutral-700/60 group-active/texture-button:bg-gradient-to-b group-active/texture-button:from-neutral-100/60 group-active/texture-button:to-neutral-100/90 dark:group-active/texture-button:from-neutral-800 dark:group-active/texture-button:to-neutral-700",
-        icon: "bg-gradient-to-b from-white to-neutral-50/50 dark:from-neutral-800 dark:to-neutral-700/50 group-active/texture-button:bg-neutral-200 dark:group-active/texture-button:bg-neutral-800 rounded-full",
-        alva:
-          "relative gap-2 overflow-hidden rounded-full bg-gradient-to-b from-alva-surface via-alva-bg to-alva-bg text-base font-semibold text-alva-accent transition duration-300 ease-in-out before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_18%_0%,hsl(var(--alva-gradient-b)/0.22),transparent_42%),radial-gradient(circle_at_82%_100%,hsl(var(--alva-gradient-a)/0.18),transparent_40%)] group-hover/texture-button:from-alva-card group-hover/texture-button:to-alva-surface group-active/texture-button:scale-[0.99]",
+        icon: "rounded-full bg-gradient-to-b from-white to-neutral-50/50 dark:from-neutral-800 dark:to-neutral-700/50 group-active/texture-button:bg-neutral-200 dark:group-active/texture-button:bg-neutral-800",
+        alva: cn(
+          alvaAccentTextureClass,
+          "rounded-full font-semibold text-alva-bg transition duration-300 ease-in-out active:scale-[0.99]"
+        ),
       },
       size: {
         sm: "text-xs rounded-full px-4 py-2",
         default: "text-sm rounded-full px-5 py-2.5",
-        lg: "text-base rounded-full px-6 py-3",
-        icon: "rounded-full p-2",
+        lg: "text-base rounded-full px-6 py-3.5",
+        icon: "rounded-full p-2.5",
       },
     },
     defaultVariants: {
@@ -65,7 +66,7 @@ const innerDivVariants = cva(
       size: "default",
     },
   }
-)
+);
 
 export interface UnifiedButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -76,9 +77,9 @@ export interface UnifiedButtonProps
     | "destructive"
     | "minimal"
     | "icon"
-    | "alva"
-  size?: "default" | "sm" | "lg" | "icon"
-  asChild?: boolean
+    | "alva";
+  size?: "default" | "sm" | "lg" | "icon";
+  asChild?: boolean;
 }
 
 const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
@@ -93,7 +94,25 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : "button"
+    const Comp = asChild ? Slot : "button";
+
+    if (variant === "alva") {
+      return (
+        <Comp
+          className={cn(
+            buttonVariantsOuter({ variant, size }),
+            innerDivVariants({ variant, size }),
+            className
+          )}
+          ref={ref}
+          {...props}
+        >
+          <span className="relative z-[1] flex items-center justify-center gap-2">
+            {children}
+          </span>
+        </Comp>
+      );
+    }
 
     return (
       <Comp
@@ -107,12 +126,10 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
           </span>
         </div>
       </Comp>
-    )
+    );
   }
-)
+);
 
-TextureButton.displayName = "TextureButton"
+TextureButton.displayName = "TextureButton";
 
-export { TextureButton }
-
-// export default TextureButton
+export { TextureButton };

@@ -68,8 +68,10 @@ Prefer `colorVariant="mono"` with accent `#C6FF00` to stay on-brand. Use `streng
 
 | Type | Component | Usage |
 |------|-----------|-------|
-| Regular | `TextureButton` | Auth, forms, secondary actions — `variant="alva"` |
-| Special | `BgAnimateButton` | Record button — `gradient="alva"` `animation="spin-fast"` `rounded="full"` |
+| Regular | `TextureButton` | Auth, forms — `variant="alva"` uses **single accent** texture |
+| Special | `BgAnimateButton` | Record button — `gradient="alva"` uses **three-color** spin |
+
+The three-color palette (`gradient-a/b/c`) is **only** for `BgAnimateButton` and the auth layout background glow — not texture buttons or nav.
 
 ## Breakpoints (mobile-first)
 
