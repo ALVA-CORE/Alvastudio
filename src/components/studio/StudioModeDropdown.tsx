@@ -2,6 +2,7 @@ import Microphone3 from "@solar-icons/react/video/Microphone3";
 import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
 import PlaylistMinimalistic from "@solar-icons/react/list/PlaylistMinimalistic";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
+import { BorderBeam } from "border-beam";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,16 +40,37 @@ export function StudioModeDropdown({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="Switch recording mode"
-          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-alva-surface px-3 text-foreground"
+      <div className="relative overflow-visible rounded-full">
+        <BorderBeam
+          size="pulse-outside"
+          colorVariant="mono"
+          theme="dark"
+          strength={0.9}
+          duration={2.4}
+          borderRadius={999}
         >
-          <ActiveIcon size={18} weight="BoldDuotone" className="text-alva-accent" />
-          <AltArrowDown size={16} weight="Outline" className="text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
+          <BorderBeam
+            size="md"
+            colorVariant="mono"
+            theme="dark"
+            strength={1}
+            duration={1.9}
+            borderRadius={999}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Switch recording mode"
+                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-alva-surface px-3 text-foreground"
+              >
+                <ActiveIcon size={18} weight="BoldDuotone" className="text-alva-accent" />
+                <AltArrowDown size={16} weight="Outline" className="text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+          </BorderBeam>
+        </BorderBeam>
+      </div>
+
       <DropdownMenuContent
         align="start"
         className="min-w-[11rem] border-alva-border bg-alva-card"

@@ -1,13 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Restart from "@solar-icons/react/arrows/Restart";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import Diskette from "@solar-icons/react/devices/Diskette";
+import Microphone3 from "@solar-icons/react/video/Microphone3";
+import Stop from "@solar-icons/react/video/Stop";
+import Play from "@solar-icons/react/video/Play";
 import {
   FOCUS_GROUP_PROMPTS,
   PROMPT_READER_PROMPTS,
   STIMULI_PROMPTS,
 } from "@/data/prompts";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
+import { alvaToast } from "@/lib/alva-toast";
 import { StudioModeDropdown, type StudioMode } from "@/components/studio/StudioModeDropdown";
 import { StudioProgress } from "@/components/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/studio/StudioPromptStack";
@@ -17,6 +21,12 @@ import { TextureButton } from "@/components/ui/texture-button";
 function toCards(items: { id: number; text: string }[]): PromptCard[] {
   return items.map((item) => ({ id: item.id, prompt: item.text }));
 }
+
+const MODE_LABEL: Record<StudioMode, string> = {
+  prompt: "Prompt reader",
+  stimuli: "Stimuli",
+  focus: "Focus group",
+};
 
 export default function StudioPage() {
   const [mode, setMode] = useState<StudioMode>("prompt");
@@ -35,6 +45,7 @@ export default function StudioPage() {
     setMode(nextMode);
     setCurrentIndex(0);
     recorder.discardRecording();
+    alvaToast.show(`Switched to ${MODE_LABEL[nextMode]}`, { variant: "default" });
   };
 
   const goTo = (updater: (prev: number) => number) => {
@@ -45,19 +56,41 @@ export default function StudioPage() {
   const handlePrimary = async () => {
     if (recorder.phase === "idle") {
       await recorder.startRecording();
+      alvaToast.accent("Recording started", <Microphone3 size={14} weight="Bold" />);
       return;
     }
     if (recorder.phase === "recording") {
       recorder.stopRecording();
+      alvaToast.success("Take saved — tap play to review", <Stop size={14} weight="Bold" />);
       return;
     }
     if (recorder.phase === "recorded" || recorder.phase === "playing") {
       await recorder.playRecording();
+      alvaToast.show("Playing your take", {
+        variant: "default",
+        icon: <Play size={14} weight="Bold" />,
+      });
     }
+  };
+
+  const handleRetake = () => {
+    recorder.discardRecording();
+    alvaToast.show("Take cleared — ready to record again");
+  };
+
+  const handleSave = () => {
+    alvaToast.success("Clip saved to review queue", <Diskette size={14} weight="Bold" />);
+    goTo((prev) => prev + 1);
   };
 
   const progressLabel =
     mode === "focus" ? "Session progress" : "Queue progress";
+
+  useEffect(() => {
+    if (recorder.error) {
+      alvaToast.error(recorder.error);
+    }
+  }, [recorder.error]);
 
   return (
     <div className="px-4 py-6">
@@ -86,7 +119,6 @@ export default function StudioPage() {
       <StudioSiriControl
         className="mt-10 h-28"
         phase={recorder.phase}
-        levels={recorder.levels}
         onPrimary={handlePrimary}
       />
 
@@ -100,7 +132,7 @@ export default function StudioPage() {
             variant="minimal"
             size="sm"
             className="w-auto"
-            onClick={recorder.discardRecording}
+            onClick={handleRetake}
           >
             <span className="flex items-center gap-2">
               <Restart size={16} weight="Outline" />
@@ -113,7 +145,7 @@ export default function StudioPage() {
             size="icon"
             className="h-10 w-10 rounded-full"
             aria-label="Delete take"
-            onClick={recorder.discardRecording}
+            onClick={handleRetake}
           >
             <TrashBinMinimalistic size={16} weight="Outline" />
           </TextureButton>
@@ -122,7 +154,7 @@ export default function StudioPage() {
             variant="alva"
             size="sm"
             className="w-auto"
-            onClick={() => goTo((prev) => prev + 1)}
+            onClick={handleSave}
           >
             <span className="flex items-center gap-2">
               <Diskette size={16} weight="Bold" />

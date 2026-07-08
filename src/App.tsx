@@ -1,5 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { AlvaToaster } from "@/components/shared";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppThemeProvider } from "@/components/layout";
 import { AuthProvider } from "@/lib/auth/context";
@@ -14,8 +13,7 @@ const App = () => (
     <AuthProvider>
       <AppThemeProvider>
         <TooltipProvider>
-          <Toaster />
-          <Sonner />
+          <AlvaToaster />
           <BrowserRouter>
             <AppRoutes />
           </BrowserRouter>

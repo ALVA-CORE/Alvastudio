@@ -8,14 +8,14 @@ import type { RecorderPhase } from "@/hooks/useStudioRecorder";
 
 type StudioSiriControlProps = {
   phase: RecorderPhase;
-  levels: number[];
   onPrimary: () => void;
   className?: string;
 };
 
+const BAR_COUNT = 40;
+
 export function StudioSiriControl({
   phase,
-  levels,
   onPrimary,
   className,
 }: StudioSiriControlProps) {
@@ -24,7 +24,7 @@ export function StudioSiriControl({
 
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
-      <AudioWave active={waveActive} frozen={waveFrozen} levels={levels} />
+      <AudioWave active={waveActive} frozen={waveFrozen} />
 
       <button
         type="button"
@@ -108,9 +108,7 @@ function SiriBlob({ phase }: { phase: RecorderPhase }) {
       <div className="absolute inset-[3px] rounded-full bg-alva-bg/78 backdrop-blur-sm" />
 
       <div className="relative z-[1] text-alva-bg">
-        {phase === "idle" && (
-          <Microphone3 size={30} weight="BoldDuotone" />
-        )}
+        {phase === "idle" && <Microphone3 size={30} weight="BoldDuotone" />}
         {phase === "recording" && <Stop size={28} weight="Bold" />}
         {(phase === "recorded" || phase === "playing") && (
           <Play size={28} weight="Bold" />
@@ -122,29 +120,44 @@ function SiriBlob({ phase }: { phase: RecorderPhase }) {
 
 function AudioWave({
   active,
-  levels,
   frozen,
 }: {
   active: boolean;
-  levels: number[];
   frozen?: boolean;
 }) {
   if (!active && !frozen) return null;
 
   return (
     <div className="pointer-events-none absolute left-1/2 z-[1] flex h-16 w-[min(100vw-1.5rem,26rem)] -translate-x-1/2 items-center justify-between px-1">
-      {levels.map((level, index) => {
-        const height = 4 + level * 22;
+      {Array.from({ length: BAR_COUNT }).map((_, index) => {
+        const center = (BAR_COUNT - 1) / 2;
+        const distance = Math.abs(index - center);
+        const base = Math.max(6, 18 - distance * 0.55);
+
+        if (frozen) {
+          return (
+            <span
+              key={index}
+              className="rounded-full bg-[linear-gradient(180deg,hsl(var(--alva-gradient-a)),hsl(var(--alva-gradient-b)),hsl(var(--alva-gradient-c)))] opacity-50"
+              style={{ width: "4px", height: base }}
+            />
+          );
+        }
 
         return (
-          <span
+          <motion.span
             key={index}
             className="rounded-full bg-[linear-gradient(180deg,hsl(var(--alva-gradient-a)),hsl(var(--alva-gradient-b)),hsl(var(--alva-gradient-c)))]"
-            style={{
-              width: "4px",
-              height,
-              opacity: frozen ? 0.55 : 0.65 + level * 0.35,
-              transition: frozen ? "none" : "height 90ms linear, opacity 120ms linear",
+            style={{ width: "4px" }}
+            animate={{
+              height: [base * 0.45, base * 1.35, base * 0.65, base * 1.15, base * 0.45],
+              opacity: [0.55, 0.95, 0.65, 0.9, 0.55],
+            }}
+            transition={{
+              repeat: Infinity,
+              ease: "easeInOut",
+              duration: 1.1 + (index % 7) * 0.08,
+              delay: index * 0.025,
             }}
           />
         );
