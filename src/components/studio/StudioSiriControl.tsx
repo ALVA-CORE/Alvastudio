@@ -128,7 +128,7 @@ function AudioWave({
   if (!active && !frozen) return null;
 
   return (
-    <div className="pointer-events-none absolute left-1/2 z-[1] flex h-16 w-[min(100vw-1.5rem,26rem)] -translate-x-1/2 items-center justify-between px-1">
+    <div className="pointer-events-none absolute left-1/2 z-[1] flex h-16 w-[min(100vw-2.5rem,22rem)] -translate-x-1/2 items-center justify-between px-1">
       {Array.from({ length: BAR_COUNT }).map((_, index) => {
         const center = (BAR_COUNT - 1) / 2;
         const distance = Math.abs(index - center);

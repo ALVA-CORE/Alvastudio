@@ -61,7 +61,7 @@ export default function StudioPage() {
     }
     if (recorder.phase === "recording") {
       recorder.stopRecording();
-      alvaToast.success("Take saved — tap play to review", <Stop size={14} weight="Bold" />);
+      alvaToast.success("Take saved, tap play to review", <Stop size={14} weight="Bold" />);
       return;
     }
     if (recorder.phase === "recorded" || recorder.phase === "playing") {
@@ -75,7 +75,7 @@ export default function StudioPage() {
 
   const handleRetake = () => {
     recorder.discardRecording();
-    alvaToast.show("Take cleared — ready to record again");
+    alvaToast.show("Take cleared, ready to record again");
   };
 
   const handleSave = () => {

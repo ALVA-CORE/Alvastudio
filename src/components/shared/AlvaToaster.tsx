@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
 import InfoCircle from "@solar-icons/react/ui/InfoCircle";
@@ -21,6 +21,9 @@ const VARIANT_ICON: Record<
   accent: null,
 };
 
+const SWIPE_OFFSET = 48;
+const SWIPE_VELOCITY = 280;
+
 export function AlvaToaster() {
   const [items, setItems] = useState<AlvaToastItem[]>([]);
 
@@ -40,23 +43,31 @@ export function AlvaToaster() {
 function ToastPill({ item }: { item: AlvaToastItem }) {
   const DefaultIcon = VARIANT_ICON[item.variant];
 
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    const swiped =
+      Math.abs(info.offset.x) > SWIPE_OFFSET ||
+      Math.abs(info.offset.y) > SWIPE_OFFSET ||
+      Math.abs(info.velocity.x) > SWIPE_VELOCITY ||
+      Math.abs(info.velocity.y) > SWIPE_VELOCITY;
+
+    if (swiped) {
+      alvaToast.dismiss(item.id);
+    }
+  };
+
   return (
     <motion.div
       layout
+      drag
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.75}
+      onDragEnd={handleDragEnd}
+      whileDrag={{ scale: 0.98, cursor: "grabbing" }}
       initial={{ y: -28, opacity: 0, scale: 0.96 }}
       animate={{ y: 0, opacity: 1, scale: 1 }}
       exit={{ y: -20, opacity: 0, scale: 0.96 }}
       transition={{ type: "spring", stiffness: 420, damping: 32 }}
-      className={cn(
-        "pointer-events-auto inline-flex max-w-[min(100%,22rem)] items-center gap-2.5 rounded-full border px-4 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.35)]",
-        item.variant === "accent"
-          ? "border-alva-accent/40 bg-alva-card text-foreground"
-          : item.variant === "error"
-            ? "border-destructive/40 bg-alva-card text-foreground"
-            : item.variant === "success"
-              ? "border-alva-accent/30 bg-alva-card text-foreground"
-              : "border-alva-border bg-alva-card text-foreground"
-      )}
+      className="pointer-events-auto inline-flex max-w-[min(100%,22rem)] cursor-grab touch-none items-center gap-2.5 rounded-full bg-alva-card px-4 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.35)] active:cursor-grabbing"
     >
       {(item.icon || DefaultIcon) && (
         <span
@@ -75,15 +86,7 @@ function ToastPill({ item }: { item: AlvaToastItem }) {
           ) : null}
         </span>
       )}
-      <p className="text-sm font-medium leading-snug">{item.message}</p>
-      <button
-        type="button"
-        aria-label="Dismiss"
-        onClick={() => alvaToast.dismiss(item.id)}
-        className="ml-1 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <CloseCircle size={16} weight="Outline" />
-      </button>
+      <p className="text-sm font-medium leading-snug text-foreground">{item.message}</p>
     </motion.div>
   );
 }
