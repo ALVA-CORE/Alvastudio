@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { alvaAccentTextureClass } from "@/lib/alva-texture";
 import { diceBearAvatarUrl } from "@/lib/dicebear";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +57,12 @@ export function ProfileHero({
             strength={0.8}
             borderRadius={999}
           >
-            <Avatar className="size-24 bg-alva-surface ring-1 ring-alva-border">
+            <Avatar
+              className={cn(
+                alvaAccentTextureClass,
+                "size-24 border-0 bg-transparent shadow-none ring-0"
+              )}
+            >
               <AvatarImage src={diceBearAvatarUrl(seed, "202020")} alt={name} />
               <AvatarFallback className="bg-alva-card text-xl font-semibold text-foreground">
                 {name

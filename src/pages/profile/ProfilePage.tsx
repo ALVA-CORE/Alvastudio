@@ -26,7 +26,7 @@ export default function ProfilePage() {
     <div className="relative min-h-full overflow-hidden px-4 py-6">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] bg-[radial-gradient(circle_at_top,hsl(var(--alva-accent)/0.22),transparent_68%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] bg-[radial-gradient(ellipse_at_left,hsl(var(--alva-accent)/0.2),transparent_58%),radial-gradient(ellipse_at_right,hsl(var(--alva-accent)/0.14),transparent_62%)]"
       />
 
       <div className="relative">
@@ -41,7 +41,6 @@ export default function ProfilePage() {
         <ProfileActionRow
           icon={<UserId size={20} weight="Outline" />}
           title="Account details"
-          value={user?.email ?? "No email added"}
           sheetTitle="Account details"
           sheetDescription="Your core identity for Alva Studio."
         >
@@ -59,7 +58,6 @@ export default function ProfilePage() {
         <ProfileActionRow
           icon={<Translation2 size={20} weight="Outline" />}
           title="Language profile"
-          value="Nigerian English · Pidgin"
           sheetTitle="Language profile"
           sheetDescription="The language background that gives your recordings context."
         >
@@ -73,7 +71,6 @@ export default function ProfilePage() {
         <ProfileActionRow
           icon={<MapPointWave size={20} weight="Outline" />}
           title="Location & accent"
-          value="Origin, residence, and accent context"
           sheetTitle="Location & accent"
           sheetDescription="This helps Alva interpret regional speech patterns correctly."
         >
@@ -87,7 +84,6 @@ export default function ProfilePage() {
         <ProfileActionRow
           icon={<Smartphone size={20} weight="Outline" />}
           title="Recording setup"
-          value="Device and mic context"
           sheetTitle="Recording setup"
           sheetDescription="Useful for QA when a clip sounds unusually quiet or noisy."
         >
@@ -101,7 +97,6 @@ export default function ProfilePage() {
         <ProfileActionRow
           icon={<ShieldCheck size={20} weight="Outline" />}
           title="Consent & privacy"
-          value="NDPA and data use"
           sheetTitle="Consent & privacy"
           sheetDescription="Your consent records and how Alva is allowed to use submitted audio."
         >
@@ -115,7 +110,6 @@ export default function ProfilePage() {
         <ProfileActionRow
           icon={<Bell size={20} weight="Outline" />}
           title="Notifications"
-          value="Review updates and reminders"
           sheetTitle="Notifications"
           sheetDescription="How often Alva should nudge you about reviews, points, and new tasks."
         >
@@ -126,29 +120,19 @@ export default function ProfilePage() {
           </div>
         </ProfileActionRow>
 
-        <ProfileActionRow
-          icon={<Logout size={20} weight="Outline" />}
-          title="Sign out"
-          sheetTitle="Sign out"
-          sheetDescription="You can always come back with your account details."
-          hideDivider
-        >
-          <div className="space-y-5">
-            <p className="text-center text-sm text-muted-foreground">
-              Sign out of this device for {user?.fullName ?? "your account"}.
-            </p>
-            <div className="flex justify-center">
-              <TextureButton
-                variant="destructive"
-                size="lg"
-                className="w-full max-w-[220px]"
-                onClick={handleLogout}
-              >
-                Sign out now
-              </TextureButton>
-            </div>
+          <div className="mt-8 flex justify-center">
+            <TextureButton
+              variant="destructive"
+              size="lg"
+              className="w-full max-w-[220px]"
+              onClick={handleLogout}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <Logout size={18} weight="Outline" />
+                Sign out
+              </span>
+            </TextureButton>
           </div>
-        </ProfileActionRow>
         </section>
       </div>
     </div>

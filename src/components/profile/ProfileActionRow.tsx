@@ -9,12 +9,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { alvaAccentTextureClass } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 type ProfileActionRowProps = {
   icon: ReactNode;
   title: string;
-  value?: string;
   sheetTitle: string;
   sheetDescription?: string;
   children: ReactNode;
@@ -25,7 +25,6 @@ type ProfileActionRowProps = {
 export function ProfileActionRow({
   icon,
   title,
-  value,
   sheetTitle,
   sheetDescription,
   children,
@@ -40,13 +39,17 @@ export function ProfileActionRow({
             type="button"
             className="flex w-full items-center gap-3 py-4 text-left"
           >
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-alva-surface text-muted-foreground">
+            <div
+              className={cn(
+                alvaAccentTextureClass,
+                "flex size-10 shrink-0 items-center justify-center rounded-full text-alva-bg"
+              )}
+            >
               {icon}
             </div>
 
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">{title}</p>
-              {value ? <p className="mt-0.5 truncate text-sm text-muted-foreground">{value}</p> : null}
             </div>
 
             <AltArrowRight
