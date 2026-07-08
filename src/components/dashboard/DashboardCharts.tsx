@@ -22,10 +22,9 @@ import {
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 
-const approvalData = [
-  { status: "approved", value: 62, fill: "var(--color-approved)" },
-  { status: "pending", value: 24, fill: "var(--color-pending)" },
-  { status: "rejected", value: 14, fill: "var(--color-rejected)" },
+const recordingMixData = [
+  { type: "prompts", value: 58, fill: "var(--color-prompts)" },
+  { type: "stimuli", value: 42, fill: "var(--color-stimuli)" },
 ];
 
 const weeklyData = [
@@ -39,9 +38,8 @@ const weeklyData = [
 ];
 
 const pieConfig = {
-  approved: { label: "Approved", color: "hsl(var(--alva-accent))" },
-  pending: { label: "Pending", color: "hsl(0 0% 45%)" },
-  rejected: { label: "Rejected", color: "hsl(0 0% 28%)" },
+  prompts: { label: "Prompt reads", color: "hsl(var(--alva-accent))" },
+  stimuli: { label: "Stimuli", color: "hsl(0 0% 38%)" },
 } satisfies ChartConfig;
 
 const barConfig = {
@@ -113,7 +111,7 @@ function CarouselDots({ count, active }: { count: number; active: number }) {
             "h-1.5 rounded-full transition-all duration-300",
             index === active
               ? "w-5 bg-alva-accent"
-              : "w-1.5 bg-alva-border"
+              : "w-1.5 bg-alva-card"
           )}
         />
       ))}
@@ -162,7 +160,7 @@ export function DashboardCharts({ className }: { className?: string }) {
       <Carousel setApi={setApi} opts={{ align: "start", loop: false }}>
         <CarouselContent className="-ml-0">
           <CarouselItem className="basis-full pl-0">
-            <ChartSlide title="Review breakdown">
+            <ChartSlide title="Recording mix">
               <ChartContainer
                 config={pieConfig}
                 className="mx-auto aspect-[4/3] w-full max-h-[240px]"
@@ -170,21 +168,21 @@ export function DashboardCharts({ className }: { className?: string }) {
                 <PieChart margin={{ top: 8, right: 48, bottom: 8, left: 48 }}>
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                   <Pie
-                    data={approvalData}
+                    data={recordingMixData}
                     dataKey="value"
-                    nameKey="status"
+                    nameKey="type"
                     innerRadius={42}
                     outerRadius={68}
                     cornerRadius={6}
-                    paddingAngle={2}
+                    paddingAngle={3}
                     strokeWidth={0}
                     labelLine={false}
                     label={(props) => (
                       <PieCalloutLabel {...props} status={props.name as string} />
                     )}
                   >
-                    {approvalData.map((entry) => (
-                      <Cell key={entry.status} fill={entry.fill} />
+                    {recordingMixData.map((entry) => (
+                      <Cell key={entry.type} fill={entry.fill} />
                     ))}
                   </Pie>
                 </PieChart>

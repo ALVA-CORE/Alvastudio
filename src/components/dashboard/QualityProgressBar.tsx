@@ -33,7 +33,7 @@ export function QualityProgressBar({ className }: { className?: string }) {
         <span className="shrink-0 text-xs text-muted-foreground">Last 30 days</span>
       </div>
 
-      <div className="flex h-6 w-full overflow-hidden rounded-full bg-alva-surface">
+      <div className="flex h-8 w-full overflow-hidden rounded-md bg-alva-surface">
         {SEGMENTS.map((segment, index) => (
           <div
             key={segment.key}

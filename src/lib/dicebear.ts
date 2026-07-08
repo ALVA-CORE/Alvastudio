@@ -5,5 +5,5 @@ export function diceBearAvatarUrl(seed: string, backgroundColor = "151515") {
     backgroundColor,
     radius: "50",
   });
-  return `https://api.dicebear.com/9.x/thumbs/svg?${params.toString()}`;
+  return `https://api.dicebear.com/9.x/personas/svg?${params.toString()}`;
 }

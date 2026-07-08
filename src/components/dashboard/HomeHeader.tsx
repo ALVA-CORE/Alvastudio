@@ -30,7 +30,7 @@ export function HomeHeader({ firstName, className }: HomeHeaderProps) {
           />
         </Link>
         <p className="truncate text-base text-foreground">
-          <span className="text-muted-foreground">Oya,</span> {firstName}
+          <span className="text-muted-foreground">How far,</span> {firstName}
         </p>
       </div>
 

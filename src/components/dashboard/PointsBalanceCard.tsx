@@ -32,7 +32,7 @@ export function PointsBalanceCard({
           </p>
         </div>
         <TextureButton variant="primary" size="sm" className="w-auto shrink-0">
-          Breakdown
+          Point log
         </TextureButton>
       </div>
 
