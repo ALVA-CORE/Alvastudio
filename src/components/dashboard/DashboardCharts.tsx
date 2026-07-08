@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   Pie,
   PieChart,
@@ -165,14 +166,14 @@ export function DashboardCharts({ className }: { className?: string }) {
                 config={pieConfig}
                 className="mx-auto aspect-[4/3] w-full max-h-[240px]"
               >
-                <PieChart margin={{ top: 8, right: 48, bottom: 8, left: 48 }}>
+                <PieChart margin={{ top: 10, right: 42, bottom: 10, left: 42 }}>
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                   <Pie
                     data={recordingMixData}
                     dataKey="value"
                     nameKey="type"
                     innerRadius={42}
-                    outerRadius={68}
+                    outerRadius={70}
                     cornerRadius={6}
                     paddingAngle={3}
                     strokeWidth={0}
@@ -221,8 +222,13 @@ export function DashboardCharts({ className }: { className?: string }) {
               >
                 <BarChart
                   data={weeklyData}
-                  margin={{ top: 4, right: 4, left: -16, bottom: 0 }}
+                  margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
                 >
+                  <CartesianGrid
+                    vertical={false}
+                    stroke="hsl(var(--alva-border))"
+                    strokeOpacity={0.45}
+                  />
                   <XAxis
                     dataKey="day"
                     tickLine={false}
@@ -233,7 +239,7 @@ export function DashboardCharts({ className }: { className?: string }) {
                     tickLine={false}
                     axisLine={false}
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                    width={24}
+                    width={30}
                   />
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                   <Bar
