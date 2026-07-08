@@ -12,12 +12,12 @@
     --alva-card: 0 0% 12.5%;
     --alva-text: 60 6% 96%;
     --alva-text-muted: 240 5% 65%;
-    --alva-accent: 72 100% 50%;
+    --alva-accent: 146 87% 54%; /* #25F07D */
     --alva-border: 0 0% 16.5%;
 
     /* Animated gradient palette (record button, bg-animate-button) */
     --alva-gradient-a: 160 84% 55%; /* #1FEA9D */
-    --alva-gradient-b: 72 100% 50%; /* #C6FF00 */
+    --alva-gradient-b: 146 87% 54%; /* #25F07D */
     --alva-gradient-c: 112 100% 68%; /* #73FF5C */
 
     /* shadcn semantic tokens */

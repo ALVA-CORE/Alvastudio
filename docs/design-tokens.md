@@ -11,7 +11,7 @@ Dark-mode-first design system. All tokens map to CSS custom properties in `src/i
 | `--alva-card` | `#202020` | Cards, modals, input containers |
 | `--alva-text` | `#F5F5F4` | Primary text |
 | `--alva-text-muted` | `#A1A1AA` | Secondary text, labels, hints |
-| `--alva-accent` | `#C6FF00` | CTAs, active states, recording indicator |
+| `--alva-accent` | `#25F07D` | CTAs, active states, recording indicator |
 
 ## Animated gradient palette
 
@@ -20,7 +20,7 @@ Used by `BgAnimateButton` (`gradient="alva"`, `animation="spin-fast"`) and the r
 | Token | Hex |
 |-------|-----|
 | `--alva-gradient-a` | `#1FEA9D` |
-| `--alva-gradient-b` | `#C6FF00` |
+| `--alva-gradient-b` | `#25F07D` |
 | `--alva-gradient-c` | `#73FF5C` |
 
 ## Semantic mapping (shadcn)
@@ -62,7 +62,7 @@ Used by `BgAnimateButton` (`gradient="alva"`, `animation="spin-fast"`) and the r
 | **Pulse inner** | `border-beam` `size="pulse-inner"` | Idle/waiting states, mic monitor frame |
 | **Pulse outside** | `border-beam` `size="pulse-outside"` | Low-signal warning, submit success |
 
-Prefer `colorVariant="mono"` with accent `#C6FF00` to stay on-brand. Use `strength={0.8}` on mobile to reduce GPU load.
+Prefer `colorVariant="mono"` with accent `#25F07D` to stay on-brand. Use `strength={0.8}` on mobile to reduce GPU load.
 
 ## Buttons
 
