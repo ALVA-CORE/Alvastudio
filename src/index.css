@@ -15,6 +15,11 @@
     --alva-accent: 72 100% 50%;
     --alva-border: 0 0% 16.5%;
 
+    /* Animated gradient palette (record button, bg-animate-button) */
+    --alva-gradient-a: 160 84% 55%; /* #1FEA9D */
+    --alva-gradient-b: 72 100% 50%; /* #C6FF00 */
+    --alva-gradient-c: 112 100% 68%; /* #73FF5C */
+
     /* shadcn semantic tokens */
     --background: var(--alva-bg);
     --foreground: var(--alva-text);

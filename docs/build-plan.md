@@ -49,8 +49,7 @@ src/
 ├── components/
 │   ├── auth/          # Sign-in, onboarding steps
 │   ├── dashboard/     # Stat cards, progress widgets
-│   ├── icons/         # @solar-icons/react wrappers (no lucide)
-│   ├── layout/        # AppShell, AppThemeProvider
+│   ├── layout/        # AppShell, AppThemeProvider, AuthLayout
 │   ├── review/        # Player, QA form, queue
 │   ├── shared/        # BorderBeamCard, cross-feature UI
 │   ├── studio/        # Recorder, mic monitor, mode switcher
@@ -66,14 +65,10 @@ src/
 └── lib/
 ```
 
-Icons: use `@/components/icons` or per-icon subpaths — never lucide, never the `@solar-icons/react` barrel.
+Icons: import directly from `@solar-icons/react/<category>/<IconName>` — never lucide, never the barrel export.
 
 ```tsx
-// ✅ Good — tree-shakeable
 import Microphone3 from "@solar-icons/react/video/Microphone3";
-
-// ❌ Bad — loads entire icon set, breaks Vite optimize deps
-import { Microphone3 } from "@solar-icons/react";
 ```
 
 ---
@@ -111,7 +106,7 @@ import { Microphone3 } from "@solar-icons/react";
 | Layer | Choice |
 |-------|--------|
 | UI | React 19, Vite, TypeScript |
-| Icons | `@solar-icons/react` via `@/components/icons` |
+| Icons | `@solar-icons/react` subpath imports |
 | Effects | `border-beam` (rotate + pulse) |
 | Routing | React Router |
 | Forms | React Hook Form + Zod |

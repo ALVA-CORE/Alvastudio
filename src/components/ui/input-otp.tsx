@@ -1,6 +1,5 @@
 import * as React from "react"
 import { OTPInput, OTPInputContext } from "input-otp"
-import { Dot } from "@/components/icons"
 
 import { cn } from "@/lib/utils"
 
@@ -61,7 +60,9 @@ const InputOTPSeparator = React.forwardRef<
   React.ComponentPropsWithoutRef<"div">
 >(({ ...props }, ref) => (
   <div ref={ref} role="separator" {...props}>
-    <Dot />
+    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+    </svg>
   </div>
 ))
 InputOTPSeparator.displayName = "InputOTPSeparator"

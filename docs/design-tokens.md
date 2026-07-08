@@ -11,7 +11,17 @@ Dark-mode-first design system. All tokens map to CSS custom properties in `src/i
 | `--alva-card` | `#202020` | Cards, modals, input containers |
 | `--alva-text` | `#F5F5F4` | Primary text |
 | `--alva-text-muted` | `#A1A1AA` | Secondary text, labels, hints |
-| `--alva-accent` | `#C6FF00` | CTAs, active states, recording indicator, BorderBeam mono tint |
+| `--alva-accent` | `#C6FF00` | CTAs, active states, recording indicator |
+
+## Animated gradient palette
+
+Used by `BgAnimateButton` (`gradient="alva"`, `animation="spin-fast"`) and the record button.
+
+| Token | Hex |
+|-------|-----|
+| `--alva-gradient-a` | `#1FEA9D` |
+| `--alva-gradient-b` | `#C6FF00` |
+| `--alva-gradient-c` | `#73FF5C` |
 
 ## Semantic mapping (shadcn)
 
@@ -53,6 +63,13 @@ Dark-mode-first design system. All tokens map to CSS custom properties in `src/i
 | **Pulse outside** | `border-beam` `size="pulse-outside"` | Low-signal warning, submit success |
 
 Prefer `colorVariant="mono"` with accent `#C6FF00` to stay on-brand. Use `strength={0.8}` on mobile to reduce GPU load.
+
+## Buttons
+
+| Type | Component | Usage |
+|------|-----------|-------|
+| Regular | `TextureButton` | Auth, forms, secondary actions — `variant="alva"` |
+| Special | `BgAnimateButton` | Record button — `gradient="alva"` `animation="spin-fast"` `rounded="full"` |
 
 ## Breakpoints (mobile-first)
 

@@ -1,6 +1,7 @@
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
-import { Check, ChevronRight, Circle } from "@/components/icons"
+import CheckRead from "@solar-icons/react/messages/CheckRead"
+import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight"
 
 import { cn } from "@/lib/utils"
 
@@ -32,7 +33,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
     {...props}
   >
     {children}
-    <ChevronRight className="ml-auto h-4 w-4" />
+    <AltArrowRight size={16} weight="Linear" className="ml-auto h-4 w-4" />
   </DropdownMenuPrimitive.SubTrigger>
 ))
 DropdownMenuSubTrigger.displayName =
@@ -105,7 +106,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
+        <CheckRead size={16} weight="Linear" className="h-4 w-4" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -128,7 +129,9 @@ const DropdownMenuRadioItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <Circle className="h-2 w-2 fill-current" />
+        <svg viewBox="0 0 24 24" className="h-2 w-2 fill-current" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+        </svg>
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}

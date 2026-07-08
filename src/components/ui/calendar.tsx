@@ -1,9 +1,7 @@
 import * as React from "react";
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "@/components/icons";
+import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
+import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
+import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
@@ -129,18 +127,18 @@ function Calendar({
         Chevron: ({ className, orientation, ...chevronProps }) => {
           if (orientation === "left") {
             return (
-              <ChevronLeftIcon className={cn("size-4", className)} {...chevronProps} />
+              <AltArrowLeft size={16} weight="Linear" className={cn("size-4", className)} {...chevronProps} />
             );
           }
 
           if (orientation === "right") {
             return (
-              <ChevronRightIcon className={cn("size-4", className)} {...chevronProps} />
+              <AltArrowRight size={16} weight="Linear" className={cn("size-4", className)} {...chevronProps} />
             );
           }
 
           return (
-            <ChevronDownIcon className={cn("size-4", className)} {...chevronProps} />
+            <AltArrowDown size={16} weight="Linear" className={cn("size-4", className)} {...chevronProps} />
           );
         },
         DayButton: CalendarDayButton,
