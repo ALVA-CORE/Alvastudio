@@ -1,16 +1,29 @@
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/context";
+import { isStaffRole } from "@/lib/auth/roles";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGate";
 import { HomeHeader } from "@/components/dashboard/HomeHeader";
 import { PointsBalanceCard } from "@/components/dashboard/PointsBalanceCard";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { QualityProgressBar } from "@/components/dashboard/QualityProgressBar";
-import InternDashboard from "@/pages/dashboard/InternDashboard";
 
 /** Mock until backend — replace with API data */
 const MOCK_POINTS = 1420;
 
-function ContributorDashboard() {
+export default function DashboardPage() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const isStaff = isStaffRole(user?.role);
+
+  if (isStaff && !isMobile) {
+    return <Navigate to="/intern/dashboard" replace />;
+  }
+
+  if (!isStaff && !isMobile) {
+    return <ContributorDesktopGate />;
+  }
+
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
   return (
@@ -28,16 +41,4 @@ function ContributorDashboard() {
       <QualityProgressBar />
     </div>
   );
-}
-
-export default function DashboardPage() {
-  const { user } = useAuth();
-  const isMobile = useIsMobile();
-  const isStaff = user?.role === "intern" || user?.role === "admin";
-
-  if (isStaff && !isMobile) {
-    return <InternDashboard />;
-  }
-
-  return <ContributorDashboard />;
 }

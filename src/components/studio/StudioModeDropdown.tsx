@@ -27,14 +27,20 @@ type StudioModeDropdownProps = {
   value: StudioMode;
   onChange: (mode: StudioMode) => void;
   allowFocusGroup?: boolean;
+  focusGroupOnly?: boolean;
 };
 
 export function StudioModeDropdown({
   value,
   onChange,
   allowFocusGroup = false,
+  focusGroupOnly = false,
 }: StudioModeDropdownProps) {
-  const visibleModes = MODES.filter((mode) => allowFocusGroup || mode.id !== "focus");
+  const visibleModes = MODES.filter((mode) => {
+    if (focusGroupOnly) return mode.id === "focus";
+    if (!allowFocusGroup && mode.id === "focus") return false;
+    return true;
+  });
   const active = MODES.find((mode) => mode.id === value) ?? MODES[0];
   const ActiveIcon = active.icon;
 

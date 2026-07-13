@@ -33,7 +33,7 @@ export function MetricCard({
         "relative flex min-h-[9.5rem] flex-col rounded-2xl p-4",
         isAccent
           ? cn(alvaAccentTextureClass, "text-alva-bg")
-          : "border border-alva-border bg-alva-card text-foreground",
+          : "bg-alva-card text-foreground",
         className
       )}
     >

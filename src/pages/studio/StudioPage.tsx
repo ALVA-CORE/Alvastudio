@@ -11,8 +11,12 @@ import {
   STIMULI_PROMPTS,
 } from "@/data/prompts";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth/context";
+import { isStaffRole } from "@/lib/auth/roles";
 import { alvaToast } from "@/lib/alva-toast";
+import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGate";
+import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { StudioModeDropdown, type StudioMode } from "@/components/studio/StudioModeDropdown";
 import { StudioProgress } from "@/components/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/studio/StudioPromptStack";
@@ -31,8 +35,10 @@ const MODE_LABEL: Record<StudioMode, string> = {
 
 export default function StudioPage() {
   const { user } = useAuth();
-  const allowFocusGroup = user?.role === "intern" || user?.role === "admin";
-  const [mode, setMode] = useState<StudioMode>("prompt");
+  const isMobile = useIsMobile();
+  const isStaff = isStaffRole(user?.role);
+  const focusGroupOnly = isStaff;
+  const [mode, setMode] = useState<StudioMode>(focusGroupOnly ? "focus" : "prompt");
   const [currentIndex, setCurrentIndex] = useState(0);
   const recorder = useStudioRecorder();
 
@@ -96,20 +102,32 @@ export default function StudioPage() {
   }, [recorder.error]);
 
   useEffect(() => {
-    if (!allowFocusGroup && mode === "focus") {
+    if (focusGroupOnly && mode !== "focus") {
+      setMode("focus");
+      setCurrentIndex(0);
+      recorder.discardRecording();
+      return;
+    }
+
+    if (!focusGroupOnly && mode === "focus") {
       setMode("prompt");
       setCurrentIndex(0);
       recorder.discardRecording();
     }
-  }, [allowFocusGroup, mode, recorder.discardRecording]);
+  }, [focusGroupOnly, mode, recorder.discardRecording]);
 
-  return (
-    <div className="px-4 py-6">
-      <div className="flex items-start gap-3">
+  if (!isStaff && !isMobile) {
+    return <ContributorDesktopGate />;
+  }
+
+  const content = (
+    <>
+      <div className="flex items-start gap-2">
         <StudioModeDropdown
           value={mode}
           onChange={handleModeChange}
-          allowFocusGroup={allowFocusGroup}
+          allowFocusGroup={focusGroupOnly}
+          focusGroupOnly={focusGroupOnly}
         />
         <StudioProgress
           className="min-w-0 flex-1"
@@ -138,7 +156,7 @@ export default function StudioPage() {
       )}
 
       {recorder.hasBlob && recorder.phase !== "idle" && (
-        <div className="mt-8 flex items-center justify-center gap-3">
+        <div className="mt-8 flex items-center justify-center gap-2">
           <TextureButton
             variant="minimal"
             size="sm"
@@ -174,6 +192,12 @@ export default function StudioPage() {
           </TextureButton>
         </div>
       )}
-    </div>
+    </>
   );
+
+  if (isMobile) {
+    return <div className="px-4 py-6">{content}</div>;
+  }
+
+  return <DesktopPageShell className="py-6">{content}</DesktopPageShell>;
 }

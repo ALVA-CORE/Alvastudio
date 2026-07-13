@@ -1,7 +1,5 @@
 import { Area } from "@/components/dither-kit/area";
 import { AreaChart } from "@/components/dither-kit/area-chart";
-import { Bar } from "@/components/dither-kit/bar";
-import { BarChart } from "@/components/dither-kit/bar-chart";
 import { Grid } from "@/components/dither-kit/grid";
 import { Legend } from "@/components/dither-kit/legend";
 import { Radar } from "@/components/dither-kit/radar";
@@ -9,17 +7,8 @@ import { RadarChart } from "@/components/dither-kit/radar-chart";
 import { Tooltip } from "@/components/dither-kit/tooltip";
 import { XAxis } from "@/components/dither-kit/x-axis";
 import { YAxis } from "@/components/dither-kit/y-axis";
+import { WeeklySessionsChart } from "@/components/dashboard/WeeklySessionsChart";
 import { cn } from "@/lib/utils";
-
-const weeklySessions = [
-  { day: "Mon", sessions: 4 },
-  { day: "Tue", sessions: 7 },
-  { day: "Wed", sessions: 5 },
-  { day: "Thu", sessions: 9 },
-  { day: "Fri", sessions: 6 },
-  { day: "Sat", sessions: 3 },
-  { day: "Sun", sessions: 8 },
-];
 
 const qualityRadar = [
   { metric: "Clarity", score: 82 },
@@ -40,10 +29,6 @@ const captureTrend = [
   { month: "Jul", prompts: 210, stimuli: 138 },
   { month: "Aug", prompts: 224, stimuli: 152 },
 ];
-
-const barConfig = {
-  sessions: { label: "Sessions", color: "green" as const },
-};
 
 const radarConfig = {
   score: { label: "Quality score", color: "green" as const },
@@ -72,7 +57,7 @@ function ChartCard({
   return (
     <section
       className={cn(
-        "flex min-h-[17rem] flex-col rounded-2xl border border-alva-border bg-alva-card p-4",
+        "flex flex-col rounded-2xl bg-alva-card p-4",
         className
       )}
     >
@@ -94,33 +79,22 @@ export function InternDashboardCharts({ className }: InternDashboardChartsProps)
         <ChartCard
           title="Weekly sessions"
           subtitle="Record activity by day"
-          className="lg:col-span-3"
+          className="min-h-[22rem] lg:col-span-3"
         >
-          <BarChart
-            data={weeklySessions}
-            config={barConfig}
-            bloom="aura"
-            className="h-full min-h-[13rem] w-full"
-          >
-            <Grid />
-            <XAxis dataKey="day" />
-            <YAxis />
-            <Tooltip labelKey="day" />
-            <Bar dataKey="sessions" variant="gradient" />
-          </BarChart>
+          <WeeklySessionsChart />
         </ChartCard>
 
         <ChartCard
           title="Quality mix"
           subtitle="Average scores across review dimensions"
-          className="lg:col-span-2"
+          className="min-h-[22rem] lg:col-span-2"
         >
           <RadarChart
             data={qualityRadar}
             config={radarConfig}
             nameKey="metric"
             bloom="aura"
-            className="h-full min-h-[13rem] w-full"
+            className="h-full min-h-[18rem] w-full"
           >
             <Legend align="right" />
             <Radar dataKey="score" variant="gradient" />

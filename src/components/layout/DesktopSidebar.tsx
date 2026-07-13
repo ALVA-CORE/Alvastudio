@@ -1,25 +1,25 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
-import SettingsMinimalistic from "@solar-icons/react/settings/SettingsMinimalistic";
+import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
 import { cn } from "@/lib/utils";
 import { SiriBlob } from "@/components/studio/SiriBlob";
 
-type NavId = "home" | "record" | "settings";
+type NavId = "home" | "record" | "review";
 
 const NAV_ITEMS: Array<{
   id: NavId;
   path: string;
   label: string;
 }> = [
-  { id: "home", path: "/dashboard", label: "Home" },
+  { id: "home", path: "/intern/dashboard", label: "Home" },
   { id: "record", path: "/studio", label: "Record" },
-  { id: "settings", path: "/profile", label: "Settings" },
+  { id: "review", path: "/review", label: "Review" },
 ];
 
 function getActiveNav(pathname: string): NavId {
   if (pathname.startsWith("/studio")) return "record";
-  if (pathname.startsWith("/profile")) return "settings";
+  if (pathname.startsWith("/review")) return "review";
   return "home";
 }
 
@@ -37,10 +37,8 @@ export function DesktopSidebar() {
     >
       <div
         className={cn(
-          "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center border-r border-transparent py-6 transition-[width,background-color,backdrop-filter,border-color,box-shadow] duration-300 ease-out",
-          hovered
-            ? "w-48 border-alva-border/40 bg-alva-surface/50 shadow-[8px_0_32px_rgba(0,0,0,0.28)] backdrop-blur-xl"
-            : "w-[4.5rem]"
+          "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center py-6 backdrop-blur-xl transition-[width] duration-300 ease-out",
+          hovered ? "w-48" : "w-[4.5rem]"
         )}
       >
         <nav
@@ -62,7 +60,7 @@ export function DesktopSidebar() {
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  "group/btn flex items-center rounded-full transition-transform duration-200 ease-out hover:scale-110",
+                  "flex items-center rounded-full",
                   hovered ? "gap-3 px-3 py-2" : "justify-center p-2",
                   isRecord && !hovered && "p-1"
                 )}
@@ -72,7 +70,7 @@ export function DesktopSidebar() {
                     size={22}
                     weight={isActive ? "BoldDuotone" : "Outline"}
                     className={cn(
-                      "shrink-0 transition-colors",
+                      "shrink-0",
                       isActive ? "text-alva-accent" : "text-muted-foreground"
                     )}
                   />
@@ -80,12 +78,12 @@ export function DesktopSidebar() {
                 {item.id === "record" && (
                   <SiriBlob size="nav" className="shrink-0" />
                 )}
-                {item.id === "settings" && (
-                  <SettingsMinimalistic
+                {item.id === "review" && (
+                  <RoundedMagnifier
                     size={22}
                     weight={isActive ? "BoldDuotone" : "Outline"}
                     className={cn(
-                      "shrink-0 transition-colors",
+                      "shrink-0",
                       isActive ? "text-alva-accent" : "text-muted-foreground"
                     )}
                   />

@@ -29,6 +29,7 @@ function getActiveNav(pathname: string): NavId {
   if (pathname.startsWith("/studio")) return "record";
   if (pathname.startsWith("/review")) return "review";
   if (pathname.startsWith("/profile")) return "profile";
+  if (pathname.startsWith("/intern/dashboard")) return "home";
   return "home";
 }
 

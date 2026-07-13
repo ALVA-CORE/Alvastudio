@@ -4,16 +4,31 @@ import LoginPage from "@/pages/auth/LoginPage";
 import SignupPage from "@/pages/auth/SignupPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import DashboardPage from "@/pages/dashboard/DashboardPage";
+import InternDashboardPage from "@/pages/dashboard/InternDashboardPage";
 import StudioPage from "@/pages/studio/StudioPage";
 import ReviewPage from "@/pages/review/ReviewPage";
 import ProfilePage from "@/pages/profile/ProfilePage";
 import NotFoundPage from "@/pages/errors/NotFoundPage";
 import { ProtectedRoute, GuestRoute, RoleRoute } from "@/routes/guards";
+import { useAuth } from "@/lib/auth/context";
+import { isStaffRole } from "@/lib/auth/roles";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+function RootRedirect() {
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+
+  if (user && isStaffRole(user.role) && !isMobile) {
+    return <Navigate to="/intern/dashboard" replace />;
+  }
+
+  return <Navigate to="/dashboard" replace />;
+}
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<RootRedirect />} />
 
       <Route element={<GuestRoute />}>
         <Route element={<AuthLayout />}>
@@ -29,6 +44,7 @@ export function AppRoutes() {
           <Route path="/studio" element={<StudioPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route element={<RoleRoute roles={["intern", "admin"]} />}>
+            <Route path="/intern/dashboard" element={<InternDashboardPage />} />
             <Route path="/review" element={<ReviewPage />} />
           </Route>
         </Route>
