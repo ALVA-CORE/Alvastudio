@@ -29,9 +29,13 @@ const barConfig = {
 
 type WeeklySessionsChartProps = {
   className?: string;
+  data?: Array<{ day: string; sessions: number }>;
 };
 
-export function WeeklySessionsChart({ className }: WeeklySessionsChartProps) {
+export function WeeklySessionsChart({
+  className,
+  data = weeklyData,
+}: WeeklySessionsChartProps) {
   return (
     <div className={cn("relative h-full min-h-0 w-full", className)}>
       <svg width={0} height={0} aria-hidden className="absolute">
@@ -59,7 +63,7 @@ export function WeeklySessionsChart({ className }: WeeklySessionsChartProps) {
 
       <ChartContainer config={barConfig} className="h-full w-full">
         <BarChart
-          data={weeklyData}
+          data={data}
           margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
         >
           <CartesianGrid

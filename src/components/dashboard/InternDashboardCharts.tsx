@@ -1,3 +1,9 @@
+import { WeeklySessionsChart } from "@/components/dashboard/WeeklySessionsChart";
+import { DashboardTimeFilter } from "@/components/dashboard/DashboardTimeFilter";
+import {
+  DASHBOARD_DATA,
+  type DashboardTimeRange,
+} from "@/data/internDashboard";
 import { Area } from "@/components/dither-kit/area";
 import { AreaChart } from "@/components/dither-kit/area-chart";
 import { Grid } from "@/components/dither-kit/grid";
@@ -7,28 +13,7 @@ import { RadarChart } from "@/components/dither-kit/radar-chart";
 import { Tooltip } from "@/components/dither-kit/tooltip";
 import { XAxis } from "@/components/dither-kit/x-axis";
 import { YAxis } from "@/components/dither-kit/y-axis";
-import { WeeklySessionsChart } from "@/components/dashboard/WeeklySessionsChart";
 import { cn } from "@/lib/utils";
-
-const qualityRadar = [
-  { metric: "Clarity", score: 82 },
-  { metric: "Noise", score: 74 },
-  { metric: "Pacing", score: 88 },
-  { metric: "Accent", score: 91 },
-  { metric: "Completeness", score: 79 },
-  { metric: "Metadata", score: 85 },
-];
-
-const captureTrend = [
-  { month: "Jan", prompts: 120, stimuli: 66 },
-  { month: "Feb", prompts: 148, stimuli: 92 },
-  { month: "Mar", prompts: 132, stimuli: 88 },
-  { month: "Apr", prompts: 176, stimuli: 104 },
-  { month: "May", prompts: 164, stimuli: 118 },
-  { month: "Jun", prompts: 198, stimuli: 126 },
-  { month: "Jul", prompts: 210, stimuli: 138 },
-  { month: "Aug", prompts: 224, stimuli: 152 },
-];
 
 const radarConfig = {
   score: { label: "Quality score", color: "green" as const },
@@ -40,6 +25,8 @@ const areaConfig = {
 };
 
 type InternDashboardChartsProps = {
+  timeRange: DashboardTimeRange;
+  onTimeRangeChange: (value: DashboardTimeRange) => void;
   className?: string;
 };
 
@@ -55,12 +42,7 @@ function ChartCard({
   className?: string;
 }) {
   return (
-    <section
-      className={cn(
-        "flex flex-col rounded-2xl bg-alva-card p-4",
-        className
-      )}
-    >
+    <section className={cn("flex flex-col rounded-2xl bg-alva-card p-4", className)}>
       <div className="mb-2">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {subtitle && (
@@ -72,16 +54,27 @@ function ChartCard({
   );
 }
 
-export function InternDashboardCharts({ className }: InternDashboardChartsProps) {
+export function InternDashboardCharts({
+  timeRange,
+  onTimeRangeChange,
+  className,
+}: InternDashboardChartsProps) {
+  const dataset = DASHBOARD_DATA[timeRange];
+
   return (
     <div className={cn("space-y-2", className)}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">Chart range</p>
+        <DashboardTimeFilter value={timeRange} onChange={onTimeRangeChange} />
+      </div>
+
       <div className="grid gap-2 lg:grid-cols-5">
         <ChartCard
           title="Weekly sessions"
           subtitle="Record activity by day"
           className="min-h-[22rem] lg:col-span-3"
         >
-          <WeeklySessionsChart />
+          <WeeklySessionsChart data={dataset.weeklySessions} />
         </ChartCard>
 
         <ChartCard
@@ -90,7 +83,7 @@ export function InternDashboardCharts({ className }: InternDashboardChartsProps)
           className="min-h-[22rem] lg:col-span-2"
         >
           <RadarChart
-            data={qualityRadar}
+            data={dataset.qualityRadar}
             config={radarConfig}
             nameKey="metric"
             bloom="aura"
@@ -107,7 +100,7 @@ export function InternDashboardCharts({ className }: InternDashboardChartsProps)
         subtitle="Prompt reads and stimuli stacked over time"
       >
         <AreaChart
-          data={captureTrend}
+          data={dataset.captureTrend}
           config={areaConfig}
           stackType="stacked"
           bloom="aura"
