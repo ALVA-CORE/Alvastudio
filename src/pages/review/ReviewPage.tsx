@@ -2,7 +2,6 @@ import { useState } from "react";
 import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { REVIEW_QUEUE } from "@/data/reviewQueue";
-import { ReviewQueuePanel } from "@/components/review/ReviewQueuePanel";
 import { ReviewWorkspace } from "@/components/review/ReviewWorkspace";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -19,23 +18,23 @@ export default function ReviewPage() {
 
   if (!isMobile) {
     return (
-      <div className="flex min-h-screen w-full">
-        <ReviewQueuePanel
-          items={REVIEW_QUEUE}
-          activeId={activeId}
-          onSelect={setActiveId}
-        />
-        {activeItem && (
-          <ReviewWorkspace
-            item={activeItem}
-            onPrevious={activeIndex > 0 ? () => goTo(activeIndex - 1) : undefined}
-            onNext={
-              activeIndex < REVIEW_QUEUE.length - 1
-                ? () => goTo(activeIndex + 1)
-                : undefined
-            }
-          />
-        )}
+      <div className="px-6 py-4">
+        <div className="mx-auto w-full max-w-6xl">
+          {activeItem && (
+            <ReviewWorkspace
+              item={activeItem}
+              queueItems={REVIEW_QUEUE}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onPrevious={activeIndex > 0 ? () => goTo(activeIndex - 1) : undefined}
+              onNext={
+                activeIndex < REVIEW_QUEUE.length - 1
+                  ? () => goTo(activeIndex + 1)
+                  : undefined
+              }
+            />
+          )}
+        </div>
       </div>
     );
   }
@@ -54,6 +53,9 @@ export default function ReviewPage() {
         <div className="mt-4">
           <ReviewWorkspace
             item={activeItem}
+            queueItems={REVIEW_QUEUE}
+            activeId={activeId}
+            onSelect={setActiveId}
             onPrevious={activeIndex > 0 ? () => goTo(activeIndex - 1) : undefined}
             onNext={
               activeIndex < REVIEW_QUEUE.length - 1
@@ -64,7 +66,7 @@ export default function ReviewPage() {
         </div>
       )}
 
-      <Card className="mt-4 border-alva-border bg-alva-card">
+      <Card className="mt-2 border-alva-border bg-alva-card">
         <CardHeader>
           <CardTitle className="font-display text-lg">Queue</CardTitle>
         </CardHeader>

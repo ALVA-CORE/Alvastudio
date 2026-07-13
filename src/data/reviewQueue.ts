@@ -13,18 +13,16 @@ export type ReviewQueueItem = {
   language: string;
 };
 
-export const DEMO_AUDIO_SRC = "/audio/demo-review.mp3";
-
 export const REVIEW_QUEUE: ReviewQueueItem[] = [
   {
     id: "1",
     contributor: "Ada O.",
     mode: "Prompt reader",
-    duration: "0:42",
-    durationSec: 42,
+    duration: "0:10",
+    durationSec: 10,
     submittedAt: "2h ago",
     prompt: "The traffic for Lagos island go always choke by seven a.m.",
-    audioSrc: DEMO_AUDIO_SRC,
+    audioSrc: "/audio/demo-ada.wav",
     device: "iPhone 14",
     language: "Nigerian English",
   },
@@ -32,11 +30,11 @@ export const REVIEW_QUEUE: ReviewQueueItem[] = [
     id: "2",
     contributor: "Kemi A.",
     mode: "Stimuli",
-    duration: "1:08",
-    durationSec: 68,
+    duration: "0:14",
+    durationSec: 14,
     submittedAt: "4h ago",
     prompt: "Tell us about a time network failure affected your work or school.",
-    audioSrc: DEMO_AUDIO_SRC,
+    audioSrc: "/audio/demo-kemi.wav",
     device: "Samsung A54",
     language: "Nigerian Pidgin",
   },
@@ -44,11 +42,11 @@ export const REVIEW_QUEUE: ReviewQueueItem[] = [
     id: "3",
     contributor: "Tunde M.",
     mode: "Prompt reader",
-    duration: "0:55",
-    durationSec: 55,
+    duration: "0:10",
+    durationSec: 10,
     submittedAt: "6h ago",
     prompt: "She dey always reach office before anybody else for her team.",
-    audioSrc: DEMO_AUDIO_SRC,
+    audioSrc: "/audio/demo-tunde.wav",
     device: "Pixel 7",
     language: "Nigerian English",
   },
@@ -56,11 +54,11 @@ export const REVIEW_QUEUE: ReviewQueueItem[] = [
     id: "4",
     contributor: "Ngozi E.",
     mode: "Stimuli",
-    duration: "1:22",
-    durationSec: 82,
+    duration: "0:14",
+    durationSec: 14,
     submittedAt: "Yesterday",
     prompt: "Describe how people around you switch between English and Pidgin in daily talk.",
-    audioSrc: DEMO_AUDIO_SRC,
+    audioSrc: "/audio/demo-ngozi.wav",
     device: "iPhone 13",
     language: "Nigerian English",
   },
@@ -100,54 +98,61 @@ export type RegionTag =
   | "clipping"
   | "off-prompt"
   | "unintelligible"
-  | "good-segment";
+  | "good-segment"
+  | "custom";
 
-export type TimestampMarker = {
+export type WaveMarker = {
   id: string;
   time: number;
   tag: RegionTag;
   label: string;
+  customText?: string;
+  color: string;
 };
 
+export const MARKER_COLORS = [
+  "#25F07D",
+  "#53A8F2",
+  "#B87CFF",
+  "#F5A623",
+  "#FF6B8A",
+  "#5CE1E6",
+] as const;
+
 export const REGION_TAGS: Array<{
-  id: RegionTag;
+  id: Exclude<RegionTag, "custom">;
   label: string;
   description: string;
 }> = [
   {
     id: "background-noise",
     label: "Background noise",
-    description: "Mark sections with interference or room noise",
+    description: "Traffic, room tone, or interference over the speaker",
   },
   {
     id: "clipping",
     label: "Clipping",
-    description: "Flag distortion or peaking on loud segments",
+    description: "Distorted or peaking audio on loud moments",
   },
   {
     id: "off-prompt",
     label: "Off-prompt",
-    description: "Speaker diverged from assigned text or stimulus",
+    description: "Speaker drifted from the assigned text or stimulus",
   },
   {
     id: "unintelligible",
     label: "Unintelligible",
-    description: "Speech is hard to understand at this point",
+    description: "Hard to understand speech at this timestamp",
   },
   {
     id: "good-segment",
     label: "Good segment",
-    description: "Highlight clean, usable audio for the corpus",
+    description: "Clean, usable audio worth keeping in the corpus",
   },
 ];
 
-export const ANNOTATION_TOOLS = [
-  { id: "scrub", label: "Waveform scrub", description: "Click or drag timeline to jump" },
-  { id: "speed", label: "Playback speed", description: "0.5x to 1.5x for careful listening" },
-  { id: "skip", label: "Skip ±5s", description: "Move backward or forward in the clip" },
-  { id: "markers", label: "Timestamp markers", description: "Drop flags at the playhead" },
-  { id: "regions", label: "Region tags", description: "Label noise, clipping, or good spans" },
-  { id: "notes", label: "Reviewer notes", description: "Free-text context for QA handoff" },
-  { id: "rubric", label: "Quality rubric", description: "Five-question inclusion checklist" },
-  { id: "verdict", label: "Verdict actions", description: "Approve, reject, or flag for review" },
+export const TRI_STATE_OPTIONS: Array<{ value: TriStateAnswer; label: string }> = [
+  { value: "yes", label: "Yes" },
+  { value: "partial", label: "Partial" },
+  { value: "no", label: "No" },
 ];

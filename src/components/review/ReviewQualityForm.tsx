@@ -1,4 +1,11 @@
-import { QUALITY_QUESTIONS, type QualityAnswers, type TriStateAnswer } from "@/data/reviewQueue";
+import {
+  QUALITY_QUESTIONS,
+  TRI_STATE_OPTIONS,
+  type QualityAnswers,
+  type TriStateAnswer,
+} from "@/data/reviewQueue";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 type ReviewQualityFormProps = {
@@ -6,12 +13,6 @@ type ReviewQualityFormProps = {
   onChange: (answers: QualityAnswers) => void;
   className?: string;
 };
-
-const TRI_OPTIONS: Array<{ value: TriStateAnswer; label: string }> = [
-  { value: "yes", label: "Yes" },
-  { value: "partial", label: "Partial" },
-  { value: "no", label: "No" },
-];
 
 export function ReviewQualityForm({
   answers,
@@ -26,34 +27,40 @@ export function ReviewQualityForm({
     <section className={cn("rounded-2xl bg-alva-card p-4", className)}>
       <h3 className="text-sm font-semibold text-foreground">Quality rubric</h3>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        Five questions before a clip enters the corpus
+        Answer each question before submitting a verdict
       </p>
 
-      <div className="mt-3 space-y-3">
-        {QUALITY_QUESTIONS.map((question) => (
-          <div key={question.id} className="rounded-xl bg-alva-surface p-3">
-            <p className="text-xs font-medium text-foreground">{question.label}</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {TRI_OPTIONS.map((option) => {
-                const isActive = answers[question.id] === option.value;
-
-                return (
-                  <button
+      <div className="mt-3">
+        {QUALITY_QUESTIONS.map((question, index) => (
+          <div key={question.id}>
+            <div className="py-3">
+              <p className="text-sm text-foreground">{question.label}</p>
+              <RadioGroup
+                value={answers[question.id]}
+                onValueChange={(value) =>
+                  setTri(question.id, value as TriStateAnswer)
+                }
+                className="mt-2 flex flex-wrap gap-4"
+              >
+                {TRI_STATE_OPTIONS.map((option) => (
+                  <label
                     key={option.value}
-                    type="button"
-                    onClick={() => setTri(question.id, option.value)}
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                      isActive
-                        ? "bg-alva-accent text-alva-bg"
-                        : "bg-alva-card text-muted-foreground hover:text-foreground"
-                    )}
+                    htmlFor={`${question.id}-${option.value}`}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
                   >
+                    <RadioGroupItem
+                      id={`${question.id}-${option.value}`}
+                      value={option.value}
+                      className="border-alva-border text-alva-accent"
+                    />
                     {option.label}
-                  </button>
-                );
-              })}
+                  </label>
+                ))}
+              </RadioGroup>
             </div>
+            {index < QUALITY_QUESTIONS.length - 1 && (
+              <Separator className="mx-2 bg-alva-border" />
+            )}
           </div>
         ))}
       </div>
