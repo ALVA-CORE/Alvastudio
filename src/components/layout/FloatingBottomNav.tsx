@@ -4,7 +4,7 @@ import type { IconProps, IconWeight } from "@solar-icons/react/lib/types";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import UserRounded from "@solar-icons/react/users/UserRounded";
-import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
+import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
 import { cn } from "@/lib/utils";
 import { alvaAccentTextureClass } from "@/lib/alva-texture";
 
@@ -21,7 +21,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { id: "home", label: "Home", path: "/dashboard", icon: HomeSmile },
   { id: "record", label: "Record", path: "/studio", icon: Microphone3 },
-  { id: "review", label: "Review", path: "/review", icon: ShieldCheck, internOnly: true },
+  { id: "review", label: "Review", path: "/review", icon: RoundedMagnifier, internOnly: true },
   { id: "profile", label: "Profile", path: "/profile", icon: UserRounded },
 ];
 
@@ -33,7 +33,7 @@ function getActiveNav(pathname: string): NavId {
 }
 
 type FloatingBottomNavProps = {
-  isIntern?: boolean;
+  isStaff?: boolean;
 };
 
 function NavIcon({
@@ -54,14 +54,14 @@ function NavIcon({
   );
 }
 
-export function FloatingBottomNav({ isIntern = false }: FloatingBottomNavProps) {
+export function FloatingBottomNav({ isStaff = false }: FloatingBottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const activeId = getActiveNav(location.pathname);
-  const items = navItems.filter((item) => !item.internOnly || isIntern);
+  const items = navItems.filter((item) => !item.internOnly || isStaff);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] md:hidden">
       <nav
         aria-label="Main navigation"
         className="pointer-events-auto flex items-center gap-0.5 rounded-full bg-alva-surface p-1 shadow-[0_8px_32px_rgba(0,0,0,0.45)] ring-1 ring-white/5"

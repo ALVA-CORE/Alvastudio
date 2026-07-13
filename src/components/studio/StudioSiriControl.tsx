@@ -1,10 +1,8 @@
 import { motion } from "framer-motion";
-import Microphone3 from "@solar-icons/react/video/Microphone3";
-import Play from "@solar-icons/react/video/Play";
-import Stop from "@solar-icons/react/video/Stop";
 import { BorderBeam } from "border-beam";
 import { cn } from "@/lib/utils";
 import type { RecorderPhase } from "@/hooks/useStudioRecorder";
+import { SiriBlob } from "./SiriBlob";
 
 type StudioSiriControlProps = {
   phase: RecorderPhase;
@@ -53,67 +51,6 @@ export function StudioSiriControl({
           </BorderBeam>
         </div>
       </button>
-    </div>
-  );
-}
-
-function SiriBlob({ phase }: { phase: RecorderPhase }) {
-  const isRecording = phase === "recording";
-
-  return (
-    <div className="relative flex size-24 items-center justify-center rounded-full bg-alva-bg">
-      <motion.div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background:
-            "conic-gradient(from 0deg, hsl(var(--alva-gradient-a)), hsl(var(--alva-gradient-b)), hsl(var(--alva-gradient-c)), hsl(var(--alva-gradient-a)))",
-        }}
-        animate={{ rotate: 360 }}
-        transition={{
-          repeat: Infinity,
-          ease: "linear",
-          duration: isRecording ? 3.5 : 8,
-        }}
-      />
-
-      <motion.div
-        className="absolute size-16 rounded-full blur-md"
-        style={{ background: "hsl(var(--alva-gradient-a) / 0.9)" }}
-        animate={{
-          x: [-10, 12, -6, -10],
-          y: [-8, 6, 12, -8],
-          scale: [1, 1.15, 0.95, 1],
-        }}
-        transition={{
-          repeat: Infinity,
-          ease: "easeInOut",
-          duration: isRecording ? 2.4 : 5,
-        }}
-      />
-      <motion.div
-        className="absolute size-14 rounded-full blur-md"
-        style={{ background: "hsl(var(--alva-gradient-c) / 0.85)" }}
-        animate={{
-          x: [10, -12, 6, 10],
-          y: [8, -6, -12, 8],
-          scale: [1, 0.9, 1.2, 1],
-        }}
-        transition={{
-          repeat: Infinity,
-          ease: "easeInOut",
-          duration: isRecording ? 2.8 : 6,
-        }}
-      />
-
-      <div className="absolute inset-[3px] rounded-full bg-alva-bg/78 backdrop-blur-sm" />
-
-      <div className="relative z-[1] text-alva-bg">
-        {phase === "idle" && <Microphone3 size={30} weight="BoldDuotone" />}
-        {phase === "recording" && <Stop size={28} weight="Bold" />}
-        {(phase === "recorded" || phase === "playing") && (
-          <Play size={28} weight="Bold" />
-        )}
-      </div>
     </div>
   );
 }

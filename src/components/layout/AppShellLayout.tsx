@@ -4,10 +4,10 @@ import { useAuth } from "@/lib/auth/context";
 
 export function AppShellLayout() {
   const { user } = useAuth();
-  const isIntern = user?.role === "intern" || user?.role === "admin";
+  const isStaff = user?.role === "intern" || user?.role === "admin";
 
   return (
-    <AppShell isIntern={isIntern}>
+    <AppShell isStaff={isStaff}>
       <Outlet />
     </AppShell>
   );

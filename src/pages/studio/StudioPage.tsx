@@ -11,6 +11,7 @@ import {
   STIMULI_PROMPTS,
 } from "@/data/prompts";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
+import { useAuth } from "@/lib/auth/context";
 import { alvaToast } from "@/lib/alva-toast";
 import { StudioModeDropdown, type StudioMode } from "@/components/studio/StudioModeDropdown";
 import { StudioProgress } from "@/components/studio/StudioProgress";
@@ -29,6 +30,8 @@ const MODE_LABEL: Record<StudioMode, string> = {
 };
 
 export default function StudioPage() {
+  const { user } = useAuth();
+  const allowFocusGroup = user?.role === "intern" || user?.role === "admin";
   const [mode, setMode] = useState<StudioMode>("prompt");
   const [currentIndex, setCurrentIndex] = useState(0);
   const recorder = useStudioRecorder();
@@ -92,13 +95,21 @@ export default function StudioPage() {
     }
   }, [recorder.error]);
 
+  useEffect(() => {
+    if (!allowFocusGroup && mode === "focus") {
+      setMode("prompt");
+      setCurrentIndex(0);
+      recorder.discardRecording();
+    }
+  }, [allowFocusGroup, mode, recorder.discardRecording]);
+
   return (
     <div className="px-4 py-6">
       <div className="flex items-start gap-3">
         <StudioModeDropdown
           value={mode}
           onChange={handleModeChange}
-          allowFocusGroup
+          allowFocusGroup={allowFocusGroup}
         />
         <StudioProgress
           className="min-w-0 flex-1"
