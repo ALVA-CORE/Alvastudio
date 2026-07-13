@@ -20,24 +20,24 @@ export function ReviewClipNavigation({
         className
       )}
     >
-      <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-alva-border/60 bg-alva-card/95 p-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
+      <div className="pointer-events-auto inline-flex items-center gap-1 rounded-full border border-alva-border/60 bg-alva-card/95 p-0.5 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
         <button
           type="button"
           onClick={onPrevious}
           disabled={!onPrevious}
-          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
         >
-          <AltArrowLeft size={16} weight="Outline" />
-          Previous
+          <AltArrowLeft size={14} weight="Outline" />
+          Prev
         </button>
         <button
           type="button"
           onClick={onNext}
           disabled={!onNext}
-          className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
         >
-          Next clip
-          <AltArrowRight size={16} weight="Outline" />
+          Next
+          <AltArrowRight size={14} weight="Outline" />
         </button>
       </div>
     </div>

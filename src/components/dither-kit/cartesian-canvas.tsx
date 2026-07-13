@@ -7,6 +7,7 @@ import {
   paintColumn,
   prefersReducedMotion,
   resample,
+  resampleSmooth,
 } from "./dither-paint"
 import { rgb } from "./palette"
 
@@ -313,7 +314,12 @@ export function CartesianCanvas() {
       const floor = band.map((b, i) =>
         line ? Math.min(rows - 1, top[i] + glow) : (y(b[0]) / h) * (rows - 1)
       )
-      out[key] = { top: resample(top, cols), floor: resample(floor, cols) }
+      const resampleFn = line ? resampleSmooth : resample
+      const topResampled = resampleFn(top, cols)
+      const floorResampled = line
+        ? topResampled.map((value) => Math.min(rows - 1, value + glow))
+        : resampleFn(floor, cols)
+      out[key] = { top: topResampled, floor: floorResampled }
     }
     return out
   }, [ready, chartType, configKeys, bands, seriesSpecs, y, height, rows, cols])

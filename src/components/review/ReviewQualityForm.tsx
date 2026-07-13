@@ -5,7 +5,6 @@ import {
   type TriStateAnswer,
 } from "@/data/reviewQueue";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 type ReviewQualityFormProps = {
@@ -59,7 +58,7 @@ export function ReviewQualityForm({
               </RadioGroup>
             </div>
             {index < QUALITY_QUESTIONS.length - 1 && (
-              <Separator className="mx-2 bg-alva-border" />
+              <div className="mx-2 h-px bg-alva-border" />
             )}
           </div>
         ))}

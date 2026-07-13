@@ -1,4 +1,8 @@
+import { buildReviewQueue } from "@/data/reviewQueueData";
+
 export type ReviewVerdict = "approve" | "reject" | "flag";
+
+export type ReviewQueueStatus = "pending" | "completed";
 
 export type ReviewQueueItem = {
   id: string;
@@ -11,58 +15,17 @@ export type ReviewQueueItem = {
   audioSrc: string;
   device: string;
   language: string;
+  status: ReviewQueueStatus;
+  draft?: {
+    answers: QualityAnswers;
+    notes: string;
+    regions: AudioRegion[];
+    playbackTime: number;
+    completed: boolean;
+  };
 };
 
-export const REVIEW_QUEUE: ReviewQueueItem[] = [
-  {
-    id: "1",
-    contributor: "Ada O.",
-    mode: "Prompt reader",
-    duration: "0:10",
-    durationSec: 10,
-    submittedAt: "2h ago",
-    prompt: "The traffic for Lagos island go always choke by seven a.m.",
-    audioSrc: "/audio/demo-ada.wav",
-    device: "iPhone 14",
-    language: "Nigerian English",
-  },
-  {
-    id: "2",
-    contributor: "Kemi A.",
-    mode: "Stimuli",
-    duration: "0:14",
-    durationSec: 14,
-    submittedAt: "4h ago",
-    prompt: "Tell us about a time network failure affected your work or school.",
-    audioSrc: "/audio/demo-kemi.wav",
-    device: "Samsung A54",
-    language: "Nigerian Pidgin",
-  },
-  {
-    id: "3",
-    contributor: "Tunde M.",
-    mode: "Prompt reader",
-    duration: "0:10",
-    durationSec: 10,
-    submittedAt: "6h ago",
-    prompt: "She dey always reach office before anybody else for her team.",
-    audioSrc: "/audio/demo-tunde.wav",
-    device: "Pixel 7",
-    language: "Nigerian English",
-  },
-  {
-    id: "4",
-    contributor: "Ngozi E.",
-    mode: "Stimuli",
-    duration: "0:14",
-    durationSec: 14,
-    submittedAt: "Yesterday",
-    prompt: "Describe how people around you switch between English and Pidgin in daily talk.",
-    audioSrc: "/audio/demo-ngozi.wav",
-    device: "iPhone 13",
-    language: "Nigerian English",
-  },
-];
+export const REVIEW_QUEUE: ReviewQueueItem[] = buildReviewQueue();
 
 export type TriStateAnswer = "yes" | "partial" | "no" | "";
 
@@ -168,3 +131,12 @@ export const TRI_STATE_OPTIONS: Array<{ value: TriStateAnswer; label: string }> 
   { value: "partial", label: "Partial" },
   { value: "no", label: "No" },
 ];
+
+export const REVIEW_STATUS_LABELS: Record<
+  "not-started" | "in-progress" | "completed",
+  string
+> = {
+  "not-started": "Not started",
+  "in-progress": "In progress",
+  completed: "Done",
+};

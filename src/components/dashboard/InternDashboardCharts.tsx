@@ -4,8 +4,8 @@ import {
   DASHBOARD_DATA,
   type DashboardTimeRange,
 } from "@/data/internDashboard";
-import { Area } from "@/components/dither-kit/area";
-import { AreaChart } from "@/components/dither-kit/area-chart";
+import { Line } from "@/components/dither-kit/area";
+import { LineChart } from "@/components/dither-kit/area-chart";
 import { Grid } from "@/components/dither-kit/grid";
 import { Legend } from "@/components/dither-kit/legend";
 import { Radar } from "@/components/dither-kit/radar";
@@ -22,6 +22,7 @@ const radarConfig = {
 const areaConfig = {
   prompts: { label: "Prompt reads", color: "green" as const },
   stimuli: { label: "Stimuli", color: "blue" as const },
+  focusGroup: { label: "Focus group", color: "purple" as const },
 };
 
 type InternDashboardChartsProps = {
@@ -97,12 +98,11 @@ export function InternDashboardCharts({
 
       <ChartCard
         title="Capture volume"
-        subtitle="Prompt reads and stimuli stacked over time"
+        subtitle="Prompt reads, stimuli, and focus group by mode over time"
       >
-        <AreaChart
+        <LineChart
           data={dataset.captureTrend}
           config={areaConfig}
-          stackType="stacked"
           bloom="aura"
           className="h-[17rem] w-full"
         >
@@ -111,9 +111,10 @@ export function InternDashboardCharts({
           <YAxis />
           <Legend isClickable />
           <Tooltip labelKey="month" />
-          <Area dataKey="prompts" variant="gradient" isClickable />
-          <Area dataKey="stimuli" variant="hatched" isClickable />
-        </AreaChart>
+          <Line dataKey="prompts" variant="gradient" isClickable />
+          <Line dataKey="stimuli" variant="hatched" isClickable />
+          <Line dataKey="focusGroup" variant="gradient" isClickable />
+        </LineChart>
       </ChartCard>
     </div>
   );

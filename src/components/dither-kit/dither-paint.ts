@@ -109,6 +109,44 @@ export function resample(src: number[], cols: number): number[] {
   return out
 }
 
+function catmullRomAt(points: number[], t: number) {
+  const n = points.length
+  if (n === 0) return 0
+  if (n === 1) return points[0]
+  if (t <= 0) return points[0]
+  if (t >= n - 1) return points[n - 1]
+
+  const i = Math.floor(t)
+  const f = t - i
+  const p0 = points[Math.max(0, i - 1)]
+  const p1 = points[i]
+  const p2 = points[Math.min(n - 1, i + 1)]
+  const p3 = points[Math.min(n - 1, i + 2)]
+  const f2 = f * f
+  const f3 = f2 * f
+
+  return (
+    0.5 *
+    (2 * p1 +
+      (-p0 + p2) * f +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * f2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * f3)
+  )
+}
+
+/** Smooth-resample with a Catmull-Rom spline so line charts read wavy, not linear. */
+export function resampleSmooth(src: number[], cols: number): number[] {
+  if (src.length <= 2) return resample(src, cols)
+
+  const out = new Array<number>(cols)
+  const last = Math.max(src.length - 1, 1)
+  for (let c = 0; c < cols; c++) {
+    const t = (c / Math.max(cols - 1, 1)) * last
+    out[c] = catmullRomAt(src, t)
+  }
+  return out
+}
+
 /** Backing-canvas resolution for a plot rect — low-res, scaled up `pixelated`. */
 export function backingSize(width: number, height: number) {
   return {

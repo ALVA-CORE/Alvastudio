@@ -6,16 +6,12 @@ import Pause from "@solar-icons/react/video/Pause";
 import Play from "@solar-icons/react/video/Play";
 import Rewind5SecondsBack from "@solar-icons/react/video/Rewind5SecondsBack";
 import Rewind5SecondsForward from "@solar-icons/react/video/Rewind5SecondsForward";
+import Pen2 from "@solar-icons/react/messages/Pen2";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
 import { BorderBeam } from "border-beam";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   MARKER_COLORS,
   REGION_TAGS,
@@ -29,25 +25,88 @@ type ReviewAudioPlayerProps = {
   src: string;
   regions: AudioRegion[];
   onRegionsChange: (regions: AudioRegion[]) => void;
+  initialPlaybackTime?: number;
+  onPlaybackTimeChange?: (time: number) => void;
   className?: string;
 };
-
-function getRegionDescription(region: AudioRegion) {
-  if (region.tag === "custom") {
-    return region.customText || "Your own note for this segment";
-  }
-  return REGION_TAGS.find((tag) => tag.id === region.tag)?.description ?? "";
-}
 
 function regionLabel(region: AudioRegion) {
   if (region.tag === "custom" && region.customText) return region.customText;
   return region.label;
 }
 
+function RegionTagEditor({
+  region,
+  onUpdate,
+  onDelete,
+}: {
+  region: AudioRegion;
+  onUpdate: (patch: Partial<AudioRegion>) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {formatAudioTime(region.start)} – {formatAudioTime(region.end)}
+      </p>
+
+      <div className="flex flex-wrap gap-1">
+        {REGION_TAGS.map((tag) => (
+          <button
+            key={tag.id}
+            type="button"
+            title={tag.description}
+            onClick={() =>
+              onUpdate({
+                tag: tag.id,
+                label: tag.label,
+                customText: undefined,
+              })
+            }
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+              region.tag === tag.id
+                ? "bg-alva-accent text-alva-bg"
+                : "bg-alva-surface text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tag.label}
+          </button>
+        ))}
+      </div>
+
+      <input
+        type="text"
+        value={region.customText ?? ""}
+        placeholder="Custom tag"
+        onChange={(event) =>
+          onUpdate({
+            tag: "custom",
+            label: event.target.value || "Custom",
+            customText: event.target.value,
+          })
+        }
+        className="h-8 w-full rounded-lg border-0 bg-alva-surface px-2 text-xs text-foreground outline-none placeholder:text-muted-foreground"
+      />
+
+      <button
+        type="button"
+        onClick={onDelete}
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      >
+        <CloseCircle size={14} weight="Outline" />
+        Remove highlight
+      </button>
+    </div>
+  );
+}
+
 export function ReviewAudioPlayer({
   src,
   regions,
   onRegionsChange,
+  initialPlaybackTime = 0,
+  onPlaybackTimeChange,
   className,
 }: ReviewAudioPlayerProps) {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
@@ -56,13 +115,14 @@ export function ReviewAudioPlayer({
   const onRegionsChangeRef = useRef(onRegionsChange);
   const syncingRef = useRef(false);
   const regionMapRef = useRef(new Map<string, Region>());
+  const restoredPlaybackRef = useRef(false);
 
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
+  const [editingRegionId, setEditingRegionId] = useState<string | null>(null);
 
   regionsRef.current = regions;
   onRegionsChangeRef.current = onRegionsChange;
@@ -86,10 +146,9 @@ export function ReviewAudioPlayer({
         id: entry.id,
         start: entry.start,
         end: entry.end,
-        color: colorWithAlpha(entry.color),
+        color: colorWithAlpha(entry.color, 0.42),
         resize: true,
         drag: true,
-        content: regionLabel(entry),
       });
       regionMapRef.current.set(entry.id, region);
     });
@@ -107,14 +166,16 @@ export function ReviewAudioPlayer({
 
   const removeRegion = useCallback((id: string) => {
     onRegionsChangeRef.current(regionsRef.current.filter((region) => region.id !== id));
-    if (activeRegionId === id) setActiveRegionId(null);
-  }, [activeRegionId]);
+    if (editingRegionId === id) setEditingRegionId(null);
+  }, [editingRegionId]);
 
   const handleReady = useCallback(
     (wavesurfer: WaveSurfer) => {
       wavesurferRef.current = wavesurfer;
-      setDuration(wavesurfer.getDuration());
+      const audioDuration = wavesurfer.getDuration();
+      setDuration(audioDuration);
       setIsReady(true);
+      restoredPlaybackRef.current = false;
 
       const plugin = regionsPluginRef.current;
       if (!plugin) return;
@@ -124,7 +185,7 @@ export function ReviewAudioPlayer({
         minLength: 0.12,
         resize: true,
         drag: true,
-        color: colorWithAlpha(MARKER_COLORS[0]),
+        color: colorWithAlpha(MARKER_COLORS[0], 0.42),
       });
 
       plugin.on("region-created", (region) => {
@@ -136,8 +197,7 @@ export function ReviewAudioPlayer({
 
         region.setOptions({
           id,
-          color: colorWithAlpha(color),
-          content: preset.label,
+          color: colorWithAlpha(color, 0.42),
         });
 
         const entry: AudioRegion = {
@@ -151,7 +211,6 @@ export function ReviewAudioPlayer({
 
         regionMapRef.current.set(id, region);
         upsertRegion(entry);
-        setActiveRegionId(id);
       });
 
       plugin.on("region-updated", (region) => {
@@ -173,38 +232,42 @@ export function ReviewAudioPlayer({
         removeRegion(region.id);
       });
 
-      plugin.on("region-clicked", (region) => {
-        setActiveRegionId((current) => (current === region.id ? null : region.id));
-      });
+      if (initialPlaybackTime > 0) {
+        wavesurfer.setTime(Math.min(initialPlaybackTime, audioDuration));
+        setCurrentTime(Math.min(initialPlaybackTime, audioDuration));
+        restoredPlaybackRef.current = true;
+      }
     },
-    [removeRegion, syncRegionsToPlugin, upsertRegion]
+    [initialPlaybackTime, removeRegion, syncRegionsToPlugin, upsertRegion]
   );
 
   useEffect(() => {
     return () => {
       wavesurferRef.current = null;
       setIsReady(false);
+      restoredPlaybackRef.current = false;
     };
   }, [src]);
 
-  const activeRegion = regions.find((region) => region.id === activeRegionId);
+  useEffect(() => {
+    onPlaybackTimeChange?.(currentTime);
+  }, [currentTime, onPlaybackTimeChange]);
 
-  const updateActiveRegion = (patch: Partial<AudioRegion>) => {
-    if (!activeRegion) return;
+  const updateRegion = (id: string, patch: Partial<AudioRegion>) => {
+    const existing = regions.find((region) => region.id === id);
+    if (!existing) return;
 
-    const next = { ...activeRegion, ...patch };
+    const next = { ...existing, ...patch };
     upsertRegion(next);
 
-    const pluginRegion = regionMapRef.current.get(activeRegion.id);
+    const pluginRegion = regionMapRef.current.get(id);
     pluginRegion?.setOptions({
-      color: colorWithAlpha(next.color),
-      content: regionLabel(next),
+      color: colorWithAlpha(next.color, 0.42),
     });
   };
 
-  const deleteActiveRegion = () => {
-    if (!activeRegion) return;
-    regionMapRef.current.get(activeRegion.id)?.remove();
+  const deleteRegion = (id: string) => {
+    regionMapRef.current.get(id)?.remove();
   };
 
   const togglePlay = () => {
@@ -214,7 +277,9 @@ export function ReviewAudioPlayer({
   const skipBy = (seconds: number) => {
     const wavesurfer = wavesurferRef.current;
     if (!wavesurfer) return;
-    wavesurfer.setTime(Math.max(0, Math.min(wavesurfer.getDuration(), wavesurfer.getCurrentTime() + seconds)));
+    wavesurfer.setTime(
+      Math.max(0, Math.min(wavesurfer.getDuration(), wavesurfer.getCurrentTime() + seconds))
+    );
   };
 
   const seek = (time: number) => {
@@ -228,34 +293,90 @@ export function ReviewAudioPlayer({
 
   return (
     <section className={cn("rounded-2xl bg-alva-card p-4", className)}>
-      <div className="relative overflow-visible rounded-xl">
+      <div className="relative overflow-visible rounded-xl p-[3px]">
         <BorderBeam
           size="md"
           colorVariant="mono"
           theme="dark"
           strength={1}
           duration={1.9}
-          borderRadius={12}
+          borderRadius={14}
+          className="overflow-visible"
         >
-          <div className="overflow-hidden rounded-xl bg-alva-surface px-2 py-3">
-            <WavesurferPlayer
-              key={src}
-              url={src}
-              height={176}
-              waveColor="hsl(var(--alva-border))"
-              progressColor="#25F07D"
-              cursorColor="#25F07D"
-              barWidth={3}
-              barGap={2}
-              barRadius={3}
-              normalize
-              interact
-              plugins={plugins}
-              onReady={handleReady}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onTimeupdate={(_, time) => setCurrentTime(time)}
-            />
+          <div className="relative overflow-visible rounded-[11px] bg-alva-surface px-2 py-3">
+            {duration > 0 && regions.length > 0 && (
+              <div className="relative mb-2 h-6 w-full overflow-visible">
+                {regions.map((region) => {
+                  const left = (region.start / duration) * 100;
+                  const width = Math.max(((region.end - region.start) / duration) * 100, 0.5);
+                  const isEditing = editingRegionId === region.id;
+
+                  return (
+                    <div
+                      key={region.id}
+                      className="pointer-events-none absolute top-0 h-full"
+                      style={{ left: `${left}%`, width: `${width}%` }}
+                    >
+                      <div className="pointer-events-auto absolute right-0 top-0 z-20 flex items-center gap-0.5">
+                        <span
+                          className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-none text-alva-bg shadow-sm"
+                          style={{ backgroundColor: region.color }}
+                        >
+                          {regionLabel(region)}
+                        </span>
+
+                        <Popover
+                          open={isEditing}
+                          onOpenChange={(open) => setEditingRegionId(open ? region.id : null)}
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex size-4 items-center justify-center rounded-md text-alva-bg shadow-sm"
+                              style={{ backgroundColor: region.color }}
+                              aria-label={`Edit tag for ${regionLabel(region)}`}
+                            >
+                              <Pen2 size={10} weight="Bold" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="end"
+                            className="w-56 rounded-xl border-alva-border bg-alva-card p-2"
+                          >
+                            <RegionTagEditor
+                              region={region}
+                              onUpdate={(patch) => updateRegion(region.id, patch)}
+                              onDelete={() => deleteRegion(region.id)}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="relative overflow-hidden rounded-lg">
+              <WavesurferPlayer
+                key={src}
+                url={src}
+                height={176}
+                waveColor="hsl(var(--alva-border))"
+                progressColor="#25F07D"
+                cursorColor="#25F07D"
+                barWidth={3}
+                barGap={2}
+                barRadius={3}
+                normalize
+                interact
+                plugins={plugins}
+                onReady={handleReady}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onTimeupdate={(_, time) => setCurrentTime(time)}
+              />
+            </div>
           </div>
         </BorderBeam>
       </div>
@@ -263,87 +384,6 @@ export function ReviewAudioPlayer({
       <p className="mt-2 text-center text-[11px] text-muted-foreground">
         Drag on the waveform to highlight a segment
       </p>
-
-      {activeRegion && (
-        <div
-          className="mt-3 rounded-xl bg-alva-surface p-3"
-          style={{ borderTop: `3px solid ${activeRegion.color}` }}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {formatAudioTime(activeRegion.start)} – {formatAudioTime(activeRegion.end)}
-              </p>
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <p className="mt-1 cursor-default text-sm font-medium text-foreground">
-                      {regionLabel(activeRegion)}
-                    </p>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-48 border-alva-border bg-alva-card text-xs text-foreground">
-                    {getRegionDescription(activeRegion)}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <button
-              type="button"
-              onClick={deleteActiveRegion}
-              className="text-muted-foreground hover:text-foreground"
-              aria-label="Remove highlight"
-            >
-              <CloseCircle size={16} weight="Outline" />
-            </button>
-          </div>
-
-          <TooltipProvider delayDuration={100}>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {REGION_TAGS.map((tag) => (
-                <Tooltip key={tag.id}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateActiveRegion({
-                          tag: tag.id,
-                          label: tag.label,
-                          customText: undefined,
-                        })
-                      }
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
-                        activeRegion.tag === tag.id
-                          ? "bg-alva-accent text-alva-bg"
-                          : "bg-alva-card text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {tag.label}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-48 border-alva-border bg-alva-card text-xs text-foreground">
-                    {tag.description}
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-          </TooltipProvider>
-
-          <input
-            type="text"
-            value={activeRegion.customText ?? ""}
-            placeholder="Custom tag"
-            onChange={(event) =>
-              updateActiveRegion({
-                tag: "custom",
-                label: event.target.value || "Custom",
-                customText: event.target.value,
-              })
-            }
-            className="mt-2 h-8 w-full rounded-lg border-0 bg-alva-card px-2 text-xs text-foreground outline-none placeholder:text-muted-foreground"
-          />
-        </div>
-      )}
 
       <div className="mt-3">
         <Slider
@@ -371,15 +411,27 @@ export function ReviewAudioPlayer({
             <Rewind5SecondsBack size={18} weight="Outline" />
           </button>
 
-          <button
-            type="button"
-            aria-label={isPlaying ? "Pause" : "Play"}
-            onClick={togglePlay}
-            disabled={!isReady}
-            className="flex size-11 items-center justify-center rounded-full bg-alva-accent text-alva-bg disabled:opacity-40"
-          >
-            {isPlaying ? <Pause size={20} weight="Bold" /> : <Play size={20} weight="Bold" />}
-          </button>
+          <div className="relative overflow-visible rounded-full">
+            <BorderBeam
+              size="pulse-outside"
+              colorVariant="mono"
+              theme="dark"
+              strength={1}
+              duration={1.9}
+              borderRadius={999}
+              className="overflow-visible rounded-full"
+            >
+              <button
+                type="button"
+                aria-label={isPlaying ? "Pause" : "Play"}
+                onClick={togglePlay}
+                disabled={!isReady}
+                className="relative z-[1] flex size-11 items-center justify-center rounded-full bg-alva-accent text-alva-bg disabled:opacity-40"
+              >
+                {isPlaying ? <Pause size={20} weight="Bold" /> : <Play size={20} weight="Bold" />}
+              </button>
+            </BorderBeam>
+          </div>
 
           <button
             type="button"

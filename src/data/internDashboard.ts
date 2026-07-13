@@ -11,7 +11,7 @@ export const DASHBOARD_TIME_RANGES: Array<{
 ];
 
 type WeeklyPoint = { day: string; sessions: number };
-type TrendPoint = { month: string; prompts: number; stimuli: number };
+type TrendPoint = { month: string; prompts: number; stimuli: number; focusGroup: number };
 type RadarPoint = { metric: string; score: number };
 
 type DashboardDataset = {
@@ -41,15 +41,41 @@ const WEEKLY_7D: WeeklyPoint[] = [
   { day: "Sun", sessions: 8 },
 ];
 
+const TREND_7D: TrendPoint[] = [
+  { month: "Mon", prompts: 14, stimuli: 9, focusGroup: 4 },
+  { month: "Tue", prompts: 22, stimuli: 14, focusGroup: 5 },
+  { month: "Wed", prompts: 18, stimuli: 12, focusGroup: 4 },
+  { month: "Thu", prompts: 26, stimuli: 16, focusGroup: 6 },
+  { month: "Fri", prompts: 20, stimuli: 13, focusGroup: 5 },
+  { month: "Sat", prompts: 12, stimuli: 8, focusGroup: 3 },
+  { month: "Sun", prompts: 16, stimuli: 10, focusGroup: 4 },
+];
+
+const TREND_30D: TrendPoint[] = [
+  { month: "Wk 1", prompts: 44, stimuli: 30, focusGroup: 12 },
+  { month: "Wk 2", prompts: 58, stimuli: 36, focusGroup: 16 },
+  { month: "Wk 3", prompts: 49, stimuli: 33, focusGroup: 14 },
+  { month: "Wk 4", prompts: 62, stimuli: 41, focusGroup: 18 },
+];
+
+const TREND_90D: TrendPoint[] = [
+  { month: "Mar", prompts: 132, stimuli: 88, focusGroup: 31 },
+  { month: "Apr", prompts: 176, stimuli: 104, focusGroup: 42 },
+  { month: "May", prompts: 164, stimuli: 118, focusGroup: 39 },
+  { month: "Jun", prompts: 198, stimuli: 126, focusGroup: 48 },
+  { month: "Jul", prompts: 210, stimuli: 138, focusGroup: 52 },
+  { month: "Aug", prompts: 224, stimuli: 152, focusGroup: 56 },
+];
+
 const TREND_12M: TrendPoint[] = [
-  { month: "Jan", prompts: 120, stimuli: 66 },
-  { month: "Feb", prompts: 148, stimuli: 92 },
-  { month: "Mar", prompts: 132, stimuli: 88 },
-  { month: "Apr", prompts: 176, stimuli: 104 },
-  { month: "May", prompts: 164, stimuli: 118 },
-  { month: "Jun", prompts: 198, stimuli: 126 },
-  { month: "Jul", prompts: 210, stimuli: 138 },
-  { month: "Aug", prompts: 224, stimuli: 152 },
+  { month: "Jan", prompts: 120, stimuli: 66, focusGroup: 28 },
+  { month: "Feb", prompts: 148, stimuli: 92, focusGroup: 34 },
+  { month: "Mar", prompts: 132, stimuli: 88, focusGroup: 31 },
+  { month: "Apr", prompts: 176, stimuli: 104, focusGroup: 42 },
+  { month: "May", prompts: 164, stimuli: 118, focusGroup: 39 },
+  { month: "Jun", prompts: 198, stimuli: 126, focusGroup: 48 },
+  { month: "Jul", prompts: 210, stimuli: 138, focusGroup: 52 },
+  { month: "Aug", prompts: 224, stimuli: 152, focusGroup: 56 },
 ];
 
 const RADAR_BASE: RadarPoint[] = [
@@ -64,7 +90,7 @@ const RADAR_BASE: RadarPoint[] = [
 export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
   "7d": {
     weeklySessions: WEEKLY_7D,
-    captureTrend: TREND_12M.slice(-2),
+    captureTrend: TREND_7D,
     qualityRadar: RADAR_BASE.map((item) => ({
       ...item,
       score: Math.min(100, item.score + 4),
@@ -83,7 +109,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
   },
   "30d": {
     weeklySessions: WEEKLY_7D,
-    captureTrend: TREND_12M.slice(-4),
+    captureTrend: TREND_30D,
     qualityRadar: RADAR_BASE,
     metrics: {
       hours: "38.5h",
@@ -102,7 +128,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
       ...item,
       sessions: Math.round(item.sessions * 1.15),
     })),
-    captureTrend: TREND_12M.slice(-6),
+    captureTrend: TREND_90D,
     qualityRadar: RADAR_BASE.map((item) => ({
       ...item,
       score: Math.max(60, item.score - 3),

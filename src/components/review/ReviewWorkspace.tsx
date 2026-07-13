@@ -11,6 +11,8 @@ type ReviewWorkspaceProps = {
   onNotesChange: (value: string) => void;
   regions: AudioRegion[];
   onRegionsChange: (regions: AudioRegion[]) => void;
+  playbackTime?: number;
+  onPlaybackTimeChange?: (time: number) => void;
   onVerdict: (verdict: ReviewVerdict) => void;
 };
 
@@ -22,6 +24,8 @@ export function ReviewWorkspace({
   onNotesChange,
   regions,
   onRegionsChange,
+  playbackTime,
+  onPlaybackTimeChange,
   onVerdict,
 }: ReviewWorkspaceProps) {
   return (
@@ -56,6 +60,8 @@ export function ReviewWorkspace({
         src={item.audioSrc}
         regions={regions}
         onRegionsChange={onRegionsChange}
+        initialPlaybackTime={playbackTime}
+        onPlaybackTimeChange={onPlaybackTimeChange}
       />
 
       <div className="grid gap-2 lg:grid-cols-2">
