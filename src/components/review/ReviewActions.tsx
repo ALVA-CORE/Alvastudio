@@ -34,11 +34,11 @@ export function ReviewActions({
         />
       </label>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-nowrap items-center justify-end gap-2">
         <TextureButton
           variant="alva"
           size="sm"
-          className="w-auto flex-1 min-w-[7rem]"
+          className="w-auto shrink-0"
           onClick={() => onVerdict("approve")}
         >
           <span className="flex items-center justify-center gap-2">
@@ -50,7 +50,7 @@ export function ReviewActions({
         <TextureButton
           variant="destructive"
           size="sm"
-          className="w-auto flex-1 min-w-[7rem]"
+          className="w-auto shrink-0"
           onClick={() => onVerdict("reject")}
         >
           <span className="flex items-center justify-center gap-2">
@@ -62,7 +62,7 @@ export function ReviewActions({
         <TextureButton
           variant="minimal"
           size="sm"
-          className="w-auto flex-1 min-w-[7rem]"
+          className="w-auto shrink-0"
           onClick={() => onVerdict("flag")}
         >
           <span className="flex items-center justify-center gap-2">

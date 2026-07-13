@@ -52,9 +52,9 @@ const TREND_7D: TrendPoint[] = [
 ];
 
 const TREND_30D: TrendPoint[] = [
-  { month: "Wk 1", prompts: 44, stimuli: 30, focusGroup: 12 },
-  { month: "Wk 2", prompts: 58, stimuli: 36, focusGroup: 16 },
-  { month: "Wk 3", prompts: 49, stimuli: 33, focusGroup: 14 },
+  { month: "Wk 1", prompts: 10, stimuli: 40, focusGroup: 2 },
+  { month: "Wk 2", prompts: 48, stimuli: 36, focusGroup: 16 },
+  { month: "Wk 3", prompts: 19, stimuli: 22, focusGroup: 40 },
   { month: "Wk 4", prompts: 62, stimuli: 41, focusGroup: 18 },
 ];
 
