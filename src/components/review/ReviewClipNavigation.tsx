@@ -14,8 +14,13 @@ export function ReviewClipNavigation({
   className,
 }: ReviewClipNavigationProps) {
   return (
-    <div className={cn("flex justify-center py-6", className)}>
-      <div className="inline-flex items-center gap-2 rounded-full bg-alva-surface p-1">
+    <div
+      className={cn(
+        "pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 md:bottom-6",
+        className
+      )}
+    >
+      <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-alva-border/60 bg-alva-card/95 p-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md">
         <button
           type="button"
           onClick={onPrevious}

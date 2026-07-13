@@ -1,88 +1,81 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { REVIEW_QUEUE } from "@/data/reviewQueue";
-import { ReviewWorkspace } from "@/components/review/ReviewWorkspace";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 
 export default function ReviewPage() {
-  const isMobile = useIsMobile();
-  const [activeId, setActiveId] = useState(REVIEW_QUEUE[0]?.id ?? "");
-  const activeIndex = REVIEW_QUEUE.findIndex((item) => item.id === activeId);
-  const activeItem = REVIEW_QUEUE[activeIndex] ?? REVIEW_QUEUE[0];
-
-  const goTo = (index: number) => {
-    const item = REVIEW_QUEUE[index];
-    if (item) setActiveId(item.id);
-  };
-
-  if (!isMobile) {
-    return (
-      <div className="px-6 py-4">
-        <div className="mx-auto w-full max-w-6xl">
-          {activeItem && (
-            <ReviewWorkspace
-              item={activeItem}
-              queueItems={REVIEW_QUEUE}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onPrevious={activeIndex > 0 ? () => goTo(activeIndex - 1) : undefined}
-              onNext={
-                activeIndex < REVIEW_QUEUE.length - 1
-                  ? () => goTo(activeIndex + 1)
-                  : undefined
-              }
-            />
-          )}
-        </div>
-      </div>
-    );
-  }
+  const navigate = useNavigate();
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex items-center gap-2">
-        <RoundedMagnifier size={22} weight="BoldDuotone" className="text-alva-accent" />
-        <div>
-          <h1 className="font-display text-2xl">Review</h1>
-          <p className="text-sm text-muted-foreground">Intern QA queue</p>
+    <div className="px-4 py-4 md:px-6">
+      <div className="mx-auto w-full max-w-6xl space-y-4">
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="font-display text-2xl text-foreground">Review</h1>
+          </div>
         </div>
+
+        <AlvaDataTable
+          title="Pending clips"
+          rows={REVIEW_QUEUE}
+          pageSize={8}
+          searchPlaceholder="Search contributors, mode, prompt"
+          searchKeys={["contributor", "mode", "prompt", "language"]}
+          onRowClick={(row) => navigate(`/review/${row.id}`)}
+          mobilePrimary={(row) => ({
+            title: row.contributor,
+            subtitle: `${row.mode} · ${row.duration} · ${row.submittedAt}`,
+          })}
+          emptyState={{
+            icon: <RoundedMagnifier size={20} weight="Outline" />,
+            title: "No clips in queue",
+            description: "New contributor submissions will appear here.",
+          }}
+          columns={[
+            {
+              key: "contributor",
+              header: "Contributor",
+              sortValue: (row) => row.contributor,
+              render: (row) => (
+                <span className="font-medium text-foreground">{row.contributor}</span>
+              ),
+            },
+            {
+              key: "mode",
+              header: "Mode",
+              sortValue: (row) => row.mode,
+              render: (row) => <span className="text-muted-foreground">{row.mode}</span>,
+            },
+            {
+              key: "duration",
+              header: "Duration",
+              sortValue: (row) => row.durationSec,
+              render: (row) => <span className="text-muted-foreground">{row.duration}</span>,
+            },
+            {
+              key: "language",
+              header: "Language",
+              sortValue: (row) => row.language,
+              render: (row) => <span className="text-muted-foreground">{row.language}</span>,
+            },
+            {
+              key: "submitted",
+              header: "Submitted",
+              sortValue: (row) => row.submittedAt,
+              render: (row) => <span className="text-muted-foreground">{row.submittedAt}</span>,
+            },
+            {
+              key: "prompt",
+              header: "Prompt",
+              render: (row) => (
+                <TruncateCell title={row.prompt} className="text-muted-foreground">
+                  {row.prompt}
+                </TruncateCell>
+              ),
+            },
+          ]}
+        />
       </div>
-
-      {activeItem && (
-        <div className="mt-4">
-          <ReviewWorkspace
-            item={activeItem}
-            queueItems={REVIEW_QUEUE}
-            activeId={activeId}
-            onSelect={setActiveId}
-            onPrevious={activeIndex > 0 ? () => goTo(activeIndex - 1) : undefined}
-            onNext={
-              activeIndex < REVIEW_QUEUE.length - 1
-                ? () => goTo(activeIndex + 1)
-                : undefined
-            }
-          />
-        </div>
-      )}
-
-      <Card className="mt-2 border-alva-border bg-alva-card">
-        <CardHeader>
-          <CardTitle className="font-display text-lg">Queue</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {REVIEW_QUEUE.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveId(item.id)}
-              className="block w-full rounded-xl bg-alva-surface px-3 py-2 text-left text-sm"
-            >
-              {item.contributor} · {item.mode}
-            </button>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 }

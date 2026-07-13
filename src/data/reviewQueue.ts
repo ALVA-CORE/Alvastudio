@@ -101,14 +101,26 @@ export type RegionTag =
   | "good-segment"
   | "custom";
 
-export type WaveMarker = {
+export type AudioRegion = {
   id: string;
-  time: number;
+  start: number;
+  end: number;
   tag: RegionTag;
   label: string;
   customText?: string;
   color: string;
 };
+
+/** @deprecated Use AudioRegion */
+export type WaveMarker = AudioRegion;
+
+export function colorWithAlpha(hex: string, alpha = 0.35) {
+  const normalized = hex.replace("#", "");
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export const MARKER_COLORS = [
   "#25F07D",

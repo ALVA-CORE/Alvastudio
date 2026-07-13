@@ -24,7 +24,6 @@ export default function InternDashboard() {
     <DesktopPageShell>
       <header className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <p className="text-sm text-muted-foreground">{roleLabel} dashboard</p>
           <h1 className="mt-1 text-2xl font-semibold text-foreground">
             How far, {firstName}
           </h1>
