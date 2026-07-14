@@ -4,7 +4,7 @@ import type { IconProps, IconWeight } from "@solar-icons/react/lib/types";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import UserRounded from "@solar-icons/react/users/UserRounded";
-import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
+import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { cn } from "@/lib/utils";
 import { alvaAccentTextureClass } from "@/lib/alva-texture";
 
@@ -21,7 +21,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { id: "home", label: "Home", path: "/dashboard", icon: HomeSmile },
   { id: "record", label: "Record", path: "/studio", icon: Microphone3 },
-  { id: "review", label: "Review", path: "/review", icon: RoundedMagnifier, internOnly: true },
+  { id: "review", label: "Review", path: "/review", icon: Clipboard, internOnly: true },
   { id: "profile", label: "Profile", path: "/profile", icon: UserRounded },
 ];
 

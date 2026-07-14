@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
+import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { REVIEW_QUEUE, REVIEW_STATUS_LABELS } from "@/data/reviewQueue";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
@@ -142,7 +142,7 @@ export default function ReviewPage() {
                 subtitle: `${row.mode} · ${row.duration} · ${REVIEW_STATUS_LABELS[getReviewDisplayStatus(row.id, row.status, Boolean(row.draft))]}`,
               })}
               emptyState={{
-                icon: <RoundedMagnifier size={20} weight="Outline" />,
+                icon: <Clipboard size={20} weight="Outline" />,
                 title: "No pending clips",
                 description: "You're all caught up on the queue.",
               }}
@@ -163,7 +163,7 @@ export default function ReviewPage() {
                 subtitle: `${row.mode} · ${row.duration} · Done`,
               })}
               emptyState={{
-                icon: <RoundedMagnifier size={20} weight="Outline" />,
+                icon: <Clipboard size={20} weight="Outline" />,
                 title: "No completed reviews yet",
                 description: "Finished reviews will show up here.",
               }}

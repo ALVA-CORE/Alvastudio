@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
-import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
+import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { cn } from "@/lib/utils";
 import { SiriBlob } from "@/components/studio/SiriBlob";
 
@@ -79,7 +79,7 @@ export function DesktopSidebar() {
                   <SiriBlob size="nav" className="shrink-0" />
                 )}
                 {item.id === "review" && (
-                  <RoundedMagnifier
+                  <Clipboard
                     size={22}
                     weight={isActive ? "BoldDuotone" : "Outline"}
                     className={cn(
