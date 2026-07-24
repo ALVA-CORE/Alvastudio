@@ -3,12 +3,17 @@ import { AppShellLayout, AuthLayout } from "@/components/layout";
 import LoginPage from "@/pages/auth/LoginPage";
 import SignupPage from "@/pages/auth/SignupPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
-import DashboardPage from "@/pages/dashboard/DashboardPage";
-import InternDashboardPage from "@/pages/dashboard/InternDashboardPage";
-import StudioPage from "@/pages/studio/StudioPage";
-import ReviewPage from "@/pages/review/ReviewPage";
-import ReviewDetailPage from "@/pages/review/ReviewDetailPage";
-import ProfilePage from "@/pages/profile/ProfilePage";
+import ContributorDashboardPage from "@/pages/contributors/ContributorDashboardPage";
+import ContributorStudioPage from "@/pages/contributors/ContributorStudioPage";
+import ContributorProfilePage from "@/pages/contributors/ContributorProfilePage";
+import InternDashboardPage from "@/pages/interns/InternDashboardPage";
+import InternReviewPage from "@/pages/interns/InternReviewPage";
+import InternReviewDetailPage from "@/pages/interns/InternReviewDetailPage";
+import InternRecordPage from "@/pages/interns/InternRecordPage";
+import InternParticipantsPage from "@/pages/interns/InternParticipantsPage";
+import InternProfilePage from "@/pages/interns/InternProfilePage";
+import AnnotatorDashboardPage from "@/pages/annotators/AnnotatorDashboardPage";
+import AnnotatorReviewPage from "@/pages/annotators/AnnotatorReviewPage";
 import NotFoundPage from "@/pages/errors/NotFoundPage";
 import { ProtectedRoute, GuestRoute, RoleRoute } from "@/routes/guards";
 import { useAuth } from "@/lib/auth/context";
@@ -23,7 +28,18 @@ function RootRedirect() {
     return <Navigate to="/intern/dashboard" replace />;
   }
 
-  return <Navigate to="/dashboard" replace />;
+  return <Navigate to="/contributor/dashboard" replace />;
+}
+
+function LegacyDashboardRedirect() {
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+
+  if (user && isStaffRole(user.role) && !isMobile) {
+    return <Navigate to="/intern/dashboard" replace />;
+  }
+
+  return <Navigate to="/contributor/dashboard" replace />;
 }
 
 export function AppRoutes() {
@@ -41,14 +57,27 @@ export function AppRoutes() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShellLayout />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/studio" element={<StudioPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/contributor/dashboard" element={<ContributorDashboardPage />} />
+          <Route path="/contributor/studio" element={<ContributorStudioPage />} />
+          <Route path="/contributor/profile" element={<ContributorProfilePage />} />
+
           <Route element={<RoleRoute roles={["intern", "admin"]} />}>
             <Route path="/intern/dashboard" element={<InternDashboardPage />} />
-            <Route path="/review" element={<ReviewPage />} />
-            <Route path="/review/:id" element={<ReviewDetailPage />} />
+            <Route path="/intern/record" element={<InternRecordPage />} />
+            <Route path="/intern/participants" element={<InternParticipantsPage />} />
+            <Route path="/intern/review" element={<InternReviewPage />} />
+            <Route path="/intern/review/:id" element={<InternReviewDetailPage />} />
+            <Route path="/intern/profile" element={<InternProfilePage />} />
           </Route>
+
+          <Route path="/annotator/dashboard" element={<AnnotatorDashboardPage />} />
+          <Route path="/annotator/review" element={<AnnotatorReviewPage />} />
+
+          <Route path="/dashboard" element={<LegacyDashboardRedirect />} />
+          <Route path="/studio" element={<Navigate to="/contributor/studio" replace />} />
+          <Route path="/profile" element={<Navigate to="/contributor/profile" replace />} />
+          <Route path="/review" element={<Navigate to="/intern/review" replace />} />
+          <Route path="/review/:id" element={<Navigate to="/intern/review" replace />} />
         </Route>
       </Route>
 

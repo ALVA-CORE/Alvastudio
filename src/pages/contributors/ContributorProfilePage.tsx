@@ -16,7 +16,7 @@ import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import { TextureButton } from "@/components/ui/texture-button";
 
-export default function ProfilePage() {
+export default function ContributorProfilePage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();

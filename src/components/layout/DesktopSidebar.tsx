@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
+import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
+import UserRounded from "@solar-icons/react/users/UserRounded";
 import { cn } from "@/lib/utils";
-import { SiriBlob } from "@/components/studio/SiriBlob";
+import { SiriBlob } from "@/components/contributors/studio/SiriBlob";
 
-type NavId = "home" | "record" | "review";
+type NavId = "home" | "record" | "review" | "participants" | "profile";
 
 const NAV_ITEMS: Array<{
   id: NavId;
@@ -13,13 +15,17 @@ const NAV_ITEMS: Array<{
   label: string;
 }> = [
   { id: "home", path: "/intern/dashboard", label: "Home" },
-  { id: "record", path: "/studio", label: "Record" },
-  { id: "review", path: "/review", label: "Review" },
+  { id: "record", path: "/intern/record", label: "Record" },
+  { id: "participants", path: "/intern/participants", label: "Participants" },
+  { id: "review", path: "/intern/review", label: "Review" },
+  { id: "profile", path: "/intern/profile", label: "Profile" },
 ];
 
 function getActiveNav(pathname: string): NavId {
-  if (pathname.startsWith("/studio")) return "record";
-  if (pathname.startsWith("/review")) return "review";
+  if (pathname.startsWith("/intern/record")) return "record";
+  if (pathname.startsWith("/intern/participants")) return "participants";
+  if (pathname.startsWith("/intern/review")) return "review";
+  if (pathname.startsWith("/intern/profile")) return "profile";
   return "home";
 }
 
@@ -75,11 +81,29 @@ export function DesktopSidebar() {
                     )}
                   />
                 )}
-                {item.id === "record" && (
-                  <SiriBlob size="nav" className="shrink-0" />
+                {item.id === "record" && <SiriBlob size="nav" className="shrink-0" />}
+                {item.id === "participants" && (
+                  <UsersGroupRounded
+                    size={22}
+                    weight={isActive ? "BoldDuotone" : "Outline"}
+                    className={cn(
+                      "shrink-0",
+                      isActive ? "text-alva-accent" : "text-muted-foreground"
+                    )}
+                  />
                 )}
                 {item.id === "review" && (
                   <Clipboard
+                    size={22}
+                    weight={isActive ? "BoldDuotone" : "Outline"}
+                    className={cn(
+                      "shrink-0",
+                      isActive ? "text-alva-accent" : "text-muted-foreground"
+                    )}
+                  />
+                )}
+                {item.id === "profile" && (
+                  <UserRounded
                     size={22}
                     weight={isActive ? "BoldDuotone" : "Outline"}
                     className={cn(

@@ -17,7 +17,7 @@ export function GuestRoute() {
   const { isAuthenticated } = useAuth();
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/contributor/dashboard" replace />;
   }
 
   return <Outlet />;
@@ -27,7 +27,7 @@ export function RoleRoute({ roles }: { roles: UserRole[] }) {
   const { user } = useAuth();
 
   if (!user || !roles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/contributor/dashboard" replace />;
   }
 
   return <Outlet />;

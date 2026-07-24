@@ -1,5 +1,5 @@
-import { WeeklySessionsChart } from "@/components/dashboard/WeeklySessionsChart";
-import { DashboardTimeFilter } from "@/components/dashboard/DashboardTimeFilter";
+import { WeeklySessionsChart } from "@/components/interns/dashboard/WeeklySessionsChart";
+import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import {
   DASHBOARD_DATA,
   type DashboardTimeRange,
@@ -19,10 +19,10 @@ const radarConfig = {
   score: { label: "Quality score", color: "green" as const },
 };
 
-const areaConfig = {
-  prompts: { label: "Prompt reads", color: "green" as const },
-  stimuli: { label: "Stimuli", color: "blue" as const },
-  focusGroup: { label: "Focus group", color: "purple" as const },
+const focusGroupConfig = {
+  hours: { label: "Hours recorded", color: "green" as const },
+  participants: { label: "Participants", color: "blue" as const },
+  sessions: { label: "Sessions", color: "purple" as const },
 };
 
 type InternDashboardChartsProps = {
@@ -98,11 +98,11 @@ export function InternDashboardCharts({
 
       <ChartCard
         title="Capture volume"
-        subtitle="Prompt reads, stimuli, and focus group by mode over time"
+        subtitle="Focus group hours, participants, and sessions over time"
       >
         <LineChart
           data={dataset.captureTrend}
-          config={areaConfig}
+          config={focusGroupConfig}
           bloom="aura"
           className="h-[17rem] w-full"
         >
@@ -111,9 +111,9 @@ export function InternDashboardCharts({
           <YAxis />
           <Legend isClickable />
           <Tooltip labelKey="month" />
-          <Line dataKey="prompts" variant="gradient" isClickable />
-          <Line dataKey="stimuli" variant="hatched" isClickable />
-          <Line dataKey="focusGroup" variant="gradient" isClickable />
+          <Line dataKey="hours" variant="gradient" isClickable />
+          <Line dataKey="participants" variant="hatched" isClickable />
+          <Line dataKey="sessions" variant="gradient" isClickable />
         </LineChart>
       </ChartCard>
     </div>

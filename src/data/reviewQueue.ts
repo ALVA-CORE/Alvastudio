@@ -140,3 +140,35 @@ export const REVIEW_STATUS_LABELS: Record<
   "in-progress": "In progress",
   completed: "Done",
 };
+
+export const VERDICT_LABELS: Record<ReviewVerdict, string> = {
+  approve: "Accept",
+  reject: "Reject",
+  flag: "Flag for review",
+};
+
+export function isRubricComplete(answers: Omit<QualityAnswers, "verdict">) {
+  return QUALITY_QUESTIONS.every((question) => answers[question.id] !== "");
+}
+
+/** Metrical verdict from rubric answers — not a discretionary intern choice. */
+export function calculateVerdictFromAnswers(
+  answers: Omit<QualityAnswers, "verdict">
+): ReviewVerdict | "" {
+  if (!isRubricComplete(answers)) return "";
+
+  const values = QUALITY_QUESTIONS.map((question) => answers[question.id]);
+  if (values.every((value) => value === "yes")) return "approve";
+  if (values.some((value) => value === "no")) return "reject";
+  return "flag";
+}
+
+/** Interns review contributor-submitted prompt reader and stimuli clips. */
+export function getInternReviewQueue() {
+  return REVIEW_QUEUE.filter((item) => item.mode !== "Focus group");
+}
+
+/** Annotators review focus group session clips. */
+export function getAnnotatorReviewQueue() {
+  return REVIEW_QUEUE.filter((item) => item.mode === "Focus group");
+}

@@ -1,4 +1,4 @@
-import { LeaderboardPodium } from "@/components/dashboard/LeaderboardPodium";
+import { LeaderboardPodium } from "@/components/contributors/dashboard/LeaderboardPodium";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaAccentTexture } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";

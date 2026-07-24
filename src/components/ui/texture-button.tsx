@@ -18,7 +18,7 @@ const buttonVariantsOuter = cva("", {
       minimal:
         "group/texture-button w-full border-[1px] dark:border-[2px] border-black/20 bg-white/50 dark:border-neutral-950 dark:bg-neutral-600/80 p-[1px] active:bg-neutral-200 dark:active:bg-neutral-800 hover:bg-gradient-to-t hover:from-neutral-100 to-white dark:hover:from-neutral-600/50 dark:hover:to-neutral-600/70",
       icon: "group/texture-button rounded-full border dark:border-neutral-950 border-black/10 dark:bg-neutral-600/50 bg-white/50 p-[1px] active:bg-neutral-200 dark:active:bg-neutral-800 hover:bg-gradient-to-t hover:from-neutral-100 to-white dark:hover:from-neutral-700 dark:hover:to-neutral-600",
-      alva: "w-full rounded-full border-0 bg-transparent p-0",
+      alva: "w-full border border-[1px] dark:border-[2px] border-black/10 dark:border-black bg-gradient-to-b from-black/70 to-black dark:from-white dark:to-white/80 p-[2px] transition duration-300 ease-in-out",
     },
     size: {
       sm: "rounded-full",
@@ -57,7 +57,7 @@ const innerDivVariants = cva(
       size: {
         sm: "text-xs rounded-full px-4 py-2",
         default: "text-sm rounded-full px-5 py-2.5",
-        lg: "text-base rounded-full px-6 py-3.5",
+        lg: "text-base rounded-full px-6 py-3",
         icon: "rounded-full p-2.5",
       },
     },
@@ -95,24 +95,6 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
     ref
   ) => {
     const Comp = asChild ? Slot : "button";
-
-    if (variant === "alva") {
-      return (
-        <Comp
-          className={cn(
-            buttonVariantsOuter({ variant, size }),
-            innerDivVariants({ variant, size }),
-            className
-          )}
-          ref={ref}
-          {...props}
-        >
-          <span className="relative z-[1] flex items-center justify-center gap-2">
-            {children}
-          </span>
-        </Comp>
-      );
-    }
 
     return (
       <Comp

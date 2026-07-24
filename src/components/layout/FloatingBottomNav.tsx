@@ -18,19 +18,31 @@ type NavItem = {
   internOnly?: boolean;
 };
 
-const navItems: NavItem[] = [
-  { id: "home", label: "Home", path: "/dashboard", icon: HomeSmile },
-  { id: "record", label: "Record", path: "/studio", icon: Microphone3 },
-  { id: "review", label: "Review", path: "/review", icon: Clipboard, internOnly: true },
-  { id: "profile", label: "Profile", path: "/profile", icon: UserRounded },
+const contributorNav: NavItem[] = [
+  { id: "home", label: "Home", path: "/contributor/dashboard", icon: HomeSmile },
+  { id: "record", label: "Record", path: "/contributor/studio", icon: Microphone3 },
+  { id: "profile", label: "Profile", path: "/contributor/profile", icon: UserRounded },
 ];
 
-function getActiveNav(pathname: string): NavId {
-  if (pathname.startsWith("/studio")) return "record";
-  if (pathname.startsWith("/review")) return "review";
-  if (pathname.startsWith("/profile")) return "profile";
-  if (pathname.startsWith("/intern/dashboard")) return "home";
-  return "home";
+const staffMobileNav: NavItem[] = [
+  { id: "home", label: "Home", path: "/intern/dashboard", icon: HomeSmile },
+  { id: "record", label: "Record", path: "/intern/record", icon: Microphone3 },
+  { id: "review", label: "Review", path: "/intern/review", icon: Clipboard },
+  { id: "profile", label: "Profile", path: "/intern/profile", icon: UserRounded },
+];
+
+function getActiveNav(pathname: string, isStaff: boolean): NavId {
+  if (pathname.startsWith("/intern/record") || pathname.startsWith("/contributor/studio") || pathname.startsWith("/studio")) {
+    return "record";
+  }
+  if (pathname.startsWith("/intern/review") || pathname.startsWith("/review")) return "review";
+  if (pathname.startsWith("/intern/profile") || pathname.startsWith("/contributor/profile") || pathname.startsWith("/profile")) {
+    return "profile";
+  }
+  if (pathname.startsWith("/intern/dashboard") || pathname.startsWith("/contributor/dashboard") || pathname.startsWith("/dashboard")) {
+    return "home";
+  }
+  return isStaff ? "home" : "home";
 }
 
 type FloatingBottomNavProps = {
@@ -58,8 +70,8 @@ function NavIcon({
 export function FloatingBottomNav({ isStaff = false }: FloatingBottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const activeId = getActiveNav(location.pathname);
-  const items = navItems.filter((item) => !item.internOnly || isStaff);
+  const activeId = getActiveNav(location.pathname, isStaff);
+  const items = isStaff ? staffMobileNav : contributorNav;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] md:hidden">

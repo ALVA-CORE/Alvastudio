@@ -3,9 +3,9 @@ import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
-import { MetricCard } from "@/components/dashboard/MetricCard";
-import { InternDashboardCharts } from "@/components/dashboard/InternDashboardCharts";
-import { DashboardTimeFilter } from "@/components/dashboard/DashboardTimeFilter";
+import { MetricCard } from "@/components/shared/MetricCard";
+import { InternDashboardCharts } from "@/components/interns/dashboard/InternDashboardCharts";
+import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import {
   DASHBOARD_DATA,

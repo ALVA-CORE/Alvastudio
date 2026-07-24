@@ -2,11 +2,13 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
-import { REVIEW_QUEUE, REVIEW_STATUS_LABELS } from "@/data/reviewQueue";
+import { getAnnotatorReviewQueue, REVIEW_STATUS_LABELS } from "@/data/reviewQueue";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getReviewDisplayStatus } from "@/lib/review-progress";
 import { cn } from "@/lib/utils";
+
+const ANNOTATOR_QUEUE = getAnnotatorReviewQueue();
 
 function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) {
   return (
@@ -23,13 +25,13 @@ function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) 
   );
 }
 
-export default function ReviewPage() {
+export default function AnnotatorReviewPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"pending" | "completed">("pending");
 
   const pendingRows = useMemo(
     () =>
-      REVIEW_QUEUE.filter((row) => {
+      ANNOTATOR_QUEUE.filter((row) => {
         const displayStatus = getReviewDisplayStatus(row.id, row.status, Boolean(row.draft));
         return displayStatus !== "completed";
       }),
@@ -38,7 +40,7 @@ export default function ReviewPage() {
 
   const completedRows = useMemo(
     () =>
-      REVIEW_QUEUE.filter((row) => {
+      ANNOTATOR_QUEUE.filter((row) => {
         const displayStatus = getReviewDisplayStatus(row.id, row.status, Boolean(row.draft));
         return displayStatus === "completed";
       }),
@@ -48,50 +50,42 @@ export default function ReviewPage() {
   const tableColumns = [
     {
       key: "contributor",
-      header: "Contributor",
-      sortValue: (row: (typeof REVIEW_QUEUE)[number]) => row.contributor,
-      render: (row: (typeof REVIEW_QUEUE)[number]) => (
+      header: "Session",
+      sortValue: (row: (typeof ANNOTATOR_QUEUE)[number]) => row.contributor,
+      render: (row: (typeof ANNOTATOR_QUEUE)[number]) => (
         <span className="font-medium text-foreground">{row.contributor}</span>
       ),
     },
     {
       key: "mode",
       header: "Mode",
-      sortValue: (row: (typeof REVIEW_QUEUE)[number]) => row.mode,
-      render: (row: (typeof REVIEW_QUEUE)[number]) => (
+      sortValue: (row: (typeof ANNOTATOR_QUEUE)[number]) => row.mode,
+      render: (row: (typeof ANNOTATOR_QUEUE)[number]) => (
         <span className="text-muted-foreground">{row.mode}</span>
       ),
     },
     {
       key: "duration",
       header: "Duration",
-      sortValue: (row: (typeof REVIEW_QUEUE)[number]) => row.durationSec,
-      render: (row: (typeof REVIEW_QUEUE)[number]) => (
+      sortValue: (row: (typeof ANNOTATOR_QUEUE)[number]) => row.durationSec,
+      render: (row: (typeof ANNOTATOR_QUEUE)[number]) => (
         <span className="text-muted-foreground">{row.duration}</span>
       ),
     },
     {
       key: "language",
       header: "Language",
-      sortValue: (row: (typeof REVIEW_QUEUE)[number]) => row.language,
-      render: (row: (typeof REVIEW_QUEUE)[number]) => (
+      sortValue: (row: (typeof ANNOTATOR_QUEUE)[number]) => row.language,
+      render: (row: (typeof ANNOTATOR_QUEUE)[number]) => (
         <span className="text-muted-foreground">{row.language}</span>
-      ),
-    },
-    {
-      key: "submitted",
-      header: "Submitted",
-      sortValue: (row: (typeof REVIEW_QUEUE)[number]) => row.submittedAt,
-      render: (row: (typeof REVIEW_QUEUE)[number]) => (
-        <span className="text-muted-foreground">{row.submittedAt}</span>
       ),
     },
     {
       key: "status",
       header: "Status",
-      sortValue: (row: (typeof REVIEW_QUEUE)[number]) =>
+      sortValue: (row: (typeof ANNOTATOR_QUEUE)[number]) =>
         getReviewDisplayStatus(row.id, row.status, Boolean(row.draft)),
-      render: (row: (typeof REVIEW_QUEUE)[number]) => (
+      render: (row: (typeof ANNOTATOR_QUEUE)[number]) => (
         <StatusBadge
           status={getReviewDisplayStatus(row.id, row.status, Boolean(row.draft))}
         />
@@ -102,51 +96,37 @@ export default function ReviewPage() {
   return (
     <DesktopPageShell className="py-4">
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div>
-            <h1 className="font-display text-2xl text-foreground">Review</h1>
-          </div>
+        <div>
+          <h1 className="font-display text-2xl text-foreground">Focus group review</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Annotator queue for focus group session clips.
+          </p>
         </div>
 
         <Tabs value={tab} onValueChange={(value) => setTab(value as "pending" | "completed")}>
           <TabsList className="h-9 rounded-full bg-alva-surface p-1">
-            <TabsTrigger
-              value="pending"
-              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-            >
-              <span className="flex items-center gap-2">
-                Pending
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-alva-accent px-1.5 text-[10px] font-semibold text-alva-bg">
-                  {pendingRows.length}
-                </span>
-              </span>
+            <TabsTrigger value="pending" className="rounded-full px-4 text-sm">
+              Pending ({pendingRows.length})
             </TabsTrigger>
-            <TabsTrigger
-              value="completed"
-              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-            >
+            <TabsTrigger value="completed" className="rounded-full px-4 text-sm">
               Completed
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="mt-2">
             <AlvaDataTable
-              title="Pending clips"
+              title="Pending focus group clips"
               rows={pendingRows}
               pageSize={8}
-              searchPlaceholder="Search contributors, mode, language"
-              searchKeys={["contributor", "mode", "language"]}
-              onRowClick={(row) => navigate(`/review/${row.id}`)}
-              mobilePrimary={(row) => ({
-                title: row.contributor,
-                subtitle: `${row.mode} · ${row.duration} · ${REVIEW_STATUS_LABELS[getReviewDisplayStatus(row.id, row.status, Boolean(row.draft))]}`,
-              })}
+              searchPlaceholder="Search sessions, language"
+              searchKeys={["contributor", "language"]}
+              onRowClick={() => navigate("/annotator/dashboard")}
+              columns={tableColumns}
               emptyState={{
                 icon: <Clipboard size={20} weight="Outline" />,
                 title: "No pending clips",
-                description: "You're all caught up on the queue.",
+                description: "Focus group review detail is coming soon.",
               }}
-              columns={tableColumns}
             />
           </TabsContent>
 
@@ -155,19 +135,15 @@ export default function ReviewPage() {
               title="Completed reviews"
               rows={completedRows}
               pageSize={8}
-              searchPlaceholder="Search contributors, mode, language"
-              searchKeys={["contributor", "mode", "language"]}
-              onRowClick={(row) => navigate(`/review/${row.id}`)}
-              mobilePrimary={(row) => ({
-                title: row.contributor,
-                subtitle: `${row.mode} · ${row.duration} · Done`,
-              })}
+              searchPlaceholder="Search sessions, language"
+              searchKeys={["contributor", "language"]}
+              onRowClick={() => navigate("/annotator/dashboard")}
+              columns={tableColumns}
               emptyState={{
                 icon: <Clipboard size={20} weight="Outline" />,
                 title: "No completed reviews yet",
-                description: "Finished reviews will show up here.",
+                description: "Finished focus group reviews will show up here.",
               }}
-              columns={tableColumns}
             />
           </TabsContent>
         </Tabs>

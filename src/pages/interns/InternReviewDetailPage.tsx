@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import Diskette from "@solar-icons/react/devices/Diskette";
 import { BorderBeam } from "border-beam";
 import {
-  REVIEW_QUEUE,
-  type AudioRegion,
+  VERDICT_LABELS,
+  calculateVerdictFromAnswers,
+  getInternReviewQueue,
   type QualityAnswers,
-  type ReviewVerdict,
 } from "@/data/reviewQueue";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
+import { ReviewClipNavigation } from "@/components/interns/review/ReviewClipNavigation";
+import { ReviewWorkspace } from "@/components/interns/review/ReviewWorkspace";
 import { alvaToast } from "@/lib/alva-toast";
 import {
   loadReviewProgress,
@@ -17,8 +19,6 @@ import {
   snapshotsEqual,
   type ReviewProgressSnapshot,
 } from "@/lib/review-progress";
-import { ReviewWorkspace } from "@/components/review/ReviewWorkspace";
-import { ReviewClipNavigation } from "@/components/review/ReviewClipNavigation";
 import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
 
@@ -30,30 +30,28 @@ const EMPTY_ANSWERS: QualityAnswers = {
   verdict: "",
 };
 
+const INTERN_QUEUE = getInternReviewQueue();
+
 function buildSnapshot(
   answers: QualityAnswers,
-  notes: string,
-  regions: AudioRegion[],
   playbackTime: number,
   completed: boolean
 ): ReviewProgressSnapshot {
   return {
     answers,
-    notes,
-    regions,
+    notes: "",
+    regions: [],
     playbackTime,
     completed,
     savedAt: Date.now(),
   };
 }
 
-function resolveInitialState(item: (typeof REVIEW_QUEUE)[number]) {
+function resolveInitialState(item: (typeof INTERN_QUEUE)[number]) {
   const saved = loadReviewProgress(item.id);
   if (saved) {
     return {
       answers: saved.answers,
-      notes: saved.notes,
-      regions: saved.regions,
       playbackTime: saved.playbackTime,
       completed: saved.completed,
     };
@@ -62,8 +60,6 @@ function resolveInitialState(item: (typeof REVIEW_QUEUE)[number]) {
   if (item.draft) {
     return {
       answers: item.draft.answers,
-      notes: item.draft.notes,
-      regions: item.draft.regions,
       playbackTime: item.draft.playbackTime,
       completed: item.draft.completed,
     };
@@ -71,34 +67,29 @@ function resolveInitialState(item: (typeof REVIEW_QUEUE)[number]) {
 
   return {
     answers: EMPTY_ANSWERS,
-    notes: "",
-    regions: [],
     playbackTime: 0,
     completed: item.status === "completed",
   };
 }
 
-export default function ReviewDetailPage() {
+export default function InternReviewDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const activeIndex = REVIEW_QUEUE.findIndex((item) => item.id === id);
-  const item = activeIndex >= 0 ? REVIEW_QUEUE[activeIndex] : undefined;
+  const activeIndex = INTERN_QUEUE.findIndex((item) => item.id === id);
+  const item = activeIndex >= 0 ? INTERN_QUEUE[activeIndex] : undefined;
 
   const initial = item ? resolveInitialState(item) : null;
 
   const [answers, setAnswers] = useState<QualityAnswers>(initial?.answers ?? EMPTY_ANSWERS);
-  const [notes, setNotes] = useState(initial?.notes ?? "");
-  const [regions, setRegions] = useState<AudioRegion[]>(initial?.regions ?? []);
   const [playbackTime, setPlaybackTime] = useState(initial?.playbackTime ?? 0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
   const lastSavedRef = useRef<ReviewProgressSnapshot | null>(
     item
       ? buildSnapshot(
           initial?.answers ?? EMPTY_ANSWERS,
-          initial?.notes ?? "",
-          initial?.regions ?? [],
           initial?.playbackTime ?? 0,
           initial?.completed ?? false
         )
@@ -110,13 +101,9 @@ export default function ReviewDetailPage() {
 
     const next = resolveInitialState(item);
     setAnswers(next.answers);
-    setNotes(next.notes);
-    setRegions(next.regions);
     setPlaybackTime(next.playbackTime);
     lastSavedRef.current = buildSnapshot(
       next.answers,
-      next.notes,
-      next.regions,
       next.playbackTime,
       next.completed
     );
@@ -127,12 +114,10 @@ export default function ReviewDetailPage() {
     () =>
       buildSnapshot(
         answers,
-        notes,
-        regions,
         playbackTime,
         Boolean(answers.verdict) || item?.status === "completed"
       ),
-    [answers, notes, regions, playbackTime, item?.status]
+    [answers, playbackTime, item?.status]
   );
 
   useEffect(() => {
@@ -141,11 +126,15 @@ export default function ReviewDetailPage() {
   }, [currentSnapshot]);
 
   const persistProgress = useCallback(
-    async (silent = false) => {
+    async (silent = false, completed = false) => {
       if (!item) return false;
       setIsSaving(true);
 
-      const snapshot = currentSnapshot();
+      const snapshot = buildSnapshot(
+        answers,
+        playbackTime,
+        completed || Boolean(answers.verdict) || item.status === "completed"
+      );
       saveReviewProgress(item.id, snapshot);
       lastSavedRef.current = snapshot;
       setIsDirty(false);
@@ -157,7 +146,7 @@ export default function ReviewDetailPage() {
 
       return true;
     },
-    [currentSnapshot, item]
+    [answers, playbackTime, item]
   );
 
   useEffect(() => {
@@ -168,17 +157,7 @@ export default function ReviewDetailPage() {
     }, 4000);
 
     return () => window.clearTimeout(timer);
-  }, [isDirty, item, persistProgress, answers, notes, regions, playbackTime]);
-
-  useEffect(() => {
-    if (!item) return;
-
-    const interval = window.setInterval(() => {
-      if (isDirty) void persistProgress(true);
-    }, 45000);
-
-    return () => window.clearInterval(interval);
-  }, [isDirty, item, persistProgress]);
+  }, [isDirty, item, persistProgress, answers, playbackTime]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -192,37 +171,48 @@ export default function ReviewDetailPage() {
   }, [isDirty]);
 
   if (!item) {
-    return <Navigate to="/review" replace />;
+    return <Navigate to="/intern/review" replace />;
   }
 
-  const handleVerdict = (verdict: ReviewVerdict) => {
-    setAnswers((prev) => ({ ...prev, verdict }));
-    alvaToast.success(
-      verdict === "approve"
-        ? "Clip approved"
-        : verdict === "reject"
-          ? "Clip rejected"
-          : "Clip flagged for review"
-    );
-    void persistProgress(true);
-  };
+  const previousItem = activeIndex > 0 ? INTERN_QUEUE[activeIndex - 1] : undefined;
+  const nextItem =
+    activeIndex < INTERN_QUEUE.length - 1 ? INTERN_QUEUE[activeIndex + 1] : undefined;
 
   const handleBack = async () => {
     if (isDirty) {
       await persistProgress(true);
       alvaToast.success("Progress saved");
     }
-    navigate("/review");
+    navigate("/intern/review");
   };
 
-  const goTo = async (index: number) => {
-    if (isDirty) await persistProgress(true);
-    const next = REVIEW_QUEUE[index];
-    if (next) navigate(`/review/${next.id}`);
+  const handleSubmit = async () => {
+    const verdict = calculateVerdictFromAnswers(answers);
+    if (!verdict) return;
+
+    setIsSubmitting(true);
+    const finalAnswers = { ...answers, verdict };
+    setAnswers(finalAnswers);
+
+    const snapshot = buildSnapshot(finalAnswers, playbackTime, true);
+    saveReviewProgress(item.id, snapshot);
+    lastSavedRef.current = snapshot;
+    setIsDirty(false);
+
+    alvaToast.success(`${VERDICT_LABELS[verdict]} — review submitted`);
+
+    setIsSubmitting(false);
+
+    if (nextItem) {
+      navigate(`/intern/review/${nextItem.id}`);
+      return;
+    }
+
+    navigate("/intern/review");
   };
 
   return (
-    <DesktopPageShell className="relative pb-28 py-4">
+    <DesktopPageShell className="py-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -262,25 +252,18 @@ export default function ReviewDetailPage() {
           item={item}
           answers={answers}
           onAnswersChange={setAnswers}
-          notes={notes}
-          onNotesChange={setNotes}
-          regions={regions}
-          onRegionsChange={setRegions}
           playbackTime={playbackTime}
           onPlaybackTimeChange={setPlaybackTime}
-          onVerdict={handleVerdict}
+          onSubmit={() => void handleSubmit()}
+          isSubmitting={isSubmitting}
         />
       </div>
 
       <ReviewClipNavigation
         onPrevious={
-          activeIndex > 0 ? () => void goTo(activeIndex - 1) : undefined
+          previousItem ? () => navigate(`/intern/review/${previousItem.id}`) : undefined
         }
-        onNext={
-          activeIndex < REVIEW_QUEUE.length - 1
-            ? () => void goTo(activeIndex + 1)
-            : undefined
-        }
+        onNext={nextItem ? () => navigate(`/intern/review/${nextItem.id}`) : undefined}
       />
     </DesktopPageShell>
   );

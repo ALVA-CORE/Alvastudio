@@ -3,15 +3,15 @@ import { useAuth } from "@/lib/auth/context";
 import { isStaffRole } from "@/lib/auth/roles";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGate";
-import { HomeHeader } from "@/components/dashboard/HomeHeader";
-import { PointsBalanceCard } from "@/components/dashboard/PointsBalanceCard";
-import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
-import { QualityProgressBar } from "@/components/dashboard/QualityProgressBar";
+import { HomeHeader } from "@/components/contributors/dashboard/HomeHeader";
+import { PointsBalanceCard } from "@/components/contributors/dashboard/PointsBalanceCard";
+import { DashboardCharts } from "@/components/contributors/dashboard/DashboardCharts";
+import { QualityProgressBar } from "@/components/contributors/dashboard/QualityProgressBar";
 
 /** Mock until backend — replace with API data */
 const MOCK_POINTS = 1420;
 
-export default function DashboardPage() {
+export default function ContributorDashboardPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isStaff = isStaffRole(user?.role);
