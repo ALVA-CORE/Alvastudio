@@ -1,47 +1,40 @@
 import { useMemo, useState } from "react";
+import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
+import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import {
-  AGE_BRACKET_OPTIONS,
-  CONSENT_OPTIONS,
   EMPTY_PARTICIPANT_DRAFT,
-  GENDER_OPTIONS,
   PARTICIPANT_COUNT_OPTIONS,
-  SESSION_LANGUAGE_OPTIONS,
   type ParticipantDraft,
   type ParticipantRecord,
 } from "@/data/interns/participants";
-import { saveParticipantsBatch } from "@/lib/intern-participants";
+import { createSessionId, saveParticipantsBatch } from "@/lib/intern-participants";
 import {
   normalizePhoneDigits,
   validateParticipantDraft,
   type ParticipantFieldErrors,
 } from "@/lib/participant-validation";
+import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { StepperBars } from "@/components/interns/participants/StepperBars";
 import { StateCombobox } from "@/components/interns/participants/StateCombobox";
+import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { TextureButton } from "@/components/ui/texture-button";
+import {
+  AGE_BRACKET_OPTIONS,
+  CONSENT_OPTIONS,
+  GENDER_OPTIONS,
+  SESSION_LANGUAGE_OPTIONS,
+} from "@/data/interns/participants";
 import { cn } from "@/lib/utils";
 
 type ParticipantIntakeModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  focusGroupSession: string;
   onComplete?: (participants: ParticipantRecord[]) => void;
 };
-
-function fieldClass(hasError: boolean) {
-  return cn(
-    "h-10 border-0 bg-alva-surface text-foreground",
-    hasError && "ring-1 ring-destructive"
-  );
-}
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -51,6 +44,7 @@ function FieldError({ message }: { message?: string }) {
 export function ParticipantIntakeModal({
   open,
   onOpenChange,
+  focusGroupSession,
   onComplete,
 }: ParticipantIntakeModalProps) {
   const [step, setStep] = useState(1);
@@ -116,9 +110,12 @@ export function ParticipantIntakeModal({
       return;
     }
 
+    const sessionId = createSessionId();
     const records: ParticipantRecord[] = drafts.map((draft) => ({
       ...draft,
       id: crypto.randomUUID(),
+      sessionId,
+      focusGroupSession,
       loggedAt: Date.now(),
     }));
 
@@ -166,14 +163,14 @@ export function ParticipantIntakeModal({
           {isCountStep ? (
             <div className="space-y-3">
               <Label>How many participants are in this session?</Label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {PARTICIPANT_COUNT_OPTIONS.map((count) => (
                   <button
                     key={count}
                     type="button"
                     onClick={() => handleCountSelect(count)}
                     className={cn(
-                      "rounded-xl py-3 text-sm font-medium transition-colors",
+                      "rounded-full py-3 text-sm font-medium transition-colors",
                       participantCount === count
                         ? "bg-alva-accent text-alva-bg"
                         : "bg-alva-surface text-foreground hover:text-alva-accent"
@@ -200,7 +197,7 @@ export function ParticipantIntakeModal({
                         patchDraft(participantIndex, { nameOrId: e.target.value })
                       }
                       placeholder="Participant A-14"
-                      className={fieldClass(Boolean(fieldErrors.nameOrId))}
+                      className={alvaFieldClass(Boolean(fieldErrors.nameOrId))}
                     />
                     <FieldError message={fieldErrors.nameOrId} />
                   </div>
@@ -218,7 +215,7 @@ export function ParticipantIntakeModal({
                       }
                       placeholder="08012345678"
                       maxLength={11}
-                      className={fieldClass(Boolean(fieldErrors.phone))}
+                      className={alvaFieldClass(Boolean(fieldErrors.phone))}
                     />
                     <FieldError message={fieldErrors.phone} />
                   </div>
@@ -227,49 +224,33 @@ export function ParticipantIntakeModal({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Age bracket</Label>
-                    <Select
+                    <AlvaSelect
                       value={currentDraft.ageBracket || undefined}
                       onValueChange={(value) =>
                         patchDraft(participantIndex, {
                           ageBracket: value as ParticipantDraft["ageBracket"],
                         })
                       }
-                    >
-                      <SelectTrigger className={fieldClass(Boolean(fieldErrors.ageBracket))}>
-                        <SelectValue placeholder="Select age" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AGE_BRACKET_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select age"
+                      options={AGE_BRACKET_OPTIONS}
+                      hasError={Boolean(fieldErrors.ageBracket)}
+                    />
                     <FieldError message={fieldErrors.ageBracket} />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Gender</Label>
-                    <Select
+                    <AlvaSelect
                       value={currentDraft.gender || undefined}
                       onValueChange={(value) =>
                         patchDraft(participantIndex, {
                           gender: value as ParticipantDraft["gender"],
                         })
                       }
-                    >
-                      <SelectTrigger className={fieldClass(Boolean(fieldErrors.gender))}>
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GENDER_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select gender"
+                      options={GENDER_OPTIONS}
+                      hasError={Boolean(fieldErrors.gender)}
+                    />
                     <FieldError message={fieldErrors.gender} />
                   </div>
                 </div>
@@ -293,7 +274,7 @@ export function ParticipantIntakeModal({
                         patchDraft(participantIndex, { nativeLanguage: e.target.value })
                       }
                       placeholder="Yoruba"
-                      className={fieldClass(Boolean(fieldErrors.nativeLanguage))}
+                      className={alvaFieldClass(Boolean(fieldErrors.nativeLanguage))}
                     />
                     <FieldError message={fieldErrors.nativeLanguage} />
                   </div>
@@ -302,51 +283,33 @@ export function ParticipantIntakeModal({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Session language</Label>
-                    <Select
+                    <AlvaSelect
                       value={currentDraft.sessionLanguage || undefined}
                       onValueChange={(value) =>
                         patchDraft(participantIndex, {
                           sessionLanguage: value as ParticipantDraft["sessionLanguage"],
                         })
                       }
-                    >
-                      <SelectTrigger
-                        className={fieldClass(Boolean(fieldErrors.sessionLanguage))}
-                      >
-                        <SelectValue placeholder="English, Pidgin, mixed" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SESSION_LANGUAGE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="English, Pidgin, mixed"
+                      options={SESSION_LANGUAGE_OPTIONS}
+                      hasError={Boolean(fieldErrors.sessionLanguage)}
+                    />
                     <FieldError message={fieldErrors.sessionLanguage} />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Consent</Label>
-                    <Select
+                    <AlvaSelect
                       value={currentDraft.consent || undefined}
                       onValueChange={(value) =>
                         patchDraft(participantIndex, {
                           consent: value as ParticipantDraft["consent"],
                         })
                       }
-                    >
-                      <SelectTrigger className={fieldClass(Boolean(fieldErrors.consent))}>
-                        <SelectValue placeholder="Verbal or signed" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CONSENT_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Verbal or signed"
+                      options={CONSENT_OPTIONS}
+                      hasError={Boolean(fieldErrors.consent)}
+                    />
                     <FieldError message={fieldErrors.consent} />
                   </div>
                 </div>
@@ -360,7 +323,7 @@ export function ParticipantIntakeModal({
                       patchDraft(participantIndex, { occupation: e.target.value })
                     }
                     placeholder="Healthcare, retail, transport"
-                    className={fieldClass(Boolean(fieldErrors.occupation))}
+                    className={alvaFieldClass(Boolean(fieldErrors.occupation))}
                   />
                   <FieldError message={fieldErrors.occupation} />
                 </div>
@@ -369,23 +332,28 @@ export function ParticipantIntakeModal({
           )}
         </div>
 
-        <div className="flex justify-center gap-4 px-6 pb-6 pt-4">
+        <div className="flex items-center justify-center gap-3 px-6 pb-6 pt-4">
           {step > 1 && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Previous
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleBack}
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <AltArrowLeft size={14} weight="Outline" />
+                Previous
+              </button>
+              <div className="h-4 w-px bg-alva-border" />
+            </>
           )}
           {!isLastStep ? (
             <button
               type="button"
               onClick={handleNext}
-              className="text-sm font-medium text-foreground transition-colors hover:text-alva-accent"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground transition-colors hover:text-alva-accent"
             >
               Next
+              <AltArrowRight size={14} weight="Outline" />
             </button>
           ) : (
             <TextureButton variant="alva" size="default" className="w-auto" onClick={handleNext}>

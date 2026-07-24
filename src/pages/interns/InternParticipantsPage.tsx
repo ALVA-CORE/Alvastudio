@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import MapPointWave from "@solar-icons/react/map/MapPointWave";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
@@ -6,22 +6,28 @@ import GraphUp from "@solar-icons/react/business/GraphUp";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
-import { formatGenderLabel, PARTICIPANT_METRICS, SESSION_LANGUAGE_OPTIONS } from "@/data/interns/participants";
+import { ParticipantDetailSheet } from "@/components/interns/participants/ParticipantDetailSheet";
+import {
+  formatConsentLabel,
+  formatGenderLabel,
+  formatSessionLanguageLabel,
+  PARTICIPANT_METRICS,
+  type ParticipantRecord,
+} from "@/data/interns/participants";
 import { loadParticipants } from "@/lib/intern-participants";
-
-function formatSessionLanguage(value: string) {
-  return SESSION_LANGUAGE_OPTIONS.find((option) => option.value === value)?.label ?? value;
-}
 
 export default function InternParticipantsPage() {
   const rows = useMemo(() => loadParticipants(), []);
+  const [selected, setSelected] = useState<ParticipantRecord | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const tableRows = useMemo(
     () =>
       rows.map((row) => ({
         ...row,
-        sessionLanguageLabel: formatSessionLanguage(row.sessionLanguage),
+        sessionLanguageLabel: formatSessionLanguageLabel(row.sessionLanguage),
         genderLabel: formatGenderLabel(row.gender),
+        consentLabel: formatConsentLabel(row.consent),
         loggedLabel: new Date(row.loggedAt).toLocaleDateString(undefined, {
           month: "short",
           day: "numeric",
@@ -29,6 +35,11 @@ export default function InternParticipantsPage() {
       })),
     [rows]
   );
+
+  const handleRowClick = (row: (typeof tableRows)[number]) => {
+    setSelected(row);
+    setSheetOpen(true);
+  };
 
   return (
     <DesktopPageShell className="py-4">
@@ -88,11 +99,19 @@ export default function InternParticipantsPage() {
           title="Logged participants"
           rows={tableRows}
           pageSize={8}
-          searchPlaceholder="Search name, state, language"
-          searchKeys={["nameOrId", "state", "nativeLanguage", "occupation"]}
+          searchPlaceholder="Search name, phone, state, language"
+          searchKeys={[
+            "nameOrId",
+            "phone",
+            "state",
+            "nativeLanguage",
+            "occupation",
+            "sessionId",
+          ]}
+          onRowClick={handleRowClick}
           mobilePrimary={(row) => ({
             title: row.nameOrId,
-            subtitle: `${row.state} · ${row.sessionLanguageLabel}`,
+            subtitle: `${row.phone} · ${row.state}`,
           })}
           emptyState={{
             icon: <UsersGroupRounded size={20} weight="Outline" />,
@@ -107,6 +126,12 @@ export default function InternParticipantsPage() {
               render: (row) => (
                 <span className="font-medium text-foreground">{row.nameOrId}</span>
               ),
+            },
+            {
+              key: "phone",
+              header: "Phone",
+              sortValue: (row) => row.phone,
+              render: (row) => <span className="text-muted-foreground">{row.phone}</span>,
             },
             {
               key: "ageBracket",
@@ -127,12 +152,26 @@ export default function InternParticipantsPage() {
               render: (row) => <span className="text-muted-foreground">{row.state}</span>,
             },
             {
+              key: "nativeLanguage",
+              header: "Native lang.",
+              sortValue: (row) => row.nativeLanguage,
+              render: (row) => (
+                <span className="text-muted-foreground">{row.nativeLanguage}</span>
+              ),
+            },
+            {
               key: "sessionLanguageLabel",
-              header: "Session language",
+              header: "Session lang.",
               sortValue: (row) => row.sessionLanguageLabel,
               render: (row) => (
                 <span className="text-muted-foreground">{row.sessionLanguageLabel}</span>
               ),
+            },
+            {
+              key: "consentLabel",
+              header: "Consent",
+              sortValue: (row) => row.consentLabel,
+              render: (row) => <span className="text-muted-foreground">{row.consentLabel}</span>,
             },
             {
               key: "occupation",
@@ -149,6 +188,12 @@ export default function InternParticipantsPage() {
           ]}
         />
       </div>
+
+      <ParticipantDetailSheet
+        participant={selected}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </DesktopPageShell>
   );
 }

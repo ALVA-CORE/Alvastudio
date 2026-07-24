@@ -4,10 +4,12 @@ export type SessionLanguage = "english" | "pidgin" | "mixed";
 
 export type ConsentType = "verbal" | "signed";
 
-export type Gender = "male" | "female" | "non-binary" | "prefer-not-to-say";
+export type Gender = "male" | "female" | "prefer-not-to-say";
 
 export type ParticipantRecord = {
   id: string;
+  sessionId: string;
+  focusGroupSession: string;
   nameOrId: string;
   phone: string;
   ageBracket: AgeBracket | "";
@@ -20,7 +22,7 @@ export type ParticipantRecord = {
   loggedAt: number;
 };
 
-export type ParticipantDraft = Omit<ParticipantRecord, "id" | "loggedAt">;
+export type ParticipantDraft = Omit<ParticipantRecord, "id" | "loggedAt" | "sessionId" | "focusGroupSession">;
 
 export const EMPTY_PARTICIPANT_DRAFT: ParticipantDraft = {
   nameOrId: "",
@@ -43,9 +45,8 @@ export const AGE_BRACKET_OPTIONS: { value: AgeBracket; label: string }[] = [
 ];
 
 export const GENDER_OPTIONS: { value: Gender; label: string }[] = [
-  { value: "female", label: "Female" },
   { value: "male", label: "Male" },
-  { value: "non-binary", label: "Non-binary" },
+  { value: "female", label: "Female" },
   { value: "prefer-not-to-say", label: "Prefer not to say" },
 ];
 
@@ -100,7 +101,7 @@ export const NIGERIAN_STATES = [
   "Zamfara",
 ] as const;
 
-export const PARTICIPANT_COUNT_OPTIONS = [1, 2, 3, 4] as const;
+export const PARTICIPANT_COUNT_OPTIONS = [2, 3, 4] as const;
 
 export const PARTICIPANT_METRICS = {
   total: "214",
@@ -116,4 +117,12 @@ export const PARTICIPANT_METRICS = {
 
 export function formatGenderLabel(value: Gender | "") {
   return GENDER_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+export function formatConsentLabel(value: ConsentType | "") {
+  return CONSENT_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
+
+export function formatSessionLanguageLabel(value: SessionLanguage | "") {
+  return SESSION_LANGUAGE_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }

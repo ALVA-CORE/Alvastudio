@@ -6,16 +6,29 @@ import UserId from "@solar-icons/react/users/UserId";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/context";
+import {
+  INTERN_DEVICE_OPTIONS,
+  QUOTA_ALERT_OPTIONS,
+} from "@/lib/validations/auth";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import { TextureButton } from "@/components/ui/texture-button";
 
+function deviceLabel(value?: string) {
+  return INTERN_DEVICE_OPTIONS.find((option) => option.value === value)?.label ?? "Not set";
+}
+
+function quotaLabel(value?: string) {
+  return QUOTA_ALERT_OPTIONS.find((option) => option.value === value)?.label ?? "Not set";
+}
+
 export default function InternProfilePage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const firstName = user?.fullName?.split(" ")[0] ?? "User";
+  const profile = user?.internProfile;
 
   const handleLogout = () => {
     logout();
@@ -56,8 +69,11 @@ export default function InternProfilePage() {
             sheetDescription="Where you are collecting focus group sessions."
           >
             <div className="space-y-3">
-              <ProfileInfoBlock label="Primary state" value="Lagos" />
-              <ProfileInfoBlock label="Coverage" value="South-west focus groups" />
+              <ProfileInfoBlock
+                label="Primary state"
+                value={profile?.primaryState ?? "Not set"}
+              />
+              <ProfileInfoBlock label="Coverage" value={profile?.coverage ?? "Not set"} />
             </div>
           </ProfileActionRow>
 
@@ -70,7 +86,7 @@ export default function InternProfilePage() {
             <div className="space-y-3">
               <ProfileInfoBlock label="Mode" value="Focus group" />
               <ProfileInfoBlock label="Max participants per session" value="4" />
-              <ProfileInfoBlock label="Device" value="Desktop + field mic" />
+              <ProfileInfoBlock label="Device" value={deviceLabel(profile?.device)} />
             </div>
           </ProfileActionRow>
 
@@ -93,9 +109,15 @@ export default function InternProfilePage() {
             sheetDescription="Alerts for sessions, reviews, and quota updates."
           >
             <div className="space-y-3">
-              <ProfileInfoBlock label="Session reminders" value="On" />
-              <ProfileInfoBlock label="Review queue updates" value="On" />
-              <ProfileInfoBlock label="Quota alerts" value="Weekly" />
+              <ProfileInfoBlock
+                label="Session reminders"
+                value={profile?.sessionReminders ? "On" : "Off"}
+              />
+              <ProfileInfoBlock
+                label="Review queue updates"
+                value={profile?.reviewUpdates ? "On" : "Off"}
+              />
+              <ProfileInfoBlock label="Quota alerts" value={quotaLabel(profile?.quotaAlerts)} />
             </div>
           </ProfileActionRow>
 

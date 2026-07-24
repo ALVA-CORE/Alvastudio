@@ -127,6 +127,7 @@ export default function InternRecordPage() {
       <ParticipantIntakeModal
         open={intakeOpen}
         onOpenChange={setIntakeOpen}
+        focusGroupSession={items[currentIndex]?.prompt ?? "Focus group session"}
         onComplete={() => setSessionReady(true)}
       />
     </DesktopPageShell>

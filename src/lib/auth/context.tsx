@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthUser, UserRole } from "@/lib/validations/auth";
+import type { AuthUser, InternProfileData, UserRole } from "@/lib/validations/auth";
 
 const STORAGE_KEY = "alva-auth-user";
 
@@ -20,6 +20,7 @@ type AuthContextValue = {
     phone: string;
     password: string;
     role?: UserRole;
+    internProfile?: InternProfileData;
   }) => AuthUser;
   logout: () => void;
 };
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: string;
       password: string;
       role?: UserRole;
+      internProfile?: InternProfileData;
     }) => {
       const next: AuthUser = {
         id: crypto.randomUUID(),
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: payload.email,
         phone: payload.phone,
         role: resolveRole(payload.email, payload.role),
+        internProfile: payload.internProfile,
       };
       setUser(next);
       persistUser(next);

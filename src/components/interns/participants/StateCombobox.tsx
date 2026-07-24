@@ -12,6 +12,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { alvaSelectClass } from "@/lib/alva-form-styles";
 import { cn } from "@/lib/utils";
 
 type StateComboboxProps = {
@@ -34,16 +35,19 @@ export function StateCombobox({ value, onChange, error, className }: StateCombob
             role="combobox"
             aria-expanded={open}
             className={cn(
-              "h-10 w-full justify-between border-0 bg-alva-surface font-normal text-foreground hover:bg-alva-surface hover:text-foreground",
+              "h-10 w-full justify-between rounded-full border-0 bg-alva-surface font-normal text-foreground hover:bg-alva-surface hover:text-foreground",
               !value && "text-muted-foreground",
-              error && "ring-1 ring-destructive"
+              alvaSelectClass(Boolean(error))
             )}
           >
             {value || "Select state"}
             <AltArrowDown size={16} weight="Outline" className="opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] border-alva-border bg-alva-card p-0">
+        <PopoverContent
+          className="z-[200] w-[var(--radix-popover-trigger-width)] border-alva-border bg-alva-card p-0"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
           <Command className="bg-alva-card">
             <CommandInput placeholder="Search states..." className="h-10" />
             <CommandList>
@@ -53,11 +57,11 @@ export function StateCombobox({ value, onChange, error, className }: StateCombob
                   <CommandItem
                     key={state}
                     value={state}
-                    onSelect={() => {
-                      onChange(state);
+                    onSelect={(selected) => {
+                      onChange(selected);
                       setOpen(false);
                     }}
-                    className="text-foreground"
+                    className="cursor-pointer text-foreground aria-selected:bg-alva-surface"
                   >
                     <CheckCircle
                       size={16}
