@@ -116,7 +116,7 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         New intern?{" "}
-        <Link to="/signup" className="font-medium text-primary hover:underline">
+        <Link to="/intern/signup" className="font-medium text-primary hover:underline">
           Create an account
         </Link>
       </p>

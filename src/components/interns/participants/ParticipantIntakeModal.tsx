@@ -145,7 +145,21 @@ export function ParticipantIntakeModal({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-lg rounded-3xl border-alva-border bg-alva-card p-0">
+      <DialogContent
+        className="max-w-lg rounded-3xl border-alva-border bg-alva-card p-0"
+        onPointerDownOutside={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest("[data-radix-popper-content-wrapper]")) {
+            event.preventDefault();
+          }
+        }}
+        onInteractOutside={(event) => {
+          const target = event.target as HTMLElement;
+          if (target.closest("[data-radix-popper-content-wrapper]")) {
+            event.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="space-y-4 px-6 pt-6">
           <DialogTitle className="text-lg font-semibold text-foreground">
             Log session participants

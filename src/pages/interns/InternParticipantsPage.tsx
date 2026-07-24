@@ -8,9 +8,7 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { ParticipantDetailSheet } from "@/components/interns/participants/ParticipantDetailSheet";
 import {
-  formatConsentLabel,
   formatGenderLabel,
-  formatSessionLanguageLabel,
   PARTICIPANT_METRICS,
   type ParticipantRecord,
 } from "@/data/interns/participants";
@@ -25,9 +23,7 @@ export default function InternParticipantsPage() {
     () =>
       rows.map((row) => ({
         ...row,
-        sessionLanguageLabel: formatSessionLanguageLabel(row.sessionLanguage),
         genderLabel: formatGenderLabel(row.gender),
-        consentLabel: formatConsentLabel(row.consent),
         loggedLabel: new Date(row.loggedAt).toLocaleDateString(undefined, {
           month: "short",
           day: "numeric",
@@ -99,19 +95,12 @@ export default function InternParticipantsPage() {
           title="Logged participants"
           rows={tableRows}
           pageSize={8}
-          searchPlaceholder="Search name, phone, state, language"
-          searchKeys={[
-            "nameOrId",
-            "phone",
-            "state",
-            "nativeLanguage",
-            "occupation",
-            "sessionId",
-          ]}
+          searchPlaceholder="Search name, state, focus group"
+          searchKeys={["nameOrId", "state", "focusGroupSession"]}
           onRowClick={handleRowClick}
           mobilePrimary={(row) => ({
             title: row.nameOrId,
-            subtitle: `${row.phone} · ${row.state}`,
+            subtitle: `${row.state} · ${row.ageBracket}`,
           })}
           emptyState={{
             icon: <UsersGroupRounded size={20} weight="Outline" />,
@@ -128,10 +117,10 @@ export default function InternParticipantsPage() {
               ),
             },
             {
-              key: "phone",
-              header: "Phone",
-              sortValue: (row) => row.phone,
-              render: (row) => <span className="text-muted-foreground">{row.phone}</span>,
+              key: "state",
+              header: "State",
+              sortValue: (row) => row.state,
+              render: (row) => <span className="text-muted-foreground">{row.state}</span>,
             },
             {
               key: "ageBracket",
@@ -144,40 +133,6 @@ export default function InternParticipantsPage() {
               header: "Gender",
               sortValue: (row) => row.genderLabel,
               render: (row) => <span className="text-muted-foreground">{row.genderLabel}</span>,
-            },
-            {
-              key: "state",
-              header: "State",
-              sortValue: (row) => row.state,
-              render: (row) => <span className="text-muted-foreground">{row.state}</span>,
-            },
-            {
-              key: "nativeLanguage",
-              header: "Native lang.",
-              sortValue: (row) => row.nativeLanguage,
-              render: (row) => (
-                <span className="text-muted-foreground">{row.nativeLanguage}</span>
-              ),
-            },
-            {
-              key: "sessionLanguageLabel",
-              header: "Session lang.",
-              sortValue: (row) => row.sessionLanguageLabel,
-              render: (row) => (
-                <span className="text-muted-foreground">{row.sessionLanguageLabel}</span>
-              ),
-            },
-            {
-              key: "consentLabel",
-              header: "Consent",
-              sortValue: (row) => row.consentLabel,
-              render: (row) => <span className="text-muted-foreground">{row.consentLabel}</span>,
-            },
-            {
-              key: "occupation",
-              header: "Occupation",
-              sortValue: (row) => row.occupation,
-              render: (row) => <span className="text-muted-foreground">{row.occupation}</span>,
             },
             {
               key: "loggedLabel",

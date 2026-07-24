@@ -50,7 +50,8 @@ export function AppRoutes() {
       <Route element={<GuestRoute />}>
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/intern/signup" element={<SignupPage />} />
+          <Route path="/signup" element={<Navigate to="/intern/signup" replace />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
       </Route>

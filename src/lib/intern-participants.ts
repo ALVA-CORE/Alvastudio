@@ -2,7 +2,31 @@ import type { ParticipantRecord } from "@/data/interns/participants";
 
 const STORAGE_KEY = "alva-intern-participants";
 
-const MOCK_PARTICIPANTS: ParticipantRecord[] = [
+const SESSION_FOCUS_GROUP: Record<string, string> = {
+  "sess-001":
+    "Discuss one habit young people have that older people always complain about.",
+  "sess-002": "Debate whether remote work is better than going to the office every day.",
+  "sess-003":
+    "Talk about how social media has changed the way people communicate in Nigeria.",
+  "sess-004": "Discuss what makes a voice sound trustworthy or authentic to you.",
+  "sess-005":
+    "Discuss one habit young people have that older people always complain about.",
+  "sess-006": "Debate whether remote work is better than going to the office every day.",
+};
+
+function withFocusGroupSession(
+  record: Omit<ParticipantRecord, "focusGroupSession"> & { focusGroupSession?: string }
+): ParticipantRecord {
+  return {
+    ...record,
+    focusGroupSession:
+      record.focusGroupSession ||
+      SESSION_FOCUS_GROUP[record.sessionId] ||
+      "Focus group session",
+  };
+}
+
+const MOCK_PARTICIPANT_SEEDS: Omit<ParticipantRecord, "focusGroupSession">[] = [
   {
     id: "p-001",
     sessionId: "sess-001",
@@ -173,14 +197,18 @@ const MOCK_PARTICIPANTS: ParticipantRecord[] = [
   },
 ];
 
+const MOCK_PARTICIPANTS: ParticipantRecord[] =
+  MOCK_PARTICIPANT_SEEDS.map(withFocusGroupSession);
+
 function readStore(): ParticipantRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return MOCK_PARTICIPANTS;
+    if (!raw) return MOCK_PARTICIPANTS.map(withFocusGroupSession);
     const parsed = JSON.parse(raw) as ParticipantRecord[];
-    return parsed.length > 0 ? parsed : MOCK_PARTICIPANTS;
+    const records = parsed.length > 0 ? parsed : MOCK_PARTICIPANTS;
+    return records.map(withFocusGroupSession);
   } catch {
-    return MOCK_PARTICIPANTS;
+    return MOCK_PARTICIPANTS.map(withFocusGroupSession);
   }
 }
 

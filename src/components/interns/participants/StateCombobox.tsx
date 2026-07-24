@@ -27,7 +27,7 @@ export function StateCombobox({ value, onChange, error, className }: StateCombob
 
   return (
     <div className={className}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover modal open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -46,6 +46,7 @@ export function StateCombobox({ value, onChange, error, className }: StateCombob
         </PopoverTrigger>
         <PopoverContent
           className="z-[200] w-[var(--radix-popover-trigger-width)] border-alva-border bg-alva-card p-0"
+          style={{ zIndex: 200 }}
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <Command className="bg-alva-card">
@@ -57,8 +58,13 @@ export function StateCombobox({ value, onChange, error, className }: StateCombob
                   <CommandItem
                     key={state}
                     value={state}
+                    onMouseDown={(event) => event.preventDefault()}
                     onSelect={(selected) => {
-                      onChange(selected);
+                      const match =
+                        NIGERIAN_STATES.find(
+                          (entry) => entry.toLowerCase() === selected.toLowerCase()
+                        ) ?? selected;
+                      onChange(match);
                       setOpen(false);
                     }}
                     className="cursor-pointer text-foreground aria-selected:bg-alva-surface"
