@@ -54,16 +54,16 @@ export function ParticipantDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full overflow-y-auto border-alva-border bg-alva-card sm:max-w-md"
+        className="flex w-full flex-col gap-0 border-alva-border bg-alva-card p-0 sm:max-w-md"
       >
-        <SheetHeader className="border-b border-alva-border pb-4 text-left">
+        <SheetHeader className="shrink-0 space-y-1 border-b border-alva-border bg-alva-card px-6 pb-4 pt-6 text-left">
           <SheetTitle className="text-xl text-foreground">{participant.nameOrId}</SheetTitle>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {participant.focusGroupSession}
           </p>
         </SheetHeader>
 
-        <div className="mt-6 space-y-5">
+        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
           <DetailSection title="Identity">
             <ProfileInfoBlock label="Name or ID" value={participant.nameOrId} />
             <ProfileInfoBlock label="Phone" value={participant.phone} />

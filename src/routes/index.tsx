@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShellLayout, AuthLayout } from "@/components/layout";
 import LoginPage from "@/pages/auth/LoginPage";
+import ContributorSignupPage from "@/pages/auth/ContributorSignupPage";
 import SignupPage from "@/pages/auth/SignupPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import ContributorDashboardPage from "@/pages/contributors/ContributorDashboardPage";
@@ -50,6 +51,7 @@ export function AppRoutes() {
       <Route element={<GuestRoute />}>
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/contributor/signup" element={<ContributorSignupPage />} />
           <Route path="/intern/signup" element={<SignupPage />} />
           <Route path="/signup" element={<Navigate to="/intern/signup" replace />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

@@ -167,6 +167,7 @@ export function ParticipantIntakeModal({
           <StepperBars
             currentStep={step}
             totalSteps={totalSteps}
+            size="sm"
             onStepClick={(next) => {
               if (next < step) setStep(next);
             }}
@@ -203,21 +204,19 @@ export function ParticipantIntakeModal({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="nameOrId">Name or participant ID</Label>
                     <Input
                       id="nameOrId"
                       value={currentDraft.nameOrId}
                       onChange={(e) =>
                         patchDraft(participantIndex, { nameOrId: e.target.value })
                       }
-                      placeholder="Participant A-14"
+                      placeholder="Name or participant ID"
                       className={alvaFieldClass(Boolean(fieldErrors.nameOrId))}
                     />
                     <FieldError message={fieldErrors.nameOrId} />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone number</Label>
                     <Input
                       id="phone"
                       inputMode="numeric"
@@ -227,7 +226,7 @@ export function ParticipantIntakeModal({
                           phone: normalizePhoneDigits(e.target.value),
                         })
                       }
-                      placeholder="08012345678"
+                      placeholder="Phone number"
                       maxLength={11}
                       className={alvaFieldClass(Boolean(fieldErrors.phone))}
                     />
@@ -237,7 +236,6 @@ export function ParticipantIntakeModal({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Age bracket</Label>
                     <AlvaSelect
                       value={currentDraft.ageBracket || undefined}
                       onValueChange={(value) =>
@@ -245,7 +243,7 @@ export function ParticipantIntakeModal({
                           ageBracket: value as ParticipantDraft["ageBracket"],
                         })
                       }
-                      placeholder="Select age"
+                      placeholder="Age bracket"
                       options={AGE_BRACKET_OPTIONS}
                       hasError={Boolean(fieldErrors.ageBracket)}
                     />
@@ -253,7 +251,6 @@ export function ParticipantIntakeModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Gender</Label>
                     <AlvaSelect
                       value={currentDraft.gender || undefined}
                       onValueChange={(value) =>
@@ -261,7 +258,7 @@ export function ParticipantIntakeModal({
                           gender: value as ParticipantDraft["gender"],
                         })
                       }
-                      placeholder="Select gender"
+                      placeholder="Gender"
                       options={GENDER_OPTIONS}
                       hasError={Boolean(fieldErrors.gender)}
                     />
@@ -271,23 +268,22 @@ export function ParticipantIntakeModal({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>State of origin or residence</Label>
                     <StateCombobox
                       value={currentDraft.state}
                       onChange={(value) => patchDraft(participantIndex, { state: value })}
+                      placeholder="State of origin or residence"
                       error={fieldErrors.state}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="nativeLanguage">Native language</Label>
                     <Input
                       id="nativeLanguage"
                       value={currentDraft.nativeLanguage}
                       onChange={(e) =>
                         patchDraft(participantIndex, { nativeLanguage: e.target.value })
                       }
-                      placeholder="Yoruba"
+                      placeholder="Native language"
                       className={alvaFieldClass(Boolean(fieldErrors.nativeLanguage))}
                     />
                     <FieldError message={fieldErrors.nativeLanguage} />
@@ -296,7 +292,6 @@ export function ParticipantIntakeModal({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Session language</Label>
                     <AlvaSelect
                       value={currentDraft.sessionLanguage || undefined}
                       onValueChange={(value) =>
@@ -304,7 +299,7 @@ export function ParticipantIntakeModal({
                           sessionLanguage: value as ParticipantDraft["sessionLanguage"],
                         })
                       }
-                      placeholder="English, Pidgin, mixed"
+                      placeholder="Session language"
                       options={SESSION_LANGUAGE_OPTIONS}
                       hasError={Boolean(fieldErrors.sessionLanguage)}
                     />
@@ -312,7 +307,6 @@ export function ParticipantIntakeModal({
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Consent</Label>
                     <AlvaSelect
                       value={currentDraft.consent || undefined}
                       onValueChange={(value) =>
@@ -320,7 +314,7 @@ export function ParticipantIntakeModal({
                           consent: value as ParticipantDraft["consent"],
                         })
                       }
-                      placeholder="Verbal or signed"
+                      placeholder="Consent"
                       options={CONSENT_OPTIONS}
                       hasError={Boolean(fieldErrors.consent)}
                     />
@@ -329,14 +323,13 @@ export function ParticipantIntakeModal({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="occupation">Occupation / sector</Label>
                   <Input
                     id="occupation"
                     value={currentDraft.occupation}
                     onChange={(e) =>
                       patchDraft(participantIndex, { occupation: e.target.value })
                     }
-                    placeholder="Healthcare, retail, transport"
+                    placeholder="Occupation / sector"
                     className={alvaFieldClass(Boolean(fieldErrors.occupation))}
                   />
                   <FieldError message={fieldErrors.occupation} />

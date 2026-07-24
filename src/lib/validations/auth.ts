@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { isValidNigerianPhone } from "@/lib/participant-validation";
+import type {
+  FluencyLevel,
+  PreferredVariety,
+  RecordingDevice,
+} from "@/data/contributors/onboarding";
 
 export const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -60,13 +65,33 @@ export type InternProfileData = {
   device?: "mobile" | "desktop-mic" | "both";
 };
 
+export type ContributorProfileData = {
+  dateOfBirth?: string;
+  ageBracket?: string;
+  gender: "male" | "female" | "prefer-not-to-say";
+  stateOfOrigin: string;
+  currentResidence: string;
+  ethnicity: string;
+  occupation?: string;
+  nativeLanguages: string;
+  pidginFluency: FluencyLevel;
+  englishFluency: FluencyLevel;
+  homeLanguages: string;
+  preferredVariety: PreferredVariety;
+  recordingDevice: RecordingDevice;
+  detectedDeviceLabel?: string;
+  detectedMicLabel?: string;
+};
+
 export type AuthUser = {
   id: string;
   fullName: string;
   email: string;
   phone?: string;
   role: UserRole;
+  onboardingComplete?: boolean;
   internProfile?: InternProfileData;
+  contributorProfile?: ContributorProfileData;
 };
 
 export const QUOTA_ALERT_OPTIONS = [

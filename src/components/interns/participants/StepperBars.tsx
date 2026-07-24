@@ -7,12 +7,19 @@ type StepperBarsProps = {
   totalSteps: number;
   onStepClick?: (step: number) => void;
   disableStepIndicators?: boolean;
+  size?: "sm" | "md";
   className?: string;
 };
 
-function CheckIcon(props: React.SVGProps<SVGSVGElement>) {
+function CheckIcon({ className }: { className?: string }) {
   return (
-    <svg {...props} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      viewBox="0 0 24 24"
+    >
       <motion.path
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
@@ -30,14 +37,17 @@ function StepIndicator({
   currentStep,
   onClickStep,
   disableStepIndicators = false,
+  size = "md",
 }: {
   step: number;
   currentStep: number;
   onClickStep: (step: number) => void;
   disableStepIndicators?: boolean;
+  size?: "sm" | "md";
 }) {
   const status =
     currentStep === step ? "active" : currentStep < step ? "inactive" : "complete";
+  const isSmall = size === "sm";
 
   return (
     <button
@@ -48,32 +58,44 @@ function StepIndicator({
       disabled={disableStepIndicators}
       className={cn(
         "relative outline-none focus-visible:ring-2 focus-visible:ring-alva-accent/40",
-        disableStepIndicators ? "pointer-events-none opacity-50" : "cursor-pointer"
+        disableStepIndicators ? "pointer-events-none" : "cursor-pointer"
       )}
     >
       <div
         className={cn(
-          "flex size-8 items-center justify-center rounded-full font-semibold transition-colors",
+          "flex items-center justify-center rounded-full font-semibold transition-colors",
+          isSmall ? "size-6" : "size-8",
           status === "inactive" && "bg-alva-surface text-muted-foreground",
           status === "active" && "bg-alva-accent text-alva-bg",
           status === "complete" && "bg-alva-accent text-alva-bg"
         )}
       >
         {status === "complete" ? (
-          <CheckIcon className="size-4 text-alva-bg" />
+          <CheckIcon className={cn("text-alva-bg", isSmall ? "size-2.5" : "size-4")} />
         ) : status === "active" ? (
-          <div className="size-3 rounded-full bg-alva-bg" />
+          <div className={cn("rounded-full bg-alva-bg", isSmall ? "size-2" : "size-3")} />
         ) : (
-          <span className="text-sm">{step}</span>
+          <span className={isSmall ? "text-[10px]" : "text-sm"}>{step}</span>
         )}
       </div>
     </button>
   );
 }
 
-function StepConnector({ isComplete }: { isComplete: boolean }) {
+function StepConnector({
+  isComplete,
+  size = "md",
+}: {
+  isComplete: boolean;
+  size?: "sm" | "md";
+}) {
   return (
-    <div className="relative mx-2 h-0.5 flex-1 overflow-hidden rounded bg-alva-border">
+    <div
+      className={cn(
+        "relative h-0.5 flex-1 overflow-hidden rounded bg-alva-border",
+        size === "sm" ? "mx-1" : "mx-2"
+      )}
+    >
       <motion.div
         className="absolute left-0 top-0 h-full bg-alva-accent"
         initial={false}
@@ -89,6 +111,7 @@ export function StepperBars({
   totalSteps,
   onStepClick,
   disableStepIndicators = false,
+  size = "md",
   className,
 }: StepperBarsProps) {
   return (
@@ -103,9 +126,12 @@ export function StepperBars({
               step={stepNumber}
               currentStep={currentStep}
               disableStepIndicators={disableStepIndicators}
+              size={size}
               onClickStep={(step) => onStepClick?.(step)}
             />
-            {isNotLastStep && <StepConnector isComplete={currentStep > stepNumber} />}
+            {isNotLastStep && (
+              <StepConnector isComplete={currentStep > stepNumber} size={size} />
+            )}
           </Fragment>
         );
       })}

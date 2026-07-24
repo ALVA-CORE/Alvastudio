@@ -18,11 +18,18 @@ import { cn } from "@/lib/utils";
 type StateComboboxProps = {
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
   error?: string;
   className?: string;
 };
 
-export function StateCombobox({ value, onChange, error, className }: StateComboboxProps) {
+export function StateCombobox({
+  value,
+  onChange,
+  placeholder = "Select state",
+  error,
+  className,
+}: StateComboboxProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -40,7 +47,7 @@ export function StateCombobox({ value, onChange, error, className }: StateCombob
               alvaSelectClass(Boolean(error))
             )}
           >
-            {value || "Select state"}
+            {value || placeholder}
             <AltArrowDown size={16} weight="Outline" className="opacity-50" />
           </Button>
         </PopoverTrigger>

@@ -6,6 +6,12 @@ import Bell from "@solar-icons/react/notifications/Bell";
 import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import UserId from "@solar-icons/react/users/UserId";
 import { useNavigate } from "react-router-dom";
+import {
+  formatFluencyLabel,
+  formatPreferredVarietyLabel,
+  formatRecordingDeviceLabel,
+} from "@/data/contributors/onboarding";
+import { formatGenderLabel } from "@/data/interns/participants";
 import { useAuth } from "@/lib/auth/context";
 import { isStaffRole } from "@/lib/auth/roles";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -22,6 +28,7 @@ export default function ContributorProfilePage() {
   const isMobile = useIsMobile();
   const isStaff = isStaffRole(user?.role);
   const firstName = user?.fullName?.split(" ")[0] ?? "User";
+  const profile = user?.contributorProfile;
 
   const handleLogout = () => {
     logout();
@@ -55,6 +62,11 @@ export default function ContributorProfilePage() {
               label="Role"
               value={user?.role ? `${user.role[0].toUpperCase()}${user.role.slice(1)}` : "Contributor"}
             />
+            <ProfileInfoBlock label="Gender" value={formatGenderLabel(profile?.gender ?? "") || "Not set"} />
+            <ProfileInfoBlock
+              label="Age"
+              value={profile?.dateOfBirth || profile?.ageBracket || "Not set"}
+            />
           </div>
         </ProfileActionRow>
 
@@ -65,9 +77,26 @@ export default function ContributorProfilePage() {
           sheetDescription="The language background that gives your recordings context."
         >
           <div className="space-y-3">
-            <ProfileInfoBlock label="Preferred variety" value="Nigerian English" />
-            <ProfileInfoBlock label="Native language(s)" value="To be collected during onboarding" />
-            <ProfileInfoBlock label="Pidgin fluency" value="To be collected during onboarding" />
+            <ProfileInfoBlock
+              label="Preferred variety"
+              value={formatPreferredVarietyLabel(profile?.preferredVariety ?? "") || "Not set"}
+            />
+            <ProfileInfoBlock
+              label="Native language(s)"
+              value={profile?.nativeLanguages ?? "Not set"}
+            />
+            <ProfileInfoBlock
+              label="Pidgin fluency"
+              value={formatFluencyLabel(profile?.pidginFluency ?? "") || "Not set"}
+            />
+            <ProfileInfoBlock
+              label="English fluency"
+              value={formatFluencyLabel(profile?.englishFluency ?? "") || "Not set"}
+            />
+            <ProfileInfoBlock
+              label="Languages at home"
+              value={profile?.homeLanguages ?? "Not set"}
+            />
           </div>
         </ProfileActionRow>
 
@@ -78,9 +107,18 @@ export default function ContributorProfilePage() {
           sheetDescription="This helps Alva interpret regional speech patterns correctly."
         >
           <div className="space-y-3">
-            <ProfileInfoBlock label="State of origin" value="To be collected during onboarding" />
-            <ProfileInfoBlock label="State of residence" value="To be collected during onboarding" />
-            <ProfileInfoBlock label="Accent influence" value="Where you feel your accent comes from most" />
+            <ProfileInfoBlock
+              label="State of origin"
+              value={profile?.stateOfOrigin ?? "Not set"}
+            />
+            <ProfileInfoBlock
+              label="Current residence"
+              value={profile?.currentResidence ?? "Not set"}
+            />
+            <ProfileInfoBlock label="Ethnicity" value={profile?.ethnicity ?? "Not set"} />
+            {profile?.occupation ? (
+              <ProfileInfoBlock label="Occupation" value={profile.occupation} />
+            ) : null}
           </div>
         </ProfileActionRow>
 
@@ -91,8 +129,18 @@ export default function ContributorProfilePage() {
           sheetDescription="Useful for QA when a clip sounds unusually quiet or noisy."
         >
           <div className="space-y-3">
-            <ProfileInfoBlock label="Primary device" value="Mobile phone" />
-            <ProfileInfoBlock label="Mic setup" value="Self-reported during onboarding" />
+            <ProfileInfoBlock
+              label="Self-reported device"
+              value={formatRecordingDeviceLabel(profile?.recordingDevice ?? "") || "Not set"}
+            />
+            <ProfileInfoBlock
+              label="Detected device"
+              value={profile?.detectedDeviceLabel ?? "Not detected"}
+            />
+            <ProfileInfoBlock
+              label="Detected mic"
+              value={profile?.detectedMicLabel ?? "Not detected"}
+            />
             <ProfileInfoBlock
               label="Default mode"
               value={isStaff ? "Focus group" : "Prompt reader"}
