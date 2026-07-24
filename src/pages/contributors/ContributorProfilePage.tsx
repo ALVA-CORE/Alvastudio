@@ -37,7 +37,6 @@ export default function ContributorProfilePage() {
       <ProfileHero
         name={user?.fullName ?? "Alva Contributor"}
         phone={user?.phone}
-        role={user?.role ?? "contributor"}
         seed={user?.email ?? firstName}
       />
 

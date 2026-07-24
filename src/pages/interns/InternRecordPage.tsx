@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Restart from "@solar-icons/react/arrows/Restart";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
-import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Diskette from "@solar-icons/react/devices/Diskette";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
@@ -9,7 +8,6 @@ import Play from "@solar-icons/react/video/Play";
 import { FOCUS_GROUP_PROMPTS } from "@/data/prompts";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
 import { alvaToast } from "@/lib/alva-toast";
-import { hasLoggedParticipants, loadParticipants } from "@/lib/intern-participants";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ParticipantIntakeModal } from "@/components/interns/participants/ParticipantIntakeModal";
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
@@ -23,13 +21,12 @@ function toCards(items: { id: number; text: string }[]): PromptCard[] {
 
 export default function InternRecordPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [participantCount, setParticipantCount] = useState(loadParticipants().length);
-  const [intakeOpen, setIntakeOpen] = useState(!hasLoggedParticipants());
+  const [sessionReady, setSessionReady] = useState(false);
+  const [intakeOpen, setIntakeOpen] = useState(false);
   const recorder = useStudioRecorder();
 
   const items = useMemo(() => toCards(FOCUS_GROUP_PROMPTS), []);
   const total = items.length;
-  const canRecord = participantCount > 0;
 
   const goTo = (updater: (prev: number) => number) => {
     setCurrentIndex((prev) => (updater(prev) + total) % total);
@@ -37,9 +34,8 @@ export default function InternRecordPage() {
   };
 
   const handlePrimary = async () => {
-    if (!canRecord) {
+    if (!sessionReady && recorder.phase === "idle") {
       setIntakeOpen(true);
-      alvaToast.error("Log at least one participant before recording.");
       return;
     }
 
@@ -80,37 +76,11 @@ export default function InternRecordPage() {
 
   return (
     <DesktopPageShell className="py-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Record focus group</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Log all session participants before you start recording.
-          </p>
-        </div>
-        <TextureButton
-          variant="minimal"
-          size="sm"
-          className="w-auto"
-          onClick={() => setIntakeOpen(true)}
-        >
-          <span className="flex items-center gap-2">
-            <UsersGroupRounded size={16} weight="Outline" />
-            Log participant ({participantCount})
-          </span>
-        </TextureButton>
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold text-foreground">Record focus group</h1>
       </div>
 
-      {!canRecord && (
-        <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Add participant details for everyone in the session before recording.
-        </div>
-      )}
-
-      <StudioProgress
-        current={currentIndex + 1}
-        total={total}
-        label="Session progress"
-      />
+      <StudioProgress current={currentIndex + 1} total={total} label="Session progress" />
 
       <StudioPromptStack
         className="mt-8"
@@ -120,11 +90,7 @@ export default function InternRecordPage() {
         onPrevious={() => goTo((prev) => prev - 1)}
       />
 
-      <StudioSiriControl
-        className="mt-10 h-28"
-        phase={canRecord ? recorder.phase : "idle"}
-        onPrimary={handlePrimary}
-      />
+      <StudioSiriControl className="mt-10 h-28" phase={recorder.phase} onPrimary={handlePrimary} />
 
       {recorder.error && (
         <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
@@ -161,7 +127,7 @@ export default function InternRecordPage() {
       <ParticipantIntakeModal
         open={intakeOpen}
         onOpenChange={setIntakeOpen}
-        onSaved={() => setParticipantCount(loadParticipants().length)}
+        onComplete={() => setSessionReady(true)}
       />
     </DesktopPageShell>
   );

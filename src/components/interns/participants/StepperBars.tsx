@@ -1,4 +1,4 @@
-import { Children, Fragment, type ReactNode } from "react";
+import { Fragment } from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -40,27 +40,24 @@ function StepIndicator({
     currentStep === step ? "active" : currentStep < step ? "inactive" : "complete";
 
   return (
-    <motion.button
+    <button
       type="button"
       onClick={() => {
         if (step !== currentStep && !disableStepIndicators) onClickStep(step);
       }}
       disabled={disableStepIndicators}
       className={cn(
-        "relative outline-none focus-visible:ring-2 focus-visible:ring-alva-accent/50",
+        "relative outline-none focus-visible:ring-2 focus-visible:ring-alva-accent/40",
         disableStepIndicators ? "pointer-events-none opacity-50" : "cursor-pointer"
       )}
-      animate={status}
-      initial={false}
     >
-      <motion.div
-        variants={{
-          inactive: { scale: 1, backgroundColor: "hsl(var(--alva-surface))", color: "hsl(var(--muted-foreground))" },
-          active: { scale: 1, backgroundColor: "hsl(var(--alva-accent))", color: "hsl(var(--alva-accent))" },
-          complete: { scale: 1, backgroundColor: "hsl(var(--alva-accent))", color: "hsl(var(--alva-accent))" },
-        }}
-        transition={{ duration: 0.3 }}
-        className="flex size-8 items-center justify-center rounded-full font-semibold ring-1 ring-alva-border"
+      <div
+        className={cn(
+          "flex size-8 items-center justify-center rounded-full font-semibold transition-colors",
+          status === "inactive" && "bg-alva-surface text-muted-foreground",
+          status === "active" && "bg-alva-accent text-alva-bg",
+          status === "complete" && "bg-alva-accent text-alva-bg"
+        )}
       >
         {status === "complete" ? (
           <CheckIcon className="size-4 text-alva-bg" />
@@ -69,8 +66,8 @@ function StepIndicator({
         ) : (
           <span className="text-sm">{step}</span>
         )}
-      </motion.div>
-    </motion.button>
+      </div>
+    </button>
   );
 }
 
@@ -114,12 +111,4 @@ export function StepperBars({
       })}
     </div>
   );
-}
-
-export function Step({ children }: { children: ReactNode }) {
-  return <div>{children}</div>;
-}
-
-export function getStepCount(children: ReactNode) {
-  return Children.count(children);
 }

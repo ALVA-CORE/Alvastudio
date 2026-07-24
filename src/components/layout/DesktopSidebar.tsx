@@ -3,11 +3,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
-import UserRounded from "@solar-icons/react/users/UserRounded";
+import Settings from "@solar-icons/react/settings/Settings";
 import { cn } from "@/lib/utils";
 import { SiriBlob } from "@/components/contributors/studio/SiriBlob";
 
-type NavId = "home" | "record" | "review" | "participants" | "profile";
+type NavId = "home" | "participants" | "record" | "review" | "profile";
 
 const NAV_ITEMS: Array<{
   id: NavId;
@@ -15,10 +15,10 @@ const NAV_ITEMS: Array<{
   label: string;
 }> = [
   { id: "home", path: "/intern/dashboard", label: "Home" },
-  { id: "record", path: "/intern/record", label: "Record" },
   { id: "participants", path: "/intern/participants", label: "Participants" },
+  { id: "record", path: "/intern/record", label: "Record" },
   { id: "review", path: "/intern/review", label: "Review" },
-  { id: "profile", path: "/intern/profile", label: "Profile" },
+  { id: "profile", path: "/intern/profile", label: "Settings" },
 ];
 
 function getActiveNav(pathname: string): NavId {
@@ -81,7 +81,6 @@ export function DesktopSidebar() {
                     )}
                   />
                 )}
-                {item.id === "record" && <SiriBlob size="nav" className="shrink-0" />}
                 {item.id === "participants" && (
                   <UsersGroupRounded
                     size={22}
@@ -92,6 +91,7 @@ export function DesktopSidebar() {
                     )}
                   />
                 )}
+                {item.id === "record" && <SiriBlob size="nav" className="shrink-0" />}
                 {item.id === "review" && (
                   <Clipboard
                     size={22}
@@ -103,7 +103,7 @@ export function DesktopSidebar() {
                   />
                 )}
                 {item.id === "profile" && (
-                  <UserRounded
+                  <Settings
                     size={22}
                     weight={isActive ? "BoldDuotone" : "Outline"}
                     className={cn(

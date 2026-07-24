@@ -6,9 +6,9 @@ const MOCK_PARTICIPANTS: ParticipantRecord[] = [
   {
     id: "p-001",
     nameOrId: "Participant A-14",
-    phone: "+234 801 234 5678",
+    phone: "08012345678",
     ageBracket: "25-34",
-    gender: "Female",
+    gender: "female",
     state: "Lagos",
     nativeLanguage: "Yoruba",
     sessionLanguage: "mixed",
@@ -19,9 +19,9 @@ const MOCK_PARTICIPANTS: ParticipantRecord[] = [
   {
     id: "p-002",
     nameOrId: "Participant B-07",
-    phone: "+234 802 345 6789",
+    phone: "08023456789",
     ageBracket: "18-24",
-    gender: "Male",
+    gender: "male",
     state: "Rivers",
     nativeLanguage: "Igbo",
     sessionLanguage: "pidgin",
@@ -32,10 +32,10 @@ const MOCK_PARTICIPANTS: ParticipantRecord[] = [
   {
     id: "p-003",
     nameOrId: "Chioma O.",
-    phone: "+234 803 456 7890",
+    phone: "08034567890",
     ageBracket: "35-44",
-    gender: "Female",
-    state: "Abuja",
+    gender: "female",
+    state: "FCT",
     nativeLanguage: "English",
     sessionLanguage: "english",
     consent: "verbal",
@@ -63,9 +63,13 @@ export function loadParticipants(): ParticipantRecord[] {
   return readStore().sort((a, b) => b.loggedAt - a.loggedAt);
 }
 
-export function saveParticipant(record: ParticipantRecord) {
-  const next = [record, ...readStore().filter((item) => item.id !== record.id)];
+export function saveParticipantsBatch(records: ParticipantRecord[]) {
+  const next = [...records, ...readStore().filter((item) => !records.some((r) => r.id === item.id))];
   writeStore(next);
+}
+
+export function saveParticipant(record: ParticipantRecord) {
+  saveParticipantsBatch([record]);
 }
 
 export function hasLoggedParticipants(): boolean {

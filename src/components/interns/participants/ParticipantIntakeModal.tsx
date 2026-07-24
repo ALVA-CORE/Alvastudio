@@ -1,21 +1,23 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AGE_BRACKET_OPTIONS,
   CONSENT_OPTIONS,
   EMPTY_PARTICIPANT_DRAFT,
+  GENDER_OPTIONS,
+  PARTICIPANT_COUNT_OPTIONS,
   SESSION_LANGUAGE_OPTIONS,
   type ParticipantDraft,
   type ParticipantRecord,
 } from "@/data/interns/participants";
-import { saveParticipant } from "@/lib/intern-participants";
-import { StepperBars } from "@/components/interns/participants/StepperBars";
+import { saveParticipantsBatch } from "@/lib/intern-participants";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  normalizePhoneDigits,
+  validateParticipantDraft,
+  type ParticipantFieldErrors,
+} from "@/lib/participant-validation";
+import { StepperBars } from "@/components/interns/participants/StepperBars";
+import { StateCombobox } from "@/components/interns/participants/StateCombobox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,17 +30,10 @@ import {
 import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
 
-const STEPS = [
-  { title: "Identity", description: "Name or ID and contact" },
-  { title: "Demographics", description: "Quota-relevant profile fields" },
-  { title: "Session", description: "Language and consent for this session" },
-  { title: "Domain", description: "Occupation or sector relevance" },
-] as const;
-
 type ParticipantIntakeModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved?: (participant: ParticipantRecord) => void;
+  onComplete?: (participants: ParticipantRecord[]) => void;
 };
 
 function fieldClass(hasError: boolean) {
@@ -48,70 +43,102 @@ function fieldClass(hasError: boolean) {
   );
 }
 
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="mt-1 text-xs text-destructive">{message}</p>;
+}
+
 export function ParticipantIntakeModal({
   open,
   onOpenChange,
-  onSaved,
+  onComplete,
 }: ParticipantIntakeModalProps) {
   const [step, setStep] = useState(1);
-  const [draft, setDraft] = useState<ParticipantDraft>(EMPTY_PARTICIPANT_DRAFT);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [participantCount, setParticipantCount] = useState<number | null>(null);
+  const [drafts, setDrafts] = useState<ParticipantDraft[]>([]);
+  const [countError, setCountError] = useState<string | undefined>();
+  const [fieldErrors, setFieldErrors] = useState<ParticipantFieldErrors>({});
+
+  const totalSteps = participantCount ? 1 + participantCount : 1;
+  const isCountStep = step === 1;
+  const isLastStep = !isCountStep && step === totalSteps;
+  const participantIndex = step - 2;
+  const currentDraft = participantIndex >= 0 ? drafts[participantIndex] : null;
 
   const reset = () => {
     setStep(1);
-    setDraft(EMPTY_PARTICIPANT_DRAFT);
-    setErrors([]);
+    setParticipantCount(null);
+    setDrafts([]);
+    setCountError(undefined);
+    setFieldErrors({});
   };
 
-  const patch = (patch: Partial<ParticipantDraft>) => {
-    setDraft((prev) => ({ ...prev, ...patch }));
-    setErrors([]);
+  const patchDraft = (index: number, patch: Partial<ParticipantDraft>) => {
+    setDrafts((prev) =>
+      prev.map((draft, i) => (i === index ? { ...draft, ...patch } : draft))
+    );
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(patch) as (keyof ParticipantDraft)[]) {
+        delete next[key];
+      }
+      return next;
+    });
   };
 
-  const validateStep = (current: number) => {
-    const nextErrors: string[] = [];
-    if (current === 1) {
-      if (!draft.nameOrId.trim()) nextErrors.push("Name or participant ID is required.");
-      if (!draft.phone.trim()) nextErrors.push("Phone number is required.");
-    }
-    if (current === 2) {
-      if (!draft.ageBracket) nextErrors.push("Age bracket is required.");
-      if (!draft.gender.trim()) nextErrors.push("Gender is required.");
-      if (!draft.state.trim()) nextErrors.push("State is required.");
-      if (!draft.nativeLanguage.trim()) nextErrors.push("Native language is required.");
-    }
-    if (current === 3) {
-      if (!draft.sessionLanguage) nextErrors.push("Session language is required.");
-      if (!draft.consent) nextErrors.push("Consent confirmation is required.");
-    }
-    if (current === 4) {
-      if (!draft.occupation.trim()) nextErrors.push("Occupation or sector is required.");
-    }
-    setErrors(nextErrors);
-    return nextErrors.length === 0;
+  const handleCountSelect = (count: number) => {
+    setParticipantCount(count);
+    setDrafts(Array.from({ length: count }, () => ({ ...EMPTY_PARTICIPANT_DRAFT })));
+    setCountError(undefined);
   };
 
   const handleNext = () => {
-    if (!validateStep(step)) return;
-    if (step < STEPS.length) {
-      setStep((prev) => prev + 1);
+    if (isCountStep) {
+      if (!participantCount) {
+        setCountError("Select how many participants are in this session.");
+        return;
+      }
+      setStep(2);
       return;
     }
 
-    const record: ParticipantRecord = {
+    if (!currentDraft) return;
+
+    const errors = validateParticipantDraft(currentDraft);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    if (!isLastStep) {
+      setStep((prev) => prev + 1);
+      setFieldErrors({});
+      return;
+    }
+
+    const records: ParticipantRecord[] = drafts.map((draft) => ({
       ...draft,
       id: crypto.randomUUID(),
       loggedAt: Date.now(),
-    };
-    saveParticipant(record);
-    onSaved?.(record);
+    }));
+
+    saveParticipantsBatch(records);
+    onComplete?.(records);
     onOpenChange(false);
     reset();
   };
 
   const handleBack = () => {
-    if (step > 1) setStep((prev) => prev - 1);
+    if (step > 1) {
+      setStep((prev) => prev - 1);
+      setFieldErrors({});
+    }
   };
+
+  const participantLabel = useMemo(() => {
+    if (participantIndex < 0 || !participantCount) return "";
+    return `Participant ${participantIndex + 1} of ${participantCount}`;
+  }, [participantCount, participantIndex]);
 
   return (
     <Dialog
@@ -121,182 +148,229 @@ export function ParticipantIntakeModal({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-lg rounded-2xl border-alva-border bg-alva-card p-0">
-        <DialogHeader className="space-y-3 px-6 pt-6">
+      <DialogContent className="max-w-lg rounded-3xl border-alva-border bg-alva-card p-0">
+        <DialogHeader className="space-y-4 px-6 pt-6">
           <DialogTitle className="text-lg font-semibold text-foreground">
-            Log session participant
+            Log session participants
           </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Capture participant details before recording a focus group session.
-          </DialogDescription>
           <StepperBars
             currentStep={step}
-            totalSteps={STEPS.length}
+            totalSteps={totalSteps}
             onStepClick={(next) => {
               if (next < step) setStep(next);
             }}
-            className="pt-1"
           />
-          <div>
-            <p className="text-sm font-medium text-foreground">{STEPS[step - 1].title}</p>
-            <p className="text-xs text-muted-foreground">{STEPS[step - 1].description}</p>
-          </div>
         </DialogHeader>
 
-        <div className="space-y-4 px-6 pb-2 pt-2">
-          {step === 1 && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="nameOrId">Name or participant ID</Label>
-                <Input
-                  id="nameOrId"
-                  value={draft.nameOrId}
-                  onChange={(e) => patch({ nameOrId: e.target.value })}
-                  placeholder="e.g. Participant A-14"
-                  className={fieldClass(errors.some((e) => e.includes("Name")))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone number</Label>
-                <Input
-                  id="phone"
-                  value={draft.phone}
-                  onChange={(e) => patch({ phone: e.target.value })}
-                  placeholder="+234 800 000 0000"
-                  className={fieldClass(errors.some((e) => e.includes("Phone")))}
-                />
-              </div>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <div className="space-y-2">
-                <Label>Age bracket</Label>
-                <Select
-                  value={draft.ageBracket || undefined}
-                  onValueChange={(value) =>
-                    patch({ ageBracket: value as ParticipantDraft["ageBracket"] })
-                  }
-                >
-                  <SelectTrigger className={fieldClass(errors.some((e) => e.includes("Age")))}>
-                    <SelectValue placeholder="Select age bracket" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AGE_BRACKET_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
-                <Input
-                  id="gender"
-                  value={draft.gender}
-                  onChange={(e) => patch({ gender: e.target.value })}
-                  placeholder="e.g. Female"
-                  className={fieldClass(errors.some((e) => e.includes("Gender")))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">State of origin or residence</Label>
-                <Input
-                  id="state"
-                  value={draft.state}
-                  onChange={(e) => patch({ state: e.target.value })}
-                  placeholder="e.g. Lagos"
-                  className={fieldClass(errors.some((e) => e.includes("State")))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nativeLanguage">Native language</Label>
-                <Input
-                  id="nativeLanguage"
-                  value={draft.nativeLanguage}
-                  onChange={(e) => patch({ nativeLanguage: e.target.value })}
-                  placeholder="e.g. Yoruba"
-                  className={fieldClass(errors.some((e) => e.includes("Native")))}
-                />
-              </div>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <div className="space-y-2">
-                <Label>Language used during session</Label>
-                <Select
-                  value={draft.sessionLanguage || undefined}
-                  onValueChange={(value) =>
-                    patch({ sessionLanguage: value as ParticipantDraft["sessionLanguage"] })
-                  }
-                >
-                  <SelectTrigger
-                    className={fieldClass(errors.some((e) => e.includes("Session language")))}
+        <div className="space-y-4 px-6 pb-2 pt-1">
+          {isCountStep ? (
+            <div className="space-y-3">
+              <Label>How many participants are in this session?</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {PARTICIPANT_COUNT_OPTIONS.map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => handleCountSelect(count)}
+                    className={cn(
+                      "rounded-xl py-3 text-sm font-medium transition-colors",
+                      participantCount === count
+                        ? "bg-alva-accent text-alva-bg"
+                        : "bg-alva-surface text-foreground hover:text-alva-accent"
+                    )}
                   >
-                    <SelectValue placeholder="English, Pidgin, or mixed" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SESSION_LANGUAGE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    {count}
+                  </button>
+                ))}
               </div>
-              <div className="space-y-2">
-                <Label>Consent confirmation</Label>
-                <Select
-                  value={draft.consent || undefined}
-                  onValueChange={(value) =>
-                    patch({ consent: value as ParticipantDraft["consent"] })
-                  }
-                >
-                  <SelectTrigger
-                    className={fieldClass(errors.some((e) => e.includes("Consent")))}
-                  >
-                    <SelectValue placeholder="Verbal or signed consent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CONSENT_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-
-          {step === 4 && (
-            <div className="space-y-2">
-              <Label htmlFor="occupation">Occupation / sector</Label>
-              <Input
-                id="occupation"
-                value={draft.occupation}
-                onChange={(e) => patch({ occupation: e.target.value })}
-                placeholder="e.g. Healthcare, retail, transport"
-                className={fieldClass(errors.some((e) => e.includes("Occupation")))}
-              />
+              <FieldError message={countError} />
             </div>
-          )}
+          ) : (
+            currentDraft && (
+              <>
+                <p className="text-sm font-medium text-foreground">{participantLabel}</p>
 
-          {errors.length > 0 && (
-            <ul className="space-y-1 text-xs text-destructive">
-              {errors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="nameOrId">Name or participant ID</Label>
+                    <Input
+                      id="nameOrId"
+                      value={currentDraft.nameOrId}
+                      onChange={(e) =>
+                        patchDraft(participantIndex, { nameOrId: e.target.value })
+                      }
+                      placeholder="Participant A-14"
+                      className={fieldClass(Boolean(fieldErrors.nameOrId))}
+                    />
+                    <FieldError message={fieldErrors.nameOrId} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone number</Label>
+                    <Input
+                      id="phone"
+                      inputMode="numeric"
+                      value={currentDraft.phone}
+                      onChange={(e) =>
+                        patchDraft(participantIndex, {
+                          phone: normalizePhoneDigits(e.target.value),
+                        })
+                      }
+                      placeholder="08012345678"
+                      maxLength={11}
+                      className={fieldClass(Boolean(fieldErrors.phone))}
+                    />
+                    <FieldError message={fieldErrors.phone} />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Age bracket</Label>
+                    <Select
+                      value={currentDraft.ageBracket || undefined}
+                      onValueChange={(value) =>
+                        patchDraft(participantIndex, {
+                          ageBracket: value as ParticipantDraft["ageBracket"],
+                        })
+                      }
+                    >
+                      <SelectTrigger className={fieldClass(Boolean(fieldErrors.ageBracket))}>
+                        <SelectValue placeholder="Select age" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGE_BRACKET_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError message={fieldErrors.ageBracket} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Gender</Label>
+                    <Select
+                      value={currentDraft.gender || undefined}
+                      onValueChange={(value) =>
+                        patchDraft(participantIndex, {
+                          gender: value as ParticipantDraft["gender"],
+                        })
+                      }
+                    >
+                      <SelectTrigger className={fieldClass(Boolean(fieldErrors.gender))}>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENDER_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError message={fieldErrors.gender} />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>State of origin or residence</Label>
+                    <StateCombobox
+                      value={currentDraft.state}
+                      onChange={(value) => patchDraft(participantIndex, { state: value })}
+                      error={fieldErrors.state}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="nativeLanguage">Native language</Label>
+                    <Input
+                      id="nativeLanguage"
+                      value={currentDraft.nativeLanguage}
+                      onChange={(e) =>
+                        patchDraft(participantIndex, { nativeLanguage: e.target.value })
+                      }
+                      placeholder="Yoruba"
+                      className={fieldClass(Boolean(fieldErrors.nativeLanguage))}
+                    />
+                    <FieldError message={fieldErrors.nativeLanguage} />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Session language</Label>
+                    <Select
+                      value={currentDraft.sessionLanguage || undefined}
+                      onValueChange={(value) =>
+                        patchDraft(participantIndex, {
+                          sessionLanguage: value as ParticipantDraft["sessionLanguage"],
+                        })
+                      }
+                    >
+                      <SelectTrigger
+                        className={fieldClass(Boolean(fieldErrors.sessionLanguage))}
+                      >
+                        <SelectValue placeholder="English, Pidgin, mixed" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SESSION_LANGUAGE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError message={fieldErrors.sessionLanguage} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Consent</Label>
+                    <Select
+                      value={currentDraft.consent || undefined}
+                      onValueChange={(value) =>
+                        patchDraft(participantIndex, {
+                          consent: value as ParticipantDraft["consent"],
+                        })
+                      }
+                    >
+                      <SelectTrigger className={fieldClass(Boolean(fieldErrors.consent))}>
+                        <SelectValue placeholder="Verbal or signed" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONSENT_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError message={fieldErrors.consent} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="occupation">Occupation / sector</Label>
+                  <Input
+                    id="occupation"
+                    value={currentDraft.occupation}
+                    onChange={(e) =>
+                      patchDraft(participantIndex, { occupation: e.target.value })
+                    }
+                    placeholder="Healthcare, retail, transport"
+                    className={fieldClass(Boolean(fieldErrors.occupation))}
+                  />
+                  <FieldError message={fieldErrors.occupation} />
+                </div>
+              </>
+            )
           )}
         </div>
 
-        <div className="flex items-center justify-between px-6 pb-6 pt-2">
-          {step > 1 ? (
+        <div className="flex justify-center gap-4 px-6 pb-6 pt-4">
+          {step > 1 && (
             <button
               type="button"
               onClick={handleBack}
@@ -304,12 +378,20 @@ export function ParticipantIntakeModal({
             >
               Previous
             </button>
-          ) : (
-            <span />
           )}
-          <TextureButton variant="alva" size="default" className="w-auto" onClick={handleNext}>
-            {step === STEPS.length ? "Save participant" : "Next"}
-          </TextureButton>
+          {!isLastStep ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="text-sm font-medium text-foreground transition-colors hover:text-alva-accent"
+            >
+              Next
+            </button>
+          ) : (
+            <TextureButton variant="alva" size="default" className="w-auto" onClick={handleNext}>
+              Save participants
+            </TextureButton>
+          )}
         </div>
       </DialogContent>
     </Dialog>

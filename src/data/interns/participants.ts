@@ -4,12 +4,14 @@ export type SessionLanguage = "english" | "pidgin" | "mixed";
 
 export type ConsentType = "verbal" | "signed";
 
+export type Gender = "male" | "female" | "non-binary" | "prefer-not-to-say";
+
 export type ParticipantRecord = {
   id: string;
   nameOrId: string;
   phone: string;
   ageBracket: AgeBracket | "";
-  gender: string;
+  gender: Gender | "";
   state: string;
   nativeLanguage: string;
   sessionLanguage: SessionLanguage | "";
@@ -40,6 +42,13 @@ export const AGE_BRACKET_OPTIONS: { value: AgeBracket; label: string }[] = [
   { value: "55+", label: "55+" },
 ];
 
+export const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: "female", label: "Female" },
+  { value: "male", label: "Male" },
+  { value: "non-binary", label: "Non-binary" },
+  { value: "prefer-not-to-say", label: "Prefer not to say" },
+];
+
 export const SESSION_LANGUAGE_OPTIONS: { value: SessionLanguage; label: string }[] = [
   { value: "english", label: "English" },
   { value: "pidgin", label: "Pidgin" },
@@ -50,6 +59,48 @@ export const CONSENT_OPTIONS: { value: ConsentType; label: string }[] = [
   { value: "verbal", label: "Verbal consent" },
   { value: "signed", label: "Signed consent" },
 ];
+
+export const NIGERIAN_STATES = [
+  "Abia",
+  "Adamawa",
+  "Akwa Ibom",
+  "Anambra",
+  "Bauchi",
+  "Bayelsa",
+  "Benue",
+  "Borno",
+  "Cross River",
+  "Delta",
+  "Ebonyi",
+  "Edo",
+  "Ekiti",
+  "Enugu",
+  "FCT",
+  "Gombe",
+  "Imo",
+  "Jigawa",
+  "Kaduna",
+  "Kano",
+  "Katsina",
+  "Kebbi",
+  "Kogi",
+  "Kwara",
+  "Lagos",
+  "Nasarawa",
+  "Niger",
+  "Ogun",
+  "Ondo",
+  "Osun",
+  "Oyo",
+  "Plateau",
+  "Rivers",
+  "Sokoto",
+  "Taraba",
+  "Yobe",
+  "Zamfara",
+] as const;
+
+export const PARTICIPANT_COUNT_OPTIONS = [1, 2, 3, 4] as const;
 
 export const PARTICIPANT_METRICS = {
   total: "214",
@@ -62,3 +113,7 @@ export const PARTICIPANT_METRICS = {
   quotaTrend: "+5%",
   periodLabel: "Last 30 days",
 };
+
+export function formatGenderLabel(value: Gender | "") {
+  return GENDER_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}

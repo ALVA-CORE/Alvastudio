@@ -6,9 +6,8 @@ import GraphUp from "@solar-icons/react/business/GraphUp";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
-import { PARTICIPANT_METRICS } from "@/data/interns/participants";
+import { formatGenderLabel, PARTICIPANT_METRICS, SESSION_LANGUAGE_OPTIONS } from "@/data/interns/participants";
 import { loadParticipants } from "@/lib/intern-participants";
-import { SESSION_LANGUAGE_OPTIONS } from "@/data/interns/participants";
 
 function formatSessionLanguage(value: string) {
   return SESSION_LANGUAGE_OPTIONS.find((option) => option.value === value)?.label ?? value;
@@ -22,6 +21,7 @@ export default function InternParticipantsPage() {
       rows.map((row) => ({
         ...row,
         sessionLanguageLabel: formatSessionLanguage(row.sessionLanguage),
+        genderLabel: formatGenderLabel(row.gender),
         loggedLabel: new Date(row.loggedAt).toLocaleDateString(undefined, {
           month: "short",
           day: "numeric",
@@ -115,10 +115,10 @@ export default function InternParticipantsPage() {
               render: (row) => <span className="text-muted-foreground">{row.ageBracket}</span>,
             },
             {
-              key: "gender",
+              key: "genderLabel",
               header: "Gender",
-              sortValue: (row) => row.gender,
-              render: (row) => <span className="text-muted-foreground">{row.gender}</span>,
+              sortValue: (row) => row.genderLabel,
+              render: (row) => <span className="text-muted-foreground">{row.genderLabel}</span>,
             },
             {
               key: "state",

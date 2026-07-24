@@ -22,7 +22,6 @@ const radarConfig = {
 const focusGroupConfig = {
   hours: { label: "Hours recorded", color: "green" as const },
   participants: { label: "Participants", color: "blue" as const },
-  sessions: { label: "Sessions", color: "purple" as const },
 };
 
 type InternDashboardChartsProps = {
@@ -98,7 +97,7 @@ export function InternDashboardCharts({
 
       <ChartCard
         title="Capture volume"
-        subtitle="Focus group hours, participants, and sessions over time"
+        subtitle="Focus group hours and participants over time"
       >
         <LineChart
           data={dataset.captureTrend}
@@ -113,7 +112,6 @@ export function InternDashboardCharts({
           <Tooltip labelKey="month" />
           <Line dataKey="hours" variant="gradient" isClickable />
           <Line dataKey="participants" variant="hatched" isClickable />
-          <Line dataKey="sessions" variant="gradient" isClickable />
         </LineChart>
       </ChartCard>
     </div>
