@@ -19,6 +19,7 @@ type AlvaSelectProps = {
   placeholder?: string;
   options: AlvaSelectOption[];
   hasError?: boolean;
+  size?: "md" | "lg";
   className?: string;
 };
 
@@ -28,11 +29,12 @@ export function AlvaSelect({
   placeholder,
   options,
   hasError,
+  size = "md",
   className,
 }: AlvaSelectProps) {
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className={cn(alvaSelectClass(hasError), className)}>
+      <SelectTrigger className={cn(alvaSelectClass(hasError, size), className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="rounded-2xl border-alva-border bg-alva-card">

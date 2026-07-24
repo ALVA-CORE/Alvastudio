@@ -20,7 +20,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   CONTRIBUTOR_ONBOARDING_STEPS,
   FLUENCY_OPTIONS,
@@ -37,7 +36,6 @@ import {
   detectRecordingEnvironment,
   suggestRecordingDevice,
 } from "@/lib/device-detection";
-import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { normalizePhoneDigits } from "@/lib/participant-validation";
 import {
   CONTRIBUTOR_STEP_FIELDS,
@@ -47,6 +45,7 @@ import {
 import type { ContributorProfileData } from "@/lib/validations/auth";
 
 const TOTAL_STEPS = CONTRIBUTOR_ONBOARDING_STEPS.length;
+const AUTH_FIELD_SIZE = "lg" as const;
 
 export function ContributorOnboardingForm() {
   const navigate = useNavigate();
@@ -62,11 +61,9 @@ export function ContributorOnboardingForm() {
       email: "",
       password: "",
       confirmPassword: "",
-      dateOfBirth: "",
-      ageBracket: "",
+      ageBracket: undefined,
       gender: undefined,
       stateOfOrigin: "",
-      currentResidence: "",
       ethnicity: "",
       occupation: "",
       nativeLanguages: "",
@@ -118,11 +115,9 @@ export function ContributorOnboardingForm() {
 
     const values = form.getValues();
     const contributorProfile: ContributorProfileData = {
-      dateOfBirth: values.dateOfBirth || undefined,
-      ageBracket: values.ageBracket || undefined,
+      ageBracket: values.ageBracket,
       gender: values.gender,
       stateOfOrigin: values.stateOfOrigin,
-      currentResidence: values.currentResidence,
       ethnicity: values.ethnicity,
       occupation: values.occupation || undefined,
       nativeLanguages: values.nativeLanguages,
@@ -265,44 +260,25 @@ export function ContributorOnboardingForm() {
 
           {step === 2 && (
             <>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="dateOfBirth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          {...field}
-                          aria-label="Date of birth"
-                          className={alvaFieldClass(Boolean(form.formState.errors.dateOfBirth))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ageBracket"
-                  render={({ field, fieldState }) => (
-                    <FormItem>
-                      <FormControl>
-                        <AlvaSelect
-                          value={field.value || undefined}
-                          onValueChange={field.onChange}
-                          placeholder="Age bracket"
-                          options={AGE_BRACKET_OPTIONS}
-                          hasError={Boolean(fieldState.error)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="ageBracket"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormControl>
+                      <AlvaSelect
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Age bracket"
+                        options={AGE_BRACKET_OPTIONS}
+                        hasError={Boolean(fieldState.error)}
+                        size={AUTH_FIELD_SIZE}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -316,6 +292,7 @@ export function ContributorOnboardingForm() {
                         placeholder="Gender"
                         options={GENDER_OPTIONS}
                         hasError={Boolean(fieldState.error)}
+                        size={AUTH_FIELD_SIZE}
                       />
                     </FormControl>
                     <FormMessage />
@@ -333,6 +310,7 @@ export function ContributorOnboardingForm() {
                         value={field.value}
                         onChange={field.onChange}
                         placeholder="State of origin"
+                        size={AUTH_FIELD_SIZE}
                         error={fieldState.error?.message}
                       />
                     </FormControl>
@@ -342,32 +320,11 @@ export function ContributorOnboardingForm() {
 
               <FormField
                 control={form.control}
-                name="currentResidence"
-                render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="State / city of current residence"
-                        className={alvaFieldClass(Boolean(fieldState.error))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="ethnicity"
-                render={({ field, fieldState }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Ethnicity"
-                        className={alvaFieldClass(Boolean(fieldState.error))}
-                      />
+                      <BeamInput label="Ethnicity" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -380,11 +337,7 @@ export function ContributorOnboardingForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Occupation / industry (optional)"
-                        className={alvaFieldClass()}
-                      />
+                      <BeamInput label="Occupation / industry (optional)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -398,14 +351,10 @@ export function ContributorOnboardingForm() {
               <FormField
                 control={form.control}
                 name="nativeLanguages"
-                render={({ field, fieldState }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Native language(s)"
-                        className={alvaFieldClass(Boolean(fieldState.error))}
-                      />
+                      <BeamInput label="Native language(s)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -425,6 +374,7 @@ export function ContributorOnboardingForm() {
                           placeholder="Nigerian Pidgin fluency"
                           options={FLUENCY_OPTIONS}
                           hasError={Boolean(fieldState.error)}
+                          size={AUTH_FIELD_SIZE}
                         />
                       </FormControl>
                       <FormMessage />
@@ -444,6 +394,7 @@ export function ContributorOnboardingForm() {
                           placeholder="Nigerian English fluency"
                           options={FLUENCY_OPTIONS}
                           hasError={Boolean(fieldState.error)}
+                          size={AUTH_FIELD_SIZE}
                         />
                       </FormControl>
                       <FormMessage />
@@ -455,14 +406,10 @@ export function ContributorOnboardingForm() {
               <FormField
                 control={form.control}
                 name="homeLanguages"
-                render={({ field, fieldState }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Languages spoken at home growing up"
-                        className={alvaFieldClass(Boolean(fieldState.error))}
-                      />
+                      <BeamInput label="Languages spoken at home growing up" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -481,6 +428,7 @@ export function ContributorOnboardingForm() {
                         placeholder="Preferred recording variety"
                         options={[...PREFERRED_VARIETY_OPTIONS]}
                         hasError={Boolean(fieldState.error)}
+                        size={AUTH_FIELD_SIZE}
                       />
                     </FormControl>
                     <FormMessage />
@@ -539,6 +487,7 @@ export function ContributorOnboardingForm() {
                         placeholder="Device / mic you will use"
                         options={[...RECORDING_DEVICE_OPTIONS]}
                         hasError={Boolean(fieldState.error)}
+                        size={AUTH_FIELD_SIZE}
                       />
                     </FormControl>
                     <FormMessage />

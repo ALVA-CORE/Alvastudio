@@ -66,11 +66,9 @@ export type InternProfileData = {
 };
 
 export type ContributorProfileData = {
-  dateOfBirth?: string;
-  ageBracket?: string;
+  ageBracket: string;
   gender: "male" | "female" | "prefer-not-to-say";
   stateOfOrigin: string;
-  currentResidence: string;
   ethnicity: string;
   occupation?: string;
   nativeLanguages: string;

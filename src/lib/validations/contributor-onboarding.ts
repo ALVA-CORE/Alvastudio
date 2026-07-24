@@ -23,20 +23,13 @@ export const contributorIdentityStepSchema = z
     path: ["confirmPassword"],
   });
 
-export const contributorDemographicsStepSchema = z
-  .object({
-    dateOfBirth: z.string().optional(),
-    ageBracket: z.enum(ageBracketValues).or(z.literal("")).optional(),
-    gender: z.enum(genderValues, { message: "Select your gender" }),
-    stateOfOrigin: z.string().min(1, "Select your state of origin"),
-    currentResidence: z.string().min(2, "Enter your current state or city"),
-    ethnicity: z.string().min(2, "Enter your ethnicity"),
-    occupation: z.string().optional(),
-  })
-  .refine((data) => Boolean(data.dateOfBirth?.trim() || data.ageBracket), {
-    message: "Enter your date of birth or select an age bracket",
-    path: ["ageBracket"],
-  });
+export const contributorDemographicsStepSchema = z.object({
+  ageBracket: z.enum(ageBracketValues, { message: "Select your age bracket" }),
+  gender: z.enum(genderValues, { message: "Select your gender" }),
+  stateOfOrigin: z.string().min(1, "Select your state of origin"),
+  ethnicity: z.string().min(2, "Enter your ethnicity"),
+  occupation: z.string().optional(),
+});
 
 export const contributorLanguageStepSchema = z.object({
   nativeLanguages: z.string().min(2, "List at least one native language"),
@@ -81,15 +74,7 @@ export type ContributorOnboardingValues = z.infer<typeof contributorOnboardingSc
 
 export const CONTRIBUTOR_STEP_FIELDS: Record<number, (keyof ContributorOnboardingValues)[]> = {
   1: ["fullName", "phone", "email", "password", "confirmPassword"],
-  2: [
-    "dateOfBirth",
-    "ageBracket",
-    "gender",
-    "stateOfOrigin",
-    "currentResidence",
-    "ethnicity",
-    "occupation",
-  ],
+  2: ["ageBracket", "gender", "stateOfOrigin", "ethnicity", "occupation"],
   3: [
     "nativeLanguages",
     "pidginFluency",

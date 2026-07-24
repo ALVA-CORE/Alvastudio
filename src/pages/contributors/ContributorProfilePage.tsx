@@ -63,10 +63,7 @@ export default function ContributorProfilePage() {
               value={user?.role ? `${user.role[0].toUpperCase()}${user.role.slice(1)}` : "Contributor"}
             />
             <ProfileInfoBlock label="Gender" value={formatGenderLabel(profile?.gender ?? "") || "Not set"} />
-            <ProfileInfoBlock
-              label="Age"
-              value={profile?.dateOfBirth || profile?.ageBracket || "Not set"}
-            />
+            <ProfileInfoBlock label="Age bracket" value={profile?.ageBracket ?? "Not set"} />
           </div>
         </ProfileActionRow>
 
@@ -110,10 +107,6 @@ export default function ContributorProfilePage() {
             <ProfileInfoBlock
               label="State of origin"
               value={profile?.stateOfOrigin ?? "Not set"}
-            />
-            <ProfileInfoBlock
-              label="Current residence"
-              value={profile?.currentResidence ?? "Not set"}
             />
             <ProfileInfoBlock label="Ethnicity" value={profile?.ethnicity ?? "Not set"} />
             {profile?.occupation ? (

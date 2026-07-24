@@ -178,6 +178,7 @@ export function InternSignupForm() {
                     <StateCombobox
                       value={field.value}
                       onChange={field.onChange}
+                      size="lg"
                       error={fieldState.error?.message}
                     />
                   </FormControl>
@@ -198,6 +199,7 @@ export function InternSignupForm() {
                       placeholder="How often"
                       options={[...QUOTA_ALERT_OPTIONS]}
                       hasError={Boolean(fieldState.error)}
+                      size="lg"
                     />
                   </FormControl>
                   <FormMessage />

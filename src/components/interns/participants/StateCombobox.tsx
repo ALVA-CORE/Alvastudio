@@ -20,6 +20,7 @@ type StateComboboxProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   error?: string;
+  size?: "md" | "lg";
   className?: string;
 };
 
@@ -28,6 +29,7 @@ export function StateCombobox({
   onChange,
   placeholder = "Select state",
   error,
+  size = "md",
   className,
 }: StateComboboxProps) {
   const [open, setOpen] = useState(false);
@@ -42,9 +44,10 @@ export function StateCombobox({
             role="combobox"
             aria-expanded={open}
             className={cn(
-              "h-10 w-full justify-between rounded-full border-0 bg-alva-surface font-normal text-foreground hover:bg-alva-surface hover:text-foreground",
+              "w-full justify-between rounded-full border-0 bg-alva-surface font-normal text-foreground hover:bg-alva-surface hover:text-foreground",
+              size === "lg" ? "h-12" : "h-10",
               !value && "text-muted-foreground",
-              alvaSelectClass(Boolean(error))
+              alvaSelectClass(Boolean(error), size)
             )}
           >
             {value || placeholder}
