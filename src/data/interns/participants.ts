@@ -101,7 +101,7 @@ export const NIGERIAN_STATES = [
   "Zamfara",
 ] as const;
 
-export const PARTICIPANT_COUNT_OPTIONS = [2, 3, 4] as const;
+export const PARTICIPANT_COUNT_OPTIONS = [1, 2, 3] as const;
 
 export const PARTICIPANT_METRICS = {
   total: "214",

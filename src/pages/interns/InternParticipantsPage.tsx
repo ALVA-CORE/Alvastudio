@@ -6,16 +6,21 @@ import GraphUp from "@solar-icons/react/business/GraphUp";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
+import { DevUiStateToggle } from "@/components/shared/DevUiStateToggle";
+import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
 import { ParticipantDetailSheet } from "@/components/interns/participants/ParticipantDetailSheet";
 import {
   formatGenderLabel,
   PARTICIPANT_METRICS,
   type ParticipantRecord,
 } from "@/data/interns/participants";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { loadParticipants } from "@/lib/intern-participants";
 
 export default function InternParticipantsPage() {
-  const rows = useMemo(() => loadParticipants(), []);
+  const sourceRows = useMemo(() => loadParticipants(), []);
+  const rows = useDevRows(sourceRows);
+  const isLoading = useSimulatedLoading();
   const [selected, setSelected] = useState<ParticipantRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -46,55 +51,62 @@ export default function InternParticipantsPage() {
         </p>
       </header>
 
-      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          variant="accent"
-          title="Total logged"
-          value={PARTICIPANT_METRICS.total}
-          trend={{
-            label: PARTICIPANT_METRICS.totalTrend,
-            positive: PARTICIPANT_METRICS.totalTrend.startsWith("+"),
-          }}
-          period={PARTICIPANT_METRICS.periodLabel}
-          icon={UsersGroupRounded}
-        />
-        <MetricCard
-          title="This week"
-          value={PARTICIPANT_METRICS.thisWeek}
-          trend={{
-            label: PARTICIPANT_METRICS.thisWeekTrend,
-            positive: true,
-          }}
-          period={PARTICIPANT_METRICS.periodLabel}
-          icon={CheckCircle}
-        />
-        <MetricCard
-          title="Sessions covered"
-          value={PARTICIPANT_METRICS.sessions}
-          trend={{
-            label: PARTICIPANT_METRICS.sessionsTrend,
-            positive: true,
-          }}
-          period={PARTICIPANT_METRICS.periodLabel}
-          icon={MapPointWave}
-        />
-        <MetricCard
-          title="Quota fill"
-          value={PARTICIPANT_METRICS.quotaFill}
-          trend={{
-            label: PARTICIPANT_METRICS.quotaTrend,
-            positive: true,
-          }}
-          period={PARTICIPANT_METRICS.periodLabel}
-          icon={GraphUp}
-        />
-      </div>
+      {isLoading ? (
+        <div className="mt-2">
+          <AlvaMetricGridSkeleton />
+        </div>
+      ) : (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            variant="accent"
+            title="Total logged"
+            value={PARTICIPANT_METRICS.total}
+            trend={{
+              label: PARTICIPANT_METRICS.totalTrend,
+              positive: PARTICIPANT_METRICS.totalTrend.startsWith("+"),
+            }}
+            period={PARTICIPANT_METRICS.periodLabel}
+            icon={UsersGroupRounded}
+          />
+          <MetricCard
+            title="This week"
+            value={PARTICIPANT_METRICS.thisWeek}
+            trend={{
+              label: PARTICIPANT_METRICS.thisWeekTrend,
+              positive: true,
+            }}
+            period={PARTICIPANT_METRICS.periodLabel}
+            icon={CheckCircle}
+          />
+          <MetricCard
+            title="Sessions covered"
+            value={PARTICIPANT_METRICS.sessions}
+            trend={{
+              label: PARTICIPANT_METRICS.sessionsTrend,
+              positive: true,
+            }}
+            period={PARTICIPANT_METRICS.periodLabel}
+            icon={MapPointWave}
+          />
+          <MetricCard
+            title="Quota fill"
+            value={PARTICIPANT_METRICS.quotaFill}
+            trend={{
+              label: PARTICIPANT_METRICS.quotaTrend,
+              positive: true,
+            }}
+            period={PARTICIPANT_METRICS.periodLabel}
+            icon={GraphUp}
+          />
+        </div>
+      )}
 
       <div className="mt-2">
         <AlvaDataTable
           title="Logged participants"
           rows={tableRows}
           pageSize={8}
+          isLoading={isLoading}
           searchPlaceholder="Search name, state, focus group"
           searchKeys={["nameOrId", "state", "focusGroupSession"]}
           onRowClick={handleRowClick}
@@ -149,6 +161,8 @@ export default function InternParticipantsPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
+
+      <DevUiStateToggle />
     </DesktopPageShell>
   );
 }

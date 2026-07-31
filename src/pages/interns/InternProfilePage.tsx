@@ -85,7 +85,7 @@ export default function InternProfilePage() {
           >
             <div className="space-y-3">
               <ProfileInfoBlock label="Mode" value="Focus group" />
-              <ProfileInfoBlock label="Max participants per session" value="4" />
+              <ProfileInfoBlock label="Max participants per session" value="3" />
               <ProfileInfoBlock label="Device" value={deviceLabel(profile?.device)} />
             </div>
           </ProfileActionRow>

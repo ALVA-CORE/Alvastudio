@@ -82,3 +82,23 @@
     @apply font-sans;
   }
 }
+
+@layer utilities {
+  .alva-thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--alva-border)) transparent;
+  }
+
+  .alva-thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .alva-thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .alva-thin-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: hsl(var(--alva-border));
+  }
+}

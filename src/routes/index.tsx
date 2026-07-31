@@ -7,6 +7,7 @@ import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import ContributorDashboardPage from "@/pages/contributors/ContributorDashboardPage";
 import ContributorStudioPage from "@/pages/contributors/ContributorStudioPage";
 import ContributorProfilePage from "@/pages/contributors/ContributorProfilePage";
+import ContributorNotificationsPage from "@/pages/contributors/ContributorNotificationsPage";
 import InternDashboardPage from "@/pages/interns/InternDashboardPage";
 import InternReviewPage from "@/pages/interns/InternReviewPage";
 import InternReviewDetailPage from "@/pages/interns/InternReviewDetailPage";
@@ -62,6 +63,7 @@ export function AppRoutes() {
         <Route element={<AppShellLayout />}>
           <Route path="/contributor/dashboard" element={<ContributorDashboardPage />} />
           <Route path="/contributor/studio" element={<ContributorStudioPage />} />
+          <Route path="/contributor/notifications" element={<ContributorNotificationsPage />} />
           <Route path="/contributor/profile" element={<ContributorProfilePage />} />
 
           <Route element={<RoleRoute roles={["intern", "admin"]} />}>

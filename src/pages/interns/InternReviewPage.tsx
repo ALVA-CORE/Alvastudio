@@ -4,7 +4,9 @@ import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { getInternReviewQueue, REVIEW_STATUS_LABELS } from "@/data/reviewQueue";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
+import { DevUiStateToggle } from "@/components/shared/DevUiStateToggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { getReviewDisplayStatus } from "@/lib/review-progress";
 import { cn } from "@/lib/utils";
 
@@ -28,23 +30,25 @@ function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) 
 export default function InternReviewPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"pending" | "completed">("pending");
+  const isLoading = useSimulatedLoading();
+  const queueRows = useDevRows(INTERN_QUEUE);
 
   const pendingRows = useMemo(
     () =>
-      INTERN_QUEUE.filter((row) => {
+      queueRows.filter((row) => {
         const displayStatus = getReviewDisplayStatus(row.id, row.status, Boolean(row.draft));
         return displayStatus !== "completed";
       }),
-    []
+    [queueRows]
   );
 
   const completedRows = useMemo(
     () =>
-      INTERN_QUEUE.filter((row) => {
+      queueRows.filter((row) => {
         const displayStatus = getReviewDisplayStatus(row.id, row.status, Boolean(row.draft));
         return displayStatus === "completed";
       }),
-    []
+    [queueRows]
   );
 
   const tableColumns = [
@@ -137,6 +141,7 @@ export default function InternReviewPage() {
               title="Pending clips"
               rows={pendingRows}
               pageSize={8}
+              isLoading={isLoading}
               searchPlaceholder="Search contributors, mode, language"
               searchKeys={["contributor", "mode", "language"]}
               onRowClick={(row) => navigate(`/intern/review/${row.id}`)}
@@ -158,6 +163,7 @@ export default function InternReviewPage() {
               title="Completed reviews"
               rows={completedRows}
               pageSize={8}
+              isLoading={isLoading}
               searchPlaceholder="Search contributors, mode, language"
               searchKeys={["contributor", "mode", "language"]}
               onRowClick={(row) => navigate(`/intern/review/${row.id}`)}
@@ -175,6 +181,8 @@ export default function InternReviewPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <DevUiStateToggle />
     </DesktopPageShell>
   );
 }

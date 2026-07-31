@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import UserRounded from "@solar-icons/react/users/UserRounded";
 import Bell from "@solar-icons/react/notifications/Bell";
-import { alvaAccentTexture } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 type HomeHeaderProps = {
@@ -16,31 +15,22 @@ export function HomeHeader({ firstName, className }: HomeHeaderProps) {
         <Link
           to="/profile"
           aria-label="Go to profile"
-          className={cn(
-            alvaAccentTexture(
-              "inline-flex size-10 shrink-0 items-center justify-center rounded-full"
-            ),
-            "transition-transform active:scale-95"
-          )}
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-alva-surface text-muted-foreground transition-colors hover:text-foreground active:scale-95"
         >
-          <UserRounded
-            size={20}
-            weight="BoldDuotone"
-            className="relative z-[1] text-alva-bg"
-          />
+          <UserRounded size={20} weight="BoldDuotone" />
         </Link>
         <p className="truncate text-base text-foreground">
           <span className="text-muted-foreground">How far,</span> {firstName}
         </p>
       </div>
 
-      <button
-        type="button"
+      <Link
+        to="/contributor/notifications"
         aria-label="Notifications"
         className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-alva-surface text-muted-foreground transition-colors hover:text-foreground"
       >
         <Bell size={22} weight="Outline" />
-      </button>
+      </Link>
     </header>
   );
 }

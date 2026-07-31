@@ -260,45 +260,47 @@ export function ContributorOnboardingForm() {
 
           {step === 2 && (
             <>
-              <FormField
-                control={form.control}
-                name="ageBracket"
-                render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormControl>
-                      <AlvaSelect
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        placeholder="Age bracket"
-                        options={AGE_BRACKET_OPTIONS}
-                        hasError={Boolean(fieldState.error)}
-                        size={AUTH_FIELD_SIZE}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="ageBracket"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormControl>
+                        <AlvaSelect
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          placeholder="Age bracket"
+                          options={AGE_BRACKET_OPTIONS}
+                          hasError={Boolean(fieldState.error)}
+                          size={AUTH_FIELD_SIZE}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormControl>
-                      <AlvaSelect
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        placeholder="Gender"
-                        options={GENDER_OPTIONS}
-                        hasError={Boolean(fieldState.error)}
-                        size={AUTH_FIELD_SIZE}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormControl>
+                        <AlvaSelect
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          placeholder="Gender"
+                          options={GENDER_OPTIONS}
+                          hasError={Boolean(fieldState.error)}
+                          size={AUTH_FIELD_SIZE}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}

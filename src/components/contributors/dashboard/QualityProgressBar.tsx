@@ -1,4 +1,11 @@
 import { cn } from "@/lib/utils";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import Clipboard from "@solar-icons/react/notes/Clipboard";
+
+type QualityProgressBarProps = {
+  className?: string;
+  isEmpty?: boolean;
+};
 
 type QualitySegment = {
   key: string;
@@ -20,7 +27,20 @@ const INSIGHTS = [
   { label: "This week", value: "+12 clips" },
 ];
 
-export function QualityProgressBar({ className }: { className?: string }) {
+export function QualityProgressBar({ className, isEmpty = false }: QualityProgressBarProps) {
+  if (isEmpty) {
+    return (
+      <section className={cn("mt-6 px-4", className)}>
+        <AlvaEmptyState
+          icon={<Clipboard size={20} weight="Outline" />}
+          title="No review data yet"
+          description="Submit recordings to see how your clips are grading out."
+          compact
+        />
+      </section>
+    );
+  }
+
   return (
     <section className={cn("mt-6 px-4", className)}>
       <div className="mb-3 flex items-end justify-between gap-3">
