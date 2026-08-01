@@ -21,6 +21,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { AlvaChartEmptyOverlay } from "@/components/shared/states/AlvaChartEmptyOverlay";
+import GraphUp from "@solar-icons/react/business/GraphUp";
 import { cn } from "@/lib/utils";
 
 const recordingMixData = [
@@ -36,6 +38,14 @@ const weeklyData = [
   { day: "Fri", sessions: 6 },
   { day: "Sat", sessions: 3 },
   { day: "Sun", sessions: 8 },
+];
+
+const emptyWeeklyData = weeklyData.map((point) => ({ ...point, sessions: 0 }));
+
+/** Ghost ring so the donut keeps its shape behind the empty overlay. */
+const emptyRecordingMixData = [
+  { type: "prompts", value: 1, fill: "hsl(0 0% 20%)" },
+  { type: "stimuli", value: 1, fill: "hsl(0 0% 16%)" },
 ];
 
 const pieConfig = {
@@ -123,19 +133,37 @@ function CarouselDots({ count, active }: { count: number; active: number }) {
 function ChartSlide({
   title,
   children,
+  emptyMessage,
 }: {
   title: string;
   children: React.ReactNode;
+  emptyMessage?: { title: string; description?: string };
 }) {
   return (
     <div className="rounded-2xl bg-alva-surface px-4 py-4">
       <h3 className="mb-3 text-sm font-medium text-foreground">{title}</h3>
-      {children}
+      <div className="relative">
+        {children}
+        {emptyMessage && (
+          <AlvaChartEmptyOverlay
+            icon={<GraphUp size={18} weight="Outline" />}
+            title={emptyMessage.title}
+            description={emptyMessage.description}
+            className="bg-alva-surface/60"
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-export function DashboardCharts({ className }: { className?: string }) {
+export function DashboardCharts({
+  className,
+  isEmpty = false,
+}: {
+  className?: string;
+  isEmpty?: boolean;
+}) {
   const [api, setApi] = useState<CarouselApi>();
   const [activeSlide, setActiveSlide] = useState(0);
 
@@ -161,15 +189,25 @@ export function DashboardCharts({ className }: { className?: string }) {
       <Carousel setApi={setApi} opts={{ align: "start", loop: false }}>
         <CarouselContent className="-ml-0">
           <CarouselItem className="basis-full pl-0">
-            <ChartSlide title="Recording mix">
+            <ChartSlide
+              title="Recording mix"
+              emptyMessage={
+                isEmpty
+                  ? {
+                      title: "No recordings yet",
+                      description: "Your prompt and stimuli split appears after your first clip.",
+                    }
+                  : undefined
+              }
+            >
               <ChartContainer
                 config={pieConfig}
                 className="mx-auto aspect-[4/3] w-full max-h-[240px]"
               >
                 <PieChart margin={{ top: 10, right: 42, bottom: 10, left: 42 }}>
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  {!isEmpty && <ChartTooltip content={<ChartTooltipContent hideLabel />} />}
                   <Pie
-                    data={recordingMixData}
+                    data={isEmpty ? emptyRecordingMixData : recordingMixData}
                     dataKey="value"
                     nameKey="type"
                     innerRadius={42}
@@ -178,11 +216,15 @@ export function DashboardCharts({ className }: { className?: string }) {
                     paddingAngle={3}
                     strokeWidth={0}
                     labelLine={false}
-                    label={(props) => (
-                      <PieCalloutLabel {...props} status={props.name as string} />
-                    )}
+                    label={
+                      isEmpty
+                        ? false
+                        : (props) => (
+                            <PieCalloutLabel {...props} status={props.name as string} />
+                          )
+                    }
                   >
-                    {recordingMixData.map((entry) => (
+                    {(isEmpty ? emptyRecordingMixData : recordingMixData).map((entry) => (
                       <Cell key={entry.type} fill={entry.fill} />
                     ))}
                   </Pie>
@@ -192,7 +234,17 @@ export function DashboardCharts({ className }: { className?: string }) {
           </CarouselItem>
 
           <CarouselItem className="basis-full pl-0">
-            <ChartSlide title="Sessions this week">
+            <ChartSlide
+              title="Sessions this week"
+              emptyMessage={
+                isEmpty
+                  ? {
+                      title: "No sessions this week",
+                      description: "Record a prompt to start filling this chart.",
+                    }
+                  : undefined
+              }
+            >
               <svg width={0} height={0} aria-hidden className="absolute">
                 <defs>
                   <pattern
@@ -221,7 +273,7 @@ export function DashboardCharts({ className }: { className?: string }) {
                 className="aspect-[4/3] w-full max-h-[240px]"
               >
                 <BarChart
-                  data={weeklyData}
+                  data={isEmpty ? emptyWeeklyData : weeklyData}
                   margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid
@@ -241,7 +293,7 @@ export function DashboardCharts({ className }: { className?: string }) {
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
                     width={30}
                   />
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  {!isEmpty && <ChartTooltip content={<ChartTooltipContent hideLabel />} />}
                   <Bar
                     dataKey="sessions"
                     radius={[8, 8, 0, 0]}

@@ -7,7 +7,6 @@ import Magnifier from "@solar-icons/react/search/Magnifier";
 import { NotificationCard } from "@/components/contributors/notifications/NotificationCard";
 import { NotificationDetailSheet } from "@/components/contributors/notifications/NotificationDetailSheet";
 import { FixedBlurHeader } from "@/components/shared/FixedBlurHeader";
-import { DevUiStateToggle } from "@/components/shared/DevUiStateToggle";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AlvaNoResultsState } from "@/components/shared/states/AlvaNoResultsState";
 import { AlvaSurfaceCard } from "@/components/shared/AlvaSurfaceCard";
@@ -168,8 +167,6 @@ export default function ContributorNotificationsPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
-
-      <DevUiStateToggle />
     </div>
   );
 }

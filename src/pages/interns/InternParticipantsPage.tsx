@@ -6,10 +6,10 @@ import GraphUp from "@solar-icons/react/business/GraphUp";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
-import { DevUiStateToggle } from "@/components/shared/DevUiStateToggle";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
 import { ParticipantDetailSheet } from "@/components/interns/participants/ParticipantDetailSheet";
 import {
+  EMPTY_PARTICIPANT_METRICS,
   formatGenderLabel,
   PARTICIPANT_METRICS,
   type ParticipantRecord,
@@ -23,6 +23,8 @@ export default function InternParticipantsPage() {
   const isLoading = useSimulatedLoading();
   const [selected, setSelected] = useState<ParticipantRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const isEmpty = rows.length === 0;
+  const metrics = isEmpty ? EMPTY_PARTICIPANT_METRICS : PARTICIPANT_METRICS;
 
   const tableRows = useMemo(
     () =>
@@ -60,42 +62,46 @@ export default function InternParticipantsPage() {
           <MetricCard
             variant="accent"
             title="Total logged"
-            value={PARTICIPANT_METRICS.total}
+            value={metrics.total}
             trend={{
-              label: PARTICIPANT_METRICS.totalTrend,
-              positive: PARTICIPANT_METRICS.totalTrend.startsWith("+"),
+              label: metrics.totalTrend,
+              positive: metrics.totalTrend.startsWith("+"),
+              neutral: isEmpty,
             }}
-            period={PARTICIPANT_METRICS.periodLabel}
+            period={metrics.periodLabel}
             icon={UsersGroupRounded}
           />
           <MetricCard
             title="This week"
-            value={PARTICIPANT_METRICS.thisWeek}
+            value={metrics.thisWeek}
             trend={{
-              label: PARTICIPANT_METRICS.thisWeekTrend,
+              label: metrics.thisWeekTrend,
               positive: true,
+              neutral: isEmpty,
             }}
-            period={PARTICIPANT_METRICS.periodLabel}
+            period={metrics.periodLabel}
             icon={CheckCircle}
           />
           <MetricCard
             title="Sessions covered"
-            value={PARTICIPANT_METRICS.sessions}
+            value={metrics.sessions}
             trend={{
-              label: PARTICIPANT_METRICS.sessionsTrend,
+              label: metrics.sessionsTrend,
               positive: true,
+              neutral: isEmpty,
             }}
-            period={PARTICIPANT_METRICS.periodLabel}
+            period={metrics.periodLabel}
             icon={MapPointWave}
           />
           <MetricCard
             title="Quota fill"
-            value={PARTICIPANT_METRICS.quotaFill}
+            value={metrics.quotaFill}
             trend={{
-              label: PARTICIPANT_METRICS.quotaTrend,
+              label: metrics.quotaTrend,
               positive: true,
+              neutral: isEmpty,
             }}
-            period={PARTICIPANT_METRICS.periodLabel}
+            period={metrics.periodLabel}
             icon={GraphUp}
           />
         </div>
@@ -161,8 +167,6 @@ export default function InternParticipantsPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
-
-      <DevUiStateToggle />
     </DesktopPageShell>
   );
 }

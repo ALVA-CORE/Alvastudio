@@ -1,6 +1,4 @@
 import { cn } from "@/lib/utils";
-import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
-import Clipboard from "@solar-icons/react/notes/Clipboard";
 
 type QualityProgressBarProps = {
   className?: string;
@@ -27,19 +25,14 @@ const INSIGHTS = [
   { label: "This week", value: "+12 clips" },
 ];
 
+const EMPTY_INSIGHTS = [
+  { label: "Acceptance rate", value: "0%" },
+  { label: "Avg review time", value: "—" },
+  { label: "This week", value: "0 clips" },
+];
+
 export function QualityProgressBar({ className, isEmpty = false }: QualityProgressBarProps) {
-  if (isEmpty) {
-    return (
-      <section className={cn("mt-6 px-4", className)}>
-        <AlvaEmptyState
-          icon={<Clipboard size={20} weight="Outline" />}
-          title="No review data yet"
-          description="Submit recordings to see how your clips are grading out."
-          compact
-        />
-      </section>
-    );
-  }
+  const insights = isEmpty ? EMPTY_INSIGHTS : INSIGHTS;
 
   return (
     <section className={cn("mt-6 px-4", className)}>
@@ -47,56 +40,56 @@ export function QualityProgressBar({ className, isEmpty = false }: QualityProgre
         <div>
           <h2 className="text-sm font-medium text-foreground">Review quality</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            How your submissions are grading out
+            {isEmpty
+              ? "No clips reviewed yet"
+              : "How your submissions are grading out"}
           </p>
         </div>
         <span className="shrink-0 text-xs text-muted-foreground">Last 30 days</span>
       </div>
 
       <div className="flex h-10 w-full overflow-hidden rounded-md bg-alva-surface">
-        {SEGMENTS.map((segment, index) => (
-          <div
-            key={segment.key}
-            className={cn(
-              "h-full transition-all",
-              index > 0 && "border-l border-alva-bg/80"
-            )}
-            style={{
-              width: `${segment.value}%`,
-              backgroundColor: segment.color,
-            }}
-            title={`${segment.label}: ${segment.value}%`}
-          />
-        ))}
+        {!isEmpty &&
+          SEGMENTS.map((segment, index) => (
+            <div
+              key={segment.key}
+              className={cn(
+                "h-full transition-all",
+                index > 0 && "border-l border-alva-bg/80"
+              )}
+              style={{
+                width: `${segment.value}%`,
+                backgroundColor: segment.color,
+              }}
+              title={`${segment.label}: ${segment.value}%`}
+            />
+          ))}
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
         {SEGMENTS.map((segment) => (
           <div key={segment.key} className="flex items-center gap-2">
             <span
-              className="size-2 shrink-0 rounded-full"
+              className={cn("size-2 shrink-0 rounded-full", isEmpty && "opacity-35")}
               style={{ backgroundColor: segment.color }}
             />
             <span className="text-xs text-muted-foreground">
               {segment.label}{" "}
-              <span className="font-medium text-foreground">{segment.value}%</span>
+              <span className="font-medium text-foreground">
+                {isEmpty ? "0%" : `${segment.value}%`}
+              </span>
             </span>
           </div>
         ))}
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        {INSIGHTS.map((item) => (
-          <div
-            key={item.label}
-            className="rounded-xl bg-alva-surface px-3 py-2.5"
-          >
+        {insights.map((item) => (
+          <div key={item.label} className="rounded-xl bg-alva-surface px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
               {item.label}
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-foreground">
-              {item.value}
-            </p>
+            <p className="mt-0.5 text-sm font-semibold text-foreground">{item.value}</p>
           </div>
         ))}
       </div>

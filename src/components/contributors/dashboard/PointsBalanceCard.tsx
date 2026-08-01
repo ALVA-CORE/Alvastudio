@@ -7,12 +7,14 @@ type PointsBalanceCardProps = {
   points: number;
   currentUserId?: string;
   className?: string;
+  isEmpty?: boolean;
 };
 
 export function PointsBalanceCard({
   points,
   currentUserId,
   className,
+  isEmpty = false,
 }: PointsBalanceCardProps) {
   const formatted = new Intl.NumberFormat("en-NG").format(points);
 
@@ -36,11 +38,17 @@ export function PointsBalanceCard({
         </TextureButton>
       </div>
 
-      <LeaderboardPodium
-        embedded
-        currentUserId={currentUserId}
-        className="relative z-[1] -mx-2 mt-4"
-      />
+      {isEmpty ? (
+        <p className="relative z-[1] pb-4 pt-4 text-xs text-alva-bg/75">
+          Record your first prompt to start earning points and enter the leaderboard.
+        </p>
+      ) : (
+        <LeaderboardPodium
+          embedded
+          currentUserId={currentUserId}
+          className="relative z-[1] -mx-2 mt-4"
+        />
+      )}
     </section>
   );
 }

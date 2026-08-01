@@ -115,6 +115,18 @@ export const PARTICIPANT_METRICS = {
   periodLabel: "Last 30 days",
 };
 
+export const EMPTY_PARTICIPANT_METRICS: typeof PARTICIPANT_METRICS = {
+  total: "0",
+  totalTrend: "0%",
+  thisWeek: "0",
+  thisWeekTrend: "0",
+  sessions: "0",
+  sessionsTrend: "0",
+  quotaFill: "0%",
+  quotaTrend: "0%",
+  periodLabel: PARTICIPANT_METRICS.periodLabel,
+};
+
 export function formatGenderLabel(value: Gender | "") {
   return GENDER_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }

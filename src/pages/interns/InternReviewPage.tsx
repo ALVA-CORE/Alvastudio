@@ -4,7 +4,6 @@ import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { getInternReviewQueue, REVIEW_STATUS_LABELS } from "@/data/reviewQueue";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
-import { DevUiStateToggle } from "@/components/shared/DevUiStateToggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { getReviewDisplayStatus } from "@/lib/review-progress";
@@ -181,8 +180,6 @@ export default function InternReviewPage() {
           </TabsContent>
         </Tabs>
       </div>
-
-      <DevUiStateToggle />
     </DesktopPageShell>
   );
 }

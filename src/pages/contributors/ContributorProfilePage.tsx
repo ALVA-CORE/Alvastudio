@@ -17,6 +17,7 @@ import { isStaffRole } from "@/lib/auth/roles";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGate";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
+import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -187,10 +188,7 @@ export default function ContributorProfilePage() {
   if (isMobile) {
     return (
       <div className="relative min-h-full overflow-hidden px-4 py-6">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] bg-[radial-gradient(circle_at_top,hsl(var(--alva-accent)/0.22),transparent_68%)]"
-        />
+        <AlvaTopGlow intensity="soft" />
         {content}
       </div>
     );
@@ -198,10 +196,7 @@ export default function ContributorProfilePage() {
 
   return (
     <div className="relative min-h-full overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] bg-[radial-gradient(circle_at_top,hsl(var(--alva-accent)/0.22),transparent_68%)]"
-      />
+      <AlvaTopGlow intensity="soft" />
       <DesktopPageShell>{content}</DesktopPageShell>
     </div>
   );

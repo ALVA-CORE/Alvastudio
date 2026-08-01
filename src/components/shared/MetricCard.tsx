@@ -10,6 +10,7 @@ type MetricCardProps = {
   trend: {
     label: string;
     positive?: boolean;
+    neutral?: boolean;
   };
   icon: ComponentType<IconProps>;
   variant?: "accent" | "card";
@@ -59,7 +60,7 @@ export function MetricCard({
       <div className="mt-auto pt-6">
         <p className="text-3xl font-semibold tracking-tight">{value}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <TrendBadge positive={trend.positive} accent={isAccent}>
+          <TrendBadge positive={trend.positive} neutral={trend.neutral} accent={isAccent}>
             {trend.label}
           </TrendBadge>
           <span
@@ -79,10 +80,12 @@ export function MetricCard({
 function TrendBadge({
   children,
   positive = true,
+  neutral = false,
   accent = false,
 }: {
   children: ReactNode;
   positive?: boolean;
+  neutral?: boolean;
   accent?: boolean;
 }) {
   return (
@@ -91,9 +94,11 @@ function TrendBadge({
         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
         accent
           ? "bg-alva-bg/15 text-alva-bg"
-          : positive
-            ? "bg-alva-accent/15 text-alva-accent"
-            : "bg-destructive/15 text-destructive"
+          : neutral
+            ? "bg-alva-surface text-muted-foreground"
+            : positive
+              ? "bg-alva-accent/15 text-alva-accent"
+              : "bg-destructive/15 text-destructive"
       )}
     >
       {children}

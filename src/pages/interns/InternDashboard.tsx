@@ -3,18 +3,16 @@ import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
-import GraphUp from "@solar-icons/react/business/GraphUp";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { InternDashboardCharts } from "@/components/interns/dashboard/InternDashboardCharts";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { InternNotificationsMenu } from "@/components/interns/notifications/InternNotificationsMenu";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
-import { DevUiStateToggle } from "@/components/shared/DevUiStateToggle";
-import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import { AlvaChartCardSkeleton } from "@/components/shared/states/AlvaChartCardSkeleton";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   DASHBOARD_DATA,
+  getEmptyDashboardDataset,
   type DashboardTimeRange,
 } from "@/data/internDashboard";
 import { useAuth } from "@/lib/auth/context";
@@ -23,9 +21,11 @@ import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 export default function InternDashboard() {
   const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
-  const dataset = DASHBOARD_DATA[timeRange];
   const isLoading = useSimulatedLoading();
   const { forceEmpty } = useDevUiState();
+  const dataset = forceEmpty
+    ? getEmptyDashboardDataset(timeRange)
+    : DASHBOARD_DATA[timeRange];
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
   return (
@@ -43,20 +43,16 @@ export default function InternDashboard() {
       </header>
 
       {isLoading ? (
-        <div className="mt-2">
+        <div className="mt-2 space-y-2">
           <AlvaMetricGridSkeleton />
-          <div className="mt-2 grid gap-2 lg:grid-cols-5">
-            <Skeleton className="min-h-[22rem] rounded-2xl bg-alva-card lg:col-span-3" />
-            <Skeleton className="min-h-[22rem] rounded-2xl bg-alva-card lg:col-span-2" />
+          <div className="grid gap-2 lg:grid-cols-5">
+            <AlvaChartCardSkeleton shape="bars" className="lg:col-span-3" />
+            <AlvaChartCardSkeleton shape="radar" className="lg:col-span-2" />
           </div>
-        </div>
-      ) : forceEmpty ? (
-        <div className="mt-4">
-          <AlvaEmptyState
-            icon={<GraphUp size={20} weight="Outline" />}
-            title="No collection activity yet"
-            description="Start a focus group session to see hours, participants, and review metrics here."
-          />
+          <div className="grid gap-2 lg:grid-cols-5">
+            <AlvaChartCardSkeleton shape="pyramid" className="lg:col-span-2" />
+            <AlvaChartCardSkeleton shape="line" className="lg:col-span-3" />
+          </div>
         </div>
       ) : (
         <>
@@ -68,6 +64,7 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.hoursTrend,
                 positive: dataset.metrics.hoursTrend.startsWith("+"),
+                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={ClockCircle}
@@ -78,6 +75,7 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.participantsTrend,
                 positive: dataset.metrics.participantsTrend.startsWith("+"),
+                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={UsersGroupRounded}
@@ -88,6 +86,7 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.clipsTrend,
                 positive: dataset.metrics.clipsTrend.startsWith("+"),
+                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={CheckCircle}
@@ -98,6 +97,7 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.sessionsTrend,
                 positive: dataset.metrics.sessionsTrend.startsWith("+"),
+                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={Microphone3}
@@ -108,11 +108,10 @@ export default function InternDashboard() {
             className="mt-2"
             timeRange={timeRange}
             onTimeRangeChange={setTimeRange}
+            isEmpty={forceEmpty}
           />
         </>
       )}
-
-      <DevUiStateToggle />
     </DesktopPageShell>
   );
 }

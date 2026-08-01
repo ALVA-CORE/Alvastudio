@@ -14,10 +14,18 @@ type WeeklyPoint = { day: string; sessions: number };
 type TrendPoint = { month: string; hours: number; participants: number; sessions: number };
 type RadarPoint = { metric: string; score: number };
 
+export type DemographicHoursPoint = {
+  ageBracket: string;
+  male: number;
+  female: number;
+  undisclosed: number;
+};
+
 type DashboardDataset = {
   weeklySessions: WeeklyPoint[];
   captureTrend: TrendPoint[];
   qualityRadar: RadarPoint[];
+  demographicHours: DemographicHoursPoint[];
   metrics: {
     hours: string;
     participants: string;
@@ -78,6 +86,26 @@ const TREND_12M: TrendPoint[] = [
   { month: "Aug", hours: 42, participants: 210, sessions: 56 },
 ];
 
+/** Hours per age bracket split by gender, sized against the 30-day totals. */
+const DEMOGRAPHIC_HOURS_30D: DemographicHoursPoint[] = [
+  { ageBracket: "18–24", male: 3.1, female: 4.4, undisclosed: 0.4 },
+  { ageBracket: "25–34", male: 6.2, female: 7.1, undisclosed: 0.6 },
+  { ageBracket: "35–44", male: 4.8, female: 4.2, undisclosed: 0.3 },
+  { ageBracket: "45–54", male: 2.1, female: 2.9, undisclosed: 0.2 },
+  { ageBracket: "55+", male: 1.1, female: 1.3, undisclosed: 0.1 },
+];
+
+function scaleDemographicHours(factor: number): DemographicHoursPoint[] {
+  const round = (value: number) => Math.round(value * factor * 10) / 10;
+
+  return DEMOGRAPHIC_HOURS_30D.map((point) => ({
+    ageBracket: point.ageBracket,
+    male: round(point.male),
+    female: round(point.female),
+    undisclosed: round(point.undisclosed),
+  }));
+}
+
 const RADAR_BASE: RadarPoint[] = [
   { metric: "Clarity", score: 82 },
   { metric: "Noise", score: 74 },
@@ -95,6 +123,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
       ...item,
       score: Math.min(100, item.score + 4),
     })),
+    demographicHours: scaleDemographicHours(0.24),
     metrics: {
       hours: "9.2h",
       participants: "38",
@@ -111,6 +140,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
     weeklySessions: WEEKLY_7D,
     captureTrend: TREND_30D,
     qualityRadar: RADAR_BASE,
+    demographicHours: DEMOGRAPHIC_HOURS_30D,
     metrics: {
       hours: "38.5h",
       participants: "214",
@@ -133,6 +163,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
       ...item,
       score: Math.max(60, item.score - 3),
     })),
+    demographicHours: scaleDemographicHours(2.9),
     metrics: {
       hours: "112h",
       participants: "580",
@@ -155,6 +186,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
       ...item,
       score: Math.max(58, item.score - 6),
     })),
+    demographicHours: scaleDemographicHours(11.1),
     metrics: {
       hours: "428h",
       participants: "2,140",
@@ -168,3 +200,38 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
     },
   },
 };
+
+/** Zeroed mirror of a dataset so empty dashboards still render real chart frames. */
+export function getEmptyDashboardDataset(
+  range: DashboardTimeRange
+): DashboardDataset {
+  const source = DASHBOARD_DATA[range];
+
+  return {
+    weeklySessions: source.weeklySessions.map((point) => ({ ...point, sessions: 0 })),
+    captureTrend: source.captureTrend.map((point) => ({
+      ...point,
+      hours: 0,
+      participants: 0,
+      sessions: 0,
+    })),
+    qualityRadar: source.qualityRadar.map((point) => ({ ...point, score: 0 })),
+    demographicHours: source.demographicHours.map((point) => ({
+      ...point,
+      male: 0,
+      female: 0,
+      undisclosed: 0,
+    })),
+    metrics: {
+      hours: "0h",
+      participants: "0",
+      clipsReviewed: "0",
+      sessions: "0",
+      hoursTrend: "0%",
+      participantsTrend: "0%",
+      clipsTrend: "0%",
+      sessionsTrend: "0%",
+      periodLabel: source.metrics.periodLabel,
+    },
+  };
+}
