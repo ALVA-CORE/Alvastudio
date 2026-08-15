@@ -54,10 +54,8 @@ import { cn } from "@/lib/utils";
 const TRACK_HEIGHT = 44;
 const HEADER_WIDTH = 200;
 const RULER_HEIGHT = 38;
-/** Room for the horizontal scrollbar so it never sits on top of a track. */
-const SCROLLBAR_GUTTER = 12;
 /** Floor: the ruler stays visible, so the timeline always shows time. */
-const MIN_TRACKS_HEIGHT = RULER_HEIGHT + SCROLLBAR_GUTTER;
+const MIN_TRACKS_HEIGHT = RULER_HEIGHT;
 /** Extra seconds rendered beyond the viewport so scrolling never shows a gap. */
 const WINDOW_PAD_SECONDS = 8;
 
@@ -297,11 +295,15 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
   /** Visible horizontal window, in pixels. Drives clip windowing. */
   const [viewport, setViewport] = useState({ left: 0, width: 1200 });
 
-  const fullHeight = RULER_HEIGHT + TRACK_HEIGHT * MAX_SPEAKERS + SCROLLBAR_GUTTER;
+  /* Sized to the tracks that actually exist. A two-speaker session has no
+   * business reserving four lanes of empty space, and the ceiling drops with the
+   * roster so the panel can never be dragged open onto nothing. */
+  const contentHeight = RULER_HEIGHT + TRACK_HEIGHT * Math.max(1, speakers.length);
+
   const resize = useResizableHeight({
-    initial: RULER_HEIGHT + TRACK_HEIGHT * 4 + SCROLLBAR_GUTTER,
+    preferred: contentHeight,
     min: MIN_TRACKS_HEIGHT,
-    max: fullHeight,
+    max: contentHeight,
   });
 
   const pps = zoom;
@@ -598,11 +600,7 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
       >
         <div
           className="relative"
-          style={{
-            width: HEADER_WIDTH + laneWidth,
-            minWidth: "100%",
-            paddingBottom: SCROLLBAR_GUTTER,
-          }}
+          style={{ width: HEADER_WIDTH + laneWidth, minWidth: "100%" }}
         >
           {/* Ruler row */}
           <div

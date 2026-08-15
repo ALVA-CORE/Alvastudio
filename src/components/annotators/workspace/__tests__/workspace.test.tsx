@@ -298,4 +298,37 @@ describe("AnnotationWorkspace", () => {
     expect(now).toBeGreaterThanOrEqual(min);
     expect(now).toBeLessThanOrEqual(max);
   });
+
+  it("sizes the timeline to the speakers that exist, not the maximum", async () => {
+    const user = userEvent.setup();
+    const { doc } = renderWorkspace();
+
+    const handle = screen.getByRole("separator", { name: "Resize timeline" });
+    const before = Number(handle.getAttribute("aria-valuenow"));
+    const ceilingBefore = Number(handle.getAttribute("aria-valuemax"));
+
+    // A session below the cap must not reserve lanes it does not use.
+    expect(doc.speakers.length).toBeLessThan(MAX_SPEAKERS);
+    expect(before).toBe(ceilingBefore);
+
+    await user.click(screen.getByLabelText("Add speaker"));
+
+    const after = Number(handle.getAttribute("aria-valuenow"));
+    expect(after).toBeGreaterThan(before);
+    expect(after).toBe(Number(handle.getAttribute("aria-valuemax")));
+  });
+
+  it("shrinks the timeline again when a speaker is removed", async () => {
+    const user = userEvent.setup();
+    const { doc } = renderWorkspace();
+
+    const handle = screen.getByRole("separator", { name: "Resize timeline" });
+    const before = Number(handle.getAttribute("aria-valuenow"));
+
+    const victim = doc.speakers[1];
+    await user.click(screen.getByLabelText(`Actions for ${speakerDisplayName(victim)}`));
+    await user.click(await screen.findByRole("menuitem", { name: /delete speaker/i }));
+
+    expect(Number(handle.getAttribute("aria-valuenow"))).toBeLessThan(before);
+  });
 });

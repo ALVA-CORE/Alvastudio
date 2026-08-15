@@ -197,9 +197,15 @@ voices, which a single merged waveform cannot express.
 - **Zoom writes are rAF-coalesced** and the slider shows the current scale
   (`26px/s`) while dragging. The slider fires per pointer-pixel, faster than a
   frame, and each write re-lays out every lane.
-- **The dock is resizable** by the handle on its top edge (`useResizableHeight`).
-  It clamps rather than floors, so it can never be dragged past its own ruler —
-  a timeline with no visible time is not a smaller timeline, it is a broken one.
+- **The dock is sized to the tracks that exist.** A two-speaker session reserves
+  two lanes, not four — and the ceiling drops with the roster, so the panel can
+  never be dragged open onto empty space.
+- **It is resizable** by the handle on its top edge (`useResizableHeight`). The
+  hook takes a live `preferred` height and follows it until the user drags,
+  after which the height is theirs and is only clamped when the bounds move
+  under it — adding a speaker must not silently undo an explicit choice. It
+  clamps rather than floors, so it can never be dragged past its own ruler: a
+  timeline with no visible time is not a smaller timeline, it is a broken one.
   Arrow keys nudge it. When shrunk, the tracks scroll vertically *inside* the
   dock, between the ruler and the transport, so the controls never leave.
 - **The horizontal scrollbar is a control.** It gets its own 10px gutter and a
@@ -296,7 +302,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 263 tests
+npm test              # 268 tests
 npm run test:watch
 npm run test:coverage
 ```

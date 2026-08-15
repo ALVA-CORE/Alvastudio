@@ -10,6 +10,12 @@ import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent }
  * Height is clamped rather than merely floored so the panel can never be
  * dragged past its own chrome — a timeline shrunk below its ruler is a timeline
  * with no visible time.
+ *
+ * `preferred` is the height the content actually wants, and it is live: until
+ * the user drags the handle, the panel simply *is* that height, so a two-speaker
+ * session does not sit in a four-speaker box. Once they resize, the height is
+ * theirs and only gets clamped when the bounds move under it — an explicit
+ * choice should not be silently undone by adding a speaker.
  */
 
 export type ResizableHeight = {
@@ -29,7 +35,8 @@ export type ResizableHeight = {
 };
 
 export type UseResizableHeightOptions = {
-  initial: number;
+  /** The height the content wants. Followed exactly until the user resizes. */
+  preferred: number;
   min: number;
   max: number;
   /** Keyboard nudge, in pixels. */
@@ -37,18 +44,32 @@ export type UseResizableHeightOptions = {
 };
 
 export function useResizableHeight({
-  initial,
+  preferred,
   min,
   max,
   step = 24,
 }: UseResizableHeightOptions): ResizableHeight {
-  const [height, setHeight] = useState(() => Math.min(max, Math.max(min, initial)));
-  const [isResizing, setResizing] = useState(false);
-  const gestureRef = useRef<{ originY: number; startHeight: number } | null>(null);
-
   const clamp = useCallback(
     (value: number) => Math.min(max, Math.max(min, value)),
     [max, min]
+  );
+
+  /** Null until the user takes ownership by resizing. */
+  const [override, setOverride] = useState<number | null>(null);
+  const [isResizing, setResizing] = useState(false);
+  const gestureRef = useRef<{ originY: number; startHeight: number } | null>(null);
+
+  // Derived, not stored: no effect, no frame where the panel is the wrong size.
+  const height = clamp(override ?? preferred);
+
+  const setHeight = useCallback(
+    (next: number | ((current: number) => number)) => {
+      setOverride((current) => {
+        const base = clamp(current ?? preferred);
+        return clamp(typeof next === "function" ? next(base) : next);
+      });
+    },
+    [clamp, preferred]
   );
 
   const onPointerDown = useCallback(
