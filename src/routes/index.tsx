@@ -15,33 +15,38 @@ import InternRecordPage from "@/pages/interns/InternRecordPage";
 import InternParticipantsPage from "@/pages/interns/InternParticipantsPage";
 import InternProfilePage from "@/pages/interns/InternProfilePage";
 import AnnotatorDashboardPage from "@/pages/annotators/AnnotatorDashboardPage";
-import AnnotatorReviewPage from "@/pages/annotators/AnnotatorReviewPage";
+import AnnotatorSessionsPage from "@/pages/annotators/AnnotatorSessionsPage";
+import AnnotatorWorkspacePage from "@/pages/annotators/AnnotatorWorkspacePage";
+import AnnotatorProfilePage from "@/pages/annotators/AnnotatorProfilePage";
 import NotFoundPage from "@/pages/errors/NotFoundPage";
 import { ProtectedRoute, GuestRoute, RoleRoute } from "@/routes/guards";
 import { useAuth } from "@/lib/auth/context";
-import { isStaffRole } from "@/lib/auth/roles";
+import { homePathForRole, isInternRole } from "@/lib/auth/roles";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-function RootRedirect() {
+/**
+ * Interns get a real mobile surface (they record in the field), so on a phone
+ * they fall back to the contributor dashboard. Annotators do not — annotation
+ * is desktop work — so they keep their own home and meet the mobile gate,
+ * which explains why rather than dropping them somewhere they can't act.
+ */
+function useHomePath() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  if (user && isStaffRole(user.role) && !isMobile) {
-    return <Navigate to="/intern/dashboard" replace />;
+  if (user && isMobile && isInternRole(user.role)) {
+    return "/contributor/dashboard";
   }
 
-  return <Navigate to="/contributor/dashboard" replace />;
+  return homePathForRole(user?.role);
+}
+
+function RootRedirect() {
+  return <Navigate to={useHomePath()} replace />;
 }
 
 function LegacyDashboardRedirect() {
-  const { user } = useAuth();
-  const isMobile = useIsMobile();
-
-  if (user && isStaffRole(user.role) && !isMobile) {
-    return <Navigate to="/intern/dashboard" replace />;
-  }
-
-  return <Navigate to="/contributor/dashboard" replace />;
+  return <Navigate to={useHomePath()} replace />;
 }
 
 export function AppRoutes() {
@@ -75,14 +80,38 @@ export function AppRoutes() {
             <Route path="/intern/profile" element={<InternProfilePage />} />
           </Route>
 
-          <Route path="/annotator/dashboard" element={<AnnotatorDashboardPage />} />
-          <Route path="/annotator/review" element={<AnnotatorReviewPage />} />
+          <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
+            <Route path="/annotator/dashboard" element={<AnnotatorDashboardPage />} />
+            <Route path="/annotator/sessions" element={<AnnotatorSessionsPage />} />
+            <Route path="/annotator/profile" element={<AnnotatorProfilePage />} />
+            {/* Legacy review paths now resolve to the session queue. */}
+            <Route
+              path="/annotator/review"
+              element={<Navigate to="/annotator/sessions" replace />}
+            />
+            <Route
+              path="/annotator/review/:id"
+              element={<Navigate to="/annotator/sessions" replace />}
+            />
+          </Route>
 
           <Route path="/dashboard" element={<LegacyDashboardRedirect />} />
           <Route path="/studio" element={<Navigate to="/contributor/studio" replace />} />
           <Route path="/profile" element={<Navigate to="/contributor/profile" replace />} />
           <Route path="/review" element={<Navigate to="/intern/review" replace />} />
           <Route path="/review/:id" element={<Navigate to="/intern/review" replace />} />
+        </Route>
+
+        {/*
+          The workspace sits OUTSIDE AppShellLayout: it is a full-bleed editor
+          with its own header and back link, and the timeline wants every pixel
+          of horizontal room. Still role-guarded.
+        */}
+        <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
+          <Route
+            path="/annotator/sessions/:sessionId"
+            element={<AnnotatorWorkspacePage />}
+          />
         </Route>
       </Route>
 

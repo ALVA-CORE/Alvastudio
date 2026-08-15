@@ -2,19 +2,11 @@ import { useMemo, useState } from "react";
 import type { DemographicHoursPoint } from "@/data/internDashboard";
 import { cn } from "@/lib/utils";
 
-type SeriesColor = { solid: string; soft: string };
-
-const MALE_COLOR: SeriesColor = {
-  solid: "hsl(199 89% 58%)",
-  soft: "hsl(199 89% 58% / 0.5)",
-};
-
-const FEMALE_COLOR: SeriesColor = {
-  solid: "hsl(var(--alva-accent))",
-  soft: "hsl(var(--alva-accent) / 0.5)",
-};
+const MALE_COLOR = "hsl(199 89% 58%)";
+const FEMALE_COLOR = "hsl(var(--alva-accent))";
 
 const GUTTER = "w-[3.25rem]";
+const VALUE_SLOT = "w-10";
 
 type DemographicHoursChartProps = {
   data: DemographicHoursPoint[];
@@ -29,6 +21,11 @@ function niceCeiling(value: number) {
 
 function formatHours(value: number) {
   return `${Number.isInteger(value) ? value : value.toFixed(1)}h`;
+}
+
+/** Opposing hatch angles keep the two series apart without relying on hue. */
+function hatchFill(color: string, angle: number) {
+  return `repeating-linear-gradient(${angle}deg, ${color} 0 3px, hsl(var(--alva-bg) / 0.4) 3px 6px)`;
 }
 
 /**
@@ -66,14 +63,13 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
     };
   }, [data]);
 
-  const hoveredPoint = data.find((point) => point.ageBracket === hovered) ?? null;
   const ticks = [axisMax, axisMax / 2, 0];
 
   return (
     <div className={cn("flex h-full flex-col", className)}>
       <div className="flex items-center justify-center gap-4 pb-3">
-        <LegendSwatch color={MALE_COLOR} label="Male" hatched />
-        <LegendSwatch color={FEMALE_COLOR} label="Female" />
+        <LegendSwatch color={MALE_COLOR} angle={45} label="Male" />
+        <LegendSwatch color={FEMALE_COLOR} angle={-45} label="Female" />
       </div>
 
       <div
@@ -94,12 +90,14 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
                 isHovered && "bg-alva-surface/60"
               )}
             >
+              <ValueLabel value={point.male} align="left" visible={isHovered} />
+
               <PyramidBar
                 value={point.male}
                 axisMax={axisMax}
                 color={MALE_COLOR}
+                angle={45}
                 align="left"
-                hatched
                 dimmed={dimmed}
               />
 
@@ -117,15 +115,19 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
                 value={point.female}
                 axisMax={axisMax}
                 color={FEMALE_COLOR}
+                angle={-45}
                 align="right"
                 dimmed={dimmed}
               />
+
+              <ValueLabel value={point.female} align="right" visible={isHovered} />
             </div>
           );
         })}
       </div>
 
       <div className="mt-2 flex items-center gap-1.5 border-t border-alva-border pt-2">
+        <span className={cn(VALUE_SLOT, "shrink-0")} />
         <div className="flex flex-1 justify-between text-[10px] tabular-nums text-muted-foreground">
           {ticks.map((tick) => (
             <span key={`left-${tick}`}>{formatHours(tick)}</span>
@@ -137,39 +139,41 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
             <span key={`right-${tick}`}>{formatHours(tick)}</span>
           ))}
         </div>
+        <span className={cn(VALUE_SLOT, "shrink-0")} />
       </div>
 
-      <p className="mt-2 min-h-[1.25rem] text-[11px] text-muted-foreground">
-        {hoveredPoint ? (
-          <>
-            <span className="font-medium text-foreground">{hoveredPoint.ageBracket}</span>
-            {" — male "}
-            <span className="font-medium text-foreground">
-              {formatHours(hoveredPoint.male)}
-            </span>
-            {", female "}
-            <span className="font-medium text-foreground">
-              {formatHours(hoveredPoint.female)}
-            </span>
-            {", undisclosed "}
-            <span className="font-medium text-foreground">
-              {formatHours(hoveredPoint.undisclosed)}
-            </span>
-          </>
-        ) : (
-          <>
-            {"Total — male "}
-            <span className="font-medium text-foreground">{formatHours(totals.male)}</span>
-            {", female "}
-            <span className="font-medium text-foreground">{formatHours(totals.female)}</span>
-            {", undisclosed "}
-            <span className="font-medium text-foreground">
-              {formatHours(totals.undisclosed)}
-            </span>
-          </>
-        )}
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        {"Total — male "}
+        <span className="font-medium text-foreground">{formatHours(totals.male)}</span>
+        {", female "}
+        <span className="font-medium text-foreground">{formatHours(totals.female)}</span>
+        {", undisclosed "}
+        <span className="font-medium text-foreground">{formatHours(totals.undisclosed)}</span>
       </p>
     </div>
+  );
+}
+
+function ValueLabel({
+  value,
+  align,
+  visible,
+}: {
+  value: number;
+  align: "left" | "right";
+  visible: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        VALUE_SLOT,
+        "shrink-0 text-[10px] font-medium tabular-nums text-foreground transition-opacity duration-150",
+        align === "left" ? "text-right" : "text-left",
+        visible ? "opacity-100" : "opacity-0"
+      )}
+    >
+      {formatHours(value)}
+    </span>
   );
 }
 
@@ -177,15 +181,15 @@ function PyramidBar({
   value,
   axisMax,
   color,
+  angle,
   align,
-  hatched = false,
   dimmed = false,
 }: {
   value: number;
   axisMax: number;
-  color: SeriesColor;
+  color: string;
+  angle: number;
   align: "left" | "right";
-  hatched?: boolean;
   dimmed?: boolean;
 }) {
   const width = axisMax > 0 ? Math.min(100, (value / axisMax) * 100) : 0;
@@ -215,12 +219,7 @@ function PyramidBar({
           isLeft ? "rounded-l-md" : "rounded-r-md",
           dimmed ? "opacity-40" : "opacity-100"
         )}
-        style={{
-          width: `${width}%`,
-          backgroundImage: hatched
-            ? `repeating-linear-gradient(45deg, ${color.solid} 0 3px, hsl(var(--alva-bg) / 0.4) 3px 6px)`
-            : `linear-gradient(${isLeft ? "to left" : "to right"}, ${color.solid}, ${color.soft})`,
-        }}
+        style={{ width: `${width}%`, backgroundImage: hatchFill(color, angle) }}
       />
     </div>
   );
@@ -228,23 +227,18 @@ function PyramidBar({
 
 function LegendSwatch({
   color,
+  angle,
   label,
-  hatched = false,
 }: {
-  color: SeriesColor;
+  color: string;
+  angle: number;
   label: string;
-  hatched?: boolean;
 }) {
   return (
     <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
       <span
         className="h-2.5 w-4 rounded-sm"
-        style={{
-          backgroundColor: color.solid,
-          backgroundImage: hatched
-            ? `repeating-linear-gradient(45deg, ${color.solid} 0 3px, hsl(var(--alva-bg) / 0.4) 3px 6px)`
-            : undefined,
-        }}
+        style={{ backgroundColor: color, backgroundImage: hatchFill(color, angle) }}
       />
       {label}
     </span>

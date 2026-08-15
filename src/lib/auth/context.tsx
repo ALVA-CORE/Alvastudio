@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  AnnotatorProfileData,
   AuthUser,
   ContributorProfileData,
   InternProfileData,
@@ -27,6 +28,7 @@ type AuthContextValue = {
     role?: UserRole;
     internProfile?: InternProfileData;
     contributorProfile?: ContributorProfileData;
+    annotatorProfile?: AnnotatorProfileData;
   }) => AuthUser;
   logout: () => void;
 };
@@ -47,10 +49,11 @@ function persistUser(user: AuthUser | null) {
   else localStorage.removeItem(STORAGE_KEY);
 }
 
-/** Mock auth until Supabase is wired. Intern role if email contains "intern". */
+/** Mock auth until Supabase is wired. Role is sniffed from the email local part. */
 function resolveRole(email: string, role?: UserRole): UserRole {
   if (role) return role;
   if (email.includes("admin")) return "admin";
+  if (email.includes("annotator")) return "annotator";
   if (email.includes("intern")) return "intern";
   return "contributor";
 }
@@ -79,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role?: UserRole;
       internProfile?: InternProfileData;
       contributorProfile?: ContributorProfileData;
+      annotatorProfile?: AnnotatorProfileData;
     }) => {
       const next: AuthUser = {
         id: crypto.randomUUID(),
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? { onboardingComplete: true, contributorProfile: payload.contributorProfile }
           : {}),
         internProfile: payload.internProfile,
+        annotatorProfile: payload.annotatorProfile,
       };
       setUser(next);
       persistUser(next);

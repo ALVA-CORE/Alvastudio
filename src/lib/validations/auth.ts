@@ -54,7 +54,17 @@ export type LoginValues = z.infer<typeof loginSchema>;
 export type SignupValues = z.infer<typeof signupSchema>;
 export type InternSignupValues = z.infer<typeof internSignupSchema>;
 
-export type UserRole = "contributor" | "intern" | "admin";
+export type UserRole = "contributor" | "intern" | "annotator" | "admin";
+
+export type AnnotatorProfileData = {
+  /** Language varieties this annotator is cleared to tag. */
+  varieties: string;
+  /** Sessions they are assigned to, e.g. "Lagos + Ogun focus groups". */
+  scope: string;
+  agreementTarget: "80" | "85" | "90";
+  queueAlerts?: boolean;
+  agreementAlerts?: boolean;
+};
 
 export type InternProfileData = {
   primaryState: string;
@@ -90,7 +100,14 @@ export type AuthUser = {
   onboardingComplete?: boolean;
   internProfile?: InternProfileData;
   contributorProfile?: ContributorProfileData;
+  annotatorProfile?: AnnotatorProfileData;
 };
+
+export const AGREEMENT_TARGET_OPTIONS = [
+  { value: "80", label: "80% agreement" },
+  { value: "85", label: "85% agreement" },
+  { value: "90", label: "90% agreement" },
+] as const;
 
 export const QUOTA_ALERT_OPTIONS = [
   { value: "weekly", label: "Weekly" },
