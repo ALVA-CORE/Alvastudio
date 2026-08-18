@@ -23,6 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AlvaSurfaceCard } from "@/components/shared/AlvaSurfaceCard";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import { AlvaNoResultsState } from "@/components/shared/states/AlvaNoResultsState";
+import { AlvaTableSkeleton } from "@/components/shared/states/AlvaTableSkeleton";
 import { cn } from "@/lib/utils";
 
 export type AlvaTableColumn<T> = {
@@ -52,6 +55,7 @@ type AlvaDataTableProps<T extends { id: string }> = {
   pageSize?: number;
   filterMenuContent?: ReactNode;
   activeFilterCount?: number;
+  isLoading?: boolean;
 };
 
 type SortDir = "asc" | "desc";
@@ -79,6 +83,7 @@ export function AlvaDataTable<T extends { id: string }>({
   pageSize,
   filterMenuContent,
   activeFilterCount = 0,
+  isLoading = false,
 }: AlvaDataTableProps<T>) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -155,6 +160,10 @@ export function AlvaDataTable<T extends { id: string }>({
       ]
     : columns;
 
+  const isNullState = rows.length === 0;
+  const isNoResults = !isNullState && filtered.length === 0 && query.trim().length > 0;
+  const isEmpty = isNullState || isNoResults;
+
   return (
     <AlvaSurfaceCard className="flex h-full min-w-0 flex-col gap-4 overflow-hidden">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -230,22 +239,18 @@ export function AlvaDataTable<T extends { id: string }>({
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          {emptyState?.icon && (
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-alva-surface text-muted-foreground">
-              {emptyState.icon}
-            </div>
-          )}
-          <p className="text-sm font-medium text-foreground">
-            {emptyState?.title ?? "Nothing here yet"}
-          </p>
-          {emptyState?.description && (
-            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-              {emptyState.description}
-            </p>
-          )}
-        </div>
+      {isLoading ? (
+        <AlvaTableSkeleton rows={pageSize ?? 6} columns={Math.min(columns.length, 5)} />
+      ) : isEmpty ? (
+        isNoResults ? (
+          <AlvaNoResultsState query={query} />
+        ) : (
+          <AlvaEmptyState
+            icon={emptyState?.icon}
+            title={emptyState?.title ?? "Nothing here yet"}
+            description={emptyState?.description}
+          />
+        )
       ) : (
         <>
           <div className="space-y-2 md:hidden">

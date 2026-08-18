@@ -30,6 +30,7 @@ export default {
 					text: "hsl(var(--alva-text))",
 					muted: "hsl(var(--alva-text-muted))",
 					accent: "hsl(var(--alva-accent))",
+					border: "hsl(var(--alva-border))",
 					"gradient-a": "hsl(var(--alva-gradient-a))",
 					"gradient-b": "hsl(var(--alva-gradient-b))",
 					"gradient-c": "hsl(var(--alva-gradient-c))",

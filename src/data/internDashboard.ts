@@ -11,13 +11,21 @@ export const DASHBOARD_TIME_RANGES: Array<{
 ];
 
 type WeeklyPoint = { day: string; sessions: number };
-type TrendPoint = { month: string; prompts: number; stimuli: number; focusGroup: number };
+type TrendPoint = { month: string; hours: number; participants: number; sessions: number };
 type RadarPoint = { metric: string; score: number };
+
+export type DemographicHoursPoint = {
+  ageBracket: string;
+  male: number;
+  female: number;
+  undisclosed: number;
+};
 
 type DashboardDataset = {
   weeklySessions: WeeklyPoint[];
   captureTrend: TrendPoint[];
   qualityRadar: RadarPoint[];
+  demographicHours: DemographicHoursPoint[];
   metrics: {
     hours: string;
     participants: string;
@@ -42,41 +50,61 @@ const WEEKLY_7D: WeeklyPoint[] = [
 ];
 
 const TREND_7D: TrendPoint[] = [
-  { month: "Mon", prompts: 14, stimuli: 9, focusGroup: 4 },
-  { month: "Tue", prompts: 22, stimuli: 14, focusGroup: 5 },
-  { month: "Wed", prompts: 18, stimuli: 12, focusGroup: 4 },
-  { month: "Thu", prompts: 26, stimuli: 16, focusGroup: 6 },
-  { month: "Fri", prompts: 20, stimuli: 13, focusGroup: 5 },
-  { month: "Sat", prompts: 12, stimuli: 8, focusGroup: 3 },
-  { month: "Sun", prompts: 16, stimuli: 10, focusGroup: 4 },
+  { month: "Mon", hours: 1.2, participants: 5, sessions: 2 },
+  { month: "Tue", hours: 1.8, participants: 7, sessions: 3 },
+  { month: "Wed", hours: 1.4, participants: 6, sessions: 2 },
+  { month: "Thu", hours: 2.1, participants: 9, sessions: 4 },
+  { month: "Fri", hours: 1.6, participants: 7, sessions: 3 },
+  { month: "Sat", hours: 0.9, participants: 4, sessions: 1 },
+  { month: "Sun", hours: 1.2, participants: 5, sessions: 2 },
 ];
 
 const TREND_30D: TrendPoint[] = [
-  { month: "Wk 1", prompts: 10, stimuli: 40, focusGroup: 2 },
-  { month: "Wk 2", prompts: 48, stimuli: 36, focusGroup: 16 },
-  { month: "Wk 3", prompts: 19, stimuli: 22, focusGroup: 40 },
-  { month: "Wk 4", prompts: 62, stimuli: 41, focusGroup: 18 },
+  { month: "Wk 1", hours: 8.5, participants: 48, sessions: 12 },
+  { month: "Wk 2", hours: 9.8, participants: 52, sessions: 14 },
+  { month: "Wk 3", hours: 9.2, participants: 49, sessions: 13 },
+  { month: "Wk 4", hours: 10.4, participants: 55, sessions: 15 },
 ];
 
 const TREND_90D: TrendPoint[] = [
-  { month: "Mar", prompts: 132, stimuli: 88, focusGroup: 31 },
-  { month: "Apr", prompts: 176, stimuli: 104, focusGroup: 42 },
-  { month: "May", prompts: 164, stimuli: 118, focusGroup: 39 },
-  { month: "Jun", prompts: 198, stimuli: 126, focusGroup: 48 },
-  { month: "Jul", prompts: 210, stimuli: 138, focusGroup: 52 },
-  { month: "Aug", prompts: 224, stimuli: 152, focusGroup: 56 },
+  { month: "Jun", hours: 32, participants: 168, sessions: 48 },
+  { month: "Jul", hours: 36, participants: 182, sessions: 52 },
+  { month: "Aug", hours: 38, participants: 196, sessions: 54 },
+  { month: "Sep", hours: 34, participants: 174, sessions: 49 },
+  { month: "Oct", hours: 39, participants: 205, sessions: 56 },
+  { month: "Nov", hours: 41, participants: 214, sessions: 58 },
 ];
 
 const TREND_12M: TrendPoint[] = [
-  { month: "Jan", prompts: 120, stimuli: 66, focusGroup: 28 },
-  { month: "Feb", prompts: 148, stimuli: 92, focusGroup: 34 },
-  { month: "Mar", prompts: 132, stimuli: 88, focusGroup: 31 },
-  { month: "Apr", prompts: 176, stimuli: 104, focusGroup: 42 },
-  { month: "May", prompts: 164, stimuli: 118, focusGroup: 39 },
-  { month: "Jun", prompts: 198, stimuli: 126, focusGroup: 48 },
-  { month: "Jul", prompts: 210, stimuli: 138, focusGroup: 52 },
-  { month: "Aug", prompts: 224, stimuli: 152, focusGroup: 56 },
+  { month: "Jan", hours: 28, participants: 142, sessions: 38 },
+  { month: "Feb", hours: 32, participants: 158, sessions: 42 },
+  { month: "Mar", hours: 30, participants: 149, sessions: 40 },
+  { month: "Apr", hours: 36, participants: 176, sessions: 48 },
+  { month: "May", hours: 34, participants: 164, sessions: 44 },
+  { month: "Jun", hours: 38, participants: 188, sessions: 50 },
+  { month: "Jul", hours: 40, participants: 198, sessions: 52 },
+  { month: "Aug", hours: 42, participants: 210, sessions: 56 },
 ];
+
+/** Hours per age bracket split by gender, sized against the 30-day totals. */
+const DEMOGRAPHIC_HOURS_30D: DemographicHoursPoint[] = [
+  { ageBracket: "18–24", male: 3.1, female: 4.4, undisclosed: 0.4 },
+  { ageBracket: "25–34", male: 6.2, female: 7.1, undisclosed: 0.6 },
+  { ageBracket: "35–44", male: 4.8, female: 4.2, undisclosed: 0.3 },
+  { ageBracket: "45–54", male: 2.1, female: 2.9, undisclosed: 0.2 },
+  { ageBracket: "55+", male: 1.1, female: 1.3, undisclosed: 0.1 },
+];
+
+function scaleDemographicHours(factor: number): DemographicHoursPoint[] {
+  const round = (value: number) => Math.round(value * factor * 10) / 10;
+
+  return DEMOGRAPHIC_HOURS_30D.map((point) => ({
+    ageBracket: point.ageBracket,
+    male: round(point.male),
+    female: round(point.female),
+    undisclosed: round(point.undisclosed),
+  }));
+}
 
 const RADAR_BASE: RadarPoint[] = [
   { metric: "Clarity", score: 82 },
@@ -95,6 +123,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
       ...item,
       score: Math.min(100, item.score + 4),
     })),
+    demographicHours: scaleDemographicHours(0.24),
     metrics: {
       hours: "9.2h",
       participants: "38",
@@ -111,6 +140,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
     weeklySessions: WEEKLY_7D,
     captureTrend: TREND_30D,
     qualityRadar: RADAR_BASE,
+    demographicHours: DEMOGRAPHIC_HOURS_30D,
     metrics: {
       hours: "38.5h",
       participants: "214",
@@ -133,6 +163,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
       ...item,
       score: Math.max(60, item.score - 3),
     })),
+    demographicHours: scaleDemographicHours(2.9),
     metrics: {
       hours: "112h",
       participants: "580",
@@ -155,6 +186,7 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
       ...item,
       score: Math.max(58, item.score - 6),
     })),
+    demographicHours: scaleDemographicHours(11.1),
     metrics: {
       hours: "428h",
       participants: "2,140",
@@ -168,3 +200,38 @@ export const DASHBOARD_DATA: Record<DashboardTimeRange, DashboardDataset> = {
     },
   },
 };
+
+/** Zeroed mirror of a dataset so empty dashboards still render real chart frames. */
+export function getEmptyDashboardDataset(
+  range: DashboardTimeRange
+): DashboardDataset {
+  const source = DASHBOARD_DATA[range];
+
+  return {
+    weeklySessions: source.weeklySessions.map((point) => ({ ...point, sessions: 0 })),
+    captureTrend: source.captureTrend.map((point) => ({
+      ...point,
+      hours: 0,
+      participants: 0,
+      sessions: 0,
+    })),
+    qualityRadar: source.qualityRadar.map((point) => ({ ...point, score: 0 })),
+    demographicHours: source.demographicHours.map((point) => ({
+      ...point,
+      male: 0,
+      female: 0,
+      undisclosed: 0,
+    })),
+    metrics: {
+      hours: "0h",
+      participants: "0",
+      clipsReviewed: "0",
+      sessions: "0",
+      hoursTrend: "0%",
+      participantsTrend: "0%",
+      clipsTrend: "0%",
+      sessionsTrend: "0%",
+      periodLabel: source.metrics.periodLabel,
+    },
+  };
+}

@@ -31,7 +31,7 @@ export function LoginForm() {
     } else {
       localStorage.removeItem("alva-remember-me");
     }
-    navigate("/dashboard");
+    navigate("/");
   };
 
   return (
@@ -39,7 +39,7 @@ export function LoginForm() {
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-foreground">Welcome back</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sign in to continue recording
+          Sign in to Alva Studio
         </p>
       </div>
 
@@ -115,9 +115,15 @@ export function LoginForm() {
       </Form>
 
       <p className="text-center text-sm text-muted-foreground">
-        New here?{" "}
-        <Link to="/signup" className="font-medium text-primary hover:underline">
+        New contributor?{" "}
+        <Link to="/contributor/signup" className="font-medium text-primary hover:underline">
           Create an account
+        </Link>
+      </p>
+      <p className="text-center text-sm text-muted-foreground">
+        Collecting focus groups?{" "}
+        <Link to="/intern/signup" className="font-medium text-primary hover:underline">
+          Intern signup
         </Link>
       </p>
     </div>

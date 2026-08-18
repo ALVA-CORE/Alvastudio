@@ -1,4 +1,4 @@
-import { SiriBlob } from "@/components/studio/SiriBlob";
+import { SiriBlob } from "@/components/contributors/studio/SiriBlob";
 
 type RecordNavIconProps = {
   active?: boolean;
