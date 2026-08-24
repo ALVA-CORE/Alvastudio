@@ -25,9 +25,14 @@ import { cn } from "@/lib/utils";
  * the transcript underneath; only the controls themselves take events.
  */
 
-/** Both float on the page floor colour, a step below the panels they sit over. */
+/**
+ * Same fill as the panel's select fields, so every control the annotator can
+ * operate reads as one material regardless of which surface it floats over.
+ * Opaque rather than translucent: these sit above scrolling transcript, and a
+ * see-through control picks up whatever text happens to be behind it.
+ */
 const FLOATING_SURFACE =
-  "bg-alva-bg/95 text-muted-foreground shadow-sm backdrop-blur";
+  "bg-alva-surface text-muted-foreground shadow-sm";
 
 const ICON_BUTTON =
   "flex size-8 items-center justify-center rounded-full transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent disabled:pointer-events-none disabled:opacity-40";
@@ -69,7 +74,7 @@ export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          "pointer-events-none absolute inset-x-1 top-0 z-40 flex items-start justify-between gap-2 px-4 pt-5",
+          "pointer-events-none absolute inset-x-2 top-0 z-40 flex items-start justify-between gap-2 px-4 pt-5",
           className
         )}
       >

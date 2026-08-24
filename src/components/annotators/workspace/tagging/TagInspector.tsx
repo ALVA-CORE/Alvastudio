@@ -255,7 +255,7 @@ export const TagInspector = memo(function TagInspector() {
         {/* State on the left, action on the right, divided. Previously the
             whole row was the button and "Mark empty" was a passive label, so
             the destructive half of the control was invisible until you hit it. */}
-        <div className="flex items-stretch overflow-hidden rounded-xl bg-alva-bg">
+        <div className="flex items-stretch overflow-hidden rounded-xl bg-alva-surface">
           <span
             className={cn(
               "min-w-0 flex-1 truncate px-3 py-2 text-xs",
@@ -271,7 +271,7 @@ export const TagInspector = memo(function TagInspector() {
             type="button"
             aria-pressed={!speechPresent}
             onClick={() => setSpeechPresent(!speechPresent)}
-            className="shrink-0 px-3 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-alva-accent"
+            className="shrink-0 px-3 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-alva-card hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-alva-accent"
           >
             {speechPresent ? "Mark empty" : "Undo"}
           </button>
