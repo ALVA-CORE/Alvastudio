@@ -11,13 +11,17 @@ import {
 import {
   createSegmentId,
   mergeSegments,
+  overlapsRow,
   retimeSegment,
   sortSegments,
   splitSegmentAt,
 } from "./segments";
 import {
   MIN_SEGMENT_DURATION,
+  type AnnotationSpan,
+  type NonSpeechMark,
   speakerColorAt,
+  speakerLabelAt,
   type Segment,
   type SegmentId,
   type SaveStatus,
@@ -59,7 +63,12 @@ export type AnnotationState = {
   followPlayhead: boolean;
 
   /* Selection — transient */
-  selectedSegmentId: SegmentId | null;
+  /**
+   * Every selected segment. Multi-select exists so a batch can be tagged in one
+   * action from the panel; a single selection is just a set of one, which keeps
+   * one code path rather than two that drift apart.
+   */
+  selectedSegmentIds: SegmentId[];
   /** Diarization focus. Non-null dims every other speaker across the UI. */
   activeSpeakerId: SpeakerId | null;
 
@@ -77,8 +86,29 @@ export type AnnotationState = {
   deleteSegment: (id: SegmentId) => void;
   insertSegmentAt: (time: number, speakerId?: SpeakerId) => void;
   renameSpeaker: (id: SpeakerId, name: string) => void;
-  /** Appends a diarization track. No-ops at `MAX_SPEAKERS`. */
+  /* Tagging — all undoable, all part of the document. */
+  /** Adds a token-range tag. Replaces any existing span of the same kind that
+   *  covers the same range, so applying twice is a change, not a duplicate. */
+  addSpan: (span: Omit<AnnotationSpan, "id">) => void;
+  updateSpan: (id: string, patch: Partial<Omit<AnnotationSpan, "id">>) => void;
+  removeSpan: (id: string) => void;
+  addNonSpeechMark: (mark: Omit<NonSpeechMark, "id">) => void;
+  removeNonSpeechMark: (id: string) => void;
+  toggleDifficultyFlag: (flag: string) => void;
+  setSpeechPresent: (present: boolean) => void;
+
+  /** Appends a diarization track. The roster is unbounded. */
   addSpeaker: () => void;
+  /**
+   * Reassigns a segment to another speaker's row, optionally moving it in time.
+   * No-ops when the destination row already has audio in that span — one person
+   * cannot say two things at once.
+   */
+  moveSegmentToSpeaker: (
+    id: SegmentId,
+    speakerId: SpeakerId,
+    range?: { start: number; end: number }
+  ) => void;
   /** Removes a speaker AND every segment they own. Never leaves the last one. */
   removeSpeaker: (id: SpeakerId) => void;
   undo: () => void;
@@ -93,7 +123,12 @@ export type AnnotationState = {
   setPlaybackRate: (rate: number) => void;
   setZoom: (zoom: number) => void;
   setFollowPlayhead: (follow: boolean) => void;
+  /** Replaces the selection with exactly this segment, or clears it. */
   selectSegment: (id: SegmentId | null) => void;
+  /** Adds or removes one segment from the selection (Shift-click). */
+  toggleSegmentSelection: (id: SegmentId) => void;
+  /** Replaces the selection wholesale. */
+  setSelectedSegments: (ids: SegmentId[]) => void;
   setActiveSpeaker: (id: SpeakerId | null) => void;
   toggleActiveSpeaker: (id: SpeakerId) => void;
   setSaveStatus: (status: SaveStatus, meta?: { savedAt?: number | null; error?: string | null }) => void;
@@ -105,8 +140,6 @@ export const MIN_ZOOM = 8;
 export const MAX_ZOOM = 320;
 export const DEFAULT_ZOOM = 40;
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
-/** Diarization tracks a single focus group can hold. */
-export const MAX_SPEAKERS = 4;
 
 export function createAnnotationStore(
   doc: TranscriptDoc,
@@ -139,7 +172,7 @@ export function createAnnotationStore(
       zoom: DEFAULT_ZOOM,
       followPlayhead: true,
 
-      selectedSegmentId: null,
+      selectedSegmentIds: [],
       activeSpeakerId: null,
 
       saveStatus: "idle",
@@ -202,29 +235,45 @@ export function createAnnotationStore(
         mutate((current) => {
           const sorted = sortSegments(current.segments);
           const index = sorted.findIndex((segment) => segment.id === id);
-          if (index === -1 || index === sorted.length - 1) return current;
+          if (index === -1) return current;
 
-          const merged = mergeSegments(sorted[index], sorted[index + 1]);
-          const segments = [...sorted];
-          segments.splice(index, 2, merged);
-          return { ...current, segments };
+          // Merge with the next segment on the SAME row. The globally next
+          // segment may belong to another speaker, and merging across voices
+          // would silently attribute one person's words to another.
+          const subject = sorted[index];
+          const nextIndex = sorted.findIndex(
+            (segment, i) => i > index && segment.speakerId === subject.speakerId
+          );
+          if (nextIndex === -1) return current;
+
+          const merged = mergeSegments(subject, sorted[nextIndex]);
+          const segments = sorted.filter((_, i) => i !== index && i !== nextIndex);
+          segments.push(merged);
+          return { ...current, segments: sortSegments(segments) };
         });
       },
 
       deleteSegment(id) {
-        const { selectedSegmentId } = get();
         mutate((current) => ({
           ...current,
           segments: current.segments.filter((segment) => segment.id !== id),
         }));
-        if (selectedSegmentId === id) set({ selectedSegmentId: null });
+        set((state) => ({
+          selectedSegmentIds: state.selectedSegmentIds.filter((entry) => entry !== id),
+        }));
       },
 
       insertSegmentAt(time, speakerId) {
         const { duration } = get();
+        const insertedId = createSegmentId();
+        let inserted = false;
         mutate((current) => {
-          const sorted = sortSegments(current.segments);
-          // Fit inside the gap under the playhead rather than overlapping.
+          const targetSpeaker = speakerId ?? current.speakers[0]?.id ?? "spk-0";
+          // Only this speaker's row constrains the insert — other rows may be
+          // busy at the same instant, and that is legitimate.
+          const sorted = sortSegments(
+            current.segments.filter((segment) => segment.speakerId === targetSpeaker)
+          );
           const next = sorted.find((segment) => segment.start > time);
           const prev = [...sorted].reverse().find((segment) => segment.end <= time);
 
@@ -235,21 +284,92 @@ export function createAnnotationStore(
           if (end - start < MIN_SEGMENT_DURATION) return current;
 
           const segment: Segment = {
-            id: createSegmentId(),
+            id: insertedId,
             start,
             end,
-            speakerId: speakerId ?? current.speakers[0]?.id ?? "spk-0",
+            speakerId: targetSpeaker,
             text: "",
           };
 
+          inserted = true;
           return { ...current, segments: sortSegments([...current.segments, segment]) };
         });
+
+        // Select it so the transcript scrolls the new (empty) row into view —
+        // otherwise inserting far from the current scroll position looks like
+        // nothing happened.
+        if (inserted) set({ selectedSegmentIds: [insertedId] });
+      },
+
+      addSpan(span) {
+        mutate((current) => {
+          // Same kind over the same range is a correction, not a second tag —
+          // otherwise re-picking from the menu silently stacks duplicates that
+          // only surface as double-counted rows on export.
+          const kept = current.spans.filter(
+            (existing) =>
+              !(
+                existing.kind === span.kind &&
+                existing.startToken === span.startToken &&
+                existing.endToken === span.endToken
+              )
+          );
+
+          return {
+            ...current,
+            spans: [...kept, { ...span, id: createSegmentId("span") }],
+          };
+        });
+      },
+
+      updateSpan(id, patch) {
+        mutate((current) => ({
+          ...current,
+          spans: current.spans.map((span) =>
+            span.id === id ? { ...span, ...patch } : span
+          ),
+        }));
+      },
+
+      removeSpan(id) {
+        mutate((current) => ({
+          ...current,
+          spans: current.spans.filter((span) => span.id !== id),
+        }));
+      },
+
+      addNonSpeechMark(mark) {
+        mutate((current) => ({
+          ...current,
+          nonSpeech: [
+            ...current.nonSpeech,
+            { ...mark, id: createSegmentId("nse") },
+          ],
+        }));
+      },
+
+      removeNonSpeechMark(id) {
+        mutate((current) => ({
+          ...current,
+          nonSpeech: current.nonSpeech.filter((mark) => mark.id !== id),
+        }));
+      },
+
+      toggleDifficultyFlag(flag) {
+        mutate((current) => ({
+          ...current,
+          difficultyFlags: current.difficultyFlags.includes(flag)
+            ? current.difficultyFlags.filter((entry) => entry !== flag)
+            : [...current.difficultyFlags, flag],
+        }));
+      },
+
+      setSpeechPresent(present) {
+        mutate((current) => ({ ...current, speechPresent: present }));
       },
 
       addSpeaker() {
         mutate((current) => {
-          if (current.speakers.length >= MAX_SPEAKERS) return current;
-
           // Machine labels continue the A, B, C… sequence rather than reusing a
           // freed letter, so a label never refers to two different voices.
           const index = current.speakers.length;
@@ -259,7 +379,7 @@ export function createAnnotationStore(
               ...current.speakers,
               {
                 id: `spk-${index}-${createSegmentId("s")}`,
-                label: `Speaker ${String.fromCharCode(65 + index)}`,
+                label: `Speaker ${speakerLabelAt(index)}`,
                 role: "participant" as const,
                 color: speakerColorAt(index),
               },
@@ -268,8 +388,32 @@ export function createAnnotationStore(
         });
       },
 
+      moveSegmentToSpeaker(id, speakerId, range) {
+        mutate((current) => {
+          const segment = current.segments.find((entry) => entry.id === id);
+          if (!segment) return current;
+
+          const next = range ?? { start: segment.start, end: segment.end };
+          if (segment.speakerId === speakerId && next.start === segment.start) {
+            return current;
+          }
+
+          // Rows are exclusive even though the timeline as a whole is not.
+          if (overlapsRow(current.segments, speakerId, next, id)) return current;
+
+          return {
+            ...current,
+            segments: sortSegments(
+              current.segments.map((entry) =>
+                entry.id === id ? { ...entry, speakerId, ...next } : entry
+              )
+            ),
+          };
+        });
+      },
+
       removeSpeaker(id) {
-        const { selectedSegmentId, activeSpeakerId } = get();
+        const { activeSpeakerId } = get();
 
         mutate((current) => {
           // Deleting the last speaker would orphan every segment.
@@ -284,10 +428,10 @@ export function createAnnotationStore(
 
         // Clear transient state pointing at what just disappeared.
         if (activeSpeakerId === id) set({ activeSpeakerId: null });
-        const stillExists = get().history.present.segments.some(
-          (segment) => segment.id === selectedSegmentId
-        );
-        if (!stillExists) set({ selectedSegmentId: null });
+        const alive = new Set(get().history.present.segments.map((entry) => entry.id));
+        set((state) => ({
+          selectedSegmentIds: state.selectedSegmentIds.filter((entry) => alive.has(entry)),
+        }));
       },
 
       renameSpeaker(id, name) {
@@ -342,8 +486,20 @@ export function createAnnotationStore(
       setFollowPlayhead(followPlayhead) {
         set({ followPlayhead });
       },
-      selectSegment(selectedSegmentId) {
-        set({ selectedSegmentId });
+      selectSegment(id) {
+        set({ selectedSegmentIds: id === null ? [] : [id] });
+      },
+
+      toggleSegmentSelection(id) {
+        set((state) => ({
+          selectedSegmentIds: state.selectedSegmentIds.includes(id)
+            ? state.selectedSegmentIds.filter((entry) => entry !== id)
+            : [...state.selectedSegmentIds, id],
+        }));
+      },
+
+      setSelectedSegments(ids) {
+        set({ selectedSegmentIds: ids });
       },
       setActiveSpeaker(activeSpeakerId) {
         set({ activeSpeakerId });
@@ -374,6 +530,20 @@ export const selectDoc = (state: AnnotationState): TranscriptDoc => state.histor
 export const selectSegments = (state: AnnotationState): Segment[] => state.history.present.segments;
 export const selectSpeakers = (state: AnnotationState): Speaker[] =>
   state.history.present.speakers;
+/**
+ * The single selected segment, or null when zero or many are selected.
+ *
+ * Most of the UI is only meaningful for one segment — the lit rail, the scroll
+ * target — so this is the narrow read. The panel reads `selectedSegmentIds`
+ * directly when it wants the batch.
+ */
+export const selectPrimarySegmentId = (state: AnnotationState): SegmentId | null =>
+  state.selectedSegmentIds.length === 1 ? state.selectedSegmentIds[0] : null;
+
+export const selectSpans = (state: AnnotationState): AnnotationSpan[] =>
+  state.history.present.spans;
+export const selectNonSpeech = (state: AnnotationState): NonSpeechMark[] =>
+  state.history.present.nonSpeech;
 export const selectCanUndo = (state: AnnotationState): boolean =>
   historyCanUndo(state.history);
 export const selectCanRedo = (state: AnnotationState): boolean =>

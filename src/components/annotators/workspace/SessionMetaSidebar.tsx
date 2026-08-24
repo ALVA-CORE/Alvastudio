@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import ListCheck from "@solar-icons/react/list/ListCheck";
@@ -6,9 +6,15 @@ import DocumentText from "@solar-icons/react/notes/DocumentText";
 import Bolt from "@solar-icons/react/ui/Bolt";
 import Microphone2 from "@solar-icons/react/video/Microphone2";
 import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStatusBadge";
-import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import { formatDurationLong } from "@/lib/annotation/segments";
+import { TagInspector } from "@/components/annotators/workspace/tagging/TagInspector";
+import { useAnnotation } from "@/lib/annotation/context";
+import {
+  PANEL_SECTION_LABEL,
+  PanelDivider,
+  PanelRow,
+} from "@/components/annotators/workspace/PanelPrimitives";
 import { cn } from "@/lib/utils";
 
 /**
@@ -51,14 +57,14 @@ export type SessionMetaSidebarProps = {
 };
 
 /**
- * Titled grouping.
+ * A titled group of label/value rows.
  *
- * The sheet original wrapped its blocks in a second `bg-alva-surface` box,
- * which put surface on surface and flattened the group. The panel is already
- * `bg-alva-card`, so the wrapper here is transparent and only the individual
- * tiles carry surface — card -> surface, one elevation step, as specified.
+ * Every value used to sit in its own `bg-alva-surface` box, which stacked nine
+ * boxes down the panel — each one drawing a border around a single word, so the
+ * eye had to parse nine containers to read four facts. Rows on hairlines carry
+ * the same information with one alignment to follow and no boxes at all.
  */
-function DetailSection({
+function InfoGroup({
   title,
   icon,
   children,
@@ -68,12 +74,12 @@ function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-2.5">
-      <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <span className="text-muted-foreground">{icon}</span>
+    <section className="space-y-1">
+      <h3 className={PANEL_SECTION_LABEL}>
+        {icon}
         {title}
       </h3>
-      <div className="space-y-2">{children}</div>
+      <dl>{children}</dl>
     </section>
   );
 }
@@ -86,7 +92,8 @@ const STAT_TONE_CLASS: Record<StatTone, string> = {
   negative: "text-red-400",
 };
 
-function StatTile({
+/** Number over label, unboxed — the number is the subject, not the container. */
+function Stat({
   label,
   value,
   tone = "neutral",
@@ -96,12 +103,12 @@ function StatTile({
   tone?: StatTone;
 }) {
   return (
-    <div className="rounded-xl bg-alva-surface px-3 py-2.5">
-      <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </p>
-      <p className={cn("mt-1 text-sm font-semibold tabular-nums", STAT_TONE_CLASS[tone])}>
+    <div className="min-w-0">
+      <p className={cn("truncate text-sm font-semibold tabular-nums", STAT_TONE_CLASS[tone])}>
         {value}
+      </p>
+      <p className="truncate text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+        {label}
       </p>
     </div>
   );
@@ -145,6 +152,12 @@ function SessionMetaSidebarImpl({
   onToggleCollapsed,
   className,
 }: SessionMetaSidebarProps) {
+  const [tab, setTab] = useState<"details" | "tags">("details");
+  const tagCount = useAnnotation(
+    (state) =>
+      state.history.present.spans.length + state.history.present.nonSpeech.length
+  );
+
   return (
     <aside
       aria-label="Session details"
@@ -178,116 +191,122 @@ function SessionMetaSidebarImpl({
         </div>
       ) : (
         <>
-          <header className="shrink-0 space-y-2 border-b border-alva-border px-4 py-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h2 className="truncate text-sm font-semibold text-foreground">
-                  {session.code}
-                </h2>
-                <SessionStatusBadge status={session.status} />
+          {/* Header carries the tabs, so the underline of the active tab and the
+              panel's own separator are the same line. Two questions live behind
+              them — "what is this clip" and "what has been marked on it" — and
+              splitting them stops either scrolling past the other. */}
+          <header className="shrink-0 border-b border-alva-border">
+            <div className="space-y-2 px-4 pb-3 pt-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <h2 className="truncate text-sm font-semibold text-foreground">
+                    {session.code}
+                  </h2>
+                  <SessionStatusBadge status={session.status} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleCollapsed(true)}
+                  aria-expanded
+                  aria-label="Collapse session details"
+                  className={iconButtonClass}
+                >
+                  <AltArrowRight size={16} weight="Linear" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => onToggleCollapsed(true)}
-                aria-expanded
-                aria-label="Collapse session details"
-                className={iconButtonClass}
-              >
-                <AltArrowRight size={16} weight="Linear" />
-              </button>
+              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                {session.topic}
+              </p>
             </div>
-            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-              {session.topic}
-            </p>
+
+            <div role="tablist" aria-label="Session panel" className="flex">
+              {(["details", "tags"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === value}
+                  onClick={() => setTab(value)}
+                  className={cn(
+                    // -mb-px pulls the underline onto the header's border, so the
+                    // active tab sits ON the separator rather than above it.
+                    // flex-1 splits the panel evenly; -mb-px pulls the underline onto
+                    // the header's border so the active tab sits ON the separator.
+                    "-mb-px flex-1 border-b-2 pb-2 text-[11px] font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+                    tab === value
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {value}
+                  {value === "tags" && tagCount > 0 ? (
+                    <span className="ml-1 text-muted-foreground/70">{tagCount}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
           </header>
 
-          <div className="alva-thin-scrollbar flex-1 space-y-5 overflow-y-auto px-4 py-4">
-            <DetailSection
-              title="This pass"
-              icon={<Bolt size={14} weight="Linear" />}
-            >
-              <div className="grid grid-cols-2 gap-2">
-                <StatTile label="Segments" value={String(stats.segmentCount)} />
-                <StatTile
-                  label="Speaking"
-                  value={formatDurationLong(stats.speakingSeconds)}
-                />
-                <StatTile
-                  label="Errors"
-                  value={String(stats.errors)}
-                  tone={stats.errors > 0 ? "negative" : "neutral"}
-                />
-                <StatTile
-                  label="Warnings"
-                  value={String(stats.warnings)}
-                  tone={stats.warnings > 0 ? "warning" : "neutral"}
-                />
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-alva-surface px-3 py-2.5">
-                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  Conformance
-                </span>
-                <ConformanceBadge errors={stats.errors} warnings={stats.warnings} />
-              </div>
-            </DetailSection>
+          <div className="alva-thin-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-4">
+            {tab === "details" ? (
+              <>
+                {/* Live counters. Bare numbers on the panel ground — four boxed
+                    tiles read as four separate cards rather than one reading. */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className={PANEL_SECTION_LABEL}>
+                      <Bolt size={13} weight="Linear" />
+                      This pass
+                    </h3>
+                    <ConformanceBadge errors={stats.errors} warnings={stats.warnings} />
+                  </div>
 
-            <DetailSection
-              title="Session"
-              icon={<DocumentText size={14} weight="Linear" />}
-            >
-              <ProfileInfoBlock
-                label="Session code"
-                value={session.code}
-                className="rounded-xl"
-              />
-              <ProfileInfoBlock
-                label="State"
-                value={session.state}
-                className="rounded-xl"
-              />
-              <ProfileInfoBlock
-                label="Recorded by"
-                value={session.recordedBy}
-                className="rounded-xl"
-              />
-              <ProfileInfoBlock
-                label="Recorded"
-                value={session.recordedAt}
-                className="rounded-xl"
-              />
-            </DetailSection>
+                  <div className="grid grid-cols-4 gap-2">
+                    <Stat label="Segs" value={String(stats.segmentCount)} />
+                    <Stat
+                      label="Spoken"
+                      value={formatDurationLong(stats.speakingSeconds)}
+                    />
+                    <Stat
+                      label="Errors"
+                      value={String(stats.errors)}
+                      tone={stats.errors > 0 ? "negative" : "neutral"}
+                    />
+                    <Stat
+                      label="Warns"
+                      value={String(stats.warnings)}
+                      tone={stats.warnings > 0 ? "warning" : "neutral"}
+                    />
+                  </div>
+                </section>
 
-            <DetailSection
-              title="Audio"
-              icon={<Microphone2 size={14} weight="Linear" />}
-            >
-              <ProfileInfoBlock
-                label="Duration"
-                value={session.duration}
-                className="rounded-xl"
-              />
-              <ProfileInfoBlock
-                label="Language"
-                value={session.language}
-                className="rounded-xl"
-              />
-              <ProfileInfoBlock
-                label="Speakers on tape"
-                value={`${session.speakers} (${session.participants} participants + moderator)`}
-                className="rounded-xl"
-              />
-            </DetailSection>
+                <PanelDivider />
 
-            <DetailSection
-              title="Annotation"
-              icon={<ListCheck size={14} weight="Linear" />}
-            >
-              <ProfileInfoBlock
-                label="Tags applied"
-                value={String(session.tagCount)}
-                className="rounded-xl"
-              />
-            </DetailSection>
+                <InfoGroup title="Session" icon={<DocumentText size={13} weight="Linear" />}>
+                  <PanelRow label="Code" value={session.code} />
+                  <PanelRow label="State" value={session.state} />
+                  <PanelRow label="Recorded by" value={session.recordedBy} />
+                  <PanelRow label="Recorded" value={session.recordedAt} />
+                </InfoGroup>
+
+                <PanelDivider />
+
+                <InfoGroup title="Audio" icon={<Microphone2 size={13} weight="Linear" />}>
+                  <PanelRow label="Duration" value={session.duration} />
+                  <PanelRow label="Language" value={session.language} />
+                  <PanelRow label="Speakers" value={String(session.speakers)} />
+                  <PanelRow label="Participants" value={String(session.participants)} />
+                </InfoGroup>
+
+                <PanelDivider />
+
+                <InfoGroup title="Annotation" icon={<ListCheck size={13} weight="Linear" />}>
+                  <PanelRow label="Tags applied" value={String(session.tagCount)} />
+                </InfoGroup>
+              </>
+            ) : (
+              <TagInspector />
+            )}
           </div>
         </>
       )}

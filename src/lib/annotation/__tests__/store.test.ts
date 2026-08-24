@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { __resetSegmentIdCounter, findActiveSegmentIndex } from "../segments";
+import {
+  __resetSegmentIdCounter,
+  findActiveSegmentIndex,
+  findActiveSegmentIndexForSpeaker,
+} from "../segments";
 import {
   DEFAULT_ZOOM,
-  MAX_SPEAKERS,
   MAX_ZOOM,
   MIN_ZOOM,
   PLAYBACK_RATES,
@@ -21,6 +24,7 @@ import {
 import {
   MIN_SEGMENT_DURATION,
   MIN_SEGMENT_GAP,
+  emptyAnnotationState,
   speakerColorAt,
   type Segment,
   type TranscriptDoc,
@@ -51,6 +55,7 @@ function makeDoc(): TranscriptDoc {
       { id: "c2", start: 3, end: 6, speakerId: "spk-1", text: ORIGINAL_TEXT.c2 },
       { id: "c3", start: 8, end: 11, speakerId: "spk-0", text: ORIGINAL_TEXT.c3 },
     ],
+    ...emptyAnnotationState(),
   };
 }
 
@@ -87,7 +92,7 @@ describe("createAnnotationStore", () => {
     expect(state.playbackRate).toBe(1);
     expect(state.zoom).toBe(DEFAULT_ZOOM);
     expect(state.followPlayhead).toBe(true);
-    expect(state.selectedSegmentId).toBeNull();
+    expect(state.selectedSegmentIds).toEqual([]);
     expect(state.activeSpeakerId).toBeNull();
     expect(state.saveStatus).toBe("idle");
     expect(state.lastSavedAt).toBeNull();
@@ -238,7 +243,7 @@ describe("undo / redo isolation", () => {
       playbackRate: store.getState().playbackRate,
       isPlaying: store.getState().isPlaying,
       followPlayhead: store.getState().followPlayhead,
-      selectedSegmentId: store.getState().selectedSegmentId,
+      selectedSegmentIds: store.getState().selectedSegmentIds,
       activeSpeakerId: store.getState().activeSpeakerId,
     };
 
@@ -295,13 +300,24 @@ describe("undo / redo isolation", () => {
  * ------------------------------------------------------------------ */
 
 describe("retime", () => {
-  it("moves a segment and respects the neighbour gap", () => {
+  it("respects the gap against a neighbour on the SAME row", () => {
     const store = makeStore();
 
+    // c1 and c3 are both spk-0; c1 ends at 2.
+    act(store).retime("c3", { start: 1, end: 11 });
+
+    expect(segment(store, "c3")!.start).toBeCloseTo(2 + MIN_SEGMENT_GAP, 10);
+    expect(store.getState().revision).toBe(1);
+  });
+
+  it("ignores segments on OTHER rows — two speakers may overlap", () => {
+    const store = makeStore();
+
+    // c2 is spk-1; c1 (spk-0, 0–2) must not constrain it.
     act(store).retime("c2", { start: 1, end: 6 });
 
-    expect(segment(store, "c2")!.start).toBeCloseTo(2 + MIN_SEGMENT_GAP, 10);
-    expect(store.getState().revision).toBe(1);
+    expect(segment(store, "c2")!.start).toBe(1);
+    expect(segment(store, "c1")!.end).toBe(2);
   });
 
   it("clamps against the store's duration", () => {
@@ -409,19 +425,21 @@ describe("splitSegment", () => {
 });
 
 describe("mergeWithNext", () => {
-  it("folds the following segment into this one", () => {
+  it("folds the following SAME-ROW segment into this one, skipping other rows", () => {
     const store = makeStore();
 
     act(store).mergeWithNext("c1");
 
+    // c2 belongs to spk-1 and is passed over: merging across voices would
+    // silently attribute one person's words to another.
     const after = segments(store);
     expect(after).toHaveLength(2);
-    expect(after[0]).toMatchObject({
+    expect(after.find((c) => c.id === "c1")).toMatchObject({
       id: "c1",
       start: 0,
-      end: 6,
+      end: 11,
       speakerId: "spk-0",
-      text: `${ORIGINAL_TEXT.c1} ${ORIGINAL_TEXT.c2}`,
+      text: `${ORIGINAL_TEXT.c1} ${ORIGINAL_TEXT.c3}`,
     });
   });
 
@@ -461,7 +479,7 @@ describe("deleteSegment", () => {
     act(store).selectSegment("c2");
     act(store).deleteSegment("c2");
 
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 
   it("leaves an unrelated selection alone", () => {
@@ -470,7 +488,7 @@ describe("deleteSegment", () => {
     act(store).selectSegment("c1");
     act(store).deleteSegment("c2");
 
-    expect(store.getState().selectedSegmentId).toBe("c1");
+    expect(store.getState().selectedSegmentIds).toEqual(["c1"]);
   });
 
   it("is undoable, though the selection does not come back", () => {
@@ -483,7 +501,7 @@ describe("deleteSegment", () => {
     expect(segments(store)).toEqual(makeDoc().segments);
     // Selection is transient state and deliberately outside history — the
     // caller re-selects if it wants to.
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 });
 
@@ -493,8 +511,10 @@ describe("insertSegmentAt", () => {
 
     act(store).insertSegmentAt(2);
 
+    // Only spk-0's own row constrains the insert: c1 ends at 2 and c3 starts at
+    // 8, so there is room for the full two seconds even though spk-1 is talking.
     const inserted = segment(store, "segment-1")!;
-    expect(inserted).toMatchObject({ start: 2, end: 3, text: "", speakerId: "spk-0" });
+    expect(inserted).toMatchObject({ start: 2, end: 4, text: "", speakerId: "spk-0" });
     expect(segments(store).map((c) => c.id)).toEqual(["c1", "segment-1", "c2", "c3"]);
   });
 
@@ -526,9 +546,11 @@ describe("insertSegmentAt", () => {
     const tight: TranscriptDoc = {
       ...makeDoc(),
       segments: [
+        // Both on the SAME row — a cross-row pair would not constrain at all.
         { id: "a", start: 0, end: 2, speakerId: "spk-0", text: "one" },
-        { id: "b", start: 2.5, end: 5, speakerId: "spk-1", text: "two" },
+        { id: "b", start: 2.5, end: 5, speakerId: "spk-0", text: "two" },
       ],
+      ...emptyAnnotationState(),
     };
     const store = makeStore(tight);
 
@@ -689,10 +711,10 @@ describe("transient actions", () => {
     const store = makeStore();
 
     act(store).selectSegment("c2");
-    expect(store.getState().selectedSegmentId).toBe("c2");
+    expect(store.getState().selectedSegmentIds).toEqual(["c2"]);
 
     act(store).selectSegment(null);
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 
   it("toggleActiveSpeaker turns focus on, then back off", () => {
@@ -959,6 +981,7 @@ describe("speaker roster", () => {
           { id: "b", start: 3, end: 5, speakerId: "spk-1", text: "two" },
           { id: "c", start: 6, end: 8, speakerId: "spk-1", text: "three" },
         ],
+        ...emptyAnnotationState(),
       },
       { duration: 60 }
     );
@@ -975,11 +998,15 @@ describe("speaker roster", () => {
     expect(new Set(speakers.map((s) => s.id)).size).toBe(3);
   });
 
-  it("refuses to exceed MAX_SPEAKERS", () => {
+  it("has no ceiling, and labels past Z continue AA, AB…", () => {
     const store = rosterStore();
-    for (let i = 0; i < 10; i += 1) store.getState().addSpeaker();
+    for (let i = 0; i < 30; i += 1) store.getState().addSpeaker();
 
-    expect(store.getState().history.present.speakers).toHaveLength(MAX_SPEAKERS);
+    const { speakers } = store.getState().history.present;
+    expect(speakers).toHaveLength(32);
+    expect(speakers[25].label).toBe("Speaker Z");
+    expect(speakers[26].label).toBe("Speaker AA");
+    expect(new Set(speakers.map((s) => s.id)).size).toBe(speakers.length);
   });
 
   it("removing a speaker also removes every segment they owned", () => {
@@ -1007,7 +1034,7 @@ describe("speaker roster", () => {
     store.getState().removeSpeaker("spk-1");
 
     expect(store.getState().activeSpeakerId).toBeNull();
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 
   it("keeps a selection that survived the removal", () => {
@@ -1015,7 +1042,7 @@ describe("speaker roster", () => {
     store.getState().selectSegment("a");
     store.getState().removeSpeaker("spk-1");
 
-    expect(store.getState().selectedSegmentId).toBe("a");
+    expect(store.getState().selectedSegmentIds).toEqual(["a"]);
   });
 
   it("adding and removing speakers are both undoable", () => {
@@ -1031,5 +1058,113 @@ describe("speaker roster", () => {
     store.getState().undo();
     expect(store.getState().history.present.segments).toHaveLength(3);
     expect(store.getState().history.present.speakers).toHaveLength(2);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Overlap model
+ *
+ * Two people talking at once is ordinary in a focus group, so segments may
+ * overlap ACROSS rows. One person saying two things at once is not, so they may
+ * never overlap WITHIN a row. Everything below pins that asymmetry.
+ * ------------------------------------------------------------------ */
+
+describe("cross-row overlap", () => {
+  function overlapStore() {
+    return createAnnotationStore(
+      {
+        sessionId: "s",
+        speakers: [
+          { id: "spk-0", label: "Speaker A", role: "moderator", color: "#25F07D" },
+          { id: "spk-1", label: "Speaker B", role: "participant", color: "#53A8F2" },
+        ],
+        segments: [
+          { id: "a", start: 0, end: 4, speakerId: "spk-0", text: "one" },
+          { id: "b", start: 6, end: 9, speakerId: "spk-0", text: "two" },
+          { id: "x", start: 10, end: 12, speakerId: "spk-1", text: "three" },
+        ],
+        ...emptyAnnotationState(),
+      },
+      { duration: 60 }
+    );
+  }
+
+  it("lets a segment sit fully inside another speaker's segment", () => {
+    const store = overlapStore();
+
+    act(store).retime("x", { start: 1, end: 3 });
+
+    expect(segment(store, "x")).toMatchObject({ start: 1, end: 3 });
+    expect(segment(store, "a")).toMatchObject({ start: 0, end: 4 });
+  });
+
+  it("still refuses to overlap within one row", () => {
+    const store = overlapStore();
+
+    act(store).retime("b", { start: 1, end: 9 });
+
+    // Clamped to a's end, not allowed to swallow it.
+    expect(segment(store, "b")!.start).toBeCloseTo(4 + MIN_SEGMENT_GAP, 10);
+  });
+
+  it("moves a segment to another row when the destination is free", () => {
+    const store = overlapStore();
+
+    act(store).moveSegmentToSpeaker("x", "spk-0", { start: 20, end: 22 });
+
+    expect(segment(store, "x")).toMatchObject({
+      speakerId: "spk-0",
+      start: 20,
+      end: 22,
+    });
+  });
+
+  it("refuses a move that would collide on the destination row", () => {
+    const store = overlapStore();
+
+    // spk-0 already occupies 0–4.
+    act(store).moveSegmentToSpeaker("x", "spk-0", { start: 2, end: 3 });
+
+    expect(segment(store, "x")).toMatchObject({ speakerId: "spk-1", start: 10 });
+    expect(store.getState().revision).toBe(0);
+  });
+
+  it("allows a move onto a row that is busy elsewhere", () => {
+    const store = overlapStore();
+
+    act(store).moveSegmentToSpeaker("x", "spk-0", { start: 4.5, end: 5.5 });
+
+    expect(segment(store, "x")).toMatchObject({ speakerId: "spk-0", start: 4.5 });
+  });
+
+  it("keeps a cross-row move undoable", () => {
+    const store = overlapStore();
+
+    act(store).moveSegmentToSpeaker("x", "spk-0", { start: 20, end: 22 });
+    act(store).undo();
+
+    expect(segment(store, "x")).toMatchObject({ speakerId: "spk-1", start: 10 });
+  });
+
+  it("finds the active segment even when it is hidden behind a later start", () => {
+    const store = overlapStore();
+    act(store).retime("x", { start: 1, end: 3 });
+
+    const list = segments(store);
+    // At t=3.5 only `a` is live; `x` sorts first but has already ended.
+    expect(findActiveSegmentIndex(list, 3.5)).toBe(list.findIndex((s) => s.id === "a"));
+  });
+
+  it("resolves the active segment per speaker when rows overlap", () => {
+    const store = overlapStore();
+    act(store).retime("x", { start: 1, end: 3 });
+
+    const list = segments(store);
+    expect(findActiveSegmentIndexForSpeaker(list, 2, "spk-0")).toBe(
+      list.findIndex((s) => s.id === "a")
+    );
+    expect(findActiveSegmentIndexForSpeaker(list, 2, "spk-1")).toBe(
+      list.findIndex((s) => s.id === "x")
+    );
   });
 });

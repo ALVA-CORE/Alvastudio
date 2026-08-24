@@ -7,6 +7,7 @@ import {
   MIN_SEGMENT_GAP,
   type Segment,
   type SegmentId,
+  type SpeakerId,
   type SegmentIssue,
   type SegmentValidation,
   type ValidationLevel,
@@ -190,16 +191,45 @@ export function sortSegments(segments: Segment[]): Segment[] {
  * Assumes `segments` is sorted and non-overlapping, which `retimeSegment` guarantees.
  */
 export function findActiveSegmentIndex(segments: Segment[], time: number): number {
+  return findActiveSegmentIndexForSpeaker(segments, time, null);
+}
+
+/**
+ * Index of the segment covering `time`, optionally restricted to one speaker.
+ *
+ * Segments may overlap ACROSS speakers — two people talking at once is normal in
+ * a focus group — so a plain binary search is no longer sufficient: the match
+ * may sit before the first segment whose `start` exceeds `time`.
+ *
+ * The list is still sorted by `start`, so binary search finds the insertion
+ * point in O(log n), then we walk backwards. The walk is bounded in practice by
+ * how many voices overlap at one instant, not by the size of the transcript.
+ * `MAX_OVERLAP_SCAN` caps the pathological case.
+ */
+export function findActiveSegmentIndexForSpeaker(
+  segments: Segment[],
+  time: number,
+  speakerId: SpeakerId | null
+): number {
   let low = 0;
   let high = segments.length - 1;
+  let firstAfter = segments.length;
 
   while (low <= high) {
     const mid = (low + high) >> 1;
-    const segment = segments[mid];
+    if (segments[mid].start > time) {
+      firstAfter = mid;
+      high = mid - 1;
+    } else {
+      low = mid + 1;
+    }
+  }
 
-    if (time < segment.start) high = mid - 1;
-    else if (time >= segment.end) low = mid + 1;
-    else return mid;
+  const floor = Math.max(0, firstAfter - MAX_OVERLAP_SCAN);
+  for (let i = firstAfter - 1; i >= floor; i -= 1) {
+    const segment = segments[i];
+    if (speakerId !== null && segment.speakerId !== speakerId) continue;
+    if (time >= segment.start && time < segment.end) return i;
   }
 
   return -1;
@@ -222,6 +252,38 @@ export function findNextSegmentIndex(segments: Segment[], time: number): number 
   }
 
   return found;
+}
+
+/** Bound on the backward walk in `findActiveSegmentIndexForSpeaker`. */
+const MAX_OVERLAP_SCAN = 64;
+
+/** Nearest segment on the same speaker's row, scanning `direction` from `index`. */
+function findRowNeighbour(
+  sorted: Segment[],
+  index: number,
+  speakerId: SpeakerId,
+  direction: 1 | -1
+): Segment | undefined {
+  for (let i = index + direction; i >= 0 && i < sorted.length; i += direction) {
+    if (sorted[i].speakerId === speakerId) return sorted[i];
+  }
+  return undefined;
+}
+
+/** True when `candidate` would collide with another segment on the same row. */
+export function overlapsRow(
+  segments: Segment[],
+  speakerId: SpeakerId,
+  range: { start: number; end: number },
+  ignoreId?: SegmentId
+): boolean {
+  return segments.some(
+    (segment) =>
+      segment.speakerId === speakerId &&
+      segment.id !== ignoreId &&
+      range.start < segment.end &&
+      range.end > segment.start
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -256,8 +318,14 @@ export function retimeSegment(
   const index = sorted.findIndex((segment) => segment.id === id);
   if (index === -1) return segments;
 
-  const prev = sorted[index - 1];
-  const following = sorted[index + 1];
+  const subject = sorted[index];
+
+  /* Neighbours are the segments on the SAME speaker's row, not the globally
+   * adjacent ones. Two speakers talking over each other is ordinary in a focus
+   * group, so overlap is only forbidden within a single voice — one person
+   * cannot say two things at once. */
+  const prev = findRowNeighbour(sorted, index, subject.speakerId, -1);
+  const following = findRowNeighbour(sorted, index, subject.speakerId, 1);
 
   let start = Math.max(0, Math.min(next.start, duration));
   let end = Math.max(0, Math.min(next.end, duration));
@@ -285,8 +353,16 @@ export function retimeSegment(
     }
   }
 
-  const updated = sorted.map((segment) => (segment.id === id ? { ...segment, start, end } : segment));
-  return ripple ? sortSegments(updated) : updated;
+  const updated = sorted.map((segment) =>
+    segment.id === id ? { ...segment, start, end } : segment
+  );
+
+  /* ALWAYS re-sort. Ordering used to be preserved for free: segments could not
+   * overlap, so a clamped retime could never cross a neighbour. Now that rows
+   * overlap independently, a segment on one row can move past a segment on
+   * another, and `findActiveSegmentIndex`'s binary search silently returns the
+   * wrong answer on an unsorted list. */
+  return sortSegments(updated);
 }
 
 let segmentIdCounter = 0;

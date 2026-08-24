@@ -69,9 +69,20 @@ type TranscriptDoc = {
 
 ### The invariant that everything depends on
 
-**Segments are sorted and non-overlapping.** `findActiveSegmentIndex` is a binary
-search that runs on every animation frame during playback; it is only correct on
-a sorted, disjoint list.
+**Segments are sorted. Overlap is per-row, not global.**
+
+Two people talking at once is ordinary in a focus group, so segments may overlap
+*across* speakers. One person saying two things at once is not, so they may never
+overlap *within* a speaker's row. `retimeSegment` therefore clamps against the
+nearest neighbours **on the same row**, and `moveSegmentToSpeaker` refuses a drop
+that would collide on the destination row.
+
+Sort order is load-bearing: `findActiveSegmentIndex` binary-searches by `start`.
+Because rows now move independently, a retime can carry a segment past one on
+another row, so **`retimeSegment` always re-sorts** — it used to get ordering for
+free from the no-overlap rule. With overlaps the search also cannot stop at the
+first candidate, so it finds the insertion point in O(log n) and walks backwards,
+bounded by how many voices overlap at one instant.
 
 Every timing mutation therefore routes through **one** function —
 `retimeSegment` in [src/lib/annotation/segments.ts](src/lib/annotation/segments.ts) —
@@ -94,6 +105,89 @@ ones, so a transcript that passes here passes downstream:
 | Maximum duration | 7 s | warning |
 
 The per-line `39/42` counters in the transcript come from `validateSegment`.
+
+---
+
+## 3b. Tagging
+
+Implements the span taxonomies in `alva_schema_v2.json`. Nothing in the picker
+is invented — a value an annotator can choose that the schema rejects is a row
+that fails validation on export, which is worse than not offering it. There is a
+test that pins each family's values against the schema's enums verbatim.
+
+### Token addressing
+
+Every span in the schema is addressed by **token index**, and the ranges are
+**inclusive on both ends, zero-indexed** — a single-token span has
+`startToken === endToken`. Indices are **document-global**, defined against
+`transcript_verbatim` (the whole clip), not per segment.
+
+`tokens.ts` owns that mapping. The index is derived from the live segments on
+every edit rather than cached, because one extra word in an early segment shifts
+every downstream index — there is a test for exactly that.
+
+### The four span families
+
+| Family | Schema `$def` | Hue |
+| --- | --- | --- |
+| Language | `languageSpan` | blue |
+| Disfluency | `disfluency` | amber |
+| Untranscribable | `untranscribableSpan` | pink |
+| Pidgin construction | `pcmConstructionTag` | violet |
+
+Plus `nonSpeechEvent` (teal), which is anchored to a **single token** rather than
+a range — the schema is explicit that the annotator supplies `at_token` only, and
+`start_sec`/`end_sec` are filled later by the forced aligner. Nothing in the UI
+asks for waveform scrubbing to place one.
+
+One hue per *family*, not per value: the eye learns four categories rather than
+thirty, and values are told apart by their label in the picker.
+
+In the transcript a tag is a **background wash only** — no rule, no fill. Tagged
+tokens are grouped into contiguous runs so the whitespace *between* them sits
+inside the wash; rendering per token leaves the gaps uncoloured and a tagged
+phrase reads as a row of separate chips rather than one highlighter stroke.
+Where spans overlap the most recent one wins outright rather than the washes
+blending, because two tints compounded produce a muddy third colour belonging to
+neither family — the panel is where overlaps are read precisely.
+
+On the **timeline**, a tagged clip carries one dot per family in its top-right
+corner. That is the glance-level view: which clips have been worked, without
+opening any of them.
+
+**Pidgin constructions are defined but withheld from the menu.** The schema notes
+its starter values "need ratification by a linguist before any annotation round
+uses them", so `SPAN_FAMILIES` (render + validate) includes the family and
+`TAG_FAMILIES` (the picker) does not. A document that already carries one still
+displays and validates.
+
+### Interaction
+
+Two paths, deliberately:
+
+- **Precise** — highlight words in a segment and a tag control appears beneath it.
+  This is the only way to tag a sub-phrase.
+- **Batch** — Shift-click clips on the timeline, then pick a tag from the panel's
+  **Tags** tab. A clip selection can only honestly describe a segment's *full*
+  token range, so that is what it applies.
+
+Selection is driven by the document's `selectionchange` event, not a `mouseup` on
+the paragraph. A drag that ends outside the paragraph — most of them, since you
+overshoot the last word — never fires mouseup there at all, and mouseup lands
+before the selection settles in WebKit. The row's click-to-edit is also guarded
+against a live selection: without it, finishing a highlight swapped the row to a
+textarea and unmounted the tag control before it could be used.
+
+Selection state lives in `selectedSegmentIds` — a set, so single-select is a set
+of one and there is one code path rather than two that drift. It is transient:
+undo rewinds the document, never what was highlighted.
+
+Clip-level schema fields — `difficulty_flags` (an array, because the schema notes
+heavy accent and heavy noise co-occur constantly) and `speech_present` (so a human
+can overrule the automated gate in either direction) — live in that tab too.
+
+All tagging is part of the document, so it is undoable and autosaves like any
+other edit.
 
 ---
 
@@ -226,9 +320,24 @@ Nothing may cover the speaker column. Top to bottom:
 - **Clips are windowed** to the visible time range plus 8s of padding. A
   40-minute session has ~430 segments; rendering all of them made zoom feel like
   mud. Scroll and resize writes are rAF-coalesced.
-- **The roster caps at `MAX_SPEAKERS` (4).** The add control disappears at
-  capacity rather than sitting there disabled. Deleting a speaker removes their
-  segments too, and never removes the last one — that would orphan every segment.
+- **The roster is unbounded.** Labels run A…Z then AA, AB — spreadsheet-column
+  style, because "Speaker 27" stops reading as a name. Deleting a speaker removes
+  their segments too, and never removes the last one — that would orphan every
+  segment.
+- **Clips drag vertically between rows.** Vertical travel rounds to whole rows so
+  a slightly-off horizontal drag never changes speaker by accident. The row change
+  is **previewed, not applied**, while the pointer is held — the destination lane
+  lights up and the move lands on release. Committing mid-drag made the clip jump
+  out from under the cursor and re-parent on every pixel of vertical wobble. The
+  store still rejects the drop if that row is busy in the target span.
+- **Playback page-scrolls, it does not centre.** Centring on every exit pins the
+  playhead mid-view while the waveform slides underneath. Both seeks and playback
+  scroll smoothly, but the scroll is **latched**: a smooth scroll takes a few
+  hundred ms during which `scrollLeft` is still the old value, so the exit test
+  stays true and — unguarded — the animation restarts every frame and never
+  arrives. That is exactly why the playhead used to crawl off-screen and only
+  reappear on pause. The latch clears once the scroller is within a pixel of its
+  target.
 - **Zoom** sits under the speaker header column, lined up with what it scales.
 
 ### Two documented placeholders
@@ -302,7 +411,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 268 tests
+npm test              # 337 tests
 npm run test:watch
 npm run test:coverage
 ```

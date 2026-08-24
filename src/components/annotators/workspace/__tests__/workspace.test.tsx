@@ -8,7 +8,6 @@ import { buildTranscript } from "@/data/annotators/transcripts";
 import { getAnnotatorSessions } from "@/data/annotators/sessions";
 import { speakerDisplayName } from "@/lib/annotation/types";
 import { formatTimecode } from "@/lib/annotation/segments";
-import { MAX_SPEAKERS } from "@/lib/annotation/store";
 
 /**
  * Mount tests for the workspace shell. Typecheck and build both pass on a
@@ -132,18 +131,18 @@ describe("AnnotationWorkspace", () => {
     expect(within(sidebar).getAllByText(SESSION.code).length).toBeGreaterThan(0);
   });
 
-  it("adds a speaker, and hides the control once the roster is full", async () => {
+  it("adds speakers without a ceiling, labelling them A, B, C…", async () => {
     const user = userEvent.setup();
     const { doc } = renderWorkspace();
 
-    const room = MAX_SPEAKERS - doc.speakers.length;
-    for (let i = 0; i < room; i += 1) {
+    const before = doc.speakers.length;
+    for (let i = 0; i < 6; i += 1) {
       await user.click(screen.getByLabelText("Add speaker"));
     }
 
-    // At capacity the affordance disappears rather than sitting there disabled.
-    expect(screen.queryByLabelText("Add speaker")).not.toBeInTheDocument();
-    expect(screen.getAllByLabelText(/^Focus /)).toHaveLength(MAX_SPEAKERS);
+    // The roster is unbounded — the control never disappears.
+    expect(screen.getByLabelText("Add speaker")).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/^Focus /)).toHaveLength(before + 6);
   });
 
   it("deletes a speaker and their timeline row from the actions menu", async () => {
@@ -307,8 +306,8 @@ describe("AnnotationWorkspace", () => {
     const before = Number(handle.getAttribute("aria-valuenow"));
     const ceilingBefore = Number(handle.getAttribute("aria-valuemax"));
 
-    // A session below the cap must not reserve lanes it does not use.
-    expect(doc.speakers.length).toBeLessThan(MAX_SPEAKERS);
+    // The panel is exactly as tall as the lanes that exist.
+    expect(doc.speakers.length).toBeGreaterThan(0);
     expect(before).toBe(ceilingBefore);
 
     await user.click(screen.getByLabelText("Add speaker"));

@@ -26,7 +26,10 @@ export type TimelineClipProps = {
   isSelected: boolean;
   /** Another speaker holds focus — this clip recedes. */
   isDimmed: boolean;
-  onSelect: (id: string) => void;
+  /** `additive` is true when Shift was held — extend rather than replace. */
+  onSelect: (id: string, additive: boolean) => void;
+  /** One hue per tag family present on this segment. Renders as corner dots. */
+  tagColors?: string[];
   /** Live retime during a gesture. */
   onRetime: (id: string, next: { start: number; end: number }) => void;
   /** Closes the undo group on release. */
@@ -34,6 +37,16 @@ export type TimelineClipProps = {
   /** Candidate edges to snap against, in seconds. */
   snapPoints: number[];
   duration: number;
+  /**
+   * Commits a vertical move on RELEASE. Receives a signed row delta and the
+   * final time span; the dock resolves which speaker that lands on and rejects
+   * the move if the destination row is already busy there.
+   */
+  onMoveRow?: (id: string, rowDelta: number, next: { start: number; end: number }) => void;
+  /** Reports the hovered row delta during a drag, so the dock can preview it. */
+  onRowPreview?: (id: string, rowDelta: number) => void;
+  /** Row height, so vertical travel can be read as whole rows. */
+  rowHeight: number;
 };
 
 type DragMode = "move" | "trim-start" | "trim-end";
@@ -83,16 +96,25 @@ function TimelineClipImpl({
   isSelected,
   isDimmed,
   onSelect,
+  tagColors,
   onRetime,
   onGestureEnd,
+  onMoveRow,
+  onRowPreview,
+  rowHeight,
   snapPoints,
   duration,
 }: TimelineClipProps) {
   const gestureRef = useRef<{
     mode: DragMode;
     originX: number;
+    originY: number;
     start: number;
     end: number;
+    /** Rows travelled vertically during this gesture. */
+    rowDelta: number;
+    /** Latest horizontal span, carried to the release handler. */
+    pending?: { start: number; end: number };
   } | null>(null);
 
   const width = Math.max(2, (segment.end - segment.start) * pps);
@@ -109,11 +131,13 @@ function TimelineClipImpl({
       gestureRef.current = {
         mode,
         originX: event.clientX,
+        originY: event.clientY,
         start: segment.start,
         end: segment.end,
+        rowDelta: 0,
       };
 
-      onSelect(segment.id);
+      onSelect(segment.id, event.shiftKey);
     },
     [onSelect, segment.end, segment.id, segment.start]
   );
@@ -126,6 +150,17 @@ function TimelineClipImpl({
       const deltaSeconds = (event.clientX - gesture.originX) / pps;
       const tolerance = SNAP_PX / pps;
       const span = gesture.end - gesture.start;
+
+      // Vertical travel only means something for a whole-clip move. Rounding to
+      // the nearest row keeps a slightly-off horizontal drag from changing
+      // speaker by accident.
+      if (gesture.mode === "move" && onMoveRow) {
+        const next = Math.round((event.clientY - gesture.originY) / rowHeight);
+        if (next !== gesture.rowDelta) {
+          gesture.rowDelta = next;
+          onRowPreview?.(segment.id, next);
+        }
+      }
 
       let start = gesture.start;
       let end = gesture.end;
@@ -152,22 +187,38 @@ function TimelineClipImpl({
         end = Math.max(end, gesture.start + MIN_SEGMENT_DURATION);
       }
 
+      /* Horizontal position updates live; the ROW does not. Committing a row
+       * change mid-drag makes the clip jump out from under the cursor and
+       * re-parent on every pixel of vertical wobble. The dock previews the
+       * hovered row instead, and the move lands on release. */
+      gesture.pending = { start, end };
       onRetime(segment.id, { start, end });
     },
-    [duration, onRetime, pps, segment.id, snapPoints]
+    [duration, onMoveRow, onRetime, onRowPreview, pps, rowHeight, segment.id, snapPoints]
   );
 
   const handlePointerUp = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
-      if (!gestureRef.current) return;
+      const gesture = gestureRef.current;
+      if (!gesture) return;
       gestureRef.current = null;
 
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
+
+      // Land the row change now, against the span the horizontal drag settled on.
+      if (gesture.mode === "move" && onMoveRow && gesture.rowDelta !== 0) {
+        onMoveRow(segment.id, gesture.rowDelta, gesture.pending ?? {
+          start: gesture.start,
+          end: gesture.end,
+        });
+      }
+
+      onRowPreview?.(segment.id, 0);
       onGestureEnd();
     },
-    [onGestureEnd]
+    [onGestureEnd, onMoveRow, onRowPreview, segment.id]
   );
 
   return (
@@ -184,7 +235,7 @@ function TimelineClipImpl({
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelect(segment.id);
+          onSelect(segment.id, event.shiftKey);
         }
       }}
       className={cn(
@@ -200,6 +251,25 @@ function TimelineClipImpl({
       }}
     >
       {width > 12 ? <ClipWaveform segment={segment} width={width} /> : null}
+
+      {/* Tag dots, inside the clip's top-right corner. One per family present,
+          so a glance across the track says which clips carry annotation without
+          opening any of them. Purely indicative — the transcript is where a tag
+          is read, so these are never interactive. */}
+      {tagColors && tagColors.length > 0 ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-1 top-1 flex gap-[3px]"
+        >
+          {tagColors.map((hue) => (
+            <span
+              key={hue}
+              className="size-1.5 rounded-full"
+              style={{ backgroundColor: hue }}
+            />
+          ))}
+        </span>
+      ) : null}
 
       {/* Trim handles. Hidden until hover or selection so a dense track does not
           read as a row of grab bars. */}

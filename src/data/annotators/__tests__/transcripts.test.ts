@@ -8,7 +8,6 @@ import {
 import { getAnnotatorSessions } from "@/data/annotators/sessions";
 import { findActiveSegmentIndex } from "@/lib/annotation/segments";
 import { MIN_SEGMENT_GAP } from "@/lib/annotation/types";
-import { MAX_SPEAKERS } from "@/lib/annotation/store";
 import { OPENING_THREAD, threadsForTopic } from "@/data/annotators/conversations";
 
 /**
@@ -76,10 +75,8 @@ describe("buildTranscript", () => {
     for (const session of SESSIONS) {
       const { speakers } = buildTranscript(session);
 
-      // The timeline has exactly MAX_SPEAKERS lanes, so the roster must not
-      // exceed it however many voices the session metadata claims.
-      expect(speakers).toHaveLength(Math.min(session.speakers, MAX_SPEAKERS));
-      expect(speakers.length).toBeLessThanOrEqual(MAX_SPEAKERS);
+      // Seeded rosters cap at four voices; the roster itself is unbounded.
+      expect(speakers).toHaveLength(Math.min(session.speakers, 4));
       expect(speakers.filter((s) => s.role === "moderator")).toHaveLength(1);
     }
   });

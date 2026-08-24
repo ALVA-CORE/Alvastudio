@@ -13,7 +13,17 @@ import ParagraphSpacing from "@solar-icons/react/text-formatting/ParagraphSpacin
 import TextSquare from "@solar-icons/react/text-formatting/TextSquare";
 import { TextureButton } from "@/components/ui/texture-button";
 import { useAnnotation, useAnnotationActions, useAnnotationStore } from "@/lib/annotation/context";
-import { isSegmentDimmed, selectSegments, selectSpeakers, type AnnotationState } from "@/lib/annotation/store";
+import {
+  isSegmentDimmed,
+  selectNonSpeech,
+  selectPrimarySegmentId,
+  selectSegments,
+  selectSpans,
+  selectSpeakers,
+  type AnnotationState,
+} from "@/lib/annotation/store";
+import { buildTokenIndex, tokensForSegment } from "@/lib/annotation/tokens";
+import type { SpanKind } from "@/lib/annotation/tags";
 import { findActiveSegmentIndex, formatTimecode } from "@/lib/annotation/segments";
 import { MIN_SEGMENT_DURATION, type SegmentId, type Speaker } from "@/lib/annotation/types";
 import { cn } from "@/lib/utils";
@@ -75,7 +85,9 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
 
   const segments = useAnnotation(selectSegments);
   const speakers = useAnnotation(selectSpeakers);
-  const selectedSegmentId = useAnnotation((state) => state.selectedSegmentId);
+  const spans = useAnnotation(selectSpans);
+  const nonSpeech = useAnnotation(selectNonSpeech);
+  const selectedSegmentId = useAnnotation(selectPrimarySegmentId);
   const activeSpeakerId = useAnnotation((state) => state.activeSpeakerId);
   const followPlayhead = useAnnotation((state) => state.followPlayhead);
   const duration = useAnnotation((state) => state.duration);
@@ -83,6 +95,36 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
 
   const prefersReducedMotion = usePrefersReducedMotion();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Document-global token map.
+   *
+   * Rebuilt whenever any segment's text changes, which sounds expensive but is
+   * a single pass over the transcript and only runs on edits — not on playback.
+   * Every stored span is indexed against this, so it has to be derived from the
+   * live segments rather than cached alongside them.
+   */
+  const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
+
+  const handleApplyTag = useCallback(
+    (kind: SpanKind, value: string, range: { start: number; end: number }) => {
+      actions.addSpan({
+        kind,
+        value,
+        startToken: range.start,
+        endToken: range.end,
+        // The schema's `span_source`: this came from a person, not the lexicon
+        // difference. Only language spans carry it.
+        ...(kind === "language" ? { spanSource: "annotator_added" as const } : {}),
+      });
+    },
+    [actions]
+  );
+
+  const handleAddNonSpeech = useCallback(
+    (type: string, atToken: number) => actions.addNonSpeechMark({ type, atToken }),
+    [actions]
+  );
 
   const speakerById = useMemo(
     () => new Map<string, Speaker>(speakers.map((speaker) => [speaker.id, speaker])),
@@ -333,6 +375,13 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
                 onSplit={actions.splitSegment}
                 onMergeWithPrevious={handleMergeWithPrevious}
                 onEndInteraction={actions.endInteraction}
+                tokens={tokensForSegment(tokenIndex, segment.id)}
+                spans={spans}
+                nonSpeech={nonSpeech}
+                activeToken={-1}
+                onApplyTag={handleApplyTag}
+                onRemoveTag={actions.removeSpan}
+                onAddNonSpeech={handleAddNonSpeech}
               />
 
               <SegmentBoundary

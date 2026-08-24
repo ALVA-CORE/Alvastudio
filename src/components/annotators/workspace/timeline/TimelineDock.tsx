@@ -21,7 +21,7 @@ import {
   useAnnotationActions,
   useAnnotationStore,
 } from "@/lib/annotation/context";
-import { MAX_SPEAKERS, selectSegments, selectSpeakers } from "@/lib/annotation/store";
+import { selectSegments, selectSpans, selectSpeakers } from "@/lib/annotation/store";
 import { formatClock, formatTimecode } from "@/lib/annotation/segments";
 import { speakerDisplayName, type Speaker, type SpeakerId } from "@/lib/annotation/types";
 import {
@@ -30,6 +30,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  buildTokenIndex,
+  rangesOverlap,
+  segmentTokenRange,
+} from "@/lib/annotation/tokens";
+import { tagColor } from "@/lib/annotation/tags";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,6 +64,8 @@ const RULER_HEIGHT = 38;
 const MIN_TRACKS_HEIGHT = RULER_HEIGHT;
 /** Extra seconds rendered beyond the viewport so scrolling never shows a gap. */
 const WINDOW_PAD_SECONDS = 8;
+/** Where the playhead parks after a page-scroll, in px from the lane's left edge. */
+const PAGE_SCROLL_MARGIN = 48;
 
 /* ------------------------------------------------------------------ *
  * Ruler
@@ -281,7 +289,8 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
   const speakers = useAnnotation(selectSpeakers);
   const duration = useAnnotation((state) => state.duration);
   const zoom = useAnnotation((state) => state.zoom);
-  const selectedSegmentId = useAnnotation((state) => state.selectedSegmentId);
+  const selectedSegmentIds = useAnnotation((state) => state.selectedSegmentIds);
+  const spans = useAnnotation(selectSpans);
   const activeSpeakerId = useAnnotation((state) => state.activeSpeakerId);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -289,9 +298,15 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
   const playheadBadgeRef = useRef<HTMLDivElement | null>(null);
   const playheadLabelRef = useRef<HTMLSpanElement | null>(null);
   const scrubbingRef = useRef(false);
+  /** Target of an in-flight smooth scroll, or null when settled. */
+  const pendingScrollRef = useRef<number | null>(null);
 
   const [order, setOrder] = useState<SpeakerId[]>(() => speakers.map((s) => s.id));
   const [draggingId, setDraggingId] = useState<SpeakerId | null>(null);
+  /** Mirrors `order` for use inside stable pointer callbacks. */
+  const orderRef = useRef<SpeakerId[]>([]);
+  /** Row a held clip is hovering over, so the lane can light up before release. */
+  const [dropRow, setDropRow] = useState<SpeakerId | null>(null);
   /** Visible horizontal window, in pixels. Drives clip windowing. */
   const [viewport, setViewport] = useState({ left: 0, width: 1200 });
 
@@ -317,6 +332,8 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
       return [...kept, ...added];
     });
   }, [speakers]);
+
+  orderRef.current = order;
 
   const orderedSpeakers = useMemo(
     () =>
@@ -359,6 +376,13 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
     let frame = 0;
     const measure = () => {
       frame = 0;
+
+      // Release the page-scroll latch once we are within a pixel of the target.
+      const pending = pendingScrollRef.current;
+      if (pending !== null && Math.abs(node.scrollLeft - pending) <= 1) {
+        pendingScrollRef.current = null;
+      }
+
       setViewport({ left: node.scrollLeft, width: node.clientWidth });
     };
 
@@ -382,7 +406,7 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
 
   /* Playhead — moved imperatively, never through React state. */
   useEffect(() => {
-    const apply = (time: number, { reveal = false } = {}) => {
+    const apply = (time: number, { reveal = false }: { reveal?: boolean } = {}) => {
       const x = time * pps;
 
       const node = playheadRef.current;
@@ -402,13 +426,35 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
 
       const laneWidthPx = scroller.clientWidth - HEADER_WIDTH;
       const left = scroller.scrollLeft;
+      const maxScroll = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
 
-      if (x < left || x > left + laneWidthPx) {
-        scroller.scrollTo({
-          left: Math.max(0, x - laneWidthPx / 2),
-          behavior: "smooth",
-        });
-      }
+      if (x >= left && x <= left + laneWidthPx) return;
+
+      /* Page-scroll rather than centre-scroll.
+       *
+       * Centring on every exit means the playhead spends playback pinned to the
+       * middle while the waveform slides underneath, which is disorienting and
+       * re-scrolls constantly. A DAW instead lets the playhead cross the view
+       * and then jumps a whole page, parking it back at the left edge so the
+       * next stretch of timeline is already on screen.
+       *
+       * Behind the view (a backwards seek) still centres — there is no "next
+       * page" to reveal when moving the other way. */
+      const isAhead = x > left + laneWidthPx;
+      const target = Math.max(
+        0,
+        Math.min(isAhead ? x - PAGE_SCROLL_MARGIN : x - laneWidthPx / 2, maxScroll)
+      );
+
+      /* A smooth scroll takes several hundred ms, during which `scrollLeft` is
+       * still the old value — so the exit test stays true and, unguarded, we
+       * restart the animation every frame and it never arrives. That is what
+       * left the playhead crawling off-screen until you hit pause. Latch until
+       * the scroller actually gets there. */
+      if (pendingScrollRef.current !== null) return;
+      pendingScrollRef.current = target;
+
+      scroller.scrollTo({ left: target, behavior: "smooth" });
     };
 
     apply(store.getState().currentTime);
@@ -418,8 +464,11 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
       if (state.currentTime === previous) return;
       const jumped = Math.abs(state.currentTime - previous) > 0.5;
       previous = state.currentTime;
-      // Only a jump reveals; frame-by-frame playback would fight the user's own
-      // horizontal scrolling.
+
+      /* A seek reveals smoothly. Playback pages instantly: a smooth scroll
+       * started every frame never finishes, and the playhead ends up crawling
+       * off-screen while the animation chases it — which is exactly the bug
+       * where it only reappeared once you hit pause. */
       apply(state.currentTime, { reveal: jumped || state.followPlayhead });
     });
   }, [pps, store]);
@@ -512,8 +561,70 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
 
   const handleGestureEnd = useCallback(() => actions.endInteraction(), [actions]);
 
+  /**
+   * Resolves a vertical clip drag onto a speaker row.
+   *
+   * The dock owns this because the clip knows nothing about the roster or its
+   * display order. The store rejects the move outright if that row is already
+   * occupied in the target span — rows are exclusive even though the timeline
+   * as a whole is not.
+   */
+  const handleRowPreview = useCallback(
+    (id: string, rowDelta: number) => {
+      if (rowDelta === 0) {
+        setDropRow(null);
+        return;
+      }
+
+      const segment = store
+        .getState()
+        .history.present.segments.find((entry) => entry.id === id);
+      if (!segment) return;
+
+      const from = orderRef.current.indexOf(segment.speakerId);
+      if (from === -1) return;
+
+      const to = Math.max(0, Math.min(orderRef.current.length - 1, from + rowDelta));
+      setDropRow(orderRef.current[to] ?? null);
+    },
+    [store]
+  );
+
+  const handleMoveRow = useCallback(
+    (id: string, rowDelta: number, next: { start: number; end: number }) => {
+      const state = store.getState();
+      const segment = state.history.present.segments.find((entry) => entry.id === id);
+      if (!segment) return;
+
+      const from = orderRef.current.indexOf(segment.speakerId);
+      if (from === -1) return;
+
+      const to = Math.max(0, Math.min(orderRef.current.length - 1, from + rowDelta));
+      const destination = orderRef.current[to];
+
+      if (destination === segment.speakerId) {
+        actions.retime(id, next, { live: true });
+        return;
+      }
+
+      actions.moveSegmentToSpeaker(id, destination, next);
+      setDropRow(null);
+    },
+    [actions, store]
+  );
+
+  /**
+   * Shift extends the selection so a batch can be tagged from the panel in one
+   * action; a plain click replaces it and moves the playhead, which is the
+   * common case and must stay a single click.
+   */
   const handleSelect = useCallback(
-    (id: string) => {
+    (id: string, additive: boolean) => {
+      if (additive) {
+        actions.toggleSegmentSelection(id);
+        return;
+      }
+
       actions.selectSegment(id);
       const segment = store.getState().history.present.segments.find((s) => s.id === id);
       if (segment) actions.setCurrentTime(segment.start);
@@ -543,8 +654,31 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
     [actions, store]
   );
 
-  const canAddSpeaker = speakers.length < MAX_SPEAKERS;
   const canDeleteSpeaker = speakers.length > 1;
+
+  /**
+   * Distinct family hues for whichever spans fall inside a segment's own token
+   * range — the dots that mark a clip as tagged.
+   *
+   * Derived here rather than in the clip so the token index is built once per
+   * render instead of once per clip.
+   */
+  const tagColorsFor = useMemo(() => {
+    const index = buildTokenIndex(segments);
+
+    return (segment: (typeof segments)[number]): string[] => {
+      const range = segmentTokenRange(index, segment.id);
+      if (!range) return [];
+
+      const hues = new Set<string>();
+      for (const span of spans) {
+        if (rangesOverlap(range, { start: span.startToken, end: span.endToken })) {
+          hues.add(tagColor(span.kind));
+        }
+      }
+      return [...hues];
+    };
+  }, [segments, spans]);
 
   return (
     <section
@@ -615,17 +749,15 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
                 Speakers
               </span>
 
-              {canAddSpeaker ? (
-                <button
-                  type="button"
-                  onClick={actions.addSpeaker}
-                  aria-label="Add speaker"
-                  title="Add speaker"
-                  className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                >
-                  <AddCircle size={15} weight="Outline" />
-                </button>
-              ) : null}
+                              <button
+                type="button"
+                onClick={actions.addSpeaker}
+                aria-label="Add speaker"
+                title="Add speaker"
+                className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+              >
+                <AddCircle size={15} weight="Outline" />
+              </button>
             </div>
 
             <div className="relative">
@@ -680,20 +812,32 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
                   isDragging={draggingId === speaker.id}
                 />
 
-                <div className="relative shrink-0" style={{ width: laneWidth }}>
+                <div
+                  className={cn(
+                    "relative shrink-0 transition-colors",
+                    // Lights the lane a held clip would land on. The move itself
+                    // waits for release, so this is the only feedback until then.
+                    dropRow === speaker.id && "bg-alva-accent/[0.07]"
+                  )}
+                  style={{ width: laneWidth }}
+                >
                   {owned.map((segment) => (
                     <TimelineClip
                       key={segment.id}
                       segment={segment}
                       color={speaker.color}
                       pps={pps}
-                      isSelected={selectedSegmentId === segment.id}
+                      isSelected={selectedSegmentIds.includes(segment.id)}
+                      tagColors={tagColorsFor(segment)}
                       isDimmed={isDimmed}
                       onSelect={handleSelect}
                       onRetime={handleRetime}
                       onGestureEnd={handleGestureEnd}
                       snapPoints={snapPoints}
                       duration={duration}
+                      rowHeight={TRACK_HEIGHT}
+                      onMoveRow={handleMoveRow}
+                      onRowPreview={handleRowPreview}
                     />
                   ))}
                 </div>

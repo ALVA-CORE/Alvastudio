@@ -16,11 +16,17 @@ import {
 import { formatTimecode, segmentDuration } from "@/lib/annotation/segments";
 import {
   speakerDisplayName,
+  type AnnotationSpan,
+  type NonSpeechMark,
   type Segment,
   type SegmentId,
   type Speaker,
   type SpeakerId,
 } from "@/lib/annotation/types";
+import { TaggedSegmentText } from "@/components/annotators/workspace/tagging/TaggedSegmentText";
+import { TagPicker } from "@/components/annotators/workspace/tagging/TagPicker";
+import type { SpanKind } from "@/lib/annotation/tags";
+import type { Token } from "@/lib/annotation/tokens";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,6 +68,15 @@ export type TranscriptSegmentRowProps = {
   onSplit: (id: SegmentId, time: number) => void;
   onMergeWithPrevious: (id: SegmentId) => void;
   onEndInteraction: () => void;
+  /* Tagging */
+  tokens: Token[];
+  spans: AnnotationSpan[];
+  nonSpeech: NonSpeechMark[];
+  /** Token under the playhead, or -1. */
+  activeToken: number;
+  onApplyTag: (kind: SpanKind, value: string, range: { start: number; end: number }) => void;
+  onRemoveTag: (spanId: string) => void;
+  onAddNonSpeech: (type: string, atToken: number) => void;
 };
 
 function TranscriptSegmentRowImpl({
@@ -80,10 +95,19 @@ function TranscriptSegmentRowImpl({
   onSplit,
   onMergeWithPrevious,
   onEndInteraction,
+  tokens,
+  spans,
+  nonSpeech,
+  activeToken,
+  onApplyTag,
+  onRemoveTag,
+  onAddNonSpeech,
 }: TranscriptSegmentRowProps) {
   const [isEditing, setEditing] = useState(false);
   const [renamingSpeaker, setRenamingSpeaker] = useState(false);
   const [speakerDraft, setSpeakerDraft] = useState("");
+  /** Inclusive, document-global token range the user has highlighted. */
+  const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
   const resolved = speaker ?? FALLBACK_SPEAKER;
 
   const commitRename = () => {
@@ -227,6 +251,13 @@ function TranscriptSegmentRowImpl({
               tabIndex={0}
               aria-label={`Edit transcript at ${formatTimecode(segment.start)}`}
               onClick={() => {
+                // Highlighting text ends in a click. Without this guard the row
+                // swaps to a textarea the moment you finish selecting, which
+                // unmounts the tag control before it can be used — the "it
+                // flashes and disappears" bug.
+                const selection = window.getSelection();
+                if (selection && !selection.isCollapsed) return;
+
                 onSelect(segment.id);
                 setEditing(true);
               }}
@@ -236,16 +267,50 @@ function TranscriptSegmentRowImpl({
                   setEditing(true);
                 }
               }}
-              className="cursor-text rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+              // `min-h` is load-bearing: a freshly inserted segment has no text,
+              // so without it this collapses to zero height and there is nothing
+              // left to click to get into the editor.
+              className="min-h-[1.5rem] cursor-text rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
             >
-              {isActive ? (
-                <ActiveSegmentText segment={segment} />
-              ) : (
-                <StaticSegmentText segment={segment} />
-              )}
+              <TaggedSegmentText
+                segment={segment}
+                tokens={tokens}
+                spans={spans}
+                activeToken={isActive ? activeToken : -1}
+                onSelectRange={setSelection}
+                onSpanClick={onRemoveTag}
+              />
             </div>
           )}
         </div>
+
+        {selection && !isEditing && (
+          // Appears only while a range is highlighted — a persistent tag button
+          // on 400 rows is noise, and the schema's spans are range-scoped anyway.
+          <div className="mt-1 flex items-center gap-1.5">
+            <TagPicker
+              label={
+                selection.start === selection.end
+                  ? "Tag token"
+                  : `Tag ${selection.end - selection.start + 1} tokens`
+              }
+              applied={spans.filter(
+                (span) =>
+                  span.startToken <= selection.end && span.endToken >= selection.start
+              )}
+              onApply={(kind, value) => onApplyTag(kind, value, selection)}
+              onRemove={onRemoveTag}
+              onAddNonSpeech={(type) => onAddNonSpeech(type, selection.end)}
+            />
+            <button
+              type="button"
+              onClick={() => setSelection(null)}
+              className="rounded-lg px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         <button
           type="button"
