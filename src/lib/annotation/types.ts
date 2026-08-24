@@ -8,6 +8,8 @@
  * never move the playhead.
  */
 
+import type { SpanKind, SpanSource } from "./tags";
+
 export type SegmentId = string;
 export type SpeakerId = string;
 
@@ -33,10 +35,44 @@ export type Segment = {
   text: string;
 };
 
+/**
+ * A tagged token range. Mirrors `languageSpan` / `disfluency` /
+ * `untranscribableSpan` / `pcmConstructionTag` in `alva_schema_v2.json`, which
+ * differ only by their value enum — one row type here, discriminated by `kind`,
+ * splits back into four arrays on export.
+ *
+ * `startToken`/`endToken` are DOCUMENT-GLOBAL and INCLUSIVE on both ends.
+ */
+export type AnnotationSpan = {
+  id: string;
+  kind: SpanKind;
+  /** A member of that kind's enum — see `tags.ts`. */
+  value: string;
+  startToken: number;
+  endToken: number;
+  /** `language` spans only: whether the lexicon or a human put it there. */
+  spanSource?: SpanSource;
+};
+
+/** `nonSpeechEvent` — anchored to one token; seconds are filled by the aligner. */
+export type NonSpeechMark = {
+  id: string;
+  type: string;
+  atToken: number;
+};
+
 export type TranscriptDoc = {
   sessionId: string;
   segments: Segment[];
   speakers: Speaker[];
+  /** Token-range tags across every family. */
+  spans: AnnotationSpan[];
+  /** Point-anchored non-speech events. */
+  nonSpeech: NonSpeechMark[];
+  /** Clip-level `difficulty_flags`. An array — these co-occur constantly. */
+  difficultyFlags: string[];
+  /** `speech_present`: lets a human overrule the automated gate either way. */
+  speechPresent: boolean;
 };
 
 /**
@@ -124,6 +160,19 @@ export const SPEAKER_PALETTE = [
  * Spreadsheet-column style rather than "Speaker 27", because the roster is
  * unbounded and a two-letter label still reads as a name.
  */
+/**
+ * The tagging fields a fresh document starts with.
+ *
+ * `speechPresent` defaults true: the clip reached annotation, so the automated
+ * gate already believed there was speech. A human sets it false to overrule that.
+ */
+export function emptyAnnotationState(): Pick<
+  TranscriptDoc,
+  "spans" | "nonSpeech" | "difficultyFlags" | "speechPresent"
+> {
+  return { spans: [], nonSpeech: [], difficultyFlags: [], speechPresent: true };
+}
+
 export function speakerLabelAt(index: number): string {
   let label = "";
   let n = index;

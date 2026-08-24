@@ -18,6 +18,8 @@ import {
 } from "./segments";
 import {
   MIN_SEGMENT_DURATION,
+  type AnnotationSpan,
+  type NonSpeechMark,
   speakerColorAt,
   speakerLabelAt,
   type Segment,
@@ -79,6 +81,17 @@ export type AnnotationState = {
   deleteSegment: (id: SegmentId) => void;
   insertSegmentAt: (time: number, speakerId?: SpeakerId) => void;
   renameSpeaker: (id: SpeakerId, name: string) => void;
+  /* Tagging — all undoable, all part of the document. */
+  /** Adds a token-range tag. Replaces any existing span of the same kind that
+   *  covers the same range, so applying twice is a change, not a duplicate. */
+  addSpan: (span: Omit<AnnotationSpan, "id">) => void;
+  updateSpan: (id: string, patch: Partial<Omit<AnnotationSpan, "id">>) => void;
+  removeSpan: (id: string) => void;
+  addNonSpeechMark: (mark: Omit<NonSpeechMark, "id">) => void;
+  removeNonSpeechMark: (id: string) => void;
+  toggleDifficultyFlag: (flag: string) => void;
+  setSpeechPresent: (present: boolean) => void;
+
   /** Appends a diarization track. The roster is unbounded. */
   addSpeaker: () => void;
   /**
@@ -241,6 +254,8 @@ export function createAnnotationStore(
 
       insertSegmentAt(time, speakerId) {
         const { duration } = get();
+        const insertedId = createSegmentId();
+        let inserted = false;
         mutate((current) => {
           const targetSpeaker = speakerId ?? current.speakers[0]?.id ?? "spk-0";
           // Only this speaker's row constrains the insert — other rows may be
@@ -258,15 +273,88 @@ export function createAnnotationStore(
           if (end - start < MIN_SEGMENT_DURATION) return current;
 
           const segment: Segment = {
-            id: createSegmentId(),
+            id: insertedId,
             start,
             end,
             speakerId: targetSpeaker,
             text: "",
           };
 
+          inserted = true;
           return { ...current, segments: sortSegments([...current.segments, segment]) };
         });
+
+        // Select it so the transcript scrolls the new (empty) row into view —
+        // otherwise inserting far from the current scroll position looks like
+        // nothing happened.
+        if (inserted) set({ selectedSegmentId: insertedId });
+      },
+
+      addSpan(span) {
+        mutate((current) => {
+          // Same kind over the same range is a correction, not a second tag —
+          // otherwise re-picking from the menu silently stacks duplicates that
+          // only surface as double-counted rows on export.
+          const kept = current.spans.filter(
+            (existing) =>
+              !(
+                existing.kind === span.kind &&
+                existing.startToken === span.startToken &&
+                existing.endToken === span.endToken
+              )
+          );
+
+          return {
+            ...current,
+            spans: [...kept, { ...span, id: createSegmentId("span") }],
+          };
+        });
+      },
+
+      updateSpan(id, patch) {
+        mutate((current) => ({
+          ...current,
+          spans: current.spans.map((span) =>
+            span.id === id ? { ...span, ...patch } : span
+          ),
+        }));
+      },
+
+      removeSpan(id) {
+        mutate((current) => ({
+          ...current,
+          spans: current.spans.filter((span) => span.id !== id),
+        }));
+      },
+
+      addNonSpeechMark(mark) {
+        mutate((current) => ({
+          ...current,
+          nonSpeech: [
+            ...current.nonSpeech,
+            { ...mark, id: createSegmentId("nse") },
+          ],
+        }));
+      },
+
+      removeNonSpeechMark(id) {
+        mutate((current) => ({
+          ...current,
+          nonSpeech: current.nonSpeech.filter((mark) => mark.id !== id),
+        }));
+      },
+
+      toggleDifficultyFlag(flag) {
+        mutate((current) => ({
+          ...current,
+          difficultyFlags: current.difficultyFlags.includes(flag)
+            ? current.difficultyFlags.filter((entry) => entry !== flag)
+            : [...current.difficultyFlags, flag],
+        }));
+      },
+
+      setSpeechPresent(present) {
+        mutate((current) => ({ ...current, speechPresent: present }));
       },
 
       addSpeaker() {
@@ -419,6 +507,10 @@ export const selectDoc = (state: AnnotationState): TranscriptDoc => state.histor
 export const selectSegments = (state: AnnotationState): Segment[] => state.history.present.segments;
 export const selectSpeakers = (state: AnnotationState): Speaker[] =>
   state.history.present.speakers;
+export const selectSpans = (state: AnnotationState): AnnotationSpan[] =>
+  state.history.present.spans;
+export const selectNonSpeech = (state: AnnotationState): NonSpeechMark[] =>
+  state.history.present.nonSpeech;
 export const selectCanUndo = (state: AnnotationState): boolean =>
   historyCanUndo(state.history);
 export const selectCanRedo = (state: AnnotationState): boolean =>

@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import ListCheck from "@solar-icons/react/list/ListCheck";
@@ -9,6 +9,8 @@ import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStat
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import { formatDurationLong } from "@/lib/annotation/segments";
+import { TagInspector } from "@/components/annotators/workspace/tagging/TagInspector";
+import { useAnnotation } from "@/lib/annotation/context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -145,6 +147,12 @@ function SessionMetaSidebarImpl({
   onToggleCollapsed,
   className,
 }: SessionMetaSidebarProps) {
+  const [tab, setTab] = useState<"details" | "tags">("details");
+  const tagCount = useAnnotation(
+    (state) =>
+      state.history.present.spans.length + state.history.present.nonSpeech.length
+  );
+
   return (
     <aside
       aria-label="Session details"
@@ -201,7 +209,39 @@ function SessionMetaSidebarImpl({
             </p>
           </header>
 
-          <div className="alva-thin-scrollbar flex-1 space-y-5 overflow-y-auto px-4 py-4">
+          {/* Details vs Tags. Two different questions: "what is this clip" and
+              "what has been marked on it". Splitting them keeps either from
+              scrolling past the other. */}
+          <div
+            role="tablist"
+            aria-label="Session panel"
+            className="flex shrink-0 gap-1 px-4 pb-2"
+          >
+            {(["details", "tags"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                onClick={() => setTab(value)}
+                className={cn(
+                  "flex-1 rounded-lg px-2 py-1.5 text-[11px] font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+                  tab === value
+                    ? "bg-alva-surface text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {value}
+                {value === "tags" && tagCount > 0 ? (
+                  <span className="ml-1 text-muted-foreground/70">{tagCount}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
+          <div className="alva-thin-scrollbar flex-1 space-y-5 overflow-y-auto px-4 pb-4">
+            {tab === "details" ? (
+              <>
             <DetailSection
               title="This pass"
               icon={<Bolt size={14} weight="Linear" />}
@@ -288,6 +328,10 @@ function SessionMetaSidebarImpl({
                 className="rounded-xl"
               />
             </DetailSection>
+</>
+            ) : (
+              <TagInspector />
+            )}
           </div>
         </>
       )}

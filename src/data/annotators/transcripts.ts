@@ -1,6 +1,7 @@
 import {
   MAX_CHARS_PER_LINE,
   MAX_LINES_PER_SEGMENT,
+  emptyAnnotationState,
   speakerColorAt,
   speakerLabelAt,
   type Segment,
@@ -232,6 +233,7 @@ export function buildTranscript(session: AnnotatorSession): TranscriptDoc {
   return {
     sessionId: session.id,
     speakers,
+    ...emptyAnnotationState(),
     // A session nobody has opened has been diarized but not transcribed in the
     // mock world either — it still gets segments, because that is what the ASR
     // pass produces. "Not started" means no *human* has touched it.
@@ -245,6 +247,7 @@ export function buildEmptyTranscript(session: AnnotatorSession): TranscriptDoc {
     sessionId: session.id,
     speakers: buildSpeakers(session),
     segments: [],
+    ...emptyAnnotationState(),
   };
 }
 

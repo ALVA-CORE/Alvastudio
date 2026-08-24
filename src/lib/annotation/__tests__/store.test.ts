@@ -24,6 +24,7 @@ import {
 import {
   MIN_SEGMENT_DURATION,
   MIN_SEGMENT_GAP,
+  emptyAnnotationState,
   speakerColorAt,
   type Segment,
   type TranscriptDoc,
@@ -54,6 +55,7 @@ function makeDoc(): TranscriptDoc {
       { id: "c2", start: 3, end: 6, speakerId: "spk-1", text: ORIGINAL_TEXT.c2 },
       { id: "c3", start: 8, end: 11, speakerId: "spk-0", text: ORIGINAL_TEXT.c3 },
     ],
+    ...emptyAnnotationState(),
   };
 }
 
@@ -548,6 +550,7 @@ describe("insertSegmentAt", () => {
         { id: "a", start: 0, end: 2, speakerId: "spk-0", text: "one" },
         { id: "b", start: 2.5, end: 5, speakerId: "spk-0", text: "two" },
       ],
+      ...emptyAnnotationState(),
     };
     const store = makeStore(tight);
 
@@ -978,6 +981,7 @@ describe("speaker roster", () => {
           { id: "b", start: 3, end: 5, speakerId: "spk-1", text: "two" },
           { id: "c", start: 6, end: 8, speakerId: "spk-1", text: "three" },
         ],
+        ...emptyAnnotationState(),
       },
       { duration: 60 }
     );
@@ -1079,6 +1083,7 @@ describe("cross-row overlap", () => {
           { id: "b", start: 6, end: 9, speakerId: "spk-0", text: "two" },
           { id: "x", start: 10, end: 12, speakerId: "spk-1", text: "three" },
         ],
+        ...emptyAnnotationState(),
       },
       { duration: 60 }
     );

@@ -108,6 +108,62 @@ The per-line `39/42` counters in the transcript come from `validateSegment`.
 
 ---
 
+## 3b. Tagging
+
+Implements the span taxonomies in `alva_schema_v2.json`. Nothing in the picker
+is invented — a value an annotator can choose that the schema rejects is a row
+that fails validation on export, which is worse than not offering it. There is a
+test that pins each family's values against the schema's enums verbatim.
+
+### Token addressing
+
+Every span in the schema is addressed by **token index**, and the ranges are
+**inclusive on both ends, zero-indexed** — a single-token span has
+`startToken === endToken`. Indices are **document-global**, defined against
+`transcript_verbatim` (the whole clip), not per segment.
+
+`tokens.ts` owns that mapping. The index is derived from the live segments on
+every edit rather than cached, because one extra word in an early segment shifts
+every downstream index — there is a test for exactly that.
+
+### The four span families
+
+| Family | Schema `$def` | Hue |
+| --- | --- | --- |
+| Language | `languageSpan` | blue |
+| Disfluency | `disfluency` | amber |
+| Untranscribable | `untranscribableSpan` | pink |
+| Pidgin construction | `pcmConstructionTag` | violet |
+
+Plus `nonSpeechEvent` (teal), which is anchored to a **single token** rather than
+a range — the schema is explicit that the annotator supplies `at_token` only, and
+`start_sec`/`end_sec` are filled later by the forced aligner. Nothing in the UI
+asks for waveform scrubbing to place one.
+
+One hue per *family*, not per value: the eye learns four categories rather than
+thirty, and values are told apart by their label in the picker. Tags render as a
+low-alpha wash plus an underline, never a solid fill — a paragraph carrying four
+overlapping span types has to stay readable as text first. Overlaps stack
+underlines rather than compounding backgrounds.
+
+### Interaction
+
+Highlight words in a segment and a tag control appears beneath it. Selection uses
+the browser's own text selection (each token carries `data-token`), so
+shift-click, double-click-to-word and keyboard selection all work without custom
+drag code. Clicking an existing tag removes it. The left panel's **Tags** tab
+lists everything tagged on the clip, grouped by family, with the tagged words
+themselves rather than token indices.
+
+Clip-level schema fields — `difficulty_flags` (an array, because the schema notes
+heavy accent and heavy noise co-occur constantly) and `speech_present` (so a human
+can overrule the automated gate in either direction) — live in that tab too.
+
+All tagging is part of the document, so it is undoable and autosaves like any
+other edit.
+
+---
+
 ## 4. State
 
 `src/lib/annotation/` is the core. It has no dependency on the components.
@@ -328,7 +384,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 283 tests
+npm test              # 329 tests
 npm run test:watch
 npm run test:coverage
 ```
