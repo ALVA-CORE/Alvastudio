@@ -11,6 +11,7 @@ import {
 import {
   createSegmentId,
   mergeSegments,
+  overlapsRow,
   retimeSegment,
   sortSegments,
   splitSegmentAt,
@@ -18,6 +19,7 @@ import {
 import {
   MIN_SEGMENT_DURATION,
   speakerColorAt,
+  speakerLabelAt,
   type Segment,
   type SegmentId,
   type SaveStatus,
@@ -77,8 +79,18 @@ export type AnnotationState = {
   deleteSegment: (id: SegmentId) => void;
   insertSegmentAt: (time: number, speakerId?: SpeakerId) => void;
   renameSpeaker: (id: SpeakerId, name: string) => void;
-  /** Appends a diarization track. No-ops at `MAX_SPEAKERS`. */
+  /** Appends a diarization track. The roster is unbounded. */
   addSpeaker: () => void;
+  /**
+   * Reassigns a segment to another speaker's row, optionally moving it in time.
+   * No-ops when the destination row already has audio in that span — one person
+   * cannot say two things at once.
+   */
+  moveSegmentToSpeaker: (
+    id: SegmentId,
+    speakerId: SpeakerId,
+    range?: { start: number; end: number }
+  ) => void;
   /** Removes a speaker AND every segment they own. Never leaves the last one. */
   removeSpeaker: (id: SpeakerId) => void;
   undo: () => void;
@@ -105,8 +117,6 @@ export const MIN_ZOOM = 8;
 export const MAX_ZOOM = 320;
 export const DEFAULT_ZOOM = 40;
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
-/** Diarization tracks a single focus group can hold. */
-export const MAX_SPEAKERS = 4;
 
 export function createAnnotationStore(
   doc: TranscriptDoc,
@@ -202,12 +212,21 @@ export function createAnnotationStore(
         mutate((current) => {
           const sorted = sortSegments(current.segments);
           const index = sorted.findIndex((segment) => segment.id === id);
-          if (index === -1 || index === sorted.length - 1) return current;
+          if (index === -1) return current;
 
-          const merged = mergeSegments(sorted[index], sorted[index + 1]);
-          const segments = [...sorted];
-          segments.splice(index, 2, merged);
-          return { ...current, segments };
+          // Merge with the next segment on the SAME row. The globally next
+          // segment may belong to another speaker, and merging across voices
+          // would silently attribute one person's words to another.
+          const subject = sorted[index];
+          const nextIndex = sorted.findIndex(
+            (segment, i) => i > index && segment.speakerId === subject.speakerId
+          );
+          if (nextIndex === -1) return current;
+
+          const merged = mergeSegments(subject, sorted[nextIndex]);
+          const segments = sorted.filter((_, i) => i !== index && i !== nextIndex);
+          segments.push(merged);
+          return { ...current, segments: sortSegments(segments) };
         });
       },
 
@@ -223,8 +242,12 @@ export function createAnnotationStore(
       insertSegmentAt(time, speakerId) {
         const { duration } = get();
         mutate((current) => {
-          const sorted = sortSegments(current.segments);
-          // Fit inside the gap under the playhead rather than overlapping.
+          const targetSpeaker = speakerId ?? current.speakers[0]?.id ?? "spk-0";
+          // Only this speaker's row constrains the insert — other rows may be
+          // busy at the same instant, and that is legitimate.
+          const sorted = sortSegments(
+            current.segments.filter((segment) => segment.speakerId === targetSpeaker)
+          );
           const next = sorted.find((segment) => segment.start > time);
           const prev = [...sorted].reverse().find((segment) => segment.end <= time);
 
@@ -238,7 +261,7 @@ export function createAnnotationStore(
             id: createSegmentId(),
             start,
             end,
-            speakerId: speakerId ?? current.speakers[0]?.id ?? "spk-0",
+            speakerId: targetSpeaker,
             text: "",
           };
 
@@ -248,8 +271,6 @@ export function createAnnotationStore(
 
       addSpeaker() {
         mutate((current) => {
-          if (current.speakers.length >= MAX_SPEAKERS) return current;
-
           // Machine labels continue the A, B, C… sequence rather than reusing a
           // freed letter, so a label never refers to two different voices.
           const index = current.speakers.length;
@@ -259,11 +280,35 @@ export function createAnnotationStore(
               ...current.speakers,
               {
                 id: `spk-${index}-${createSegmentId("s")}`,
-                label: `Speaker ${String.fromCharCode(65 + index)}`,
+                label: `Speaker ${speakerLabelAt(index)}`,
                 role: "participant" as const,
                 color: speakerColorAt(index),
               },
             ],
+          };
+        });
+      },
+
+      moveSegmentToSpeaker(id, speakerId, range) {
+        mutate((current) => {
+          const segment = current.segments.find((entry) => entry.id === id);
+          if (!segment) return current;
+
+          const next = range ?? { start: segment.start, end: segment.end };
+          if (segment.speakerId === speakerId && next.start === segment.start) {
+            return current;
+          }
+
+          // Rows are exclusive even though the timeline as a whole is not.
+          if (overlapsRow(current.segments, speakerId, next, id)) return current;
+
+          return {
+            ...current,
+            segments: sortSegments(
+              current.segments.map((entry) =>
+                entry.id === id ? { ...entry, speakerId, ...next } : entry
+              )
+            ),
           };
         });
       },

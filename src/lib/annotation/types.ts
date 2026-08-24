@@ -118,6 +118,24 @@ export const SPEAKER_PALETTE = [
   "#FFB86C",
 ] as const;
 
+/**
+ * Machine label for the nth diarization track: A…Z, then AA, AB, …
+ *
+ * Spreadsheet-column style rather than "Speaker 27", because the roster is
+ * unbounded and a two-letter label still reads as a name.
+ */
+export function speakerLabelAt(index: number): string {
+  let label = "";
+  let n = index;
+
+  do {
+    label = String.fromCharCode(65 + (n % 26)) + label;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+
+  return label;
+}
+
 export function speakerColorAt(index: number): string {
   return SPEAKER_PALETTE[index % SPEAKER_PALETTE.length];
 }

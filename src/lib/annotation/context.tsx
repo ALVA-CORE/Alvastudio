@@ -152,6 +152,7 @@ export function useAnnotationActions() {
     return {
       setSegmentText: state.setSegmentText,
       setSegmentSpeaker: state.setSegmentSpeaker,
+      moveSegmentToSpeaker: state.moveSegmentToSpeaker,
       retime: state.retime,
       splitSegment: state.splitSegment,
       mergeWithNext: state.mergeWithNext,

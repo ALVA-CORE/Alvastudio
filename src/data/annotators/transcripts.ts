@@ -2,12 +2,12 @@ import {
   MAX_CHARS_PER_LINE,
   MAX_LINES_PER_SEGMENT,
   speakerColorAt,
+  speakerLabelAt,
   type Segment,
   type Speaker,
   type TranscriptDoc,
 } from "@/lib/annotation/types";
 import { sortSegments } from "@/lib/annotation/segments";
-import { MAX_SPEAKERS } from "@/lib/annotation/store";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 
 /**
@@ -57,19 +57,16 @@ function buildSpeakers(session: AnnotatorSession): Speaker[] {
     color: speakerColorAt(0),
   };
 
-  // A focus group tops out at MAX_SPEAKERS tracks, moderator included — the
-  // timeline has exactly that many lanes, so the roster must not exceed it.
-  const participantCount = Math.min(
-    Math.max(1, session.speakers - 1),
-    MAX_SPEAKERS - 1
-  );
+  // Seeded sessions run 2-4 voices including the moderator. The roster itself
+  // is unbounded — annotators add tracks as they hear them.
+  const participantCount = Math.min(Math.max(1, session.speakers - 1), 3);
 
   const participants: Speaker[] = Array.from(
     { length: participantCount },
     (_, index) => ({
       id: `spk-${index + 1}`,
       // A, B, C… — the machine label diarization emits before a human renames it.
-      label: `Speaker ${String.fromCharCode(66 + index)}`,
+      label: `Speaker ${speakerLabelAt(index + 1)}`,
       role: "participant" as const,
       color: speakerColorAt(index + 1),
     })

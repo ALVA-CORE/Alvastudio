@@ -44,7 +44,7 @@ export function StateCombobox({
             role="combobox"
             aria-expanded={open}
             className={cn(
-              "w-full justify-between rounded-full border-0 bg-alva-surface font-normal text-foreground hover:bg-alva-surface hover:text-foreground",
+              "w-full justify-between rounded-xl border border-transparent bg-alva-surface font-normal text-foreground hover:bg-alva-surface hover:text-foreground focus-visible:border-alva-border",
               size === "lg" ? "h-12" : "h-10",
               !value && "text-muted-foreground",
               alvaSelectClass(Boolean(error), size)

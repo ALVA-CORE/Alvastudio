@@ -500,7 +500,7 @@ export function ContributorOnboardingForm() {
           )}
 
           {step === 5 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <FormField
                 control={form.control}
                 name="confirmAge18"

@@ -1,12 +1,18 @@
 import { AnnotatorChartCard } from "@/components/annotators/dashboard/AnnotatorChartCard";
-import { AnnotatorActivityChart } from "@/components/annotators/dashboard/AnnotatorActivityChart";
+import {
+  AnnotatorActivityChart,
+  activitySubtitle,
+} from "@/components/annotators/dashboard/AnnotatorActivityChart";
 import { TagBreakdownChart } from "@/components/annotators/dashboard/TagBreakdownChart";
 import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import type { AnnotatorDataset } from "@/data/annotators/dashboard";
+import type { DashboardTimeRange } from "@/data/internDashboard";
 import { cn } from "@/lib/utils";
 
 type AnnotatorBentoGridProps = {
   dataset: AnnotatorDataset;
+  /** Selected time range — the activity chart buckets its points by it. */
+  range: DashboardTimeRange;
   isEmpty?: boolean;
   className?: string;
 };
@@ -37,6 +43,7 @@ type AnnotatorBentoGridProps = {
  */
 export function AnnotatorBentoGrid({
   dataset,
+  range,
   isEmpty = false,
   className,
 }: AnnotatorBentoGridProps) {
@@ -44,7 +51,7 @@ export function AnnotatorBentoGrid({
     <div className={cn("grid gap-2 lg:grid-cols-6", className)}>
       <AnnotatorChartCard
         title="Your activity"
-        subtitle="Clips annotated per day, with a 7-day average"
+        subtitle={activitySubtitle(range)}
         className="min-h-[17rem] lg:col-span-6"
         emptyMessage={
           isEmpty
@@ -55,7 +62,7 @@ export function AnnotatorBentoGrid({
             : undefined
         }
       >
-        <AnnotatorActivityChart data={dataset.activity} />
+        <AnnotatorActivityChart data={dataset.activity} range={range} />
       </AnnotatorChartCard>
 
       <AnnotatorChartCard

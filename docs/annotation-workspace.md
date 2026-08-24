@@ -69,9 +69,20 @@ type TranscriptDoc = {
 
 ### The invariant that everything depends on
 
-**Segments are sorted and non-overlapping.** `findActiveSegmentIndex` is a binary
-search that runs on every animation frame during playback; it is only correct on
-a sorted, disjoint list.
+**Segments are sorted. Overlap is per-row, not global.**
+
+Two people talking at once is ordinary in a focus group, so segments may overlap
+*across* speakers. One person saying two things at once is not, so they may never
+overlap *within* a speaker's row. `retimeSegment` therefore clamps against the
+nearest neighbours **on the same row**, and `moveSegmentToSpeaker` refuses a drop
+that would collide on the destination row.
+
+Sort order is load-bearing: `findActiveSegmentIndex` binary-searches by `start`.
+Because rows now move independently, a retime can carry a segment past one on
+another row, so **`retimeSegment` always re-sorts** — it used to get ordering for
+free from the no-overlap rule. With overlaps the search also cannot stop at the
+first candidate, so it finds the insertion point in O(log n) and walks backwards,
+bounded by how many voices overlap at one instant.
 
 Every timing mutation therefore routes through **one** function —
 `retimeSegment` in [src/lib/annotation/segments.ts](src/lib/annotation/segments.ts) —
@@ -226,9 +237,24 @@ Nothing may cover the speaker column. Top to bottom:
 - **Clips are windowed** to the visible time range plus 8s of padding. A
   40-minute session has ~430 segments; rendering all of them made zoom feel like
   mud. Scroll and resize writes are rAF-coalesced.
-- **The roster caps at `MAX_SPEAKERS` (4).** The add control disappears at
-  capacity rather than sitting there disabled. Deleting a speaker removes their
-  segments too, and never removes the last one — that would orphan every segment.
+- **The roster is unbounded.** Labels run A…Z then AA, AB — spreadsheet-column
+  style, because "Speaker 27" stops reading as a name. Deleting a speaker removes
+  their segments too, and never removes the last one — that would orphan every
+  segment.
+- **Clips drag vertically between rows.** Vertical travel rounds to whole rows so
+  a slightly-off horizontal drag never changes speaker by accident. The row change
+  is **previewed, not applied**, while the pointer is held — the destination lane
+  lights up and the move lands on release. Committing mid-drag made the clip jump
+  out from under the cursor and re-parent on every pixel of vertical wobble. The
+  store still rejects the drop if that row is busy in the target span.
+- **Playback page-scrolls, it does not centre.** Centring on every exit pins the
+  playhead mid-view while the waveform slides underneath. Both seeks and playback
+  scroll smoothly, but the scroll is **latched**: a smooth scroll takes a few
+  hundred ms during which `scrollLeft` is still the old value, so the exit test
+  stays true and — unguarded — the animation restarts every frame and never
+  arrives. That is exactly why the playhead used to crawl off-screen and only
+  reappear on pause. The latch clears once the scroller is within a pixel of its
+  target.
 - **Zoom** sits under the speaker header column, lined up with what it scales.
 
 ### Two documented placeholders
@@ -302,7 +328,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 268 tests
+npm test              # 283 tests
 npm run test:watch
 npm run test:coverage
 ```

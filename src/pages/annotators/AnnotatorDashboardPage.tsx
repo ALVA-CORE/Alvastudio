@@ -92,7 +92,12 @@ export default function AnnotatorDashboardPage() {
             />
           </div>
 
-          <AnnotatorBentoGrid className="mt-2" dataset={dataset} isEmpty={forceEmpty} />
+          <AnnotatorBentoGrid
+            className="mt-2"
+            dataset={dataset}
+            range={timeRange}
+            isEmpty={forceEmpty}
+          />
         </>
       )}
     </DesktopPageShell>

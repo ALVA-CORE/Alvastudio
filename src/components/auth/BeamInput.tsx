@@ -11,7 +11,8 @@ import EyeClosed from "@solar-icons/react/security/EyeClosed";
 import { cn } from "@/lib/utils";
 
 const INPUT_HEIGHT = 48;
-const INPUT_RADIUS = INPUT_HEIGHT / 2;
+/** Rounded, not a pill. Matches the `rounded-xl` on the field itself. */
+const INPUT_RADIUS = 12;
 
 export type BeamInputProps = Omit<ComponentProps<"input">, "placeholder"> & {
   /** Floating hint — animates to the top border on focus */
@@ -78,9 +79,9 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
           strength={1}
           duration={1.96}
           borderRadius={INPUT_RADIUS}
-          className="w-full overflow-hidden rounded-full"
+          className="w-full overflow-hidden rounded-xl"
         >
-          <div className="relative rounded-full">
+          <div className="relative rounded-xl">
             <input
               ref={ref}
               type={inputType}
@@ -88,7 +89,9 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
               defaultValue={defaultValue}
               placeholder=""
               className={cn(
-                "flex h-12 w-full rounded-full border border-alva-border bg-alva-surface text-base text-foreground",
+                "flex h-12 w-full rounded-xl border border-transparent bg-alva-surface text-base text-foreground",
+                // Borderless throughout: the BorderBeam wrapping this field is the
+                // focus affordance, and a second ring inside it reads as a double border.
                 "focus-visible:outline-none",
                 "disabled:cursor-not-allowed disabled:opacity-50",
                 active ? "px-5 pb-2.5 pt-5" : "px-5",
