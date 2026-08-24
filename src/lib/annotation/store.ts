@@ -63,7 +63,12 @@ export type AnnotationState = {
   followPlayhead: boolean;
 
   /* Selection — transient */
-  selectedSegmentId: SegmentId | null;
+  /**
+   * Every selected segment. Multi-select exists so a batch can be tagged in one
+   * action from the panel; a single selection is just a set of one, which keeps
+   * one code path rather than two that drift apart.
+   */
+  selectedSegmentIds: SegmentId[];
   /** Diarization focus. Non-null dims every other speaker across the UI. */
   activeSpeakerId: SpeakerId | null;
 
@@ -118,7 +123,12 @@ export type AnnotationState = {
   setPlaybackRate: (rate: number) => void;
   setZoom: (zoom: number) => void;
   setFollowPlayhead: (follow: boolean) => void;
+  /** Replaces the selection with exactly this segment, or clears it. */
   selectSegment: (id: SegmentId | null) => void;
+  /** Adds or removes one segment from the selection (Shift-click). */
+  toggleSegmentSelection: (id: SegmentId) => void;
+  /** Replaces the selection wholesale. */
+  setSelectedSegments: (ids: SegmentId[]) => void;
   setActiveSpeaker: (id: SpeakerId | null) => void;
   toggleActiveSpeaker: (id: SpeakerId) => void;
   setSaveStatus: (status: SaveStatus, meta?: { savedAt?: number | null; error?: string | null }) => void;
@@ -162,7 +172,7 @@ export function createAnnotationStore(
       zoom: DEFAULT_ZOOM,
       followPlayhead: true,
 
-      selectedSegmentId: null,
+      selectedSegmentIds: [],
       activeSpeakerId: null,
 
       saveStatus: "idle",
@@ -244,12 +254,13 @@ export function createAnnotationStore(
       },
 
       deleteSegment(id) {
-        const { selectedSegmentId } = get();
         mutate((current) => ({
           ...current,
           segments: current.segments.filter((segment) => segment.id !== id),
         }));
-        if (selectedSegmentId === id) set({ selectedSegmentId: null });
+        set((state) => ({
+          selectedSegmentIds: state.selectedSegmentIds.filter((entry) => entry !== id),
+        }));
       },
 
       insertSegmentAt(time, speakerId) {
@@ -287,7 +298,7 @@ export function createAnnotationStore(
         // Select it so the transcript scrolls the new (empty) row into view —
         // otherwise inserting far from the current scroll position looks like
         // nothing happened.
-        if (inserted) set({ selectedSegmentId: insertedId });
+        if (inserted) set({ selectedSegmentIds: [insertedId] });
       },
 
       addSpan(span) {
@@ -402,7 +413,7 @@ export function createAnnotationStore(
       },
 
       removeSpeaker(id) {
-        const { selectedSegmentId, activeSpeakerId } = get();
+        const { activeSpeakerId } = get();
 
         mutate((current) => {
           // Deleting the last speaker would orphan every segment.
@@ -417,10 +428,10 @@ export function createAnnotationStore(
 
         // Clear transient state pointing at what just disappeared.
         if (activeSpeakerId === id) set({ activeSpeakerId: null });
-        const stillExists = get().history.present.segments.some(
-          (segment) => segment.id === selectedSegmentId
-        );
-        if (!stillExists) set({ selectedSegmentId: null });
+        const alive = new Set(get().history.present.segments.map((entry) => entry.id));
+        set((state) => ({
+          selectedSegmentIds: state.selectedSegmentIds.filter((entry) => alive.has(entry)),
+        }));
       },
 
       renameSpeaker(id, name) {
@@ -475,8 +486,20 @@ export function createAnnotationStore(
       setFollowPlayhead(followPlayhead) {
         set({ followPlayhead });
       },
-      selectSegment(selectedSegmentId) {
-        set({ selectedSegmentId });
+      selectSegment(id) {
+        set({ selectedSegmentIds: id === null ? [] : [id] });
+      },
+
+      toggleSegmentSelection(id) {
+        set((state) => ({
+          selectedSegmentIds: state.selectedSegmentIds.includes(id)
+            ? state.selectedSegmentIds.filter((entry) => entry !== id)
+            : [...state.selectedSegmentIds, id],
+        }));
+      },
+
+      setSelectedSegments(ids) {
+        set({ selectedSegmentIds: ids });
       },
       setActiveSpeaker(activeSpeakerId) {
         set({ activeSpeakerId });
@@ -507,6 +530,16 @@ export const selectDoc = (state: AnnotationState): TranscriptDoc => state.histor
 export const selectSegments = (state: AnnotationState): Segment[] => state.history.present.segments;
 export const selectSpeakers = (state: AnnotationState): Speaker[] =>
   state.history.present.speakers;
+/**
+ * The single selected segment, or null when zero or many are selected.
+ *
+ * Most of the UI is only meaningful for one segment — the lit rail, the scroll
+ * target — so this is the narrow read. The panel reads `selectedSegmentIds`
+ * directly when it wants the batch.
+ */
+export const selectPrimarySegmentId = (state: AnnotationState): SegmentId | null =>
+  state.selectedSegmentIds.length === 1 ? state.selectedSegmentIds[0] : null;
+
 export const selectSpans = (state: AnnotationState): AnnotationSpan[] =>
   state.history.present.spans;
 export const selectNonSpeech = (state: AnnotationState): NonSpeechMark[] =>

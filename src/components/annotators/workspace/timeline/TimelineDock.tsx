@@ -21,7 +21,7 @@ import {
   useAnnotationActions,
   useAnnotationStore,
 } from "@/lib/annotation/context";
-import { selectSegments, selectSpeakers } from "@/lib/annotation/store";
+import { selectSegments, selectSpans, selectSpeakers } from "@/lib/annotation/store";
 import { formatClock, formatTimecode } from "@/lib/annotation/segments";
 import { speakerDisplayName, type Speaker, type SpeakerId } from "@/lib/annotation/types";
 import {
@@ -30,6 +30,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  buildTokenIndex,
+  rangesOverlap,
+  segmentTokenRange,
+} from "@/lib/annotation/tokens";
+import { tagColor } from "@/lib/annotation/tags";
 import { cn } from "@/lib/utils";
 
 /**
@@ -283,7 +289,8 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
   const speakers = useAnnotation(selectSpeakers);
   const duration = useAnnotation((state) => state.duration);
   const zoom = useAnnotation((state) => state.zoom);
-  const selectedSegmentId = useAnnotation((state) => state.selectedSegmentId);
+  const selectedSegmentIds = useAnnotation((state) => state.selectedSegmentIds);
+  const spans = useAnnotation(selectSpans);
   const activeSpeakerId = useAnnotation((state) => state.activeSpeakerId);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -606,8 +613,18 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
     [actions, store]
   );
 
+  /**
+   * Shift extends the selection so a batch can be tagged from the panel in one
+   * action; a plain click replaces it and moves the playhead, which is the
+   * common case and must stay a single click.
+   */
   const handleSelect = useCallback(
-    (id: string) => {
+    (id: string, additive: boolean) => {
+      if (additive) {
+        actions.toggleSegmentSelection(id);
+        return;
+      }
+
       actions.selectSegment(id);
       const segment = store.getState().history.present.segments.find((s) => s.id === id);
       if (segment) actions.setCurrentTime(segment.start);
@@ -638,6 +655,30 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
   );
 
   const canDeleteSpeaker = speakers.length > 1;
+
+  /**
+   * Distinct family hues for whichever spans fall inside a segment's own token
+   * range — the dots that mark a clip as tagged.
+   *
+   * Derived here rather than in the clip so the token index is built once per
+   * render instead of once per clip.
+   */
+  const tagColorsFor = useMemo(() => {
+    const index = buildTokenIndex(segments);
+
+    return (segment: (typeof segments)[number]): string[] => {
+      const range = segmentTokenRange(index, segment.id);
+      if (!range) return [];
+
+      const hues = new Set<string>();
+      for (const span of spans) {
+        if (rangesOverlap(range, { start: span.startToken, end: span.endToken })) {
+          hues.add(tagColor(span.kind));
+        }
+      }
+      return [...hues];
+    };
+  }, [segments, spans]);
 
   return (
     <section
@@ -786,7 +827,8 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
                       segment={segment}
                       color={speaker.color}
                       pps={pps}
-                      isSelected={selectedSegmentId === segment.id}
+                      isSelected={selectedSegmentIds.includes(segment.id)}
+                      tagColors={tagColorsFor(segment)}
                       isDimmed={isDimmed}
                       onSelect={handleSelect}
                       onRetime={handleRetime}

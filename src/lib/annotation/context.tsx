@@ -178,6 +178,8 @@ export function useAnnotationActions() {
       setZoom: state.setZoom,
       setFollowPlayhead: state.setFollowPlayhead,
       selectSegment: state.selectSegment,
+      toggleSegmentSelection: state.toggleSegmentSelection,
+      setSelectedSegments: state.setSelectedSegments,
       setActiveSpeaker: state.setActiveSpeaker,
       toggleActiveSpeaker: state.toggleActiveSpeaker,
       setSaveStatus: state.setSaveStatus,

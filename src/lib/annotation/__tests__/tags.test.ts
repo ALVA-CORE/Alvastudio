@@ -3,6 +3,7 @@ import { createAnnotationStore, selectNonSpeech, selectSpans } from "../store";
 import {
   DIFFICULTY_FLAGS,
   NON_SPEECH_OPTIONS,
+  SPAN_FAMILIES,
   TAG_FAMILIES,
   isValidTagValue,
   tagColor,
@@ -103,12 +104,21 @@ describe("taxonomy matches the schema", () => {
   });
 
   it("gives every family a distinct hue", () => {
-    const colors = TAG_FAMILIES.map((family) => family.color);
+    const colors = SPAN_FAMILIES.map((family) => family.color);
     expect(new Set(colors).size).toBe(colors.length);
   });
 
+  it("withholds pidgin constructions from the menu but keeps them renderable", () => {
+    // The schema notes these values await ratification by a linguist, so they
+    // are defined and valid but not offered.
+    expect(TAG_FAMILIES.map((f) => f.kind)).not.toContain("pcm_construction");
+    expect(SPAN_FAMILIES.map((f) => f.kind)).toContain("pcm_construction");
+    expect(isValidTagValue("pcm_construction", "serial_verb")).toBe(true);
+    expect(tagLabel("pcm_construction", "serial_verb")).toBe("Serial verb");
+  });
+
   it("labels every value, and falls back rather than throwing", () => {
-    for (const family of TAG_FAMILIES) {
+    for (const family of SPAN_FAMILIES) {
       for (const option of family.options) {
         expect(tagLabel(family.kind, option.value)).toBe(option.label);
       }
@@ -128,7 +138,7 @@ describe("taxonomy matches the schema", () => {
   });
 
   it("exposes a colour for every kind", () => {
-    for (const family of TAG_FAMILIES) {
+    for (const family of SPAN_FAMILIES) {
       expect(tagColor(family.kind)).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });
@@ -268,5 +278,85 @@ describe("tagging actions", () => {
 
     expect(store.getState().currentTime).toBe(12);
     expect(store.getState().zoom).toBe(80);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Multi-select
+ * ------------------------------------------------------------------ */
+
+describe("segment selection", () => {
+  function selectionStore() {
+    const doc: TranscriptDoc = {
+      sessionId: "s",
+      speakers: [
+        { id: "spk-0", label: "Speaker A", role: "moderator", color: "#25F07D" },
+      ],
+      segments: [
+        { id: "a", start: 0, end: 2, speakerId: "spk-0", text: "one" },
+        { id: "b", start: 3, end: 5, speakerId: "spk-0", text: "two" },
+        { id: "c", start: 6, end: 8, speakerId: "spk-0", text: "three" },
+      ],
+      ...emptyAnnotationState(),
+    };
+    return createAnnotationStore(doc, { duration: 30 });
+  }
+
+  it("starts with nothing selected", () => {
+    expect(selectionStore().getState().selectedSegmentIds).toEqual([]);
+  });
+
+  it("replaces the selection on a plain select", () => {
+    const store = selectionStore();
+    store.getState().selectSegment("a");
+    store.getState().selectSegment("b");
+
+    expect(store.getState().selectedSegmentIds).toEqual(["b"]);
+  });
+
+  it("extends and un-extends with toggle", () => {
+    const store = selectionStore();
+    store.getState().selectSegment("a");
+    store.getState().toggleSegmentSelection("b");
+    store.getState().toggleSegmentSelection("c");
+    expect(store.getState().selectedSegmentIds).toEqual(["a", "b", "c"]);
+
+    store.getState().toggleSegmentSelection("b");
+    expect(store.getState().selectedSegmentIds).toEqual(["a", "c"]);
+  });
+
+  it("clears the selection with null", () => {
+    const store = selectionStore();
+    store.getState().setSelectedSegments(["a", "b"]);
+    store.getState().selectSegment(null);
+
+    expect(store.getState().selectedSegmentIds).toEqual([]);
+  });
+
+  it("drops a deleted segment from the selection", () => {
+    const store = selectionStore();
+    store.getState().setSelectedSegments(["a", "b"]);
+    store.getState().deleteSegment("a");
+
+    expect(store.getState().selectedSegmentIds).toEqual(["b"]);
+  });
+
+  it("drops segments that vanish with their speaker", () => {
+    const store = selectionStore();
+    store.getState().addSpeaker();
+    store.getState().setSelectedSegments(["a", "b"]);
+    store.getState().removeSpeaker("spk-0");
+
+    expect(store.getState().selectedSegmentIds).toEqual([]);
+  });
+
+  it("selection is transient — undo never restores it", () => {
+    const store = selectionStore();
+    store.getState().setSelectedSegments(["a", "b"]);
+    store.getState().setSegmentText("c", "edited");
+    store.getState().undo();
+
+    // Undo rewinds the document, not what the annotator had highlighted.
+    expect(store.getState().selectedSegmentIds).toEqual(["a", "b"]);
   });
 });

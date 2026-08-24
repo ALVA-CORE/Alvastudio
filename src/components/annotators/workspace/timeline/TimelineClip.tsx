@@ -26,7 +26,10 @@ export type TimelineClipProps = {
   isSelected: boolean;
   /** Another speaker holds focus — this clip recedes. */
   isDimmed: boolean;
-  onSelect: (id: string) => void;
+  /** `additive` is true when Shift was held — extend rather than replace. */
+  onSelect: (id: string, additive: boolean) => void;
+  /** One hue per tag family present on this segment. Renders as corner dots. */
+  tagColors?: string[];
   /** Live retime during a gesture. */
   onRetime: (id: string, next: { start: number; end: number }) => void;
   /** Closes the undo group on release. */
@@ -93,6 +96,7 @@ function TimelineClipImpl({
   isSelected,
   isDimmed,
   onSelect,
+  tagColors,
   onRetime,
   onGestureEnd,
   onMoveRow,
@@ -133,7 +137,7 @@ function TimelineClipImpl({
         rowDelta: 0,
       };
 
-      onSelect(segment.id);
+      onSelect(segment.id, event.shiftKey);
     },
     [onSelect, segment.end, segment.id, segment.start]
   );
@@ -231,7 +235,7 @@ function TimelineClipImpl({
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelect(segment.id);
+          onSelect(segment.id, event.shiftKey);
         }
       }}
       className={cn(
@@ -247,6 +251,25 @@ function TimelineClipImpl({
       }}
     >
       {width > 12 ? <ClipWaveform segment={segment} width={width} /> : null}
+
+      {/* Tag dots, inside the clip's top-right corner. One per family present,
+          so a glance across the track says which clips carry annotation without
+          opening any of them. Purely indicative — the transcript is where a tag
+          is read, so these are never interactive. */}
+      {tagColors && tagColors.length > 0 ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-1 top-1 flex gap-[3px]"
+        >
+          {tagColors.map((hue) => (
+            <span
+              key={hue}
+              className="size-1.5 rounded-full"
+              style={{ backgroundColor: hue }}
+            />
+          ))}
+        </span>
+      ) : null}
 
       {/* Trim handles. Hidden until hover or selection so a dense track does not
           read as a row of grab bars. */}

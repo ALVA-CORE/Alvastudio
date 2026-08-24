@@ -99,7 +99,11 @@ const PCM_CONSTRUCTION_OPTIONS: TagOption[] = [
   { value: "other", label: "Other" },
 ];
 
-export const TAG_FAMILIES: TagFamily[] = [
+/**
+ * Every family the schema defines. Used for RENDERING and validation, so a
+ * document that already carries a construction tag still displays and validates.
+ */
+export const SPAN_FAMILIES: TagFamily[] = [
   {
     kind: "language",
     label: "Language",
@@ -130,7 +134,20 @@ export const TAG_FAMILIES: TagFamily[] = [
   },
 ];
 
-const FAMILY_BY_KIND = new Map(TAG_FAMILIES.map((family) => [family.kind, family]));
+/**
+ * The families actually OFFERED in the tag menu.
+ *
+ * Pidgin constructions are withheld: the schema itself notes that its starter
+ * values "need ratification by a linguist before any annotation round uses
+ * them". Shipping an unratified grammatical taxonomy would produce data nobody
+ * can trust and which is expensive to re-do — so the family stays defined and
+ * renderable, and returns to the menu when the linguist signs it off.
+ */
+export const TAG_FAMILIES: TagFamily[] = SPAN_FAMILIES.filter(
+  (family) => family.kind !== "pcm_construction"
+);
+
+const FAMILY_BY_KIND = new Map(SPAN_FAMILIES.map((family) => [family.kind, family]));
 
 export function tagFamily(kind: SpanKind): TagFamily {
   const family = FAMILY_BY_KIND.get(kind);

@@ -172,13 +172,14 @@ export function useWorkspaceHotkeys({
       if (event.key === "Delete" || event.key === "Backspace") {
         // Deletes whichever segment is selected, wherever it was selected from —
         // a clip on the timeline and a rail in the transcript both write the same
-        // `selectedSegmentId`, so one handler serves both surfaces. Undoable,
+        // `selectedSegmentIds`, so one handler serves both surfaces. Undoable,
         // because it goes through the store like every other document edit.
-        const { selectedSegmentId } = store.getState();
-        if (!selectedSegmentId) return;
+        const { selectedSegmentIds } = store.getState();
+        if (selectedSegmentIds.length === 0) return;
 
         event.preventDefault();
-        actions.deleteSegment(selectedSegmentId);
+        // Clears the whole selection, so a Shift-picked batch goes in one go.
+        for (const id of selectedSegmentIds) actions.deleteSegment(id);
         return;
       }
 

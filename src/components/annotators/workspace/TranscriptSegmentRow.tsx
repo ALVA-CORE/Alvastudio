@@ -251,6 +251,13 @@ function TranscriptSegmentRowImpl({
               tabIndex={0}
               aria-label={`Edit transcript at ${formatTimecode(segment.start)}`}
               onClick={() => {
+                // Highlighting text ends in a click. Without this guard the row
+                // swaps to a textarea the moment you finish selecting, which
+                // unmounts the tag control before it can be used — the "it
+                // flashes and disappears" bug.
+                const selection = window.getSelection();
+                if (selection && !selection.isCollapsed) return;
+
                 onSelect(segment.id);
                 setEditing(true);
               }}
@@ -269,7 +276,6 @@ function TranscriptSegmentRowImpl({
                 segment={segment}
                 tokens={tokens}
                 spans={spans}
-                nonSpeech={nonSpeech}
                 activeToken={isActive ? activeToken : -1}
                 onSelectRange={setSelection}
                 onSpanClick={onRemoveTag}

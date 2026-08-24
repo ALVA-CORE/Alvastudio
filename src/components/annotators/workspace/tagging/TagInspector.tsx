@@ -2,10 +2,11 @@ import { memo, useMemo } from "react";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import { useAnnotation, useAnnotationActions } from "@/lib/annotation/context";
 import { selectNonSpeech, selectSegments, selectSpans } from "@/lib/annotation/store";
-import { buildTokenIndex } from "@/lib/annotation/tokens";
+import { buildTokenIndex, segmentTokenRange } from "@/lib/annotation/tokens";
 import {
   DIFFICULTY_FLAGS,
   NON_SPEECH_COLOR,
+  SPAN_FAMILIES,
   TAG_FAMILIES,
   tagLabel,
   type SpanKind,
@@ -27,7 +28,101 @@ const SECTION_LABEL =
 const CHIP =
   "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 
+/**
+ * Tag families as a pick-list, applied to whatever is selected on the timeline.
+ *
+ * This is the batch path: Shift-click a run of clips, then choose a tag once.
+ * The transcript's own picker stays the precise path — a sub-phrase inside one
+ * segment — and this one covers each selected segment's FULL token range, which
+ * is the only span a clip selection can honestly describe.
+ */
+const TagApplyList = memo(function TagApplyList({
+  selectedIds,
+}: {
+  selectedIds: string[];
+}) {
+  const segments = useAnnotation(selectSegments);
+  const { addSpan } = useAnnotationActions();
+  const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
+
+  const ranges = useMemo(
+    () =>
+      selectedIds
+        .map((id) => segmentTokenRange(tokenIndex, id))
+        .filter((range): range is { start: number; end: number } => range !== null),
+    [selectedIds, tokenIndex]
+  );
+
+  if (selectedIds.length === 0) {
+    return (
+      <p className="rounded-xl bg-alva-surface px-3 py-3 text-center text-[11px] leading-relaxed text-muted-foreground">
+        Shift-click clips on the timeline to tag several at once.
+      </p>
+    );
+  }
+
+  if (ranges.length === 0) {
+    return (
+      <p className="rounded-xl bg-alva-surface px-3 py-3 text-center text-[11px] text-muted-foreground">
+        {selectedIds.length === 1 ? "That segment has" : "Those segments have"} no
+        text to tag yet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground">
+        Applying to{" "}
+        <span className="text-foreground">
+          {ranges.length} segment{ranges.length === 1 ? "" : "s"}
+        </span>
+      </p>
+
+      {TAG_FAMILIES.map((family) => (
+        <div key={family.kind} className="space-y-1">
+          <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span
+              aria-hidden
+              className="size-2 rounded-full"
+              style={{ backgroundColor: family.color }}
+            />
+            {family.label}
+          </p>
+
+          <div className="flex flex-wrap gap-1">
+            {family.options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                title={option.hint}
+                onClick={() => {
+                  for (const range of ranges) {
+                    addSpan({
+                      kind: family.kind,
+                      value: option.value,
+                      startToken: range.start,
+                      endToken: range.end,
+                      ...(family.kind === "language"
+                        ? { spanSource: "annotator_added" as const }
+                        : {}),
+                    });
+                  }
+                }}
+                className={cn(CHIP, "bg-alva-surface text-muted-foreground hover:text-foreground")}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
+
 export const TagInspector = memo(function TagInspector() {
+  const selectedIds = useAnnotation((state) => state.selectedSegmentIds);
   const segments = useAnnotation(selectSegments);
   const spans = useAnnotation(selectSpans);
   const nonSpeech = useAnnotation(selectNonSpeech);
@@ -105,13 +200,18 @@ export const TagInspector = memo(function TagInspector() {
         </div>
       </section>
 
+      <section className="space-y-2">
+        <h3 className={SECTION_LABEL}>Apply</h3>
+        <TagApplyList selectedIds={selectedIds} />
+      </section>
+
       {isEmpty ? (
         <p className="rounded-xl bg-alva-surface px-3 py-4 text-center text-xs text-muted-foreground">
           No tags yet. Highlight words in the transcript to tag them.
         </p>
       ) : (
         <>
-          {TAG_FAMILIES.map((family) => {
+          {SPAN_FAMILIES.map((family) => {
             const list = byKind.get(family.kind) ?? [];
             if (list.length === 0) return null;
 

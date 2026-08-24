@@ -16,6 +16,7 @@ import { useAnnotation, useAnnotationActions, useAnnotationStore } from "@/lib/a
 import {
   isSegmentDimmed,
   selectNonSpeech,
+  selectPrimarySegmentId,
   selectSegments,
   selectSpans,
   selectSpeakers,
@@ -86,7 +87,7 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
   const speakers = useAnnotation(selectSpeakers);
   const spans = useAnnotation(selectSpans);
   const nonSpeech = useAnnotation(selectNonSpeech);
-  const selectedSegmentId = useAnnotation((state) => state.selectedSegmentId);
+  const selectedSegmentId = useAnnotation(selectPrimarySegmentId);
   const activeSpeakerId = useAnnotation((state) => state.activeSpeakerId);
   const followPlayhead = useAnnotation((state) => state.followPlayhead);
   const duration = useAnnotation((state) => state.duration);

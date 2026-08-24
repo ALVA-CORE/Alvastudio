@@ -1,6 +1,6 @@
-import { memo, useCallback, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { tagColor, type SpanKind } from "@/lib/annotation/tags";
-import type { AnnotationSpan, NonSpeechMark, Segment } from "@/lib/annotation/types";
+import type { AnnotationSpan, Segment } from "@/lib/annotation/types";
 import type { Token } from "@/lib/annotation/tokens";
 import { cn } from "@/lib/utils";
 
@@ -9,13 +9,10 @@ import { cn } from "@/lib/utils";
  *
  * Two things are layered onto the same tokens:
  *  - the read-along highlight (the token under the playhead), and
- *  - tag washes, one per span covering that token.
+ *  - a tag wash for whichever span covers that token.
  *
- * Tags are drawn as a low-alpha background wash plus a 2px underline in the
- * family's hue, never a solid fill: a paragraph with four overlapping span types
- * has to stay readable as *text* first. Overlaps stack their underlines rather
- * than fighting over the background, so a token that is both Pidgin and a
- * disfluency shows both without either winning.
+ * Tags are a low-alpha background wash only, never a fill or a rule: a paragraph
+ * carrying several span types has to read as *text* first.
  */
 
 export type TaggedSegmentTextProps = {
@@ -23,11 +20,10 @@ export type TaggedSegmentTextProps = {
   /** Document-global tokens for this segment. */
   tokens: Token[];
   spans: AnnotationSpan[];
-  nonSpeech: NonSpeechMark[];
   /** Token index under the playhead, or -1. */
   activeToken: number;
-  /** Called with an inclusive, document-global token range. */
-  onSelectRange: (range: { start: number; end: number }) => void;
+  /** Inclusive, document-global token range, or null when nothing is selected. */
+  onSelectRange: (range: { start: number; end: number } | null) => void;
   /** Clicking an existing tag opens it for editing. */
   onSpanClick: (spanId: string) => void;
 };
@@ -55,46 +51,33 @@ function coverageByToken(tokens: Token[], spans: AnnotationSpan[]) {
   return map;
 }
 
-function washFor(spans: AnnotationSpan[]): string | undefined {
-  if (spans.length === 0) return undefined;
-  // The first span owns the background; the rest are carried by underlines, so
-  // a stack of tags never compounds into an unreadable block of colour.
-  return `color-mix(in srgb, ${tagColor(spans[0].kind as SpanKind)} 16%, transparent)`;
-}
-
 function TaggedSegmentTextImpl({
   segment,
   tokens,
   spans,
-  nonSpeech,
   activeToken,
   onSelectRange,
   onSpanClick,
 }: TaggedSegmentTextProps) {
   const containerRef = useRef<HTMLParagraphElement | null>(null);
+  /* Kept in a ref so the selection listener is attached exactly once, rather
+   * than being torn down and rebuilt every time the parent re-renders. */
+  const onSelectRangeRef = useRef(onSelectRange);
+  onSelectRangeRef.current = onSelectRange;
   const coverage = useMemo(() => coverageByToken(tokens, spans), [tokens, spans]);
-  const marksByToken = useMemo(() => {
-    const map = new Map<number, NonSpeechMark[]>();
-    for (const mark of nonSpeech) {
-      const list = map.get(mark.atToken);
-      if (list) list.push(mark);
-      else map.set(mark.atToken, [mark]);
-    }
-    return map;
-  }, [nonSpeech]);
-
   /**
    * Reads the browser's own text selection back into token indices.
    *
-   * Using the native selection rather than a custom drag means shift-click,
-   * double-click-to-word and keyboard selection all work for free. Each token
-   * carries `data-token`, so the anchor and focus nodes resolve by walking up to
-   * the nearest tagged element.
+   * Driven by `selectionchange` on the document rather than a `mouseup` on this
+   * element, for two reasons. A drag that ends outside the paragraph — which is
+   * most of them, since you overshoot the last word — never fires mouseup here
+   * at all. And mouseup lands *before* the selection settles in WebKit, so the
+   * range read back is the previous one.
+   *
+   * Using the native selection also means shift-click, double-click-to-word and
+   * keyboard selection work with no custom drag code.
    */
-  const handleMouseUp = useCallback(() => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return;
-
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
@@ -108,13 +91,42 @@ function TaggedSegmentTextImpl({
       return null;
     };
 
-    const from = tokenOf(selection.anchorNode);
-    const to = tokenOf(selection.focusNode);
-    if (from === null || to === null) return;
+    let frame = 0;
 
-    // Selections run backwards as readily as forwards.
-    onSelectRange({ start: Math.min(from, to), end: Math.max(from, to) });
-  }, [onSelectRange]);
+    const read = () => {
+      frame = 0;
+      const selection = window.getSelection();
+
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+        onSelectRangeRef.current(null);
+        return;
+      }
+
+      // Ignore selections that belong to a different segment's paragraph.
+      if (!container.contains(selection.anchorNode) || !container.contains(selection.focusNode)) {
+        return;
+      }
+
+      const from = tokenOf(selection.anchorNode);
+      const to = tokenOf(selection.focusNode);
+      if (from === null || to === null) return;
+
+      // Selections run backwards as readily as forwards.
+      onSelectRangeRef.current({ start: Math.min(from, to), end: Math.max(from, to) });
+    };
+
+    // `selectionchange` fires per character while dragging; coalesce to a frame.
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(read);
+    };
+
+    document.addEventListener("selectionchange", schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      document.removeEventListener("selectionchange", schedule);
+    };
+  }, []);
 
   if (tokens.length === 0) {
     return (
@@ -124,66 +136,95 @@ function TaggedSegmentTextImpl({
     );
   }
 
-  return (
-    <p
-      ref={containerRef}
-      onMouseUp={handleMouseUp}
-      className="whitespace-pre-wrap text-sm leading-relaxed"
-    >
-      {tokens.map((token, i) => {
-        const covering = coverage.get(token.index) ?? [];
-        const marks = marksByToken.get(token.index) ?? [];
-        const isActive = token.index === activeToken;
+  /**
+   * Contiguous stretches sharing the same top tag.
+   *
+   * Rendering per token would leave the spaces BETWEEN tagged words unwashed, so
+   * a tagged phrase reads as a row of separate chips rather than one continuous
+   * highlight. Grouping into runs puts the inter-token whitespace inside the
+   * washed element, which is what makes it look like a highlighter stroke.
+   */
+  const runs = useMemo(() => {
+    const out: { spanId: string | null; hue?: string; tokens: Token[] }[] = [];
 
-        // Preserve the original spacing between tokens rather than assuming a
-        // single space — line breaks inside a segment are subtitle breaks.
-        const gap =
-          i === 0
-            ? ""
-            : segment.text.slice(tokens[i - 1].charEnd, token.charStart) || " ";
+    for (const token of tokens) {
+      const covering = coverage.get(token.index) ?? [];
+      const top = covering.length > 0 ? covering[covering.length - 1] : null;
+      const last = out[out.length - 1];
+
+      if (last && last.spanId === (top?.id ?? null)) {
+        last.tokens.push(token);
+        continue;
+      }
+
+      out.push({
+        spanId: top?.id ?? null,
+        hue: top ? tagColor(top.kind as SpanKind) : undefined,
+        tokens: [token],
+      });
+    }
+
+    return out;
+  }, [tokens, coverage]);
+
+  return (
+    <p ref={containerRef} className="whitespace-pre-wrap text-sm leading-relaxed">
+      {runs.map((run, runIndex) => {
+        const first = run.tokens[0];
+        const previousRun = runs[runIndex - 1];
+        const previousToken = previousRun?.tokens[previousRun.tokens.length - 1];
+
+        // Whitespace before this run belongs OUTSIDE the wash — a highlight
+        // should start at the first tagged letter, not a space before it.
+        const lead = previousToken
+          ? segment.text.slice(previousToken.charEnd, first.charStart) || " "
+          : "";
+
+        const body = run.tokens.map((token, i) => {
+          const gap =
+            i === 0
+              ? ""
+              : segment.text.slice(run.tokens[i - 1].charEnd, token.charStart) || " ";
+
+          return (
+            <span key={token.index}>
+              {gap}
+              <span
+                data-token={token.index}
+                className={
+                  token.index === activeToken ? "text-foreground" : undefined
+                }
+              >
+                {token.text}
+              </span>
+            </span>
+          );
+        });
+
+        if (run.spanId === null) {
+          return (
+            <span key={`run-${first.index}`} className="text-muted-foreground">
+              {lead}
+              {body}
+            </span>
+          );
+        }
 
         return (
-          <span key={token.index}>
-            {gap}
+          <span key={`run-${first.index}`}>
+            {lead}
             <span
-              data-token={token.index}
-              onClick={
-                covering.length > 0
-                  ? (event) => {
-                      event.stopPropagation();
-                      onSpanClick(covering[covering.length - 1].id);
-                    }
-                  : undefined
-              }
-              style={{
-                backgroundColor: washFor(covering),
-                boxShadow: covering.length
-                  ? covering
-                      .map(
-                        (span, depth) =>
-                          `inset 0 -${2 + depth * 3}px 0 -${depth * 3}px ${tagColor(
-                            span.kind as SpanKind
-                          )}`
-                      )
-                      .join(", ")
-                  : undefined,
+              onClick={(event) => {
+                event.stopPropagation();
+                onSpanClick(run.spanId as string);
               }}
-              className={cn(
-                "rounded-[3px] transition-colors",
-                covering.length > 0 && "cursor-pointer",
-                isActive ? "text-foreground" : "text-muted-foreground"
-              )}
+              style={{
+                backgroundColor: `color-mix(in srgb, ${run.hue} 22%, transparent)`,
+              }}
+              className="cursor-pointer rounded-[3px] px-[1px] text-muted-foreground transition-colors"
             >
-              {token.text}
+              {body}
             </span>
-            {marks.length > 0 && (
-              <sup
-                title={marks.map((mark) => mark.type).join(", ")}
-                className="ml-0.5 select-none text-[9px] text-[#5CE1E6]"
-              >
-                ●
-              </sup>
-            )}
           </span>
         );
       })}

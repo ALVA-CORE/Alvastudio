@@ -141,19 +141,46 @@ a range — the schema is explicit that the annotator supplies `at_token` only, 
 asks for waveform scrubbing to place one.
 
 One hue per *family*, not per value: the eye learns four categories rather than
-thirty, and values are told apart by their label in the picker. Tags render as a
-low-alpha wash plus an underline, never a solid fill — a paragraph carrying four
-overlapping span types has to stay readable as text first. Overlaps stack
-underlines rather than compounding backgrounds.
+thirty, and values are told apart by their label in the picker.
+
+In the transcript a tag is a **background wash only** — no rule, no fill. Tagged
+tokens are grouped into contiguous runs so the whitespace *between* them sits
+inside the wash; rendering per token leaves the gaps uncoloured and a tagged
+phrase reads as a row of separate chips rather than one highlighter stroke.
+Where spans overlap the most recent one wins outright rather than the washes
+blending, because two tints compounded produce a muddy third colour belonging to
+neither family — the panel is where overlaps are read precisely.
+
+On the **timeline**, a tagged clip carries one dot per family in its top-right
+corner. That is the glance-level view: which clips have been worked, without
+opening any of them.
+
+**Pidgin constructions are defined but withheld from the menu.** The schema notes
+its starter values "need ratification by a linguist before any annotation round
+uses them", so `SPAN_FAMILIES` (render + validate) includes the family and
+`TAG_FAMILIES` (the picker) does not. A document that already carries one still
+displays and validates.
 
 ### Interaction
 
-Highlight words in a segment and a tag control appears beneath it. Selection uses
-the browser's own text selection (each token carries `data-token`), so
-shift-click, double-click-to-word and keyboard selection all work without custom
-drag code. Clicking an existing tag removes it. The left panel's **Tags** tab
-lists everything tagged on the clip, grouped by family, with the tagged words
-themselves rather than token indices.
+Two paths, deliberately:
+
+- **Precise** — highlight words in a segment and a tag control appears beneath it.
+  This is the only way to tag a sub-phrase.
+- **Batch** — Shift-click clips on the timeline, then pick a tag from the panel's
+  **Tags** tab. A clip selection can only honestly describe a segment's *full*
+  token range, so that is what it applies.
+
+Selection is driven by the document's `selectionchange` event, not a `mouseup` on
+the paragraph. A drag that ends outside the paragraph — most of them, since you
+overshoot the last word — never fires mouseup there at all, and mouseup lands
+before the selection settles in WebKit. The row's click-to-edit is also guarded
+against a live selection: without it, finishing a highlight swapped the row to a
+textarea and unmounted the tag control before it could be used.
+
+Selection state lives in `selectedSegmentIds` — a set, so single-select is a set
+of one and there is one code path rather than two that drift. It is transient:
+undo rewinds the document, never what was highlighted.
 
 Clip-level schema fields — `difficulty_flags` (an array, because the schema notes
 heavy accent and heavy noise co-occur constantly) and `speech_present` (so a human
@@ -384,7 +411,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 329 tests
+npm test              # 337 tests
 npm run test:watch
 npm run test:coverage
 ```

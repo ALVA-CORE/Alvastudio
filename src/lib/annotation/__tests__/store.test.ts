@@ -92,7 +92,7 @@ describe("createAnnotationStore", () => {
     expect(state.playbackRate).toBe(1);
     expect(state.zoom).toBe(DEFAULT_ZOOM);
     expect(state.followPlayhead).toBe(true);
-    expect(state.selectedSegmentId).toBeNull();
+    expect(state.selectedSegmentIds).toEqual([]);
     expect(state.activeSpeakerId).toBeNull();
     expect(state.saveStatus).toBe("idle");
     expect(state.lastSavedAt).toBeNull();
@@ -243,7 +243,7 @@ describe("undo / redo isolation", () => {
       playbackRate: store.getState().playbackRate,
       isPlaying: store.getState().isPlaying,
       followPlayhead: store.getState().followPlayhead,
-      selectedSegmentId: store.getState().selectedSegmentId,
+      selectedSegmentIds: store.getState().selectedSegmentIds,
       activeSpeakerId: store.getState().activeSpeakerId,
     };
 
@@ -479,7 +479,7 @@ describe("deleteSegment", () => {
     act(store).selectSegment("c2");
     act(store).deleteSegment("c2");
 
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 
   it("leaves an unrelated selection alone", () => {
@@ -488,7 +488,7 @@ describe("deleteSegment", () => {
     act(store).selectSegment("c1");
     act(store).deleteSegment("c2");
 
-    expect(store.getState().selectedSegmentId).toBe("c1");
+    expect(store.getState().selectedSegmentIds).toEqual(["c1"]);
   });
 
   it("is undoable, though the selection does not come back", () => {
@@ -501,7 +501,7 @@ describe("deleteSegment", () => {
     expect(segments(store)).toEqual(makeDoc().segments);
     // Selection is transient state and deliberately outside history — the
     // caller re-selects if it wants to.
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 });
 
@@ -711,10 +711,10 @@ describe("transient actions", () => {
     const store = makeStore();
 
     act(store).selectSegment("c2");
-    expect(store.getState().selectedSegmentId).toBe("c2");
+    expect(store.getState().selectedSegmentIds).toEqual(["c2"]);
 
     act(store).selectSegment(null);
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 
   it("toggleActiveSpeaker turns focus on, then back off", () => {
@@ -1034,7 +1034,7 @@ describe("speaker roster", () => {
     store.getState().removeSpeaker("spk-1");
 
     expect(store.getState().activeSpeakerId).toBeNull();
-    expect(store.getState().selectedSegmentId).toBeNull();
+    expect(store.getState().selectedSegmentIds).toEqual([]);
   });
 
   it("keeps a selection that survived the removal", () => {
@@ -1042,7 +1042,7 @@ describe("speaker roster", () => {
     store.getState().selectSegment("a");
     store.getState().removeSpeaker("spk-1");
 
-    expect(store.getState().selectedSegmentId).toBe("a");
+    expect(store.getState().selectedSegmentIds).toEqual(["a"]);
   });
 
   it("adding and removing speakers are both undoable", () => {
