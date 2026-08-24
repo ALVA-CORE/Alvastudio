@@ -167,7 +167,7 @@ export function ContributorOnboardingForm() {
             event.preventDefault();
             void handleNext();
           }}
-          className="space-y-5"
+          className="space-y-2.5"
         >
           {step === 1 && (
             <>
@@ -260,7 +260,7 @@ export function ContributorOnboardingForm() {
 
           {step === 2 && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <FormField
                   control={form.control}
                   name="ageBracket"
@@ -363,7 +363,7 @@ export function ContributorOnboardingForm() {
                 )}
               />
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="pidginFluency"
