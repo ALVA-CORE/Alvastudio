@@ -102,8 +102,8 @@ function EdgeControl({
       className={cn(
         "absolute top-0 bottom-1 flex w-9 items-center",
         isEnd
-          ? "right-0 justify-end bg-gradient-to-l from-alva-card via-alva-card/85 to-transparent pr-0.5"
-          : "left-0 justify-start bg-gradient-to-r from-alva-card via-alva-card/85 to-transparent pl-0.5"
+          ? "-right-4 justify-end bg-gradient-to-l from-alva-card via-alva-card/85 to-transparent pr-0.5"
+          : "-left-4 justify-start bg-gradient-to-r from-alva-card via-alva-card/85 to-transparent pl-0.5"
       )}
     >
       <span className="flex size-5 items-center justify-center rounded-full bg-alva-surface text-muted-foreground">

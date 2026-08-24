@@ -35,6 +35,9 @@ import { cn } from "@/lib/utils";
  */
 
 /** Same grammar as the Details tab's section headings — one panel, one voice. */
+/** Sentinel for "the selected segments carry different values here". */
+const MIXED = "__mixed__";
+
 const REMOVE_BUTTON =
   "shrink-0 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100";
 
@@ -55,6 +58,7 @@ const TagApplyList = memo(function TagApplyList({
   selectedIds: string[];
 }) {
   const segments = useAnnotation(selectSegments);
+  const spans = useAnnotation(selectSpans);
   const { addSpan } = useAnnotationActions();
   const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
 
@@ -65,6 +69,36 @@ const TagApplyList = memo(function TagApplyList({
         .filter((range): range is { start: number; end: number } => range !== null),
     [selectedIds, tokenIndex]
   );
+
+  /**
+   * What each family currently reads for the selection.
+   *
+   * The select used to hold no value and reset to its placeholder, so applying a
+   * tag left the control looking untouched. It now reflects the tag actually on
+   * the selection: one value when every selected segment agrees, `MIXED` when
+   * they disagree, empty when none carry that family. Re-picking the same value
+   * is a no-op, which is correct — it is already applied.
+   */
+  const appliedByFamily = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const family of TAG_FAMILIES) {
+      const values = ranges.map((range) => {
+        const match = spans.find(
+          (span) =>
+            span.kind === family.kind &&
+            span.startToken === range.start &&
+            span.endToken === range.end
+        );
+        return match?.value ?? "";
+      });
+
+      if (values.length === 0 || values.every((value) => value === "")) continue;
+      map.set(family.kind, values.every((value) => value === values[0]) ? values[0] : MIXED);
+    }
+
+    return map;
+  }, [ranges, spans]);
 
   if (selectedIds.length === 0) {
     return (
@@ -111,15 +145,20 @@ const TagApplyList = memo(function TagApplyList({
           <AlvaSelect
             aria-label={`Apply ${family.label} tag`}
             placeholder="Select…"
-            options={family.options.map((option) => ({
-              value: option.value,
-              label: option.label,
-            }))}
-            // Deliberately uncontrolled-looking: this is an action, not a field,
-            // so it never retains a value and the same tag can be applied twice.
-            value=""
+            options={[
+              // Only offered when the selection genuinely disagrees, so it can
+              // be displayed without becoming a pickable value in the usual case.
+              ...(appliedByFamily.get(family.kind) === MIXED
+                ? [{ value: MIXED, label: "Mixed" }]
+                : []),
+              ...family.options.map((option) => ({
+                value: option.value,
+                label: option.label,
+              })),
+            ]}
+            value={appliedByFamily.get(family.kind) ?? ""}
             onValueChange={(value) => {
-              if (!value) return;
+              if (!value || value === MIXED) return;
 
               for (const range of ranges) {
                 addSpan({

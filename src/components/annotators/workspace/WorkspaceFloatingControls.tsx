@@ -2,7 +2,6 @@ import { memo, type ReactNode } from "react";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import UndoLeft from "@solar-icons/react/arrows-action/UndoLeft";
 import UndoRight from "@solar-icons/react/arrows-action/UndoRight";
-import { BorderBeam } from "border-beam";
 import {
   Tooltip,
   TooltipContent,
@@ -28,7 +27,7 @@ import { cn } from "@/lib/utils";
 
 /** Both float on the page floor colour, a step below the panels they sit over. */
 const FLOATING_SURFACE =
-  "border border-alva-border bg-alva-bg/95 text-muted-foreground shadow-sm backdrop-blur";
+  "bg-alva-bg/95 text-muted-foreground shadow-sm backdrop-blur";
 
 const ICON_BUTTON =
   "flex size-8 items-center justify-center rounded-full transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent disabled:pointer-events-none disabled:opacity-40";
@@ -70,7 +69,7 @@ export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 z-40 flex items-start justify-between gap-2 px-4 pt-5",
+          "pointer-events-none absolute inset-x-1 top-0 z-40 flex items-start justify-between gap-2 px-4 pt-5",
           className
         )}
       >
@@ -85,51 +84,41 @@ export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls
           </button>
         </Hinted>
 
-        {/* Undo and redo read as one control: they are the same mechanism in two
-            directions, so they share a surface and the beam wraps the pair. */}
-        <div className="pointer-events-auto relative overflow-visible rounded-full">
-          <BorderBeam
-            size="pulse-inner"
-            colorVariant="mono"
-            theme="dark"
-            strength={1}
-            duration={2.4}
-            borderRadius={999}
-            className="overflow-visible rounded-full"
+        {/* Undo and redo read as one control: they are the same mechanism in
+            two directions, so they share a surface. */}
+        <div className="pointer-events-auto">
+          <div
+            className={cn(
+              "flex items-center gap-0.5 rounded-full p-0.5",
+              FLOATING_SURFACE
+            )}
           >
-            <div
-              className={cn(
-                "relative z-[1] flex items-center gap-0.5 rounded-full p-0.5",
-                FLOATING_SURFACE
-              )}
-            >
-              <Hinted label="Undo" hint="⌘Z">
-                <button
-                  type="button"
-                  aria-label="Undo"
-                  disabled={!canUndo}
-                  onClick={undo}
-                  className={ICON_BUTTON}
-                >
-                  <UndoLeft size={15} weight="Linear" />
-                </button>
-              </Hinted>
+            <Hinted label="Undo" hint="⌘Z">
+              <button
+                type="button"
+                aria-label="Undo"
+                disabled={!canUndo}
+                onClick={undo}
+                className={ICON_BUTTON}
+              >
+                <UndoLeft size={15} weight="Linear" />
+              </button>
+            </Hinted>
 
-              <span aria-hidden className="h-4 w-px bg-alva-border" />
+            <span aria-hidden className="h-4 w-px bg-alva-border" />
 
-              <Hinted label="Redo" hint="⌘⇧Z">
-                <button
-                  type="button"
-                  aria-label="Redo"
-                  disabled={!canRedo}
-                  onClick={redo}
-                  className={ICON_BUTTON}
-                >
-                  <UndoRight size={15} weight="Linear" />
-                </button>
-              </Hinted>
-            </div>
-          </BorderBeam>
+            <Hinted label="Redo" hint="⌘⇧Z">
+              <button
+                type="button"
+                aria-label="Redo"
+                disabled={!canRedo}
+                onClick={redo}
+                className={ICON_BUTTON}
+              >
+                <UndoRight size={15} weight="Linear" />
+              </button>
+            </Hinted>
+          </div>
         </div>
 
         {/* Balances the back button so the pair stays optically centred. */}

@@ -379,8 +379,13 @@ describe("AnnotationWorkspace", () => {
     await user.click(screen.getByRole("tab", { name: /tags/i }));
 
     // A Radix listbox, not a native <select>: open the trigger, then pick.
-    await user.click(await screen.findByLabelText("Apply Language tag"));
+    const languageSelect = await screen.findByLabelText("Apply Language tag");
+    await user.click(languageSelect);
     await user.click(await screen.findByRole("option", { name: "Nigerian Pidgin" }));
+
+    // The control reflects what was applied rather than resetting to its
+    // placeholder — otherwise applying a tag looks like it did nothing.
+    expect(languageSelect).toHaveTextContent("Nigerian Pidgin");
 
     // One choice, one span per selected segment.
     const spans = store.getState().history.present.spans;
