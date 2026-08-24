@@ -113,6 +113,17 @@ Element.prototype.getBoundingClientRect = function getBoundingClientRect(): DOMR
 };
 
 /* ---------------------------------------------------------------- *
+ * Pointer capture — jsdom implements none of it, and Radix's Select and
+ * Slider both call these during normal interaction. Without them the
+ * trigger throws before the listbox ever opens.
+ * ---------------------------------------------------------------- */
+Element.prototype.hasPointerCapture ??= function hasPointerCapture() {
+  return false;
+};
+Element.prototype.setPointerCapture ??= function setPointerCapture() {};
+Element.prototype.releasePointerCapture ??= function releasePointerCapture() {};
+
+/* ---------------------------------------------------------------- *
  * Scrolling — the transcript follows playback via scrollTo/scrollIntoView.
  * ---------------------------------------------------------------- */
 Element.prototype.scrollIntoView ??= function scrollIntoView() {};

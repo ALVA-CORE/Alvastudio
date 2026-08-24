@@ -31,15 +31,32 @@ function relativeLabel(savedAt: number, now: number): string {
 type AutosaveIndicatorProps = {
   /** Shown as a Retry button while the status is `error`. */
   onRetry?: () => void;
+  /**
+   * Bare dot plus label, no fill — it sits beside the session status pill
+   * rather than inside it. The pill is the session's state; this is the
+   * document's, and giving it its own chip made two adjacent pills look like
+   * one control split in half.
+   */
+  compact?: boolean;
   className?: string;
 };
 
-function StatusDot({ status }: { status: string }) {
+function StatusDot({
+  status,
+  inherit = false,
+}: {
+  status: string;
+  /** Take the parent's colour — used inside the status pill. */
+  inherit?: boolean;
+}) {
   if (status === "saving") {
     return (
       <span
         aria-hidden
-        className="size-2.5 shrink-0 animate-spin rounded-full border border-alva-accent border-t-transparent motion-reduce:animate-none"
+        className={cn(
+          "size-2.5 shrink-0 animate-spin rounded-full border border-t-transparent motion-reduce:animate-none",
+          inherit ? "border-current" : "border-alva-accent"
+        )}
       />
     );
   }
@@ -48,11 +65,18 @@ function StatusDot({ status }: { status: string }) {
     <span
       aria-hidden
       className={cn(
-        "size-2 shrink-0 rounded-full transition-colors",
-        status === "error" && "bg-red-400",
-        status === "offline" && "bg-amber-300",
-        status === "dirty" && "bg-muted-foreground",
-        status !== "error" && status !== "offline" && status !== "dirty" && "bg-alva-accent"
+        "size-1.5 shrink-0 rounded-full transition-colors",
+        inherit
+          ? "bg-current"
+          : cn(
+              status === "error" && "bg-red-400",
+              status === "offline" && "bg-amber-300",
+              status === "dirty" && "bg-muted-foreground",
+              status !== "error" &&
+                status !== "offline" &&
+                status !== "dirty" &&
+                "bg-alva-accent"
+            )
       )}
     />
   );
@@ -60,6 +84,7 @@ function StatusDot({ status }: { status: string }) {
 
 export const AutosaveIndicator = memo(function AutosaveIndicator({
   onRetry,
+  compact = false,
   className,
 }: AutosaveIndicatorProps) {
   // Three primitive slices rather than one object: `useStore` compares with
@@ -87,6 +112,23 @@ export const AutosaveIndicator = memo(function AutosaveIndicator({
   else if (status === "dirty") label = "Unsaved changes";
   else if (lastSavedAt !== null) label = relativeLabel(lastSavedAt, Date.now());
   else label = "All changes saved";
+
+  if (compact) {
+    return (
+      <span
+        role="status"
+        aria-live="polite"
+        title={status === "error" && saveError ? saveError : undefined}
+        className={cn(
+          "inline-flex items-center gap-1.5 text-[11px] font-normal text-muted-foreground",
+          className
+        )}
+      >
+        <StatusDot status={status} />
+        {label}
+      </span>
+    );
+  }
 
   return (
     <div className={cn("flex items-center gap-2", className)}>

@@ -1,11 +1,12 @@
 import { memo, useState, type ReactNode } from "react";
-import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
-import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
+import Sidebar from "@solar-icons/react/it/Sidebar";
+import SidebarMinimalistic from "@solar-icons/react/it/SidebarMinimalistic";
 import ListCheck from "@solar-icons/react/list/ListCheck";
 import DocumentText from "@solar-icons/react/notes/DocumentText";
 import Bolt from "@solar-icons/react/ui/Bolt";
 import Microphone2 from "@solar-icons/react/video/Microphone2";
 import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStatusBadge";
+import { AutosaveIndicator } from "@/components/annotators/workspace/AutosaveIndicator";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import { formatDurationLong } from "@/lib/annotation/segments";
 import { TagInspector } from "@/components/annotators/workspace/tagging/TagInspector";
@@ -15,6 +16,13 @@ import {
   PanelDivider,
   PanelRow,
 } from "@/components/annotators/workspace/PanelPrimitives";
+import { useResizableSize } from "@/components/annotators/workspace/timeline/useResizableSize";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -92,30 +100,56 @@ const STAT_TONE_CLASS: Record<StatTone, string> = {
   negative: "text-red-400",
 };
 
+/** Hairline between metrics, inset from both so it divides without crowding. */
+function StatDivider() {
+  return <span aria-hidden className="mx-3 w-px shrink-0 bg-alva-border" />;
+}
+
 /** Number over label, unboxed — the number is the subject, not the container. */
 function Stat({
   label,
   value,
+  title,
   tone = "neutral",
 }: {
   label: string;
   value: string;
+  /** Full text for the tooltip — both lines truncate in a narrow panel. */
+  title: string;
   tone?: StatTone;
 }) {
   return (
-    <div className="min-w-0">
-      <p className={cn("truncate text-sm font-semibold tabular-nums", STAT_TONE_CLASS[tone])}>
-        {value}
-      </p>
-      <p className="truncate text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-        {label}
-      </p>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="min-w-0 flex-1 cursor-default">
+          <p
+            className={cn(
+              "truncate text-sm font-semibold tabular-nums",
+              STAT_TONE_CLASS[tone],
+            )}
+          >
+            {value}
+          </p>
+          <p className="truncate text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+            {label}
+          </p>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="text-xs">
+        {title}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
 /** Worst-first summary of the document's conformance state. */
-function ConformanceBadge({ errors, warnings }: { errors: number; warnings: number }) {
+function ConformanceBadge({
+  errors,
+  warnings,
+}: {
+  errors: number;
+  warnings: number;
+}) {
   const badgeClass =
     "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide";
 
@@ -142,8 +176,24 @@ function ConformanceBadge({ errors, warnings }: { errors: number; warnings: numb
   );
 }
 
+/* ------------------------------------------------------------------ *
+ * Panel width bounds — the drag limits live here and nowhere else.
+ *
+ * MIN is how far the panel can be SHRUNK before the handle stops. Below roughly
+ * 240px a label and its value no longer share a row without the value
+ * truncating away, which is the point at which the panel stops being readable
+ * rather than just narrow. Raise it to keep more of the value visible; lower it
+ * to let the panel tuck further out of the way.
+ * ------------------------------------------------------------------ */
+const MIN_PANEL_WIDTH = 300;
+const DEFAULT_PANEL_WIDTH = 304;
+const MAX_PANEL_WIDTH = 520;
+/** Width of the collapsed rail. Not draggable — the toggle owns this one. */
+const COLLAPSED_PANEL_WIDTH = 48;
+
+/** Bare icon — the panel edge already frames it, so a chip around it is noise. */
 const iconButtonClass =
-  "inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-alva-border bg-alva-surface text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
+  "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 
 function SessionMetaSidebarImpl({
   session,
@@ -153,164 +203,249 @@ function SessionMetaSidebarImpl({
   className,
 }: SessionMetaSidebarProps) {
   const [tab, setTab] = useState<"details" | "tags">("details");
+
+  /* Handle is on the panel's RIGHT edge, so dragging right grows it. The floor
+   * is the narrowest width at which a label and its value still fit on one row
+   * without the value truncating to nothing. */
+  const resize = useResizableSize({
+    axis: "x",
+    // The panel sits to the RIGHT of the editor, so its inner edge is the left
+    // one — and dragging left has to grow it.
+    invert: true,
+    preferred: DEFAULT_PANEL_WIDTH,
+    min: MIN_PANEL_WIDTH,
+    max: MAX_PANEL_WIDTH,
+  });
   const tagCount = useAnnotation(
     (state) =>
-      state.history.present.spans.length + state.history.present.nonSpeech.length
+      state.history.present.spans.length +
+      state.history.present.nonSpeech.length,
   );
 
   return (
-    <aside
-      aria-label="Session details"
-      className={cn(
-        // Hidden below xl: on a 1280-and-under desktop the transcript column is
-        // the work surface and 19rem of reference data is not worth its width.
-        // A rounded panel on the page floor rather than a flush-edged rail:
-        // it sits to the left of the editor now, so it reads as a sibling card
-        // to the transcript and the timeline, not as a wall.
-        "hidden shrink-0 flex-col overflow-hidden rounded-2xl border border-alva-border bg-alva-card transition-[width] duration-200 ease-out motion-reduce:transition-none xl:flex",
-        collapsed ? "w-12" : "w-[19rem]",
-        className
-      )}
-    >
-      {collapsed ? (
-        <div className="flex h-full flex-col items-center gap-3 py-4">
-          <button
-            type="button"
-            onClick={() => onToggleCollapsed(false)}
-            aria-expanded={false}
-            aria-label="Expand session details"
-            className={iconButtonClass}
+    <TooltipProvider delayDuration={300}>
+      <aside
+        aria-label="Session details"
+        className={cn(
+          // Hidden below xl: on a 1280-and-under desktop the transcript column is
+          // the work surface and 19rem of reference data is not worth its width.
+          // A rounded panel on the page floor rather than a flush-edged rail:
+          // it sits to the left of the editor now, so it reads as a sibling card
+          // to the transcript and the timeline, not as a wall.
+          "relative hidden shrink-0 flex-col overflow-hidden rounded-2xl border border-alva-border bg-alva-card xl:flex",
+          // Only animate the collapse toggle; a transition during a drag fights
+          // the pointer and makes the panel lag behind the cursor.
+          collapsed &&
+            "transition-[width] duration-200 ease-out motion-reduce:transition-none",
+          className,
+        )}
+        style={{ width: collapsed ? COLLAPSED_PANEL_WIDTH : resize.size }}
+      >
+        {!collapsed && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize panel"
+            aria-valuenow={Math.round(resize.size)}
+            aria-valuemin={resize.min}
+            aria-valuemax={resize.max}
+            tabIndex={0}
+            {...resize.handleProps}
+            className={cn(
+              "group/resize absolute inset-y-0 left-0 z-[2] flex w-2 cursor-ew-resize touch-none items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+              resize.isResizing && "bg-alva-surface",
+            )}
           >
-            <AltArrowLeft size={16} weight="Linear" />
-          </button>
-          {/* Rotated so the label reads bottom-to-top, the convention for a
+            <span
+              aria-hidden
+              className={cn(
+                "h-8 w-0.5 rounded-full bg-transparent transition-colors group-hover/resize:bg-muted-foreground",
+                resize.isResizing && "bg-muted-foreground",
+              )}
+            />
+          </div>
+        )}
+
+        {collapsed ? (
+          <div className="flex h-full flex-col items-center gap-3 py-4">
+            <button
+              type="button"
+              onClick={() => onToggleCollapsed(false)}
+              aria-expanded={false}
+              aria-label="Expand session details"
+              className={iconButtonClass}
+            >
+              <Sidebar size={17} weight="Linear" />
+            </button>
+            {/* Rotated so the label reads bottom-to-top, the convention for a
               vertical rail label in a left-to-right layout. */}
-          <span className="rotate-180 select-none text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground [writing-mode:vertical-rl]">
-            Details
-          </span>
-        </div>
-      ) : (
-        <>
-          {/* Header carries the tabs, so the underline of the active tab and the
+            <span className="rotate-180 select-none text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground [writing-mode:vertical-rl]">
+              Details
+            </span>
+          </div>
+        ) : (
+          <>
+            {/* Header carries the tabs, so the underline of the active tab and the
               panel's own separator are the same line. Two questions live behind
               them — "what is this clip" and "what has been marked on it" — and
               splitting them stops either scrolling past the other. */}
-          <header className="shrink-0 border-b border-alva-border">
-            <div className="space-y-2 px-4 pb-3 pt-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-semibold text-foreground">
-                    {session.code}
-                  </h2>
-                  <SessionStatusBadge status={session.status} />
+            <header className="shrink-0 border-b border-alva-border">
+              <div className="space-y-2 px-4 pb-3 pt-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <h2 className="truncate text-sm font-semibold text-foreground">
+                      {session.code}
+                    </h2>
+                    <SessionStatusBadge status={session.status} />
+                    {/* Beside the pill, not inside it: the pill is the session's
+                      state and the dot is the document's. Sharing one fill made
+                      them read as a single claim. */}
+                    <AutosaveIndicator compact />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onToggleCollapsed(true)}
+                    aria-expanded
+                    aria-label="Collapse session details"
+                    className={iconButtonClass}
+                  >
+                    <SidebarMinimalistic size={17} weight="Linear" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onToggleCollapsed(true)}
-                  aria-expanded
-                  aria-label="Collapse session details"
-                  className={iconButtonClass}
-                >
-                  <AltArrowRight size={16} weight="Linear" />
-                </button>
+                <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                  {session.topic}
+                </p>
               </div>
-              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                {session.topic}
-              </p>
-            </div>
 
-            <div role="tablist" aria-label="Session panel" className="flex">
-              {(["details", "tags"] as const).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === value}
-                  onClick={() => setTab(value)}
-                  className={cn(
-                    // -mb-px pulls the underline onto the header's border, so the
-                    // active tab sits ON the separator rather than above it.
-                    // flex-1 splits the panel evenly; -mb-px pulls the underline onto
-                    // the header's border so the active tab sits ON the separator.
-                    "-mb-px flex-1 border-b-2 pb-2 text-[11px] font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
-                    tab === value
-                      ? "border-foreground text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {value}
-                  {value === "tags" && tagCount > 0 ? (
-                    <span className="ml-1 text-muted-foreground/70">{tagCount}</span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </header>
+              <div role="tablist" aria-label="Session panel" className="flex">
+                {(["details", "tags"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === value}
+                    onClick={() => setTab(value)}
+                    className={cn(
+                      // -mb-px pulls the underline onto the header's border, so the
+                      // active tab sits ON the separator rather than above it.
+                      // flex-1 splits the panel evenly; -mb-px pulls the underline onto
+                      // the header's border so the active tab sits ON the separator.
+                      "-mb-px flex-1 border-b-2 pb-2 text-[11px] font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+                      tab === value
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {value}
+                    {value === "tags" && tagCount > 0 ? (
+                      <span className="ml-1 text-muted-foreground/70">
+                        {tagCount}
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </header>
 
-          <div className="alva-thin-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-4">
-            {tab === "details" ? (
-              <>
-                {/* Live counters. Bare numbers on the panel ground — four boxed
+            <div className="alva-thin-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-4">
+              {tab === "details" ? (
+                <>
+                  {/* Live counters. Bare numbers on the panel ground — four boxed
                     tiles read as four separate cards rather than one reading. */}
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className={PANEL_SECTION_LABEL}>
-                      <Bolt size={13} weight="Linear" />
-                      This pass
-                    </h3>
-                    <ConformanceBadge errors={stats.errors} warnings={stats.warnings} />
-                  </div>
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className={PANEL_SECTION_LABEL}>
+                        <Bolt size={13} weight="Linear" />
+                        This pass
+                      </h3>
+                      <ConformanceBadge
+                        errors={stats.errors}
+                        warnings={stats.warnings}
+                      />
+                    </div>
 
-                  <div className="grid grid-cols-4 gap-2">
-                    <Stat label="Segs" value={String(stats.segmentCount)} />
-                    <Stat
-                      label="Spoken"
-                      value={formatDurationLong(stats.speakingSeconds)}
+                    {/* Rules between the metrics rather than gaps alone: four
+                      unboxed numbers in a row read as one long number until
+                      something divides them. */}
+                    <div className="flex items-stretch">
+                      <Stat
+                        label="Segs"
+                        value={String(stats.segmentCount)}
+                        title={`${stats.segmentCount} segments in this transcript`}
+                      />
+                      <StatDivider />
+                      <Stat
+                        label="Spoken"
+                        value={formatDurationLong(stats.speakingSeconds)}
+                        title={`${formatDurationLong(stats.speakingSeconds)} of speech across all segments`}
+                      />
+                      <StatDivider />
+                      <Stat
+                        label="Errors"
+                        value={String(stats.errors)}
+                        title={`${stats.errors} conformance ${stats.errors === 1 ? "error" : "errors"} — line length, line count or duration`}
+                        tone={stats.errors > 0 ? "negative" : "neutral"}
+                      />
+                      <StatDivider />
+                      <Stat
+                        label="Warns"
+                        value={String(stats.warnings)}
+                        title={`${stats.warnings} conformance ${stats.warnings === 1 ? "warning" : "warnings"} — reading speed or empty text`}
+                        tone={stats.warnings > 0 ? "warning" : "neutral"}
+                      />
+                    </div>
+                  </section>
+
+                  <PanelDivider />
+
+                  <InfoGroup
+                    title="Session"
+                    icon={<DocumentText size={13} weight="Linear" />}
+                  >
+                    <PanelRow label="Code" value={session.code} />
+                    <PanelRow label="State" value={session.state} />
+                    <PanelRow label="Recorded by" value={session.recordedBy} />
+                    <PanelRow label="Recorded" value={session.recordedAt} />
+                  </InfoGroup>
+
+                  <PanelDivider />
+
+                  <InfoGroup
+                    title="Audio"
+                    icon={<Microphone2 size={13} weight="Linear" />}
+                  >
+                    <PanelRow label="Duration" value={session.duration} />
+                    <PanelRow label="Language" value={session.language} />
+                    <PanelRow
+                      label="Speakers"
+                      value={String(session.speakers)}
                     />
-                    <Stat
-                      label="Errors"
-                      value={String(stats.errors)}
-                      tone={stats.errors > 0 ? "negative" : "neutral"}
+                    <PanelRow
+                      label="Participants"
+                      value={String(session.participants)}
                     />
-                    <Stat
-                      label="Warns"
-                      value={String(stats.warnings)}
-                      tone={stats.warnings > 0 ? "warning" : "neutral"}
+                  </InfoGroup>
+
+                  <PanelDivider />
+
+                  <InfoGroup
+                    title="Annotation"
+                    icon={<ListCheck size={13} weight="Linear" />}
+                  >
+                    <PanelRow
+                      label="Tags applied"
+                      value={String(session.tagCount)}
                     />
-                  </div>
-                </section>
-
-                <PanelDivider />
-
-                <InfoGroup title="Session" icon={<DocumentText size={13} weight="Linear" />}>
-                  <PanelRow label="Code" value={session.code} />
-                  <PanelRow label="State" value={session.state} />
-                  <PanelRow label="Recorded by" value={session.recordedBy} />
-                  <PanelRow label="Recorded" value={session.recordedAt} />
-                </InfoGroup>
-
-                <PanelDivider />
-
-                <InfoGroup title="Audio" icon={<Microphone2 size={13} weight="Linear" />}>
-                  <PanelRow label="Duration" value={session.duration} />
-                  <PanelRow label="Language" value={session.language} />
-                  <PanelRow label="Speakers" value={String(session.speakers)} />
-                  <PanelRow label="Participants" value={String(session.participants)} />
-                </InfoGroup>
-
-                <PanelDivider />
-
-                <InfoGroup title="Annotation" icon={<ListCheck size={13} weight="Linear" />}>
-                  <PanelRow label="Tags applied" value={String(session.tagCount)} />
-                </InfoGroup>
-              </>
-            ) : (
-              <TagInspector />
-            )}
-          </div>
-        </>
-      )}
-    </aside>
+                  </InfoGroup>
+                </>
+              ) : (
+                <TagInspector />
+              )}
+            </div>
+          </>
+        )}
+      </aside>
+    </TooltipProvider>
   );
 }
 

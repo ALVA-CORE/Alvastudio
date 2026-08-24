@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { WorkspaceHeader } from "./WorkspaceHeader";
+import { WorkspaceFloatingControls } from "./WorkspaceFloatingControls";
 import { TranscriptEditor } from "./TranscriptEditor";
 import { TimelineDock } from "./timeline/TimelineDock";
 import { SessionMetaSidebar, type WorkspacePassStats } from "./SessionMetaSidebar";
@@ -66,7 +66,7 @@ export function AnnotationWorkspace({ session, onFlushSave }: AnnotationWorkspac
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-alva-bg">
-      <WorkspaceHeader onBack={handleBack} onRetrySave={onFlushSave} />
+      <WorkspaceFloatingControls onBack={handleBack} />
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         <div className="flex min-w-0 flex-1 flex-col gap-3">

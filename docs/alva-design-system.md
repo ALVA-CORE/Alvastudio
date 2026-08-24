@@ -1009,7 +1009,7 @@ Suggested structure, using only the pieces above.
 ---
 
 ## 14. Assets and metadata
-
+  
 Logos live at `/assets/logos/logo.svg` (light, for dark backgrounds, the default) and `/assets/logos/logo-dark.svg` (dark, for light backgrounds). Copy both from the app's `public/` directory. Rendered at `h-10 w-auto` in-app and `h-14` on auth screens.
 
 ```tsx

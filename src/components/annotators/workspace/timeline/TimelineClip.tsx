@@ -126,7 +126,19 @@ function TimelineClipImpl({
       if (event.button !== 0) return;
 
       event.stopPropagation();
-      event.currentTarget.setPointerCapture(event.pointerId);
+
+      // Selection first, and capture in a try. `setPointerCapture` throws when
+      // the pointer id is not active — a released pointer, a synthetic event —
+      // and if that happens before the select, the click silently does nothing.
+      // Capture is an enhancement for the drag; selecting is the guarantee.
+      onSelect(segment.id, event.shiftKey);
+
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Drag still works via the element's own pointermove; it just stops
+        // tracking if the cursor leaves the clip.
+      }
 
       gestureRef.current = {
         mode,
@@ -136,8 +148,6 @@ function TimelineClipImpl({
         end: segment.end,
         rowDelta: 0,
       };
-
-      onSelect(segment.id, event.shiftKey);
     },
     [onSelect, segment.end, segment.id, segment.start]
   );
