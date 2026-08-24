@@ -10,6 +10,11 @@ import type { AnnotatorSession } from "@/data/annotators/sessions";
 import { formatDurationLong } from "@/lib/annotation/segments";
 import { TagInspector } from "@/components/annotators/workspace/tagging/TagInspector";
 import { useAnnotation } from "@/lib/annotation/context";
+import {
+  PANEL_SECTION_LABEL,
+  PanelDivider,
+  PanelRow,
+} from "@/components/annotators/workspace/PanelPrimitives";
 import { cn } from "@/lib/utils";
 
 /**
@@ -51,9 +56,6 @@ export type SessionMetaSidebarProps = {
   className?: string;
 };
 
-const SECTION_HEADING =
-  "flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground";
-
 /**
  * A titled group of label/value rows.
  *
@@ -73,22 +75,12 @@ function InfoGroup({
 }) {
   return (
     <section className="space-y-1">
-      <h3 className={SECTION_HEADING}>
+      <h3 className={PANEL_SECTION_LABEL}>
         {icon}
         {title}
       </h3>
       <dl>{children}</dl>
     </section>
-  );
-}
-
-/** Label left, value right, hairline between. No fill. */
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-1.5 last:border-0">
-      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 truncate text-right text-xs text-foreground">{value}</dd>
-    </div>
   );
 }
 
@@ -227,7 +219,7 @@ function SessionMetaSidebarImpl({
               </p>
             </div>
 
-            <div role="tablist" aria-label="Session panel" className="flex px-4">
+            <div role="tablist" aria-label="Session panel" className="flex">
               {(["details", "tags"] as const).map((value) => (
                 <button
                   key={value}
@@ -238,7 +230,9 @@ function SessionMetaSidebarImpl({
                   className={cn(
                     // -mb-px pulls the underline onto the header's border, so the
                     // active tab sits ON the separator rather than above it.
-                    "-mb-px border-b-2 px-3 pb-2 text-[11px] font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+                    // flex-1 splits the panel evenly; -mb-px pulls the underline onto
+                    // the header's border so the active tab sits ON the separator.
+                    "-mb-px flex-1 border-b-2 pb-2 text-[11px] font-medium capitalize transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
                     tab === value
                       ? "border-foreground text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground"
@@ -253,14 +247,14 @@ function SessionMetaSidebarImpl({
             </div>
           </header>
 
-          <div className="alva-thin-scrollbar flex-1 space-y-5 overflow-y-auto px-4 pb-4">
+          <div className="alva-thin-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-4">
             {tab === "details" ? (
               <>
                 {/* Live counters. Bare numbers on the panel ground — four boxed
                     tiles read as four separate cards rather than one reading. */}
-                <section className="space-y-3 pt-4">
+                <section className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className={SECTION_HEADING}>
+                    <h3 className={PANEL_SECTION_LABEL}>
                       <Bolt size={13} weight="Linear" />
                       This pass
                     </h3>
@@ -286,22 +280,28 @@ function SessionMetaSidebarImpl({
                   </div>
                 </section>
 
+                <PanelDivider />
+
                 <InfoGroup title="Session" icon={<DocumentText size={13} weight="Linear" />}>
-                  <InfoRow label="Code" value={session.code} />
-                  <InfoRow label="State" value={session.state} />
-                  <InfoRow label="Recorded by" value={session.recordedBy} />
-                  <InfoRow label="Recorded" value={session.recordedAt} />
+                  <PanelRow label="Code" value={session.code} />
+                  <PanelRow label="State" value={session.state} />
+                  <PanelRow label="Recorded by" value={session.recordedBy} />
+                  <PanelRow label="Recorded" value={session.recordedAt} />
                 </InfoGroup>
+
+                <PanelDivider />
 
                 <InfoGroup title="Audio" icon={<Microphone2 size={13} weight="Linear" />}>
-                  <InfoRow label="Duration" value={session.duration} />
-                  <InfoRow label="Language" value={session.language} />
-                  <InfoRow label="Speakers" value={String(session.speakers)} />
-                  <InfoRow label="Participants" value={String(session.participants)} />
+                  <PanelRow label="Duration" value={session.duration} />
+                  <PanelRow label="Language" value={session.language} />
+                  <PanelRow label="Speakers" value={String(session.speakers)} />
+                  <PanelRow label="Participants" value={String(session.participants)} />
                 </InfoGroup>
 
+                <PanelDivider />
+
                 <InfoGroup title="Annotation" icon={<ListCheck size={13} weight="Linear" />}>
-                  <InfoRow label="Tags applied" value={String(session.tagCount)} />
+                  <PanelRow label="Tags applied" value={String(session.tagCount)} />
                 </InfoGroup>
               </>
             ) : (

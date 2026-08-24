@@ -11,6 +11,10 @@ import {
   tagLabel,
   type SpanKind,
 } from "@/lib/annotation/tags";
+import {
+  PANEL_SECTION_LABEL,
+  PanelDivider,
+} from "@/components/annotators/workspace/PanelPrimitives";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,9 +26,7 @@ import { cn } from "@/lib/utils";
  * they belong to the clip rather than to any one span.
  */
 
-const SECTION_LABEL =
-  "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground";
-
+/** Same grammar as the Details tab's section headings — one panel, one voice. */
 const CHIP =
   "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 
@@ -55,7 +57,7 @@ const TagApplyList = memo(function TagApplyList({
 
   if (selectedIds.length === 0) {
     return (
-      <p className="rounded-xl bg-alva-surface px-3 py-3 text-center text-[11px] leading-relaxed text-muted-foreground">
+      <p className="py-1 text-[11px] leading-relaxed text-muted-foreground">
         Shift-click clips on the timeline to tag several at once.
       </p>
     );
@@ -63,7 +65,7 @@ const TagApplyList = memo(function TagApplyList({
 
   if (ranges.length === 0) {
     return (
-      <p className="rounded-xl bg-alva-surface px-3 py-3 text-center text-[11px] text-muted-foreground">
+      <p className="py-1 text-[11px] text-muted-foreground">
         {selectedIds.length === 1 ? "That segment has" : "Those segments have"} no
         text to tag yet.
       </p>
@@ -160,14 +162,14 @@ export const TagInspector = memo(function TagInspector() {
     <div className="space-y-5">
       {/* Clip-level, from asrPayload */}
       <section className="space-y-2">
-        <h3 className={SECTION_LABEL}>Clip</h3>
+        <h3 className={PANEL_SECTION_LABEL}>Clip</h3>
 
         <button
           type="button"
           aria-pressed={!speechPresent}
           onClick={() => setSpeechPresent(!speechPresent)}
           className={cn(
-            "flex w-full items-center justify-between rounded-xl bg-alva-surface px-3 py-2.5 text-left text-xs transition-colors",
+            "flex w-full items-baseline justify-between gap-3 border-b border-alva-border/50 py-1.5 text-left text-xs transition-colors",
             !speechPresent && "text-amber-300"
           )}
         >
@@ -200,13 +202,17 @@ export const TagInspector = memo(function TagInspector() {
         </div>
       </section>
 
+      <PanelDivider />
+
       <section className="space-y-2">
-        <h3 className={SECTION_LABEL}>Apply</h3>
+        <h3 className={PANEL_SECTION_LABEL}>Apply</h3>
         <TagApplyList selectedIds={selectedIds} />
       </section>
 
+      <PanelDivider />
+
       {isEmpty ? (
-        <p className="rounded-xl bg-alva-surface px-3 py-4 text-center text-xs text-muted-foreground">
+        <p className="py-1 text-xs text-muted-foreground">
           No tags yet. Highlight words in the transcript to tag them.
         </p>
       ) : (
@@ -217,7 +223,7 @@ export const TagInspector = memo(function TagInspector() {
 
             return (
               <section key={family.kind} className="space-y-2">
-                <h3 className={cn(SECTION_LABEL, "flex items-center gap-1.5")}>
+                <h3 className={PANEL_SECTION_LABEL}>
                   <span
                     aria-hidden
                     className="size-2 rounded-full"
@@ -227,13 +233,13 @@ export const TagInspector = memo(function TagInspector() {
                   <span className="text-muted-foreground/60">{list.length}</span>
                 </h3>
 
-                <ul className="space-y-1">
+                <ul>
                   {[...list]
                     .sort((a, b) => a.startToken - b.startToken)
                     .map((span) => (
                       <li
                         key={span.id}
-                        className="group flex items-start gap-2 rounded-xl bg-alva-surface px-2.5 py-2"
+                        className="group flex items-start gap-2 border-b border-alva-border/50 py-1.5 last:border-0"
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs text-foreground">
@@ -262,7 +268,7 @@ export const TagInspector = memo(function TagInspector() {
 
           {nonSpeech.length > 0 && (
             <section className="space-y-2">
-              <h3 className={cn(SECTION_LABEL, "flex items-center gap-1.5")}>
+              <h3 className={PANEL_SECTION_LABEL}>
                 <span
                   aria-hidden
                   className="size-2 rounded-full"
@@ -272,11 +278,11 @@ export const TagInspector = memo(function TagInspector() {
                 <span className="text-muted-foreground/60">{nonSpeech.length}</span>
               </h3>
 
-              <ul className="space-y-1">
+              <ul>
                 {nonSpeech.map((mark) => (
                   <li
                     key={mark.id}
-                    className="group flex items-center gap-2 rounded-xl bg-alva-surface px-2.5 py-2"
+                    className="group flex items-center gap-2 border-b border-alva-border/50 py-1.5 last:border-0"
                   >
                     <span className="min-w-0 flex-1 truncate text-xs text-foreground">
                       {mark.type.replace(/_/g, " ")}
