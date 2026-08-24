@@ -26,7 +26,7 @@ still role-guarded.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│               [ undo ] [ redo ]                      ←   │  floating, no bar
+│  ←            [ undo ] [ redo ]                          │  floating, no bar
 ├──────────────────────────────────────────┬───────────────┤
 │  🙂 Speaker A ⌄ │ ┃ │ 15.22                │               │
 │                 │   │ read-along text      │   session     │
@@ -47,10 +47,12 @@ reach is unusable.
 controls and a status line, and on a transcript editor that row is better spent
 on transcript. Undo/redo and the exit float over the workspace instead, on a
 `pointer-events-none` strip so they never intercept a click meant for the text
-beneath. The save status folded into the session's status pill in the panel,
+beneath. Undo and redo share one surface with a border beam around the pair —
+they are the same mechanism in two directions, so they read as one control. The save status folded into the session's status pill in the panel,
 where the rest of "where is this session up to" already lives.
 
-The panel's width is drag-adjustable with a floor — the narrowest width at which
+The panel sits to the RIGHT of the editor, so it resizes from its **left** edge
+— the inner one — and dragging left grows it. The width has a floor — the narrowest width at which
 a label and its value still fit on one row without the value truncating away.
 
 ---
@@ -428,7 +430,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 340 tests
+npm test              # 342 tests
 npm run test:watch
 npm run test:coverage
 ```

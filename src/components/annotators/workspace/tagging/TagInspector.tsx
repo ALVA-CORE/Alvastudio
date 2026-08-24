@@ -21,6 +21,8 @@ import {
   PANEL_SECTION_LABEL,
   PanelDivider,
 } from "@/components/annotators/workspace/PanelPrimitives";
+import { ScrollableTabStrip } from "@/components/annotators/workspace/tagging/ScrollableTabStrip";
+import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { cn } from "@/lib/utils";
 
 /**
@@ -92,28 +94,32 @@ const TagApplyList = memo(function TagApplyList({
 
       {/* One select per family rather than a wall of chips: four taxonomies of
           five to seven values each is thirty-odd buttons, which is a scroll,
-          not a choice. A select collapses each to a single row. */}
+          not a choice. The select sits UNDER its label so both get the panel's
+          full width — side by side, a narrow panel squeezed the select to the
+          point where option text truncated. */}
       {TAG_FAMILIES.map((family) => (
-        <label key={family.kind} className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="size-2 shrink-0 rounded-full"
-            style={{ backgroundColor: family.color }}
-          />
-          <span className="w-[5.5rem] shrink-0 truncate text-[11px] text-muted-foreground">
+        <div key={family.kind} className="space-y-1">
+          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span
+              aria-hidden
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: family.color }}
+            />
             {family.label}
-          </span>
+          </p>
 
-          <select
+          <AlvaSelect
             aria-label={`Apply ${family.label} tag`}
-            // Never holds a value: it is an action, not a field. Resetting to
-            // the placeholder means the same tag can be applied twice without
-            // first picking something else.
+            placeholder="Select…"
+            options={family.options.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+            // Deliberately uncontrolled-looking: this is an action, not a field,
+            // so it never retains a value and the same tag can be applied twice.
             value=""
-            onChange={(event) => {
-              const value = event.target.value;
+            onValueChange={(value) => {
               if (!value) return;
-              event.target.value = "";
 
               for (const range of ranges) {
                 addSpan({
@@ -127,16 +133,9 @@ const TagApplyList = memo(function TagApplyList({
                 });
               }
             }}
-            className="min-w-0 flex-1 rounded-lg border border-transparent bg-alva-surface px-2 py-1 text-[11px] text-foreground outline-none focus-visible:border-alva-border"
-          >
-            <option value="">Select…</option>
-            {family.options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            className="w-full text-[11px]"
+          />
+        </div>
       ))}
     </div>
   );
@@ -214,20 +213,30 @@ export const TagInspector = memo(function TagInspector() {
       <section className="space-y-2">
         <h3 className={PANEL_SECTION_LABEL}>Clip</h3>
 
-        <button
-          type="button"
-          aria-pressed={!speechPresent}
-          onClick={() => setSpeechPresent(!speechPresent)}
-          className={cn(
-            "flex w-full items-baseline justify-between gap-3 border-b border-alva-border/50 py-1.5 text-left text-xs transition-colors",
-            !speechPresent && "text-amber-300"
-          )}
-        >
-          <span>{speechPresent ? "Speech present" : "No speech in this clip"}</span>
-          <span className="text-[10px] text-muted-foreground">
-            {speechPresent ? "Mark empty" : "Undo"}
+        {/* State on the left, action on the right, divided. Previously the
+            whole row was the button and "Mark empty" was a passive label, so
+            the destructive half of the control was invisible until you hit it. */}
+        <div className="flex items-stretch overflow-hidden rounded-xl bg-alva-bg">
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate px-3 py-2 text-xs",
+              speechPresent ? "text-foreground" : "text-amber-300"
+            )}
+          >
+            {speechPresent ? "Speech present" : "No speech in this clip"}
           </span>
-        </button>
+
+          <span aria-hidden className="my-2 w-px shrink-0 bg-alva-border" />
+
+          <button
+            type="button"
+            aria-pressed={!speechPresent}
+            onClick={() => setSpeechPresent(!speechPresent)}
+            className="shrink-0 px-3 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-alva-accent"
+          >
+            {speechPresent ? "Mark empty" : "Undo"}
+          </button>
+        </div>
 
         {/* Multi-select: the schema is explicit that difficulty flags co-occur
             (heavy accent with heavy noise, constantly), so this is never a
@@ -238,12 +247,14 @@ export const TagInspector = memo(function TagInspector() {
             <button
               type="button"
               aria-label="Difficulty flags"
-              className="flex w-full items-baseline justify-between gap-3 border-b border-alva-border/50 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="flex w-full items-start justify-between gap-3 border-b border-alva-border/50 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <span className="shrink-0">Difficulty</span>
               <span
                 className={cn(
-                  "min-w-0 truncate text-right",
+                  // Wraps rather than truncating: a hidden flag is a flag the
+                  // annotator believes is not set.
+                  "min-w-0 text-right leading-snug",
                   difficultyFlags.length > 0 ? "text-amber-300" : "text-foreground"
                 )}
               >
@@ -298,11 +309,7 @@ export const TagInspector = memo(function TagInspector() {
               Stacked, five groups pushed the last one below the fold on any
               well-tagged clip; as tabs the panel shows one group at full height
               and the strip says at a glance which groups have anything in them. */}
-          <div
-            role="tablist"
-            aria-label="Tag categories"
-            className="alva-thin-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 pb-1"
-          >
+          <ScrollableTabStrip label="Tag categories">
             {groups.map((group) => (
               <button
                 key={group.key}
@@ -326,7 +333,7 @@ export const TagInspector = memo(function TagInspector() {
                 <span className="text-muted-foreground/70">{group.count}</span>
               </button>
             ))}
-          </div>
+          </ScrollableTabStrip>
 
           <ul>
             {visibleGroup?.kind === "non_speech"

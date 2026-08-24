@@ -94,6 +94,11 @@ const STAT_TONE_CLASS: Record<StatTone, string> = {
   negative: "text-red-400",
 };
 
+/** Hairline between metrics, inset from both so it divides without crowding. */
+function StatDivider() {
+  return <span aria-hidden className="mx-3 w-px shrink-0 bg-alva-border" />;
+}
+
 /** Number over label, unboxed — the number is the subject, not the container. */
 function Stat({
   label,
@@ -105,7 +110,7 @@ function Stat({
   tone?: StatTone;
 }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       <p className={cn("truncate text-sm font-semibold tabular-nums", STAT_TONE_CLASS[tone])}>
         {value}
       </p>
@@ -167,6 +172,9 @@ function SessionMetaSidebarImpl({
    * without the value truncating to nothing. */
   const resize = useResizableSize({
     axis: "x",
+    // The panel sits to the RIGHT of the editor, so its inner edge is the left
+    // one — and dragging left has to grow it.
+    invert: true,
     preferred: DEFAULT_PANEL_WIDTH,
     min: MIN_PANEL_WIDTH,
     max: MAX_PANEL_WIDTH,
@@ -204,7 +212,7 @@ function SessionMetaSidebarImpl({
           tabIndex={0}
           {...resize.handleProps}
           className={cn(
-            "group/resize absolute inset-y-0 right-0 z-[2] flex w-2 cursor-ew-resize touch-none items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+            "group/resize absolute inset-y-0 left-0 z-[2] flex w-2 cursor-ew-resize touch-none items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
             resize.isResizing && "bg-alva-surface"
           )}
         >
@@ -248,10 +256,11 @@ function SessionMetaSidebarImpl({
                   <h2 className="truncate text-sm font-semibold text-foreground">
                     {session.code}
                   </h2>
-                  <SessionStatusBadge
-                    status={session.status}
-                    trailing={<AutosaveIndicator compact />}
-                  />
+                  <SessionStatusBadge status={session.status} />
+                  {/* Beside the pill, not inside it: the pill is the session's
+                      state and the dot is the document's. Sharing one fill made
+                      them read as a single claim. */}
+                  <AutosaveIndicator compact />
                 </div>
                 <button
                   type="button"
@@ -310,17 +319,23 @@ function SessionMetaSidebarImpl({
                     <ConformanceBadge errors={stats.errors} warnings={stats.warnings} />
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2">
+                  {/* Rules between the metrics rather than gaps alone: four
+                      unboxed numbers in a row read as one long number until
+                      something divides them. */}
+                  <div className="flex items-stretch">
                     <Stat label="Segs" value={String(stats.segmentCount)} />
+                    <StatDivider />
                     <Stat
                       label="Spoken"
                       value={formatDurationLong(stats.speakingSeconds)}
                     />
+                    <StatDivider />
                     <Stat
                       label="Errors"
                       value={String(stats.errors)}
                       tone={stats.errors > 0 ? "negative" : "neutral"}
                     />
+                    <StatDivider />
                     <Stat
                       label="Warns"
                       value={String(stats.warnings)}

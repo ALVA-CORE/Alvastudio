@@ -32,9 +32,10 @@ type AutosaveIndicatorProps = {
   /** Shown as a Retry button while the status is `error`. */
   onRetry?: () => void;
   /**
-   * Renders inside the session status pill: dot plus label, inheriting the
-   * pill's own colour rather than carrying its own status tint. Two coloured
-   * states inside one pill reads as a bug.
+   * Bare dot plus label, no fill — it sits beside the session status pill
+   * rather than inside it. The pill is the session's state; this is the
+   * document's, and giving it its own chip made two adjacent pills look like
+   * one control split in half.
    */
   compact?: boolean;
   className?: string;
@@ -118,9 +119,12 @@ export const AutosaveIndicator = memo(function AutosaveIndicator({
         role="status"
         aria-live="polite"
         title={status === "error" && saveError ? saveError : undefined}
-        className={cn("inline-flex items-center gap-1 font-normal", className)}
+        className={cn(
+          "inline-flex items-center gap-1.5 text-[11px] font-normal text-muted-foreground",
+          className
+        )}
       >
-        <StatusDot status={status} inherit />
+        <StatusDot status={status} />
         {label}
       </span>
     );

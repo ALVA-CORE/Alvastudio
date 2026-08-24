@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import {
   ANNOTATION_STATUS_LABELS,
   type AnnotationStatus,
@@ -7,19 +6,12 @@ import { cn } from "@/lib/utils";
 
 /**
  * Status pill — same palette as the intern review queue so staff surfaces match.
- *
- * `trailing` lets the workspace fold its save state into this pill rather than
- * carrying a second indicator elsewhere. Both answer "where is this session up
- * to", so they belong in one place; the separator keeps them readable as two
- * facts rather than one run-on label.
  */
 export function SessionStatusBadge({
   status,
-  trailing,
   className,
 }: {
   status: AnnotationStatus;
-  trailing?: ReactNode;
   className?: string;
 }) {
   return (
@@ -33,12 +25,6 @@ export function SessionStatusBadge({
       )}
     >
       {ANNOTATION_STATUS_LABELS[status]}
-      {trailing ? (
-        <>
-          <span aria-hidden className="h-3 w-px bg-current opacity-30" />
-          {trailing}
-        </>
-      ) : null}
     </span>
   );
 }

@@ -377,15 +377,35 @@ describe("AnnotationWorkspace", () => {
     expect(store.getState().selectedSegmentIds).toHaveLength(2);
 
     await user.click(screen.getByRole("tab", { name: /tags/i }));
-    await user.selectOptions(
-      await screen.findByLabelText("Apply Language tag"),
-      "pcm"
-    );
+
+    // A Radix listbox, not a native <select>: open the trigger, then pick.
+    await user.click(await screen.findByLabelText("Apply Language tag"));
+    await user.click(await screen.findByRole("option", { name: "Nigerian Pidgin" }));
 
     // One choice, one span per selected segment.
     const spans = store.getState().history.present.spans;
     expect(spans).toHaveLength(2);
     expect(spans.every((span) => span.value === "pcm")).toBe(true);
     expect(spans.every((span) => span.spanSource === "annotator_added")).toBe(true);
+  });
+
+  it("keeps the save status out of the session status pill", () => {
+    renderWorkspace();
+
+    const sidebar = screen.getByRole("complementary");
+    const pill = within(sidebar).getAllByText(/in progress|not started|done/i)[0];
+    const status = within(sidebar).getByRole("status");
+
+    // Adjacent, not nested: the pill is the session's state, the dot is the
+    // document's, and one fill around both read as a single claim.
+    expect(pill).not.toContainElement(status);
+  });
+
+  it("resizes the panel from its inner edge", () => {
+    renderWorkspace();
+
+    const handle = screen.getByRole("separator", { name: "Resize panel" });
+    expect(handle).toHaveAttribute("aria-orientation", "vertical");
+    expect(Number(handle.getAttribute("aria-valuemin"))).toBeGreaterThan(0);
   });
 });
