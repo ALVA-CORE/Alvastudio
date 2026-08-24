@@ -6,6 +6,7 @@ import DocumentText from "@solar-icons/react/notes/DocumentText";
 import Bolt from "@solar-icons/react/ui/Bolt";
 import Microphone2 from "@solar-icons/react/video/Microphone2";
 import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStatusBadge";
+import { AutosaveIndicator } from "@/components/annotators/workspace/AutosaveIndicator";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import { formatDurationLong } from "@/lib/annotation/segments";
 import { TagInspector } from "@/components/annotators/workspace/tagging/TagInspector";
@@ -15,6 +16,7 @@ import {
   PanelDivider,
   PanelRow,
 } from "@/components/annotators/workspace/PanelPrimitives";
+import { useResizableSize } from "@/components/annotators/workspace/timeline/useResizableSize";
 import { cn } from "@/lib/utils";
 
 /**
@@ -142,6 +144,12 @@ function ConformanceBadge({ errors, warnings }: { errors: number; warnings: numb
   );
 }
 
+/** Narrowest width a label/value row stays legible at. */
+const MIN_PANEL_WIDTH = 248;
+const DEFAULT_PANEL_WIDTH = 304;
+const MAX_PANEL_WIDTH = 520;
+const COLLAPSED_PANEL_WIDTH = 48;
+
 const iconButtonClass =
   "inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-alva-border bg-alva-surface text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 
@@ -153,6 +161,16 @@ function SessionMetaSidebarImpl({
   className,
 }: SessionMetaSidebarProps) {
   const [tab, setTab] = useState<"details" | "tags">("details");
+
+  /* Handle is on the panel's RIGHT edge, so dragging right grows it. The floor
+   * is the narrowest width at which a label and its value still fit on one row
+   * without the value truncating to nothing. */
+  const resize = useResizableSize({
+    axis: "x",
+    preferred: DEFAULT_PANEL_WIDTH,
+    min: MIN_PANEL_WIDTH,
+    max: MAX_PANEL_WIDTH,
+  });
   const tagCount = useAnnotation(
     (state) =>
       state.history.present.spans.length + state.history.present.nonSpeech.length
@@ -167,11 +185,39 @@ function SessionMetaSidebarImpl({
         // A rounded panel on the page floor rather than a flush-edged rail:
         // it sits to the left of the editor now, so it reads as a sibling card
         // to the transcript and the timeline, not as a wall.
-        "hidden shrink-0 flex-col overflow-hidden rounded-2xl border border-alva-border bg-alva-card transition-[width] duration-200 ease-out motion-reduce:transition-none xl:flex",
-        collapsed ? "w-12" : "w-[19rem]",
+        "relative hidden shrink-0 flex-col overflow-hidden rounded-2xl border border-alva-border bg-alva-card xl:flex",
+        // Only animate the collapse toggle; a transition during a drag fights
+        // the pointer and makes the panel lag behind the cursor.
+        collapsed && "transition-[width] duration-200 ease-out motion-reduce:transition-none",
         className
       )}
+      style={{ width: collapsed ? COLLAPSED_PANEL_WIDTH : resize.size }}
     >
+      {!collapsed && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panel"
+          aria-valuenow={Math.round(resize.size)}
+          aria-valuemin={resize.min}
+          aria-valuemax={resize.max}
+          tabIndex={0}
+          {...resize.handleProps}
+          className={cn(
+            "group/resize absolute inset-y-0 right-0 z-[2] flex w-2 cursor-ew-resize touch-none items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+            resize.isResizing && "bg-alva-surface"
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "h-8 w-0.5 rounded-full bg-transparent transition-colors group-hover/resize:bg-muted-foreground",
+              resize.isResizing && "bg-muted-foreground"
+            )}
+          />
+        </div>
+      )}
+
       {collapsed ? (
         <div className="flex h-full flex-col items-center gap-3 py-4">
           <button
@@ -202,7 +248,10 @@ function SessionMetaSidebarImpl({
                   <h2 className="truncate text-sm font-semibold text-foreground">
                     {session.code}
                   </h2>
-                  <SessionStatusBadge status={session.status} />
+                  <SessionStatusBadge
+                    status={session.status}
+                    trailing={<AutosaveIndicator compact />}
+                  />
                 </div>
                 <button
                   type="button"

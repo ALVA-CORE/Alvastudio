@@ -3,7 +3,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { AnnotationWorkspace } from "@/components/annotators/workspace/AnnotationWorkspace";
-import { AnnotationProvider } from "@/lib/annotation/context";
+import { AnnotationProvider, useAnnotationStore } from "@/lib/annotation/context";
+import type { AnnotationStore } from "@/lib/annotation/store";
 import { buildTranscript } from "@/data/annotators/transcripts";
 import { getAnnotatorSessions } from "@/data/annotators/sessions";
 import { speakerDisplayName } from "@/lib/annotation/types";
@@ -17,18 +18,26 @@ import { formatTimecode } from "@/lib/annotation/segments";
 
 const SESSION = getAnnotatorSessions()[0];
 
+/** Captures the store so tests can assert document state directly. */
+function StoreProbe({ onReady }: { onReady: (store: AnnotationStore) => void }) {
+  onReady(useAnnotationStore());
+  return null;
+}
+
 function renderWorkspace() {
   const doc = buildTranscript(SESSION);
+  let store!: AnnotationStore;
 
   const utils = render(
     <MemoryRouter>
       <AnnotationProvider doc={doc} duration={SESSION.durationSec}>
+        <StoreProbe onReady={(value) => (store = value)} />
         <AnnotationWorkspace session={SESSION} />
       </AnnotationProvider>
     </MemoryRouter>
   );
 
-  return { ...utils, doc };
+  return { ...utils, doc, store };
 }
 
 describe("AnnotationWorkspace", () => {
@@ -37,19 +46,27 @@ describe("AnnotationWorkspace", () => {
     expect(container.firstChild).toBeTruthy();
   });
 
-  it("renders a header with only back, undo and redo", () => {
+  it("floats back, undo and redo instead of carrying a header bar", () => {
     renderWorkspace();
 
     expect(screen.getByLabelText("Back to sessions")).toBeInTheDocument();
     expect(screen.getByLabelText("Undo")).toBeInTheDocument();
     expect(screen.getByLabelText("Redo")).toBeInTheDocument();
 
-    // Session identity and the conformance roll-up were deliberately removed
-    // from the header. The code still appears in the sidebar, so scope the
-    // assertion to the header itself.
-    const header = screen.getByRole("banner", { name: "Workspace" });
-    expect(within(header).queryByText(SESSION.code)).not.toBeInTheDocument();
-    expect(within(header).queryByText(/conformant/i)).not.toBeInTheDocument();
+    // The workspace header bar is gone entirely — a whole row of vertical space
+    // for three controls, on a surface where that row is better spent on
+    // transcript. (The sidebar keeps a header of its own, hence the precise
+    // assertion rather than queryByRole("banner").)
+    expect(screen.getByLabelText("Undo").closest("header")).toBeNull();
+    expect(screen.getByLabelText("Back to sessions").closest("header")).toBeNull();
+  });
+
+  it("folds the save status into the session's status pill", () => {
+    renderWorkspace();
+
+    const sidebar = screen.getByRole("complementary");
+    // One place answers "where is this session up to", not two.
+    expect(within(sidebar).getByRole("status")).toBeInTheDocument();
   });
 
   it("starts with undo and redo disabled on a clean document", () => {
@@ -329,5 +346,46 @@ describe("AnnotationWorkspace", () => {
     await user.click(await screen.findByRole("menuitem", { name: /delete speaker/i }));
 
     expect(Number(handle.getAttribute("aria-valuenow"))).toBeLessThan(before);
+  });
+
+  it("offers a resize handle on the panel with a floor it cannot cross", () => {
+    renderWorkspace();
+
+    const handle = screen.getByRole("separator", { name: "Resize panel" });
+    const min = Number(handle.getAttribute("aria-valuemin"));
+    const now = Number(handle.getAttribute("aria-valuenow"));
+    const max = Number(handle.getAttribute("aria-valuemax"));
+
+    expect(min).toBeGreaterThan(0);
+    expect(now).toBeGreaterThanOrEqual(min);
+    expect(now).toBeLessThanOrEqual(max);
+  });
+
+  it("applies a tag to every selected segment from one panel choice", async () => {
+    const user = userEvent.setup();
+    const { store } = renderWorkspace();
+
+    // Driven by keyboard: jsdom does not carry `button` through synthetic
+    // pointer events, and Enter/Shift+Enter on a focused clip runs the same
+    // selection path the pointer does.
+    const clips = screen.getAllByLabelText(/^Segment from/);
+    clips[0].focus();
+    await user.keyboard("{Enter}");
+    clips[1].focus();
+    await user.keyboard("{Shift>}{Enter}{/Shift}");
+
+    expect(store.getState().selectedSegmentIds).toHaveLength(2);
+
+    await user.click(screen.getByRole("tab", { name: /tags/i }));
+    await user.selectOptions(
+      await screen.findByLabelText("Apply Language tag"),
+      "pcm"
+    );
+
+    // One choice, one span per selected segment.
+    const spans = store.getState().history.present.spans;
+    expect(spans).toHaveLength(2);
+    expect(spans.every((span) => span.value === "pcm")).toBe(true);
+    expect(spans.every((span) => span.spanSource === "annotator_added")).toBe(true);
   });
 });

@@ -9,8 +9,8 @@ type AlvaLogoProps = {
 export function AlvaLogo({ className, variant = "light" }: AlvaLogoProps) {
   const src =
     variant === "light"
-      ? "/assets/logos/logo.svg"
-      : "/assets/logos/logo-dark.svg";
+      ? "/assets/logos/favicon.svg"
+      : "/assets/logos/favicon.svg";
 
   return (
     <img

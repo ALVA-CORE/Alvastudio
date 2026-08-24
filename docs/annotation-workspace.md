@@ -26,7 +26,7 @@ still role-guarded.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  ←            [ undo ] [ redo ]            ● Saved       │  header (sticky)
+│               [ undo ] [ redo ]                      ←   │  floating, no bar
 ├──────────────────────────────────────────┬───────────────┤
 │  🙂 Speaker A ⌄ │ ┃ │ 15.22                │               │
 │                 │   │ read-along text      │   session     │
@@ -40,8 +40,18 @@ still role-guarded.
 └──────────────────────────────────────────┴───────────────┘
 ```
 
-Three fixed bands. Only the transcript scrolls — an editor where the transport
-can scroll out of reach is unusable.
+Only the transcript scrolls — an editor where the transport can scroll out of
+reach is unusable.
+
+**There is no header bar.** It cost a full row of vertical space to carry three
+controls and a status line, and on a transcript editor that row is better spent
+on transcript. Undo/redo and the exit float over the workspace instead, on a
+`pointer-events-none` strip so they never intercept a click meant for the text
+beneath. The save status folded into the session's status pill in the panel,
+where the rest of "where is this session up to" already lives.
+
+The panel's width is drag-adjustable with a floor — the narrowest width at which
+a label and its value still fit on one row without the value truncating away.
 
 ---
 
@@ -177,6 +187,13 @@ overshoot the last word — never fires mouseup there at all, and mouseup lands
 before the selection settles in WebKit. The row's click-to-edit is also guarded
 against a live selection: without it, finishing a highlight swapped the row to a
 textarea and unmounted the tag control before it could be used.
+
+The panel's **Tags** tab is the batch surface. Families are selects rather than
+chip rows (four taxonomies of five to seven values is thirty-odd buttons, which
+is a scroll, not a choice), clip-level difficulty flags are a multi-select
+because the schema is explicit that they co-occur, and applied tags are grouped
+behind a horizontally scrollable strip of category tabs — stacked, five groups
+pushed the last below the fold on any well-tagged clip.
 
 Selection state lives in `selectedSegmentIds` — a set, so single-select is a set
 of one and there is one code path rather than two that drift. It is transient:
@@ -411,7 +428,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 337 tests
+npm test              # 340 tests
 npm run test:watch
 npm run test:coverage
 ```

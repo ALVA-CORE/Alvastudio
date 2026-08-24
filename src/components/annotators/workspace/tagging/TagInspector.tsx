@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import { useAnnotation, useAnnotationActions } from "@/lib/annotation/context";
 import { selectNonSpeech, selectSegments, selectSpans } from "@/lib/annotation/store";
@@ -11,6 +11,12 @@ import {
   tagLabel,
   type SpanKind,
 } from "@/lib/annotation/tags";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   PANEL_SECTION_LABEL,
   PanelDivider,
@@ -27,6 +33,9 @@ import { cn } from "@/lib/utils";
  */
 
 /** Same grammar as the Details tab's section headings — one panel, one voice. */
+const REMOVE_BUTTON =
+  "shrink-0 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100";
+
 const CHIP =
   "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 
@@ -81,43 +90,53 @@ const TagApplyList = memo(function TagApplyList({
         </span>
       </p>
 
+      {/* One select per family rather than a wall of chips: four taxonomies of
+          five to seven values each is thirty-odd buttons, which is a scroll,
+          not a choice. A select collapses each to a single row. */}
       {TAG_FAMILIES.map((family) => (
-        <div key={family.kind} className="space-y-1">
-          <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-            <span
-              aria-hidden
-              className="size-2 rounded-full"
-              style={{ backgroundColor: family.color }}
-            />
+        <label key={family.kind} className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: family.color }}
+          />
+          <span className="w-[5.5rem] shrink-0 truncate text-[11px] text-muted-foreground">
             {family.label}
-          </p>
+          </span>
 
-          <div className="flex flex-wrap gap-1">
+          <select
+            aria-label={`Apply ${family.label} tag`}
+            // Never holds a value: it is an action, not a field. Resetting to
+            // the placeholder means the same tag can be applied twice without
+            // first picking something else.
+            value=""
+            onChange={(event) => {
+              const value = event.target.value;
+              if (!value) return;
+              event.target.value = "";
+
+              for (const range of ranges) {
+                addSpan({
+                  kind: family.kind,
+                  value,
+                  startToken: range.start,
+                  endToken: range.end,
+                  ...(family.kind === "language"
+                    ? { spanSource: "annotator_added" as const }
+                    : {}),
+                });
+              }
+            }}
+            className="min-w-0 flex-1 rounded-lg border border-transparent bg-alva-surface px-2 py-1 text-[11px] text-foreground outline-none focus-visible:border-alva-border"
+          >
+            <option value="">Select…</option>
             {family.options.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                title={option.hint}
-                onClick={() => {
-                  for (const range of ranges) {
-                    addSpan({
-                      kind: family.kind,
-                      value: option.value,
-                      startToken: range.start,
-                      endToken: range.end,
-                      ...(family.kind === "language"
-                        ? { spanSource: "annotator_added" as const }
-                        : {}),
-                    });
-                  }
-                }}
-                className={cn(CHIP, "bg-alva-surface text-muted-foreground hover:text-foreground")}
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
-              </button>
+              </option>
             ))}
-          </div>
-        </div>
+          </select>
+        </label>
       ))}
     </div>
   );
@@ -156,7 +175,38 @@ export const TagInspector = memo(function TagInspector() {
     return map;
   }, [spans]);
 
-  const isEmpty = spans.length === 0 && nonSpeech.length === 0;
+  /** Only categories that actually have something in them get a tab. */
+  const groups = useMemo(() => {
+    const out = SPAN_FAMILIES.map((family) => ({
+      key: family.kind as string,
+      kind: family.kind as SpanKind | "non_speech",
+      label: family.shortLabel,
+      color: family.color,
+      spans: byKind.get(family.kind) ?? [],
+      count: (byKind.get(family.kind) ?? []).length,
+    })).filter((group) => group.count > 0);
+
+    if (nonSpeech.length > 0) {
+      out.push({
+        key: "non_speech",
+        kind: "non_speech" as const,
+        label: "Non-speech",
+        color: NON_SPEECH_COLOR,
+        spans: [],
+        count: nonSpeech.length,
+      });
+    }
+
+    return out;
+  }, [byKind, nonSpeech]);
+
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  // Falls back to the first group so the tab never points at a category whose
+  // last tag was just removed.
+  const visibleGroup =
+    groups.find((group) => group.key === activeGroup) ?? groups[0] ?? null;
+
+  const isEmpty = groups.length === 0;
 
   return (
     <div className="space-y-5">
@@ -179,27 +229,53 @@ export const TagInspector = memo(function TagInspector() {
           </span>
         </button>
 
-        <div className="flex flex-wrap gap-1">
-          {DIFFICULTY_FLAGS.map((flag) => {
-            const on = difficultyFlags.includes(flag.value);
-            return (
-              <button
-                key={flag.value}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleDifficultyFlag(flag.value)}
+        {/* Multi-select: the schema is explicit that difficulty flags co-occur
+            (heavy accent with heavy noise, constantly), so this is never a
+            single choice. Nine chips took four rows; a summary row plus a menu
+            takes one. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Difficulty flags"
+              className="flex w-full items-baseline justify-between gap-3 border-b border-alva-border/50 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <span className="shrink-0">Difficulty</span>
+              <span
                 className={cn(
-                  CHIP,
-                  on
-                    ? "bg-amber-500/15 text-amber-300"
-                    : "bg-alva-surface text-muted-foreground hover:text-foreground"
+                  "min-w-0 truncate text-right",
+                  difficultyFlags.length > 0 ? "text-amber-300" : "text-foreground"
                 )}
               >
+                {difficultyFlags.length === 0
+                  ? "None"
+                  : difficultyFlags
+                      .map(
+                        (value) =>
+                          DIFFICULTY_FLAGS.find((flag) => flag.value === value)?.label ??
+                          value
+                      )
+                      .join(", ")}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end" className="w-56">
+            {DIFFICULTY_FLAGS.map((flag) => (
+              <DropdownMenuCheckboxItem
+                key={flag.value}
+                checked={difficultyFlags.includes(flag.value)}
+                // Radix closes on select by default; keeping it open is the
+                // point of a multi-select.
+                onSelect={(event) => event.preventDefault()}
+                onCheckedChange={() => toggleDifficultyFlag(flag.value)}
+                className="text-xs"
+              >
                 {flag.label}
-              </button>
-            );
-          })}
-        </div>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </section>
 
       <PanelDivider />
@@ -213,73 +289,48 @@ export const TagInspector = memo(function TagInspector() {
 
       {isEmpty ? (
         <p className="py-1 text-xs text-muted-foreground">
-          No tags yet. Highlight words in the transcript to tag them.
+          No tags yet. Highlight words in the transcript, or Shift-click clips on
+          the timeline and use Apply above.
         </p>
       ) : (
-        <>
-          {SPAN_FAMILIES.map((family) => {
-            const list = byKind.get(family.kind) ?? [];
-            if (list.length === 0) return null;
-
-            return (
-              <section key={family.kind} className="space-y-2">
-                <h3 className={PANEL_SECTION_LABEL}>
-                  <span
-                    aria-hidden
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: family.color }}
-                  />
-                  {family.shortLabel}
-                  <span className="text-muted-foreground/60">{list.length}</span>
-                </h3>
-
-                <ul>
-                  {[...list]
-                    .sort((a, b) => a.startToken - b.startToken)
-                    .map((span) => (
-                      <li
-                        key={span.id}
-                        className="group flex items-start gap-2 border-b border-alva-border/50 py-1.5 last:border-0"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs text-foreground">
-                            {surfaceOf(span.startToken, span.endToken) || "—"}
-                          </p>
-                          <p className="truncate text-[10px] text-muted-foreground">
-                            {tagLabel(span.kind, span.value)}
-                            {span.spanSource === "lexicon_derived" && " · from lexicon"}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => removeSpan(span.id)}
-                          aria-label={`Remove ${tagLabel(span.kind, span.value)} tag`}
-                          className="shrink-0 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100"
-                        >
-                          <TrashBinMinimalistic size={13} weight="Outline" />
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              </section>
-            );
-          })}
-
-          {nonSpeech.length > 0 && (
-            <section className="space-y-2">
-              <h3 className={PANEL_SECTION_LABEL}>
+        <section className="space-y-2">
+          {/* Categories as a scrollable strip rather than stacked sections.
+              Stacked, five groups pushed the last one below the fold on any
+              well-tagged clip; as tabs the panel shows one group at full height
+              and the strip says at a glance which groups have anything in them. */}
+          <div
+            role="tablist"
+            aria-label="Tag categories"
+            className="alva-thin-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 pb-1"
+          >
+            {groups.map((group) => (
+              <button
+                key={group.key}
+                type="button"
+                role="tab"
+                aria-selected={activeGroup === group.key}
+                onClick={() => setActiveGroup(group.key)}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+                  activeGroup === group.key
+                    ? "bg-alva-surface text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
                 <span
                   aria-hidden
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: NON_SPEECH_COLOR }}
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: group.color }}
                 />
-                Non-speech
-                <span className="text-muted-foreground/60">{nonSpeech.length}</span>
-              </h3>
+                {group.label}
+                <span className="text-muted-foreground/70">{group.count}</span>
+              </button>
+            ))}
+          </div>
 
-              <ul>
-                {nonSpeech.map((mark) => (
+          <ul>
+            {visibleGroup?.kind === "non_speech"
+              ? nonSpeech.map((mark) => (
                   <li
                     key={mark.id}
                     className="group flex items-center gap-2 border-b border-alva-border/50 py-1.5 last:border-0"
@@ -291,16 +342,39 @@ export const TagInspector = memo(function TagInspector() {
                       type="button"
                       onClick={() => removeNonSpeechMark(mark.id)}
                       aria-label={`Remove ${mark.type} marker`}
-                      className="shrink-0 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100"
+                      className={REMOVE_BUTTON}
+                    >
+                      <TrashBinMinimalistic size={13} weight="Outline" />
+                    </button>
+                  </li>
+                ))
+              : (visibleGroup?.spans ?? []).map((span) => (
+                  <li
+                    key={span.id}
+                    className="group flex items-start gap-2 border-b border-alva-border/50 py-1.5 last:border-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs text-foreground">
+                        {surfaceOf(span.startToken, span.endToken) || "—"}
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        {tagLabel(span.kind, span.value)}
+                        {span.spanSource === "lexicon_derived" && " · from lexicon"}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeSpan(span.id)}
+                      aria-label={`Remove ${tagLabel(span.kind, span.value)} tag`}
+                      className={REMOVE_BUTTON}
                     >
                       <TrashBinMinimalistic size={13} weight="Outline" />
                     </button>
                   </li>
                 ))}
-              </ul>
-            </section>
-          )}
-        </>
+          </ul>
+        </section>
       )}
     </div>
   );
