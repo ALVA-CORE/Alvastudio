@@ -51,7 +51,7 @@ export default function InternProfilePage() {
             icon={<UserId size={20} weight="Outline" />}
             title="Account details"
             sheetTitle="Account details"
-            sheetDescription="Your intern account on Alva Studio."
+            sheetDescription="Your intern account on Alvastudio."
           >
             <div className="space-y-3">
               <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />

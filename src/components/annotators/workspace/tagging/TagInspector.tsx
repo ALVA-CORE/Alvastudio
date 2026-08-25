@@ -3,6 +3,7 @@ import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import { useAnnotation, useAnnotationActions } from "@/lib/annotation/context";
 import { selectNonSpeech, selectSegments, selectSpans } from "@/lib/annotation/store";
 import { buildTokenIndex, segmentTokenRange } from "@/lib/annotation/tokens";
+import { formatDurationLong, segmentDuration } from "@/lib/annotation/segments";
 import {
   DIFFICULTY_FLAGS,
   NON_SPEECH_COLOR,
@@ -58,6 +59,7 @@ const TagApplyList = memo(function TagApplyList({
   selectedIds: string[];
 }) {
   const segments = useAnnotation(selectSegments);
+  const selectedSegmentIds = useAnnotation((state) => state.selectedSegmentIds);
   const spans = useAnnotation(selectSpans);
   const { addSpan } = useAnnotationActions();
   const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
@@ -193,6 +195,25 @@ export const TagInspector = memo(function TagInspector() {
 
   const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
 
+  /**
+   * Duration of whatever is selected on the timeline.
+   *
+   * Summed rather than spanned: a multi-selection can skip untouched stretches,
+   * and the useful number is how much audio is actually in hand, not the
+   * distance from the first clip to the last.
+   */
+  const selectionSummary = useMemo(() => {
+    if (selectedIds.length === 0) return null;
+
+    const chosen = segments.filter((segment) => selectedIds.includes(segment.id));
+    if (chosen.length === 0) return null;
+
+    const total = chosen.reduce((sum, segment) => sum + segmentDuration(segment), 0);
+    const label = formatDurationLong(total);
+
+    return chosen.length === 1 ? label : `${chosen.length} selected · ${label}`;
+  }, [segments, selectedIds]);
+
   /** The tagged words themselves — a list of token indices is unreadable. */
   const surfaceOf = useMemo(
     () => (start: number, end: number) =>
@@ -250,7 +271,14 @@ export const TagInspector = memo(function TagInspector() {
     <div className="space-y-5">
       {/* Clip-level, from asrPayload */}
       <section className="space-y-2">
-        <h3 className={PANEL_SECTION_LABEL}>Clip</h3>
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className={PANEL_SECTION_LABEL}>Clip</h3>
+          {selectionSummary ? (
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {selectionSummary}
+            </span>
+          ) : null}
+        </div>
 
         {/* State on the left, action on the right, divided. Previously the
             whole row was the button and "Mark empty" was a passive label, so

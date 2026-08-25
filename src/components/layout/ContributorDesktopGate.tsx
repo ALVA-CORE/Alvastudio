@@ -12,7 +12,7 @@ export function ContributorDesktopGate() {
           Use your phone
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Alva Studio recording is built for mobile. Open this app on your phone
+          Alvastudio recording is built for mobile. Open this app on your phone
           to record prompts, stimuli, and manage your profile.
         </p>
       </div>

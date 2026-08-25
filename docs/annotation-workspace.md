@@ -307,6 +307,18 @@ voices, which a single merged waveform cannot express.
   annotator sees nothing happen. Jumps larger than 0.5s scroll the playhead back
   into view; frame-by-frame playback does not, or it would fight the user's own
   horizontal scrolling.
+- **Ctrl/Cmd + wheel zooms**, anchored on the pointer so the time under the
+  cursor stays put — zooming around the viewport edge throws whatever you were
+  looking at off-screen. The listener is registered manually because it must be
+  non-passive: React attaches wheel handlers passively, and a passive handler
+  cannot `preventDefault()` the browser's own page zoom. Steps are exponential,
+  so each notch is a constant proportion rather than a constant pixel count.
+- **Ruler precision follows the zoom** (`formatRulerTime`). A fixed format is
+  wrong at both ends: at `m:ss` a zoomed-in ruler repeats the same label across
+  eight ticks, and at `m:ss.cc` a zoomed-out one is unreadable digits.
+- **Selection modifiers**: Ctrl/Cmd toggles one clip, Shift extends from the
+  anchor across every segment in between — in time order, across speakers,
+  because "between" on a timeline means between in time, not within one lane.
 - **Zoom writes are rAF-coalesced** and the slider shows the current scale
   (`26px/s`) while dragging. The slider fires per pointer-pixel, faster than a
   frame, and each write re-lays out every lane.
@@ -430,7 +442,7 @@ an impossible combination — there is no way to be loading *and* errored.
 ## 10. Testing
 
 ```bash
-npm test              # 342 tests
+npm test              # 353 tests
 npm run test:watch
 npm run test:coverage
 ```

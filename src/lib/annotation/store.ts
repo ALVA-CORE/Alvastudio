@@ -139,6 +139,11 @@ export type AnnotationStore = StoreApi<AnnotationState>;
 export const MIN_ZOOM = 8;
 export const MAX_ZOOM = 320;
 export const DEFAULT_ZOOM = 40;
+
+/** Single clamp so the slider, the buttons and the wheel all agree. */
+export function clampZoom(value: number): number {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+}
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
 export function createAnnotationStore(
@@ -481,7 +486,7 @@ export function createAnnotationStore(
         set({ playbackRate });
       },
       setZoom(zoom) {
-        set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) });
+        set({ zoom: clampZoom(zoom) });
       },
       setFollowPlayhead(followPlayhead) {
         set({ followPlayhead });
