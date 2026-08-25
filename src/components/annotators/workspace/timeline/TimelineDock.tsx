@@ -21,8 +21,10 @@ import {
   useAnnotationActions,
   useAnnotationStore,
 } from "@/lib/annotation/context";
-import { selectSegments, selectSpans, selectSpeakers } from "@/lib/annotation/store";
-import { formatClock, formatTimecode } from "@/lib/annotation/segments";
+import { selectSegments, selectSpans, selectSpeakers ,
+  clampZoom,
+} from "@/lib/annotation/store";
+import { formatRulerTime } from "@/lib/annotation/segments";
 import { speakerDisplayName, type Speaker, type SpeakerId } from "@/lib/annotation/types";
 import {
   DropdownMenu,
@@ -119,7 +121,7 @@ const TimelineRuler = memo(function TimelineRuler({
           style={{ left: tick * pps }}
         >
           <span className="pointer-events-none mb-0.5 whitespace-nowrap pl-1 text-[10px] tabular-nums text-muted-foreground">
-            {formatClock(tick)}
+            {formatRulerTime(tick, pps)}
           </span>
           <span className="h-2 w-px bg-alva-border" />
         </div>
@@ -368,6 +370,48 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
     return points;
   }, [duration, segments]);
 
+  /**
+   * Ctrl/Cmd + wheel zooms, anchored on the pointer.
+   *
+   * Anchoring matters: zooming around the viewport's left edge throws whatever
+   * you were looking at off-screen. Holding the time under the cursor fixed
+   * makes the gesture feel like scaling the tape rather than jumping.
+   *
+   * Registered manually because it must be non-passive — React attaches wheel
+   * listeners passively, and a passive handler cannot `preventDefault()` the
+   * browser's own page zoom.
+   */
+  useEffect(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+
+      const state = store.getState();
+      const rect = node.getBoundingClientRect();
+      // Position of the cursor within the lanes, in seconds.
+      const laneX = event.clientX - rect.left - HEADER_WIDTH + node.scrollLeft;
+      const anchorTime = laneX / state.zoom;
+
+      // Exponential so each notch is a constant proportion, not a constant
+      // number of pixels — linear steps crawl when zoomed out and lurch in.
+      const next = clampZoom(state.zoom * Math.exp(-event.deltaY * 0.002));
+      if (next === state.zoom) return;
+
+      actions.setZoom(next);
+
+      // Re-anchor after the lanes have been laid out at the new scale.
+      requestAnimationFrame(() => {
+        node.scrollLeft = Math.max(0, anchorTime * next - (event.clientX - rect.left - HEADER_WIDTH));
+      });
+    };
+
+    node.addEventListener("wheel", handleWheel, { passive: false });
+    return () => node.removeEventListener("wheel", handleWheel);
+  }, [actions, store]);
+
   /* Viewport tracking, rAF-coalesced so a scroll burst is one state write. */
   useEffect(() => {
     const node = scrollerRef.current;
@@ -416,7 +460,7 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
       if (badge) badge.style.transform = `translate3d(${x}px, 0, 0)`;
 
       const label = playheadLabelRef.current;
-      if (label) label.textContent = formatTimecode(time);
+      if (label) label.textContent = formatRulerTime(time, pps);
 
       // A seek can land far outside the visible window — at 40px/s, 22s in is
       // 880px off. Without this the store updates, the playhead moves, and the
@@ -618,15 +662,42 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
    * action; a plain click replaces it and moves the playhead, which is the
    * common case and must stay a single click.
    */
+  /** Anchor a Shift-range extends from. Set by every non-range click. */
+  const selectionAnchorRef = useRef<string | null>(null);
+
   const handleSelect = useCallback(
-    (id: string, additive: boolean) => {
-      if (additive) {
+    (id: string, modifiers: { toggle: boolean; range: boolean }) => {
+      const state = store.getState();
+
+      // Shift: everything between the anchor and this clip, in time order —
+      // across speakers, because "between" on a timeline means between in time,
+      // not within one lane.
+      if (modifiers.range) {
+        const ordered = state.history.present.segments;
+        const anchorId = selectionAnchorRef.current ?? state.selectedSegmentIds[0] ?? id;
+
+        const from = ordered.findIndex((segment) => segment.id === anchorId);
+        const to = ordered.findIndex((segment) => segment.id === id);
+        if (from === -1 || to === -1) return;
+
+        const [lo, hi] = from <= to ? [from, to] : [to, from];
+        actions.setSelectedSegments(
+          ordered.slice(lo, hi + 1).map((segment) => segment.id)
+        );
+        return;
+      }
+
+      // Ctrl/Cmd: add or remove this one, leaving the rest alone. The anchor
+      // moves with it so a following Shift extends from where you last clicked.
+      if (modifiers.toggle) {
+        selectionAnchorRef.current = id;
         actions.toggleSegmentSelection(id);
         return;
       }
 
+      selectionAnchorRef.current = id;
       actions.selectSegment(id);
-      const segment = store.getState().history.present.segments.find((s) => s.id === id);
+      const segment = state.history.present.segments.find((s) => s.id === id);
       if (segment) actions.setCurrentTime(segment.start);
     },
     [actions, store]

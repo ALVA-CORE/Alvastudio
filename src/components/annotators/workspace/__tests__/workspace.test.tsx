@@ -8,7 +8,12 @@ import type { AnnotationStore } from "@/lib/annotation/store";
 import { buildTranscript } from "@/data/annotators/transcripts";
 import { getAnnotatorSessions } from "@/data/annotators/sessions";
 import { speakerDisplayName } from "@/lib/annotation/types";
-import { formatTimecode } from "@/lib/annotation/segments";
+import {
+  formatDurationLong,
+  formatRulerTime,
+  formatTimecode,
+} from "@/lib/annotation/segments";
+import { DEFAULT_ZOOM } from "@/lib/annotation/store";
 
 /**
  * Mount tests for the workspace shell. Typecheck and build both pass on a
@@ -278,11 +283,15 @@ describe("AnnotationWorkspace", () => {
     const label = rails[3].getAttribute("aria-label") as string;
     const timecode = label.replace("Select segment at ", "");
 
-    // The badge on the ruler is the visible readout of the playhead position;
-    // scope to the timeline, since the row's own timecode reads the same.
+    // The badge on the ruler reads at the RULER's precision, which follows the
+    // zoom — so it is not simply the row's label repeated.
+    const start = doc.segments.find((s) => formatTimecode(s.start) === timecode)?.start;
+    expect(start).toBeDefined();
+
     const timeline = screen.getByRole("region", { name: "Session timeline" });
-    expect(within(timeline).getByText(timecode)).toBeInTheDocument();
-    expect(doc.segments.some((s) => formatTimecode(s.start) === timecode)).toBe(true);
+    expect(
+      within(timeline).getByText(formatRulerTime(start as number, DEFAULT_ZOOM))
+    ).toBeInTheDocument();
   });
 
   it("shows the zoom scale while the slider is being dragged", () => {
@@ -412,5 +421,62 @@ describe("AnnotationWorkspace", () => {
     const handle = screen.getByRole("separator", { name: "Resize panel" });
     expect(handle).toHaveAttribute("aria-orientation", "vertical");
     expect(Number(handle.getAttribute("aria-valuemin"))).toBeGreaterThan(0);
+  });
+
+  it("selects a range of segments with Shift", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    const clips = screen.getAllByRole("button", { name: /^Segment from/ });
+    expect(clips.length).toBeGreaterThan(3);
+
+    await user.click(clips[0]);
+    await user.keyboard("{Shift>}");
+    await user.click(clips[3]);
+    await user.keyboard("{/Shift}");
+
+    // The anchor, the target, and everything between them.
+    const selected = screen
+      .getAllByRole("button", { name: /^Segment from/ })
+      .filter((node) => node.getAttribute("aria-pressed") === "true");
+    expect(selected.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("adds and removes single segments with Ctrl/Cmd", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    const clips = screen.getAllByRole("button", { name: /^Segment from/ });
+    const pressed = () =>
+      screen
+        .getAllByRole("button", { name: /^Segment from/ })
+        .filter((node) => node.getAttribute("aria-pressed") === "true").length;
+
+    await user.click(clips[0]);
+    expect(pressed()).toBe(1);
+
+    await user.keyboard("{Meta>}");
+    await user.click(clips[2]);
+    await user.keyboard("{/Meta}");
+    expect(pressed()).toBe(2);
+
+    // Ctrl/Cmd on an already-selected clip removes it rather than re-selecting.
+    await user.keyboard("{Meta>}");
+    await user.click(clips[2]);
+    await user.keyboard("{/Meta}");
+    expect(pressed()).toBe(1);
+  });
+
+  it("reports the duration of the selected clip in the Tags panel", async () => {
+    const user = userEvent.setup();
+    const { doc } = renderWorkspace();
+
+    const clips = screen.getAllByRole("button", { name: /^Segment from/ });
+    await user.click(clips[0]);
+    await user.click(screen.getByRole("tab", { name: /tags/i }));
+
+    const first = doc.segments[0];
+    const expected = formatDurationLong(first.end - first.start);
+    expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
   });
 });

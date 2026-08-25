@@ -27,7 +27,12 @@ export type TimelineClipProps = {
   /** Another speaker holds focus — this clip recedes. */
   isDimmed: boolean;
   /** `additive` is true when Shift was held — extend rather than replace. */
-  onSelect: (id: string, additive: boolean) => void;
+  /**
+   * `toggle` is Ctrl/Cmd (add or remove this one), `range` is Shift (everything
+   * between the anchor and this one). Both are passed because the dock, not the
+   * clip, knows the segment ordering a range spans.
+   */
+  onSelect: (id: string, modifiers: { toggle: boolean; range: boolean }) => void;
   /** One hue per tag family present on this segment. Renders as corner dots. */
   tagColors?: string[];
   /** Live retime during a gesture. */
@@ -131,7 +136,10 @@ function TimelineClipImpl({
       // the pointer id is not active — a released pointer, a synthetic event —
       // and if that happens before the select, the click silently does nothing.
       // Capture is an enhancement for the drag; selecting is the guarantee.
-      onSelect(segment.id, event.shiftKey);
+      onSelect(segment.id, {
+        toggle: event.ctrlKey || event.metaKey,
+        range: event.shiftKey,
+      });
 
       try {
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -245,7 +253,10 @@ function TimelineClipImpl({
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelect(segment.id, event.shiftKey);
+          onSelect(segment.id, {
+        toggle: event.ctrlKey || event.metaKey,
+        range: event.shiftKey,
+      });
         }
       }}
       className={cn(

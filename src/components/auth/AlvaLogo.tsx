@@ -15,7 +15,7 @@ export function AlvaLogo({ className, variant = "light" }: AlvaLogoProps) {
   return (
     <img
       src={src}
-      alt="Alva Studio"
+      alt="Alvastudio"
       className={cn("h-10 w-auto", className)}
     />
   );

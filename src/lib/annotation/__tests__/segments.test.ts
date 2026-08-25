@@ -11,6 +11,7 @@ import {
   findNextSegmentIndex,
   formatClock,
   formatDurationLong,
+  formatRulerTime,
   formatTimecode,
   mergeSegments,
   retimeSegment,
@@ -828,5 +829,58 @@ describe("findActiveWordIndex", () => {
   it("is inclusive at a word's start", () => {
     const target = words[0];
     expect(findActiveWordIndex(words, target.start)).toBe(0);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Zoom-dependent ruler precision
+ * ------------------------------------------------------------------ */
+
+describe("formatTimecode precision", () => {
+  it("defaults to hundredths", () => {
+    expect(formatTimecode(4.567)).toBe("04.57");
+  });
+
+  it("honours a requested precision", () => {
+    expect(formatTimecode(4.567, 1)).toBe("04.6");
+    expect(formatTimecode(4.567, 2)).toBe("04.57");
+    expect(formatTimecode(4.567, 3)).toBe("04.567");
+  });
+
+  it("carries into the minute at every precision", () => {
+    // 59.999 must not render as "60.000".
+    expect(formatTimecode(59.9999, 3)).toBe("1:00.000");
+    expect(formatTimecode(59.999, 1)).toBe("1:00.0");
+  });
+
+  it("guards negatives and NaN at the requested width", () => {
+    expect(formatTimecode(-1, 3)).toBe("00.000");
+    expect(formatTimecode(Number.NaN, 1)).toBe("00.0");
+  });
+});
+
+describe("formatRulerTime", () => {
+  it("shows no fraction when zoomed out", () => {
+    // A whole minute per 40px — decimals here would repeat across ticks.
+    expect(formatRulerTime(65, 8)).toBe("1:05");
+  });
+
+  it("adds precision as the scale grows", () => {
+    expect(formatRulerTime(65.432, 40)).toBe("1:05.4");
+    expect(formatRulerTime(65.432, 120)).toBe("1:05.43");
+    expect(formatRulerTime(65.432, 260)).toBe("1:05.432");
+  });
+
+  it("steps up exactly at each threshold, not near it", () => {
+    expect(formatRulerTime(1.234, 35)).toBe("0:01");
+    expect(formatRulerTime(1.234, 36)).toBe("01.2");
+    expect(formatRulerTime(1.234, 89)).toBe("01.2");
+    expect(formatRulerTime(1.234, 90)).toBe("01.23");
+    expect(formatRulerTime(1.234, 219)).toBe("01.23");
+    expect(formatRulerTime(1.234, 220)).toBe("01.234");
+  });
+
+  it("never loses the minute component at high precision", () => {
+    expect(formatRulerTime(605.5, 260)).toBe("10:05.500");
   });
 });

@@ -81,38 +81,40 @@ function TaggedSegmentTextImpl({
     const container = containerRef.current;
     if (!container) return;
 
-    const tokenOf = (node: Node | null): number | null => {
-      let el = node instanceof Element ? node : node?.parentElement ?? null;
-      while (el && el !== container) {
-        const raw = (el as HTMLElement).dataset?.token;
-        if (raw !== undefined) return Number(raw);
-        el = el.parentElement;
-      }
-      return null;
-    };
-
     let frame = 0;
 
+    /**
+     * Resolves the selection by asking each token element whether the range
+     * touches it.
+     *
+     * The obvious approach — walk up from `anchorNode`/`focusNode` looking for
+     * `data-token` — silently fails whenever an endpoint lands on the whitespace
+     * BETWEEN two tokens, because that text node has no tagged ancestor. Since
+     * overshooting a word by a few pixels puts you on exactly that whitespace,
+     * it failed constantly and looked random. `intersectsNode` has no such blind
+     * spot, and a segment holds ~20 token elements, so the scan is trivial.
+     */
     const read = () => {
       frame = 0;
       const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
 
-      if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-        onSelectRangeRef.current(null);
-        return;
+      const range = selection.getRangeAt(0);
+      if (!container.contains(range.commonAncestorContainer)) return;
+
+      let min = Number.POSITIVE_INFINITY;
+      let max = -1;
+
+      for (const element of container.querySelectorAll<HTMLElement>("[data-token]")) {
+        if (!range.intersectsNode(element)) continue;
+        const index = Number(element.dataset.token);
+        if (Number.isNaN(index)) continue;
+        if (index < min) min = index;
+        if (index > max) max = index;
       }
 
-      // Ignore selections that belong to a different segment's paragraph.
-      if (!container.contains(selection.anchorNode) || !container.contains(selection.focusNode)) {
-        return;
-      }
-
-      const from = tokenOf(selection.anchorNode);
-      const to = tokenOf(selection.focusNode);
-      if (from === null || to === null) return;
-
-      // Selections run backwards as readily as forwards.
-      onSelectRangeRef.current({ start: Math.min(from, to), end: Math.max(from, to) });
+      if (max === -1) return;
+      onSelectRangeRef.current({ start: min, end: max });
     };
 
     // `selectionchange` fires per character while dragging; coalesce to a frame.
@@ -121,10 +123,27 @@ function TaggedSegmentTextImpl({
       frame = requestAnimationFrame(read);
     };
 
+    /**
+     * Deliberately NOT cleared when the selection collapses.
+     *
+     * Opening the tag menu moves focus into a portal, which collapses the
+     * selection — clearing on collapse unmounted the picker the instant it was
+     * clicked. The range is cleared explicitly instead: by starting a new
+     * selection, by applying a tag, or by the Clear button.
+     */
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && container.contains(event.target)) {
+        onSelectRangeRef.current(null);
+      }
+    };
+
     document.addEventListener("selectionchange", schedule);
+    container.addEventListener("pointerdown", handlePointerDown);
+
     return () => {
       if (frame) cancelAnimationFrame(frame);
       document.removeEventListener("selectionchange", schedule);
+      container.removeEventListener("pointerdown", handlePointerDown);
     };
   }, []);
 

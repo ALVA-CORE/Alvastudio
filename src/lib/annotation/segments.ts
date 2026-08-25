@@ -29,16 +29,36 @@ import {
  * Segment timecode, `ss.cc` under a minute and `m:ss.cc` beyond it. Matches the
  * two-decimal precision annotators need to trim a region against a plosive.
  */
-export function formatTimecode(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "00.00";
+export function formatTimecode(seconds: number, decimals: 1 | 2 | 3 = 2): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return `00.${"0".repeat(decimals)}`;
+  }
 
-  const totalCentis = Math.round(seconds * 100);
-  const mins = Math.floor(totalCentis / 6000);
-  const secs = Math.floor((totalCentis % 6000) / 100);
-  const centis = totalCentis % 100;
+  const scale = 10 ** decimals;
+  const total = Math.round(seconds * scale);
+  const perMinute = 60 * scale;
 
-  const tail = `${String(secs).padStart(2, "0")}.${String(centis).padStart(2, "0")}`;
+  const mins = Math.floor(total / perMinute);
+  const secs = Math.floor((total % perMinute) / scale);
+  const frac = total % scale;
+
+  const tail = `${String(secs).padStart(2, "0")}.${String(frac).padStart(decimals, "0")}`;
   return mins > 0 ? `${mins}:${tail}` : tail;
+}
+
+/**
+ * Ruler label at a given scale.
+ *
+ * Precision follows the zoom because a fixed format is wrong at both ends: at
+ * `m:ss` a zoomed-in ruler shows the same label on eight consecutive ticks, and
+ * at `m:ss.cc` a zoomed-out one is a wall of digits nobody reads. The thresholds
+ * are the pixels-per-second at which the next unit becomes distinguishable.
+ */
+export function formatRulerTime(seconds: number, pixelsPerSecond: number): string {
+  if (pixelsPerSecond >= 220) return formatTimecode(seconds, 3);
+  if (pixelsPerSecond >= 90) return formatTimecode(seconds, 2);
+  if (pixelsPerSecond >= 36) return formatTimecode(seconds, 1);
+  return formatClock(seconds);
 }
 
 /** Ruler / duration clock, `m:ss`. Hours roll into minutes deliberately. */

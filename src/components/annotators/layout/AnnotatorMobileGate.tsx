@@ -17,7 +17,7 @@ export function AnnotatorMobileGate() {
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Focus group annotation needs room for the waveform, speaker turns and
-          tag rail. Open Alva Studio on a laptop or desktop to pick up your
+          tag rail. Open Alvastudio on a laptop or desktop to pick up your
           queue.
         </p>
       </div>

@@ -39,7 +39,7 @@ export function LoginForm() {
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-foreground">Welcome back</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sign in to Alva Studio
+          Sign in to Alvastudio
         </p>
       </div>
 

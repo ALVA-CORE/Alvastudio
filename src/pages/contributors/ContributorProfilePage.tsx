@@ -53,7 +53,7 @@ export default function ContributorProfilePage() {
           icon={<UserId size={20} weight="Outline" />}
           title="Account details"
           sheetTitle="Account details"
-          sheetDescription="Your core identity for Alva Studio."
+          sheetDescription="Your core identity for Alvastudio."
         >
           <div className="space-y-3">
             <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />
