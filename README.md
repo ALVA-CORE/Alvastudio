@@ -15,15 +15,18 @@ Production-oriented starter for React apps: **Vite**, **TypeScript**, **Tailwind
 ## Requirements
 
 - **Node.js 20+** (see `.nvmrc`)
-- npm, pnpm, yarn, or bun
+- **bun** — the committed lockfile is `bun.lock`, so bun is the source of truth
+  for dependency resolution. Other package managers will install, but they
+  resolve from `package.json` ranges alone and can end up on different
+  transitive versions than CI and production.
 
 ## Quick start
 
 ```bash
 git clone https://github.com/Psybah/react-vite-starter-template.git
 cd react-vite-starter-template
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 The dev server runs at **[http://localhost:3000](http://localhost:3000)**.

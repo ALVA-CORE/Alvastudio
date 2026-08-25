@@ -72,8 +72,6 @@ export type TranscriptSegmentRowProps = {
   tokens: Token[];
   spans: AnnotationSpan[];
   nonSpeech: NonSpeechMark[];
-  /** Token under the playhead, or -1. */
-  activeToken: number;
   onApplyTag: (kind: SpanKind, value: string, range: { start: number; end: number }) => void;
   onRemoveTag: (spanId: string) => void;
   onAddNonSpeech: (type: string, atToken: number) => void;
@@ -98,7 +96,6 @@ function TranscriptSegmentRowImpl({
   tokens,
   spans,
   nonSpeech,
-  activeToken,
   onApplyTag,
   onRemoveTag,
   onAddNonSpeech,
@@ -120,6 +117,23 @@ function TranscriptSegmentRowImpl({
     onSelect(segment.id);
     onSeek(segment.start);
   }, [onSeek, onSelect, segment.id, segment.start]);
+
+  /**
+   * Clicking an applied tag OPENS it — it does not remove it.
+   *
+   * Selecting the span's range brings the picker back up with that tag ticked,
+   * so changing or removing it is a deliberate second action. Deleting on a
+   * single click meant a stray click destroyed work with no confirmation and no
+   * visible undo affordance.
+   */
+  const handleSpanClick = useCallback(
+    (spanId: string) => {
+      const span = spans.find((entry) => entry.id === spanId);
+      if (!span) return;
+      setSelection({ start: span.startToken, end: span.endToken });
+    },
+    [spans]
+  );
 
   const handleSplit = useCallback(
     (caretRatio: number) => {
@@ -276,9 +290,9 @@ function TranscriptSegmentRowImpl({
                 segment={segment}
                 tokens={tokens}
                 spans={spans}
-                activeToken={isActive ? activeToken : -1}
+                isActive={isActive}
                 onSelectRange={setSelection}
-                onSpanClick={onRemoveTag}
+                onSpanClick={handleSpanClick}
               />
             </div>
           )}
