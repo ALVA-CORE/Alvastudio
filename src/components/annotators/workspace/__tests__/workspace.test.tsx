@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { AnnotationWorkspace } from "@/components/annotators/workspace/AnnotationWorkspace";
@@ -478,5 +478,70 @@ describe("AnnotationWorkspace", () => {
     const first = doc.segments[0];
     const expected = formatDurationLong(first.end - first.start);
     expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
+  });
+
+  it("opens an applied tag on click instead of deleting it", async () => {
+    const user = userEvent.setup();
+    const { store } = renderWorkspace();
+
+    // Tag the first two tokens directly; the picker path is covered elsewhere.
+    act(() => {
+      store.getState().addSpan({
+        kind: "language",
+        value: "pcm",
+        startToken: 0,
+        endToken: 1,
+        spanSource: "annotator_added",
+      });
+    });
+
+    expect(store.getState().history.present.spans).toHaveLength(1);
+
+    // Click the first tagged word.
+    const token = document.querySelector('[data-token="0"]');
+    expect(token).not.toBeNull();
+    await user.click(token as Element);
+
+    // A stray click must never destroy work.
+    expect(store.getState().history.present.spans).toHaveLength(1);
+  });
+
+  it("follows the spoken word as playback moves through a segment", () => {
+    const { store, doc } = renderWorkspace();
+
+    const first = doc.segments[0];
+    const lit = () =>
+      Array.from(document.querySelectorAll("[data-token]")).filter((node) =>
+        node.className.includes("text-foreground")
+      ).length;
+
+    // Playhead in the leading silence: nothing is lit.
+    act(() => store.getState().setCurrentTime(0));
+    expect(lit()).toBe(0);
+
+    // Inside the first segment: exactly one word carries the read-along.
+    act(() => store.getState().setCurrentTime(first.start + (first.end - first.start) / 2));
+    expect(lit()).toBe(1);
+  });
+
+  it("advances the read-along word as time passes", () => {
+    const { store, doc } = renderWorkspace();
+    const first = doc.segments[0];
+    const span = first.end - first.start;
+
+    const litToken = () =>
+      Array.from(document.querySelectorAll("[data-token]")).find((node) =>
+        node.className.includes("text-foreground")
+      )?.getAttribute("data-token");
+
+    act(() => store.getState().setCurrentTime(first.start + span * 0.05));
+    const early = litToken();
+
+    act(() => store.getState().setCurrentTime(first.start + span * 0.95));
+    const late = litToken();
+
+    expect(early).toBeDefined();
+    expect(late).toBeDefined();
+    expect(Number(late)).toBeGreaterThan(Number(early));
   });
 });

@@ -378,7 +378,6 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
                 tokens={tokensForSegment(tokenIndex, segment.id)}
                 spans={spans}
                 nonSpeech={nonSpeech}
-                activeToken={-1}
                 onApplyTag={handleApplyTag}
                 onRemoveTag={actions.removeSpan}
                 onAddNonSpeech={handleAddNonSpeech}

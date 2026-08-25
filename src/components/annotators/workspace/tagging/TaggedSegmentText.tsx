@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef } from "react";
 import { tagColor, type SpanKind } from "@/lib/annotation/tags";
 import type { AnnotationSpan, Segment } from "@/lib/annotation/types";
 import type { Token } from "@/lib/annotation/tokens";
+import { useAnnotation } from "@/lib/annotation/context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,11 +21,12 @@ export type TaggedSegmentTextProps = {
   /** Document-global tokens for this segment. */
   tokens: Token[];
   spans: AnnotationSpan[];
-  /** Token index under the playhead, or -1. */
-  activeToken: number;
+  /** Playhead is inside this segment. Drives the read-along highlight. */
+  isActive: boolean;
   /** Inclusive, document-global token range, or null when nothing is selected. */
   onSelectRange: (range: { start: number; end: number } | null) => void;
   /** Clicking an existing tag opens it for editing. */
+  /** Opens an applied tag for inspection. Never destructive. */
   onSpanClick: (spanId: string) => void;
 };
 
@@ -55,11 +57,38 @@ function TaggedSegmentTextImpl({
   segment,
   tokens,
   spans,
-  activeToken,
+  isActive,
   onSelectRange,
   onSpanClick,
 }: TaggedSegmentTextProps) {
   const containerRef = useRef<HTMLParagraphElement | null>(null);
+
+  /**
+   * Word under the playhead.
+   *
+   * There is no forced alignment yet, so position is interpolated across the
+   * segment's duration — the schema's `nonSpeechEvent.start_sec` is filled by an
+   * aligner later, and per-word timings will arrive the same way. Until then
+   * this tracks the segment evenly, which is close enough to follow along with
+   * and honest about being an estimate.
+   *
+   * The selector returns an INTEGER, and zustand compares with Object.is — so
+   * although every mounted row runs it on each of the ~60 store writes a second,
+   * only the row whose word actually changed re-renders, a few times a second.
+   * Returning `currentTime` here instead would repaint the whole transcript.
+   */
+  const activeToken = useAnnotation((state) => {
+    if (!isActive) return -1;
+
+    const span = segment.end - segment.start;
+    if (span <= 0 || tokens.length === 0) return -1;
+
+    const progress = (state.currentTime - segment.start) / span;
+    if (progress < 0 || progress > 1) return -1;
+
+    const nth = Math.min(tokens.length - 1, Math.floor(progress * tokens.length));
+    return tokens[nth].index;
+  });
   /* Kept in a ref so the selection listener is attached exactly once, rather
    * than being torn down and rebuilt every time the parent re-renders. */
   const onSelectRangeRef = useRef(onSelectRange);
