@@ -56,12 +56,12 @@ export default function AnnotatorProfilePage() {
             sheetTitle="Account details"
             sheetDescription="Your annotator account on Alvastudio."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />
               <ProfileInfoBlock label="Email" value={user?.email ?? "Not set"} />
               <ProfileInfoBlock label="Phone" value={user?.phone ?? "Not set"} />
               <ProfileInfoBlock label="Role" value="Annotator" />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -70,7 +70,7 @@ export default function AnnotatorProfilePage() {
             sheetTitle="Language clearance"
             sheetDescription="The varieties you are cleared to tag."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock
                 label="Cleared varieties"
                 value={profile?.varieties ?? "Nigerian English, Nigerian Pidgin"}
@@ -79,7 +79,7 @@ export default function AnnotatorProfilePage() {
                 label="Session scope"
                 value={profile?.scope ?? "All focus group sessions"}
               />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -88,7 +88,7 @@ export default function AnnotatorProfilePage() {
             sheetTitle="Annotation scope"
             sheetDescription="What lands in your queue and how it is graded."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock label="Queue" value="Focus group sessions" />
               <ProfileInfoBlock label="Mode" value="Multi-speaker conversational" />
               <ProfileInfoBlock
@@ -96,7 +96,7 @@ export default function AnnotatorProfilePage() {
                 value={agreementLabel(profile?.agreementTarget)}
               />
               <ProfileInfoBlock label="Second-pass review" value="Every 5th session" />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -105,14 +105,14 @@ export default function AnnotatorProfilePage() {
             sheetTitle="Handling & privacy"
             sheetDescription="How participant audio may be handled during annotation."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock label="NDPA training" value="Completed" />
               <ProfileInfoBlock label="Audio export" value="Disabled" />
               <ProfileInfoBlock
                 label="Participant identifiers"
                 value="Masked in the workspace"
               />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -121,7 +121,7 @@ export default function AnnotatorProfilePage() {
             sheetTitle="Notifications"
             sheetDescription="Alerts for queue depth and agreement drift."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock
                 label="Queue alerts"
                 value={profile?.queueAlerts === false ? "Off" : "On"}
@@ -130,7 +130,7 @@ export default function AnnotatorProfilePage() {
                 label="Agreement alerts"
                 value={profile?.agreementAlerts === false ? "Off" : "On"}
               />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <div className="mt-6 flex justify-center">

@@ -2,13 +2,18 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared vocabulary for the session panel.
+ * Shared vocabulary for reference panels — sidebars, detail sheets, profile
+ * sections.
  *
- * Both tabs render the same kinds of thing — a titled section, a label/value
- * row, a rule between topics — so the grammar lives here rather than being
- * duplicated per tab and drifting. It is also a plain module rather than
- * exports on one of the tabs, which would put `SessionMetaSidebar` and
- * `TagInspector` in an import cycle.
+ * All of them render the same kinds of thing: a titled section, a label/value
+ * row, a rule between topics. The grammar lives here so it cannot drift between
+ * surfaces, and as a plain module rather than exports hanging off one panel,
+ * which would put its consumers in an import cycle.
+ *
+ * The rule these encode: a value does NOT get its own filled box. Nine boxed
+ * values down a panel draw a border around each single word, so the eye parses
+ * nine containers to read nine facts. Rows on hairlines carry the same content
+ * with one alignment to follow and no containers at all.
  */
 
 /** Section heading. One weight, one tracking, both tabs. */
@@ -59,12 +64,19 @@ export function PanelSection({
 export function PanelRow({
   label,
   value,
+  className,
 }: {
   label: ReactNode;
   value: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-1.5 last:border-0">
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-1.5 last:border-0",
+        className
+      )}
+    >
       <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 truncate text-right text-xs text-foreground">{value}</dd>
     </div>
