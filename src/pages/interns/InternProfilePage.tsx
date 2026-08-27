@@ -53,11 +53,11 @@ export default function InternProfilePage() {
             sheetTitle="Account details"
             sheetDescription="Your intern account on Alvastudio."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />
               <ProfileInfoBlock label="Email" value={user?.email ?? "Not set"} />
               <ProfileInfoBlock label="Phone" value={user?.phone ?? "Not set"} />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -66,13 +66,13 @@ export default function InternProfilePage() {
             sheetTitle="Assigned region"
             sheetDescription="Where you are collecting focus group sessions."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock
                 label="Primary state"
                 value={profile?.primaryState ?? "Not set"}
               />
               <ProfileInfoBlock label="Coverage" value={profile?.coverage ?? "Not set"} />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -81,11 +81,11 @@ export default function InternProfilePage() {
             sheetTitle="Recording defaults"
             sheetDescription="How your record sessions are configured."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock label="Mode" value="Focus group" />
               <ProfileInfoBlock label="Max participants per session" value="3" />
               <ProfileInfoBlock label="Device" value={deviceLabel(profile?.device)} />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -94,10 +94,10 @@ export default function InternProfilePage() {
             sheetTitle="Review scope"
             sheetDescription="Contributor clips assigned to your review queue."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock label="Modes" value="Prompt reader, Stimuli" />
               <ProfileInfoBlock label="Queue access" value="Contributor submissions" />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <ProfileActionRow
@@ -106,7 +106,7 @@ export default function InternProfilePage() {
             sheetTitle="Notifications"
             sheetDescription="Alerts for sessions, reviews, and quota updates."
           >
-            <div className="space-y-3">
+            <dl>
               <ProfileInfoBlock
                 label="Session reminders"
                 value={profile?.sessionReminders ? "On" : "Off"}
@@ -116,7 +116,7 @@ export default function InternProfilePage() {
                 value={profile?.reviewUpdates ? "On" : "Off"}
               />
               <ProfileInfoBlock label="Quota alerts" value={quotaLabel(profile?.quotaAlerts)} />
-            </div>
+            </dl>
           </ProfileActionRow>
 
           <div className="mt-6 flex justify-center">

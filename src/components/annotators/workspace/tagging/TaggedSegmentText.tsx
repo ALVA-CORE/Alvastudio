@@ -176,14 +176,6 @@ function TaggedSegmentTextImpl({
     };
   }, []);
 
-  if (tokens.length === 0) {
-    return (
-      <p className="text-sm italic text-muted-foreground/60">
-        Empty segment — click to transcribe
-      </p>
-    );
-  }
-
   /**
    * Contiguous stretches sharing the same top tag.
    *
@@ -214,6 +206,18 @@ function TaggedSegmentTextImpl({
 
     return out;
   }, [tokens, coverage]);
+
+  /* Placed AFTER every hook: an early return above `useMemo` breaks the
+   * rules of hooks, and a segment goes from empty to non-empty the moment
+   * someone types into a freshly inserted one — React would then render
+   * fewer hooks than the previous pass and throw. */
+  if (tokens.length === 0) {
+    return (
+      <p className="text-sm italic text-muted-foreground/60">
+        Empty segment — click to transcribe
+      </p>
+    );
+  }
 
   return (
     <p ref={containerRef} className="whitespace-pre-wrap text-sm leading-relaxed">

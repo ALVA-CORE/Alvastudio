@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
+import { PanelDivider, PanelSection } from "@/components/shared/PanelPrimitives";
 
 type ParticipantDetailSheetProps = {
   participant: ParticipantRecord | null;
@@ -26,12 +27,12 @@ function DetailSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h3>
-      <div className="space-y-3 rounded-2xl bg-alva-surface p-4">{children}</div>
-    </section>
+    <PanelSection title={title}>
+      {/* No filled box around the rows. The sheet is already a panel, so a
+          surface inside it stacks surface on surface — and the box was drawing
+          a border around four single words. */}
+      <dl>{children}</dl>
+    </PanelSection>
   );
 }
 
@@ -69,12 +70,16 @@ export function ParticipantDetailSheet({
             <ProfileInfoBlock label="Phone" value={participant.phone} />
           </DetailSection>
 
+          <PanelDivider className="-mx-6 my-0" />
+
           <DetailSection title="Demographics">
             <ProfileInfoBlock label="Age bracket" value={participant.ageBracket || "—"} />
             <ProfileInfoBlock label="Gender" value={formatGenderLabel(participant.gender) || "—"} />
             <ProfileInfoBlock label="State" value={participant.state || "—"} />
             <ProfileInfoBlock label="Native language" value={participant.nativeLanguage || "—"} />
           </DetailSection>
+
+          <PanelDivider className="-mx-6 my-0" />
 
           <DetailSection title="Focus group">
             <ProfileInfoBlock label="Focus group session" value={participant.focusGroupSession} />
@@ -88,6 +93,8 @@ export function ParticipantDetailSheet({
             />
             <ProfileInfoBlock label="Logged at" value={loggedAt} />
           </DetailSection>
+
+          <PanelDivider className="-mx-6 my-0" />
 
           <DetailSection title="Domain">
             <ProfileInfoBlock label="Occupation / sector" value={participant.occupation || "—"} />
