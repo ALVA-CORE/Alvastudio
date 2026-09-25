@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { SidebarRailBlur } from "@/components/layout/SidebarRailBlur";
 import { ADMIN_NAV_ITEMS, getActiveAdminNav } from "./adminNav";
 
 /**
@@ -25,14 +26,16 @@ export function AdminSidebar() {
     >
       <div
         className={cn(
-          "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center py-6 backdrop-blur-xl transition-[width] duration-300 ease-out",
+          "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center py-6 transition-[width] duration-300 ease-out",
           hovered ? "w-48" : "w-[4.5rem]"
         )}
       >
+        <SidebarRailBlur />
+
         <nav
           aria-label="Admin navigation"
           className={cn(
-            "alva-thin-scrollbar flex min-h-0 flex-col gap-1 overflow-y-auto px-3",
+            "alva-thin-scrollbar relative flex min-h-0 flex-col gap-1 overflow-y-auto px-3",
             hovered ? "items-stretch" : "items-center"
           )}
         >

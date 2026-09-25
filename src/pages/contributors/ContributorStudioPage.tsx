@@ -143,11 +143,7 @@ export default function ContributorStudioPage() {
   };
 
   return (
-    <StudioVoiceBeam
-      stream={recorder.stream}
-      phase={recorder.phase}
-      processing={isSaving}
-    >
+    <>
       <div className="px-4 py-6">
         <div className="flex items-start gap-2">
           <StudioModeDropdown
@@ -223,6 +219,12 @@ export default function ContributorStudioPage() {
           </div>
         )}
       </div>
-    </StudioVoiceBeam>
+
+      <StudioVoiceBeam
+        stream={recorder.stream}
+        phase={recorder.phase}
+        processing={isSaving}
+      />
+    </>
   );
 }

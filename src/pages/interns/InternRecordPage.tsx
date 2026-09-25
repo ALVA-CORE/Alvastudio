@@ -76,10 +76,7 @@ export default function InternRecordPage() {
   }, [recorder.error]);
 
   return (
-    /* No `processing`: this page's save is still local, so there is no upload
-       for the beam to travel through. Wire it when the focus-group upload
-       endpoint lands. */
-    <StudioVoiceBeam stream={recorder.stream} phase={recorder.phase}>
+    <>
       <DesktopPageShell className="py-6">
         <div className="mb-4">
           <h1 className="text-2xl font-semibold text-foreground">Record focus group</h1>
@@ -136,6 +133,11 @@ export default function InternRecordPage() {
           onComplete={() => setSessionReady(true)}
         />
       </DesktopPageShell>
-    </StudioVoiceBeam>
+
+      {/* No `processing`: this page's save is still local, so there is no
+          upload for the beam to travel through. Wire it when the focus-group
+          upload endpoint lands. */}
+      <StudioVoiceBeam stream={recorder.stream} phase={recorder.phase} />
+    </>
   );
 }
