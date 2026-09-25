@@ -6,6 +6,10 @@ export function useStudioRecorder() {
   const [phase, setPhase] = useState<RecorderPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [hasBlob, setHasBlob] = useState(false);
+  /* Mirrored into state as well as the ref because the voice beam is a
+   * consumer: a ref alone never re-renders, so the glow would never pick the
+   * stream up. The ref stays for the cleanup paths, which run outside render. */
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -20,6 +24,7 @@ export function useStudioRecorder() {
   const cleanupStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    setStream(null);
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -32,6 +37,7 @@ export function useStudioRecorder() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      setStream(stream);
 
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
@@ -117,6 +123,15 @@ export function useStudioRecorder() {
     phase,
     error,
     hasBlob,
+    /**
+     * The live capture, while one is open — null otherwise.
+     *
+     * Exposed so the voice beam can analyse the same stream that is being
+     * recorded. Opening a second one through the library's own `useMicrophone`
+     * would mean two `getUserMedia` grants, two live tracks and two recording
+     * indicators, with the glow reacting to a different capture than the take.
+     */
+    stream,
     /** The recorded audio, for upload. Null until a take is finished. */
     getBlob: () => blobRef.current,
     /** Seconds of wall-clock recording, measured rather than decoded. */

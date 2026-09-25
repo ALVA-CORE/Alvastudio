@@ -168,6 +168,25 @@ class AudioContextStub {
     return { connect: () => {}, disconnect: () => {} };
   }
 
+  /* voice-glow analyses the recorder's stream through these two. It reads
+   * back frequency bins every frame, so getByteFrequencyData must fill the
+   * array it is handed rather than return one. */
+  createMediaStreamSource() {
+    return { connect: () => {}, disconnect: () => {} };
+  }
+
+  createAnalyser() {
+    return {
+      fftSize: 2048,
+      frequencyBinCount: 1024,
+      smoothingTimeConstant: 0.8,
+      connect: () => {},
+      disconnect: () => {},
+      getByteFrequencyData: (array: Uint8Array) => array.fill(0),
+      getByteTimeDomainData: (array: Uint8Array) => array.fill(128),
+    };
+  }
+
   createBufferSource() {
     return {
       buffer: null,

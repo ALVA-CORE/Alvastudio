@@ -22,6 +22,33 @@ The whole annotator dashboard is fake because of this.
 - `hours_annotated`
 - `daily_activity` — a list of `{date, count}` for the chart
 
+### `daily_activity` — what to count
+
+**Count segments, on the day each segment was created.** Not submissions.
+
+Why:
+
+- Submissions are 0 or 1 on most days. A daily series of mostly zeros with the
+  odd 1 draws a flat line. The chart is a smoothed area chart of throughput — it
+  needs a number that moves.
+- A session claimed Monday and submitted Friday puts all five days of work on
+  Friday if you count submissions. Segment timestamps put the work on the days
+  it actually happened.
+- The card is labelled "Clips annotated per day".
+
+Four things it needs:
+
+- **Include days with no activity**, as `{date, count: 0}`. Do not leave them
+  out. The chart buckets days into weeks and months and runs a centred 3-point
+  rolling mean — a missing day shifts the curve instead of showing a dip.
+- **365 days of history.** The range selector goes up to 12 months.
+- **`date` as `YYYY-MM-DD`, in Africa/Lagos.** Day boundaries at UTC split an
+  evening's work across two days.
+- **Scoped to the caller.** The card is "Your activity".
+
+`daily_activity` summed over a window should equal `segments_created` for that
+same window, so the headline number and the chart agree.
+
 ---
 
 ## 2. The prompt and stimulus banks are empty — BLOCKING

@@ -494,7 +494,7 @@ export function ContributorOnboardingForm() {
                       Detect microphone
                       {detectingMic && (
                         <ThinkingOrb
-                          state="working"
+                          state="composing"
                           size={20}
                           theme="dark"
                           aria-hidden

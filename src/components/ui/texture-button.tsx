@@ -151,7 +151,7 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
                 what announces the state. */}
             {loading && (
               <ThinkingOrb
-                state="working"
+                state="composing"
                 size={20}
                 theme={ORB_THEME[variant]}
                 aria-hidden

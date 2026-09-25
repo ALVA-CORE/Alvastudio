@@ -13,6 +13,7 @@ import { ParticipantIntakeModal } from "@/components/interns/participants/Partic
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
+import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
 import { TextureButton } from "@/components/ui/texture-button";
 
 function toCards(items: { id: number; text: string }[]): PromptCard[] {
@@ -75,61 +76,66 @@ export default function InternRecordPage() {
   }, [recorder.error]);
 
   return (
-    <DesktopPageShell className="py-6">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold text-foreground">Record focus group</h1>
-      </div>
-
-      <StudioProgress current={currentIndex + 1} total={total} label="Session progress" />
-
-      <StudioPromptStack
-        className="mt-8"
-        items={items}
-        current={currentIndex}
-        onNext={() => goTo((prev) => prev + 1)}
-        onPrevious={() => goTo((prev) => prev - 1)}
-      />
-
-      <StudioSiriControl className="mt-10 h-28" phase={recorder.phase} onPrimary={handlePrimary} />
-
-      {recorder.error && (
-        <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
-      )}
-
-      {recorder.hasBlob && recorder.phase !== "idle" && (
-        <div className="mt-8 flex items-center justify-center gap-2">
-          <TextureButton variant="minimal" size="sm" className="w-auto" onClick={handleRetake}>
-            <span className="flex items-center gap-2">
-              <Restart size={16} weight="Outline" />
-              Retake
-            </span>
-          </TextureButton>
-
-          <TextureButton
-            variant="minimal"
-            size="icon"
-            className="h-10 w-10 rounded-full"
-            aria-label="Delete take"
-            onClick={handleRetake}
-          >
-            <TrashBinMinimalistic size={16} weight="Outline" />
-          </TextureButton>
-
-          <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}>
-            <span className="flex items-center gap-2">
-              <Diskette size={16} weight="Bold" />
-              Save
-            </span>
-          </TextureButton>
+    /* No `processing`: this page's save is still local, so there is no upload
+       for the beam to travel through. Wire it when the focus-group upload
+       endpoint lands. */
+    <StudioVoiceBeam stream={recorder.stream} phase={recorder.phase}>
+      <DesktopPageShell className="py-6">
+        <div className="mb-4">
+          <h1 className="text-2xl font-semibold text-foreground">Record focus group</h1>
         </div>
-      )}
 
-      <ParticipantIntakeModal
-        open={intakeOpen}
-        onOpenChange={setIntakeOpen}
-        focusGroupSession={items[currentIndex]?.prompt ?? "Focus group session"}
-        onComplete={() => setSessionReady(true)}
-      />
-    </DesktopPageShell>
+        <StudioProgress current={currentIndex + 1} total={total} label="Session progress" />
+
+        <StudioPromptStack
+          className="mt-8"
+          items={items}
+          current={currentIndex}
+          onNext={() => goTo((prev) => prev + 1)}
+          onPrevious={() => goTo((prev) => prev - 1)}
+        />
+
+        <StudioSiriControl className="mt-10 h-28" phase={recorder.phase} onPrimary={handlePrimary} />
+
+        {recorder.error && (
+          <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
+        )}
+
+        {recorder.hasBlob && recorder.phase !== "idle" && (
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={handleRetake}>
+              <span className="flex items-center gap-2">
+                <Restart size={16} weight="Outline" />
+                Retake
+              </span>
+            </TextureButton>
+
+            <TextureButton
+              variant="minimal"
+              size="icon"
+              className="h-10 w-10 rounded-full"
+              aria-label="Delete take"
+              onClick={handleRetake}
+            >
+              <TrashBinMinimalistic size={16} weight="Outline" />
+            </TextureButton>
+
+            <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}>
+              <span className="flex items-center gap-2">
+                <Diskette size={16} weight="Bold" />
+                Save
+              </span>
+            </TextureButton>
+          </div>
+        )}
+
+        <ParticipantIntakeModal
+          open={intakeOpen}
+          onOpenChange={setIntakeOpen}
+          focusGroupSession={items[currentIndex]?.prompt ?? "Focus group session"}
+          onComplete={() => setSessionReady(true)}
+        />
+      </DesktopPageShell>
+    </StudioVoiceBeam>
   );
 }

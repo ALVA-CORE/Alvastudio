@@ -42,6 +42,7 @@ export default defineConfig({
       "@radix-ui/react-toast",
       "border-beam",
       "thinking-orbs",
+      "voice-glow",
       "next-themes",
     ],
   },

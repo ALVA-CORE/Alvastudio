@@ -20,6 +20,7 @@ import { StudioModeDropdown, type StudioMode } from "@/components/contributors/s
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
+import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
 import { TextureButton } from "@/components/ui/texture-button";
 
 function toCards(items: { id: number; text: string }[]): PromptCard[] {
@@ -142,80 +143,86 @@ export default function ContributorStudioPage() {
   };
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex items-start gap-2">
-        <StudioModeDropdown
-          value={mode}
-          onChange={handleModeChange}
-          allowFocusGroup={false}
-          focusGroupOnly={false}
-        />
-        <StudioProgress
-          className="min-w-0 flex-1"
-          current={total ? 1 : 0}
-          total={total}
-          label={loadingCard ? "Loading…" : total ? "Next up" : "Queue empty"}
-        />
-      </div>
-
-      {cardError ? (
-        <p role="alert" className="mt-8 text-center text-sm text-destructive">
-          {cardError}
-        </p>
-      ) : !loadingCard && total === 0 ? (
-        /* 404 from /next means the bank is exhausted for this contributor —
-           an end state, not a failure. */
-        <p className="mt-8 text-center text-sm text-muted-foreground">
-          Nothing left to record right now. Check back later.
-        </p>
-      ) : (
-        <StudioPromptStack
-          className="mt-8"
-          items={items}
-          current={0}
-          onNext={loadNextCard}
-          onPrevious={loadNextCard}
-        />
-      )}
-
-      <StudioSiriControl
-        className="mt-10 h-28"
-        phase={recorder.phase}
-        onPrimary={handlePrimary}
-      />
-
-      {recorder.error && (
-        <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
-      )}
-
-      {recorder.hasBlob && recorder.phase !== "idle" && (
-        <div className="mt-8 flex items-center justify-center gap-2">
-          <TextureButton variant="minimal" size="sm" className="w-auto" onClick={handleRetake}>
-            <span className="flex items-center gap-2">
-              <Restart size={16} weight="Outline" />
-              Retake
-            </span>
-          </TextureButton>
-
-          <TextureButton
-            variant="minimal"
-            size="icon"
-            className="h-10 w-10 rounded-full"
-            aria-label="Delete take"
-            onClick={handleRetake}
-          >
-            <TrashBinMinimalistic size={16} weight="Outline" />
-          </TextureButton>
-
-          <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}
-              loading={isSaving}>
-            <span className="flex items-center gap-2">
-              <Diskette size={16} weight="Bold" />
-              Save
-            </span>
-          </TextureButton>
+    <StudioVoiceBeam
+      stream={recorder.stream}
+      phase={recorder.phase}
+      processing={isSaving}
+    >
+      <div className="px-4 py-6">
+        <div className="flex items-start gap-2">
+          <StudioModeDropdown
+            value={mode}
+            onChange={handleModeChange}
+            allowFocusGroup={false}
+            focusGroupOnly={false}
+          />
+          <StudioProgress
+            className="min-w-0 flex-1"
+            current={total ? 1 : 0}
+            total={total}
+            label={loadingCard ? "Loading…" : total ? "Next up" : "Queue empty"}
+          />
         </div>
-      )}
-    </div>
+
+        {cardError ? (
+          <p role="alert" className="mt-8 text-center text-sm text-destructive">
+            {cardError}
+          </p>
+        ) : !loadingCard && total === 0 ? (
+          /* 404 from /next means the bank is exhausted for this contributor —
+             an end state, not a failure. */
+          <p className="mt-8 text-center text-sm text-muted-foreground">
+            Nothing left to record right now. Check back later.
+          </p>
+        ) : (
+          <StudioPromptStack
+            className="mt-8"
+            items={items}
+            current={0}
+            onNext={loadNextCard}
+            onPrevious={loadNextCard}
+          />
+        )}
+
+        <StudioSiriControl
+          className="mt-10 h-28"
+          phase={recorder.phase}
+          onPrimary={handlePrimary}
+        />
+
+        {recorder.error && (
+          <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
+        )}
+
+        {recorder.hasBlob && recorder.phase !== "idle" && (
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={handleRetake}>
+              <span className="flex items-center gap-2">
+                <Restart size={16} weight="Outline" />
+                Retake
+              </span>
+            </TextureButton>
+
+            <TextureButton
+              variant="minimal"
+              size="icon"
+              className="h-10 w-10 rounded-full"
+              aria-label="Delete take"
+              onClick={handleRetake}
+            >
+              <TrashBinMinimalistic size={16} weight="Outline" />
+            </TextureButton>
+
+            <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}
+                loading={isSaving}>
+              <span className="flex items-center gap-2">
+                <Diskette size={16} weight="Bold" />
+                Save
+              </span>
+            </TextureButton>
+          </div>
+        )}
+      </div>
+    </StudioVoiceBeam>
   );
 }
