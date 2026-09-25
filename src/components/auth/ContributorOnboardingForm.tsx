@@ -31,6 +31,7 @@ import {
   GENDER_OPTIONS,
 } from "@/data/interns/participants";
 import { useAuth } from "@/lib/auth/context";
+import { ApiError } from "@/lib/api/client";
 import {
   detectMicrophoneLabel,
   detectRecordingEnvironment,
@@ -52,6 +53,8 @@ export function ContributorOnboardingForm() {
   const { signup } = useAuth();
   const [step, setStep] = useState(1);
   const [detectingMic, setDetectingMic] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<ContributorOnboardingValues>({
     resolver: zodResolver(contributorOnboardingSchema),
@@ -130,14 +133,29 @@ export function ContributorOnboardingForm() {
       detectedMicLabel: values.detectedMicLabel || undefined,
     };
 
-    signup({
-      fullName: values.fullName,
-      email: values.email,
-      phone: values.phone,
-      password: values.password,
-      role: "contributor",
-      contributorProfile,
-    });
+    setFormError(null);
+    setSubmitting(true);
+
+    try {
+      await signup({
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        role: "contributor",
+        contributorProfile,
+      });
+    } catch (error) {
+      setFormError(
+        error instanceof ApiError
+          ? error.message
+          : "Could not reach the server. Check your connection and try again."
+      );
+      return;
+    } finally {
+      setSubmitting(false);
+    }
+
     navigate("/contributor/dashboard");
   };
 
@@ -575,6 +593,12 @@ export function ContributorOnboardingForm() {
             </div>
           )}
 
+          {formError ? (
+            <p role="alert" className="pt-2 text-center text-xs font-medium text-destructive">
+              {formError}
+            </p>
+          ) : null}
+
           <div className="flex items-center justify-center gap-3 pt-2">
             {step > 1 && (
               <>
@@ -599,8 +623,14 @@ export function ContributorOnboardingForm() {
                 <AltArrowRight size={14} weight="Outline" />
               </button>
             ) : (
-              <TextureButton type="submit" variant="alva" size="default" className="w-auto">
-                Create contributor account
+              <TextureButton
+                type="submit"
+                variant="alva"
+                size="default"
+                className="w-auto"
+                disabled={submitting}
+              >
+                {submitting ? "Creating account…" : "Create contributor account"}
               </TextureButton>
             )}
           </div>

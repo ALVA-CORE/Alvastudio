@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,24 +14,45 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
+import { ApiError } from "@/lib/api/client";
 import { loginSchema, type LoginValues } from "@/lib/validations/auth";
 
 export function LoginForm() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "", rememberMe: false },
   });
 
-  const onSubmit = (values: LoginValues) => {
-    login(values.email, values.password);
+  const onSubmit = async (values: LoginValues) => {
+    setFormError(null);
+
+    try {
+      await login(values.email, values.password);
+    } catch (error) {
+      // Only this form knows that a 401 here means bad credentials rather than
+      // an expired session, so it supplies that wording itself.
+      setFormError(
+        error instanceof ApiError && error.status === 401
+          ? "Your email or password is incorrect."
+          : error instanceof ApiError
+            ? error.message
+            : "Something went wrong. Please try again."
+      );
+      return;
+    }
+
     if (values.rememberMe) {
       localStorage.setItem("alva-remember-me", "true");
     } else {
       localStorage.removeItem("alva-remember-me");
     }
+
+    // Only navigate once the session actually exists — otherwise the redirect
+    // races the request and lands on a guard that bounces straight back.
     navigate("/");
   };
 
@@ -108,8 +130,23 @@ export function LoginForm() {
             </Link>
           </div>
 
-          <TextureButton type="submit" variant="alva" size="lg" className="mt-2">
-            Sign in
+          {formError ? (
+            <p
+              role="alert"
+              className="text-center text-xs font-medium text-destructive"
+            >
+              {formError}
+            </p>
+          ) : null}
+
+          <TextureButton
+            type="submit"
+            variant="alva"
+            size="lg"
+            className="mt-2"
+            disabled={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
           </TextureButton>
         </form>
       </Form>
@@ -118,12 +155,6 @@ export function LoginForm() {
         New contributor?{" "}
         <Link to="/contributor/signup" className="font-medium text-primary hover:underline">
           Create an account
-        </Link>
-      </p>
-      <p className="text-center text-sm text-muted-foreground">
-        Collecting focus groups?{" "}
-        <Link to="/intern/signup" className="font-medium text-primary hover:underline">
-          Intern signup
         </Link>
       </p>
     </div>
