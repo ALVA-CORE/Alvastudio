@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
+import { ThinkingOrb, type OrbTheme } from "thinking-orbs";
 import { alvaAccentTextureClass } from "@/lib/alva-texture";
-import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 const buttonVariantsOuter = cva("", {
@@ -91,12 +91,22 @@ export interface UnifiedButtonProps
   loading?: boolean;
 }
 
-/** Spinner matched to the label size so it never towers over the text. */
-const SPINNER_SIZE: Record<NonNullable<UnifiedButtonProps["size"]>, number> = {
-  sm: 13,
-  default: 15,
-  lg: 17,
-  icon: 16,
+/**
+ * Which ink the orb needs, per button face.
+ *
+ * The orb's own `auto` reads the `dark` class off <html>, which this app pins
+ * on — so it would draw light ink on every button, including the ones whose
+ * face is bright. The orb cares about what is directly behind it, not the page,
+ * so the variants with a light face are named here. `light` means dark ink.
+ */
+const ORB_THEME: Record<NonNullable<UnifiedButtonProps["variant"]>, OrbTheme> = {
+  alva: "light", // bright accent green
+  primary: "light", // near-white in dark mode
+  accent: "dark",
+  destructive: "dark",
+  secondary: "dark",
+  minimal: "dark",
+  icon: "dark",
 };
 
 const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
@@ -134,8 +144,20 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
       >
         <div className={cn(innerDivVariants({ variant, size }))}>
           <span className="relative z-[1] flex items-center justify-center gap-2">
-            {loading && <Spinner size={SPINNER_SIZE[size]} label="" />}
             {children}
+            {/* Right of the label. 20 is the orb's inline-text preset — its
+                own tuning, not a scaled-down 64, so it stays legible at
+                button size. The canvas is decorative; aria-busy above is
+                what announces the state. */}
+            {loading && (
+              <ThinkingOrb
+                state="working"
+                size={20}
+                theme={ORB_THEME[variant]}
+                aria-hidden
+                className="shrink-0"
+              />
+            )}
           </span>
         </div>
       </Comp>

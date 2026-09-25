@@ -41,6 +41,7 @@ export default defineConfig({
       "@radix-ui/react-tooltip",
       "@radix-ui/react-toast",
       "border-beam",
+      "thinking-orbs",
       "next-themes",
     ],
   },

@@ -210,7 +210,7 @@ export default function ContributorStudioPage() {
           <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}
               loading={isSaving}>
             <span className="flex items-center gap-2">
-              {!isSaving && <Diskette size={16} weight="Bold" />}
+              <Diskette size={16} weight="Bold" />
               Save
             </span>
           </TextureButton>

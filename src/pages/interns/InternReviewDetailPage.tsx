@@ -241,7 +241,7 @@ export default function InternReviewDetailPage() {
                 loading={isSaving}
                 onClick={() => void persistProgress()}
               >
-                {!isSaving && <Diskette size={15} weight="Bold" />}
+                <Diskette size={15} weight="Bold" />
                 {isDirty ? "Save" : "Saved"}
               </TextureButton>
             </BorderBeam>

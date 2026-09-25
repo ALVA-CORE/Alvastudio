@@ -12,7 +12,7 @@ import { StepperBars } from "@/components/interns/participants/StepperBars";
 import { StateCombobox } from "@/components/interns/participants/StateCombobox";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { TextureButton } from "@/components/ui/texture-button";
-import { Spinner } from "@/components/ui/spinner";
+import { ThinkingOrb } from "thinking-orbs";
 import {
   Form,
   FormControl,
@@ -491,8 +491,16 @@ export function ContributorOnboardingForm() {
                       aria-busy={detectingMic || undefined}
                       className="inline-flex items-center gap-2 text-sm font-medium text-alva-accent transition-colors hover:text-alva-accent/80 disabled:opacity-60"
                     >
-                      {detectingMic && <Spinner size={13} label="" />}
                       Detect microphone
+                      {detectingMic && (
+                        <ThinkingOrb
+                          state="working"
+                          size={20}
+                          theme="dark"
+                          aria-hidden
+                          className="shrink-0"
+                        />
+                      )}
                     </button>
                   </div>
                 </div>
