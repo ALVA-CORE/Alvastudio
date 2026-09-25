@@ -155,9 +155,9 @@ real audio.
 The sessions table also shows **state**, **language** and **who recorded it**.
 Those columns are blank.
 
-**`/recordings`** gives `prompt_id` but not the prompt **text**. The review queue
-shows the prompt, so it currently shows an id. Fetching the text per row would be
-one extra call per row.
+**`/recordings`** gives `prompt_id` but not the prompt **text**. The detail page
+now resolves it with a second call, but the queue table cannot — that would be
+one extra request per row.
 
 **Please add:** `language_variety`, `state` and `intern_name` to the annotation
 queue row, and `prompt_text` to the recording row.
@@ -175,16 +175,11 @@ The contributor home shows a points balance. There is no points field anywhere.
 
 ## 11. Small things
 
-**a. Document the audio rule.** A focus-group session does not appear in
-`/annotations/queue` until audio is uploaded. Took me a while to work out.
-
-**b. No total count on lists.** Only `limit` and `offset`. I can build "Load
+**a. No total count on lists.** Only `limit` and `offset`. I can build "Load
 more" but not page numbers. A `total` field or `X-Total-Count` header fixes it.
 
-**c. Token lasts 24 hours.** `/auth/refresh` works and I now refresh
-automatically before it expires. No change needed — just confirming.
-
-**d. Please delete my test data.** Accounts:
+**b. Please delete my test data.** Accounts:
 `alva-qa-contributor@example.com`, `alva-qa-intern@example.com`,
-`alva-qa-annotator@example.com`. Plus two focus-group sessions with test audio
-and two annotations.
+`alva-qa-annotator@example.com`. Plus three focus-group sessions with test
+audio (one is called "QA wiring check") and two annotations. There is no
+`DELETE` for a focus group, so I cannot clear them myself.

@@ -79,7 +79,14 @@ export default function InternRecordPage() {
    */
   const handleSave = async () => {
     const blob = recorder.getBlob();
-    if (!sessionId || !blob) return;
+    if (!blob) {
+      alvaToast.error("Record a take first");
+      return;
+    }
+    if (!sessionId) {
+      alvaToast.error("Log the session participants before saving");
+      return;
+    }
 
     setSaving(true);
     try {
