@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
+import { TextureButton } from "@/components/ui/texture-button";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
-import { getInternReviewQueue, REVIEW_STATUS_LABELS } from "@/data/reviewQueue";
+import { REVIEW_STATUS_LABELS, type ReviewQueueItem } from "@/data/reviewQueue";
+import { useReviewQueue } from "@/hooks/useReviewQueue";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { getReviewDisplayStatus } from "@/lib/review-progress";
 import { cn } from "@/lib/utils";
 
-const INTERN_QUEUE = getInternReviewQueue();
 
 function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) {
   return (
@@ -29,8 +30,10 @@ function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) 
 export default function InternReviewPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"pending" | "completed">("pending");
-  const isLoading = useSimulatedLoading();
-  const queueRows = useDevRows(INTERN_QUEUE);
+  /* Live. `/reviews/queue` is unclaimed work, `/recordings` is everything this
+   * reviewer can see; the hook merges them into the existing row shape. */
+  const { items, isLoading, error, reload, assignNext, isAssigning } = useReviewQueue();
+  const queueRows = useDevRows(items);
 
   const pendingRows = useMemo(
     () =>
@@ -54,49 +57,49 @@ export default function InternReviewPage() {
     {
       key: "contributor",
       header: "Contributor",
-      sortValue: (row: (typeof INTERN_QUEUE)[number]) => row.contributor,
-      render: (row: (typeof INTERN_QUEUE)[number]) => (
+      sortValue: (row: ReviewQueueItem) => row.contributor,
+      render: (row: ReviewQueueItem) => (
         <span className="font-medium text-foreground">{row.contributor}</span>
       ),
     },
     {
       key: "mode",
       header: "Mode",
-      sortValue: (row: (typeof INTERN_QUEUE)[number]) => row.mode,
-      render: (row: (typeof INTERN_QUEUE)[number]) => (
+      sortValue: (row: ReviewQueueItem) => row.mode,
+      render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.mode}</span>
       ),
     },
     {
       key: "duration",
       header: "Duration",
-      sortValue: (row: (typeof INTERN_QUEUE)[number]) => row.durationSec,
-      render: (row: (typeof INTERN_QUEUE)[number]) => (
+      sortValue: (row: ReviewQueueItem) => row.durationSec,
+      render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.duration}</span>
       ),
     },
     {
       key: "language",
       header: "Language",
-      sortValue: (row: (typeof INTERN_QUEUE)[number]) => row.language,
-      render: (row: (typeof INTERN_QUEUE)[number]) => (
+      sortValue: (row: ReviewQueueItem) => row.language,
+      render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.language}</span>
       ),
     },
     {
       key: "submitted",
       header: "Submitted",
-      sortValue: (row: (typeof INTERN_QUEUE)[number]) => row.submittedAt,
-      render: (row: (typeof INTERN_QUEUE)[number]) => (
+      sortValue: (row: ReviewQueueItem) => row.submittedAt,
+      render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.submittedAt}</span>
       ),
     },
     {
       key: "status",
       header: "Status",
-      sortValue: (row: (typeof INTERN_QUEUE)[number]) =>
+      sortValue: (row: ReviewQueueItem) =>
         getReviewDisplayStatus(row.id, row.status, Boolean(row.draft)),
-      render: (row: (typeof INTERN_QUEUE)[number]) => (
+      render: (row: ReviewQueueItem) => (
         <StatusBadge
           status={getReviewDisplayStatus(row.id, row.status, Boolean(row.draft))}
         />
@@ -107,12 +110,45 @@ export default function InternReviewPage() {
   return (
     <DesktopPageShell className="py-4">
       <div className="space-y-4">
-        <div>
-          <h1 className="font-display text-2xl text-foreground">Review</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Contributor clips — prompt reader and stimuli submissions
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-2xl text-foreground">Review</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Contributor clips — prompt reader and stimuli submissions
+            </p>
+          </div>
+
+          {/* The queue hands work out by claim: assign-next moves the next
+              recording from submitted to in_review and locks it to you. */}
+          <TextureButton
+            variant="alva"
+            size="sm"
+            className="w-auto shrink-0"
+            onClick={async () => {
+              const id = await assignNext();
+              if (id) navigate(`/intern/review/${id}`);
+            }}
+            disabled={isAssigning}
+          >
+            {isAssigning ? "Claiming…" : "Review next"}
+          </TextureButton>
         </div>
+
+        {error ? (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
+            {error}
+            <button
+              type="button"
+              onClick={reload}
+              className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
 
         <Tabs value={tab} onValueChange={(value) => setTab(value as "pending" | "completed")}>
           <TabsList className="h-9 rounded-full bg-alva-surface p-1">

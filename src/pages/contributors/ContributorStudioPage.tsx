@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import Restart from "@solar-icons/react/arrows/Restart";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
@@ -6,7 +6,10 @@ import Diskette from "@solar-icons/react/devices/Diskette";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
-import { PROMPT_READER_PROMPTS, STIMULI_PROMPTS } from "@/data/prompts";
+import { useApiResource } from "@/hooks/useApiResource";
+import { nextPrompt, nextStimulus } from "@/lib/api/catalog";
+import { submitPromptRead, submitStimulus } from "@/lib/api/recordings";
+import { ApiError } from "@/lib/api/client";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth/context";
@@ -36,11 +39,27 @@ export default function ContributorStudioPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const recorder = useStudioRecorder();
 
-  const items = useMemo(() => {
-    if (mode === "stimuli") return toCards(STIMULI_PROMPTS);
-    return toCards(PROMPT_READER_PROMPTS);
-  }, [mode]);
+  const [isSaving, setSaving] = useState(false);
 
+  /* One card at a time, straight from the bank.
+   *
+   * `/prompts/next` and `/stimuli/next` hand out the contributor's next UNREAD
+   * item, so the studio no longer paginates a local array — advancing means
+   * asking for the next one. A 404 ("No unread prompts available") is the queue
+   * running dry, not an error, which is what `notFoundAsEmpty` encodes. */
+  const fetchNext = useCallback(
+    () => (mode === "stimuli" ? nextStimulus() : nextPrompt()),
+    [mode]
+  );
+
+  const {
+    data: card,
+    isLoading: loadingCard,
+    error: cardError,
+    reload: loadNextCard,
+  } = useApiResource(fetchNext, [mode], { notFoundAsEmpty: true });
+
+  const items = card ? [{ id: card.id, prompt: card.text }] : [];
   const total = items.length;
 
   useEffect(() => {
@@ -95,9 +114,37 @@ export default function ContributorStudioPage() {
     alvaToast.show("Take cleared, ready to record again");
   };
 
-  const handleSave = () => {
-    alvaToast.success("Clip saved to review queue", <Diskette size={14} weight="Bold" />);
-    goTo((prev) => prev + 1);
+  const handleSave = async () => {
+    const blob = recorder.getBlob();
+    if (!card || !blob) {
+      alvaToast.error("Record a take first");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const meta = {
+        durationSeconds: recorder.getDuration(),
+        filename: `take-${card.id}.webm`,
+      };
+
+      if (mode === "stimuli") {
+        await submitStimulus(card.id, blob, meta);
+      } else {
+        await submitPromptRead(card.id, blob, meta);
+      }
+
+      alvaToast.success("Clip sent for review", <Diskette size={14} weight="Bold" />);
+      recorder.discardRecording();
+      // The card is consumed; ask the bank for the next unread one.
+      loadNextCard();
+    } catch (cause) {
+      alvaToast.error(
+        cause instanceof ApiError ? cause.message : "Could not upload the clip."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -111,19 +158,31 @@ export default function ContributorStudioPage() {
         />
         <StudioProgress
           className="min-w-0 flex-1"
-          current={currentIndex + 1}
+          current={total ? 1 : 0}
           total={total}
-          label="Queue progress"
+          label={loadingCard ? "Loading…" : total ? "Next up" : "Queue empty"}
         />
       </div>
 
-      <StudioPromptStack
-        className="mt-8"
-        items={items}
-        current={currentIndex}
-        onNext={() => goTo((prev) => prev + 1)}
-        onPrevious={() => goTo((prev) => prev - 1)}
-      />
+      {cardError ? (
+        <p role="alert" className="mt-8 text-center text-sm text-destructive">
+          {cardError}
+        </p>
+      ) : !loadingCard && total === 0 ? (
+        /* 404 from /next means the bank is exhausted for this contributor —
+           an end state, not a failure. */
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Nothing left to record right now. Check back later.
+        </p>
+      ) : (
+        <StudioPromptStack
+          className="mt-8"
+          items={items}
+          current={0}
+          onNext={loadNextCard}
+          onPrevious={loadNextCard}
+        />
+      )}
 
       <StudioSiriControl
         className="mt-10 h-28"

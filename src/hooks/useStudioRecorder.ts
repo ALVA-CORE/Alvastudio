@@ -10,6 +10,9 @@ export function useStudioRecorder() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const blobRef = useRef<Blob | null>(null);
+  /** Wall-clock length of the take, for the recording's `duration_seconds`. */
+  const startedAtRef = useRef<number>(0);
+  const durationRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -32,11 +35,13 @@ export function useStudioRecorder() {
 
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
+      startedAtRef.current = Date.now();
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
         blobRef.current = new Blob(chunksRef.current, { type: "audio/webm" });
+        durationRef.current = (Date.now() - startedAtRef.current) / 1000;
         setHasBlob(Boolean(blobRef.current.size));
         cleanupStream();
         setPhase("recorded");
@@ -93,6 +98,7 @@ export function useStudioRecorder() {
       audioRef.current = null;
     }
     blobRef.current = null;
+    durationRef.current = 0;
     chunksRef.current = [];
     setHasBlob(false);
     cleanupStream();
@@ -111,6 +117,10 @@ export function useStudioRecorder() {
     phase,
     error,
     hasBlob,
+    /** The recorded audio, for upload. Null until a take is finished. */
+    getBlob: () => blobRef.current,
+    /** Seconds of wall-clock recording, measured rather than decoded. */
+    getDuration: () => durationRef.current,
     startRecording,
     stopRecording,
     playRecording,

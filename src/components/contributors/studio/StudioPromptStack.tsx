@@ -7,7 +7,8 @@ import { alvaAccentTextureClass } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 export type PromptCard = {
-  id: number;
+  /** String once these come from the API — the bank uses UUIDs, not indexes. */
+  id: string | number;
   prompt: string;
 };
 

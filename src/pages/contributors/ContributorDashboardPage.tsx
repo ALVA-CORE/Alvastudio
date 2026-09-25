@@ -10,8 +10,16 @@ import { DashboardCharts } from "@/components/contributors/dashboard/DashboardCh
 import { QualityProgressBar } from "@/components/contributors/dashboard/QualityProgressBar";
 import { ContributorDashboardSkeleton } from "@/components/contributors/dashboard/ContributorDashboardSkeleton";
 import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useApiResource } from "@/hooks/useApiResource";
+import { contributorDashboard } from "@/lib/api/dashboard";
 
-/** Mock until backend — replace with API data */
+/**
+ * Points have no backend equivalent yet.
+ *
+ * `/dashboard/contributor` returns recording counts, hours and a status
+ * breakdown, and `/payments/earnings` returns money — neither is a points
+ * balance. See docs/backend-gaps.md.
+ */
 const MOCK_POINTS = 1420;
 
 export default function ContributorDashboardPage() {
@@ -20,6 +28,13 @@ export default function ContributorDashboardPage() {
   const isStaff = isStaffRole(user?.role);
   const isLoading = useSimulatedLoading();
   const { forceEmpty } = useDevUiState();
+
+  /* Live counts. The charts below still run on seeded data — the endpoint
+   * returns totals, not a time series. */
+  const { data: live, isLoading: loadingLive } = useApiResource(
+    contributorDashboard,
+    []
+  );
 
   if (isStaff && !isMobile) {
     return <Navigate to="/intern/dashboard" replace />;
@@ -37,20 +52,25 @@ export default function ContributorDashboardPage() {
         <HomeHeader firstName={firstName} />
       </FixedBlurHeader>
 
-      {isLoading ? (
+      {isLoading || loadingLive ? (
         <ContributorDashboardSkeleton />
       ) : (
         <>
           <PointsBalanceCard
             points={forceEmpty ? 0 : MOCK_POINTS}
-            currentUserId="1"
+            currentUserId={live?.contributor_id ?? "1"}
             className="mt-5"
             isEmpty={forceEmpty}
           />
 
           <DashboardCharts className="px-4" isEmpty={forceEmpty} />
 
-          <QualityProgressBar isEmpty={forceEmpty} />
+          <QualityProgressBar
+            isEmpty={forceEmpty || (live?.status_breakdown.total ?? 0) === 0}
+            breakdown={live?.status_breakdown}
+            approved={live?.status_breakdown.approved}
+            total={live?.status_breakdown.total}
+          />
         </>
       )}
     </div>
