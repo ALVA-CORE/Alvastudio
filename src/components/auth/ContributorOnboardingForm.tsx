@@ -12,6 +12,7 @@ import { StepperBars } from "@/components/interns/participants/StepperBars";
 import { StateCombobox } from "@/components/interns/participants/StateCombobox";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { TextureButton } from "@/components/ui/texture-button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Form,
   FormControl,
@@ -487,9 +488,11 @@ export function ContributorOnboardingForm() {
                       type="button"
                       onClick={() => void handleDetectMic()}
                       disabled={detectingMic}
-                      className="text-sm font-medium text-alva-accent transition-colors hover:text-alva-accent/80 disabled:opacity-60"
+                      aria-busy={detectingMic || undefined}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-alva-accent transition-colors hover:text-alva-accent/80 disabled:opacity-60"
                     >
-                      {detectingMic ? "Detecting…" : "Detect microphone"}
+                      {detectingMic && <Spinner size={13} label="" />}
+                      Detect microphone
                     </button>
                   </div>
                 </div>
@@ -628,9 +631,9 @@ export function ContributorOnboardingForm() {
                 variant="alva"
                 size="default"
                 className="w-auto"
-                disabled={submitting}
+                loading={submitting}
               >
-                {submitting ? "Creating account…" : "Create contributor account"}
+                Create contributor account
               </TextureButton>
             )}
           </div>

@@ -128,9 +128,9 @@ export default function InternReviewPage() {
               const id = await assignNext();
               if (id) navigate(`/intern/review/${id}`);
             }}
-            disabled={isAssigning}
+            loading={isAssigning}
           >
-            {isAssigning ? "Claiming…" : "Review next"}
+            Review next
           </TextureButton>
         </div>
 

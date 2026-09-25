@@ -144,9 +144,9 @@ export function LoginForm() {
             variant="alva"
             size="lg"
             className="mt-2"
-            disabled={form.formState.isSubmitting}
+            loading={form.formState.isSubmitting}
           >
-            {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
+            Sign in
           </TextureButton>
         </form>
       </Form>

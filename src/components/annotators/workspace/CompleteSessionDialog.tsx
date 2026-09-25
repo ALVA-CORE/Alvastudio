@@ -106,10 +106,10 @@ export const CompleteSessionDialog = memo(function CompleteSessionDialog({
             variant="alva"
             size="sm"
             onClick={onConfirm}
-            disabled={isSubmitting}
+            loading={isSubmitting}
             className="w-auto"
           >
-            {isSubmitting ? "Submitting…" : "Mark as done"}
+            Mark as done
           </TextureButton>
         </div>
       </DialogContent>

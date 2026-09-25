@@ -261,9 +261,9 @@ export function InternSignupForm() {
             variant="alva"
             size="lg"
             className="mt-2"
-            disabled={form.formState.isSubmitting}
+            loading={form.formState.isSubmitting}
           >
-            {form.formState.isSubmitting ? "Creating account…" : "Create intern account"}
+            Create intern account
           </TextureButton>
         </form>
       </Form>

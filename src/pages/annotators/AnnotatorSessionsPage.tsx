@@ -212,9 +212,9 @@ export default function AnnotatorSessionsPage() {
           size="sm"
           className="w-auto shrink-0"
           onClick={handleClaim}
-          disabled={isClaiming}
+          loading={isClaiming}
         >
-          {isClaiming ? "Claiming…" : "Claim next session"}
+          Claim next session
         </TextureButton>
       </header>
 

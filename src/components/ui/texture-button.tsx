@@ -2,6 +2,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { alvaAccentTextureClass } from "@/lib/alva-texture";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 const buttonVariantsOuter = cva("", {
@@ -83,7 +84,20 @@ export interface UnifiedButtonProps
     | "alva";
   size?: "default" | "sm" | "lg" | "icon";
   asChild?: boolean;
+  /**
+   * Shows the spinner and blocks input. Keep the label static and let this
+   * carry the state — "Save" with a spinner, not "Saving…".
+   */
+  loading?: boolean;
 }
+
+/** Spinner matched to the label size so it never towers over the text. */
+const SPINNER_SIZE: Record<NonNullable<UnifiedButtonProps["size"]>, number> = {
+  sm: 13,
+  default: 15,
+  lg: 17,
+  icon: 16,
+};
 
 const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
   (
@@ -92,6 +106,8 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
       variant = "primary",
       size = "default",
       asChild = false,
+      loading = false,
+      disabled,
       className,
       ...props
     },
@@ -99,14 +115,26 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
   ) => {
     const Comp = asChild ? Slot : "button";
 
+    /* asChild hands rendering to the caller's element, which may not accept
+     * `disabled` — an anchor, say. The visual dim and aria-busy still apply. */
+    const isBlocked = disabled || loading;
+
     return (
       <Comp
-        className={cn(buttonVariantsOuter({ variant, size }), className)}
+        className={cn(
+          buttonVariantsOuter({ variant, size }),
+          loading && "cursor-progress",
+          className
+        )}
         ref={ref}
+        disabled={asChild ? undefined : isBlocked}
+        aria-busy={loading || undefined}
+        aria-disabled={asChild && isBlocked ? true : undefined}
         {...props}
       >
         <div className={cn(innerDivVariants({ variant, size }))}>
           <span className="relative z-[1] flex items-center justify-center gap-2">
+            {loading && <Spinner size={SPINNER_SIZE[size]} label="" />}
             {children}
           </span>
         </div>

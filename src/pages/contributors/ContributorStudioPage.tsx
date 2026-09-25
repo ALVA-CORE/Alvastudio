@@ -208,9 +208,9 @@ export default function ContributorStudioPage() {
           </TextureButton>
 
           <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}
-              disabled={isSaving}>
+              loading={isSaving}>
             <span className="flex items-center gap-2">
-              <Diskette size={16} weight="Bold" />
+              {!isSaving && <Diskette size={16} weight="Bold" />}
               Save
             </span>
           </TextureButton>
