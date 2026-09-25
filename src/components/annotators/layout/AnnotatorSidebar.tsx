@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
 import Settings from "@solar-icons/react/settings/Settings";
 import { cn } from "@/lib/utils";
+import { SidebarRailBlur } from "@/components/layout/SidebarRailBlur";
 import { SiriBlob } from "@/components/contributors/studio/SiriBlob";
 
 type NavId = "home" | "sessions" | "profile";
@@ -38,14 +39,16 @@ export function AnnotatorSidebar() {
     >
       <div
         className={cn(
-          "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center py-6 backdrop-blur-xl transition-[width] duration-300 ease-out",
+          "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center py-6 transition-[width] duration-300 ease-out",
           hovered ? "w-48" : "w-[4.5rem]"
         )}
       >
+        <SidebarRailBlur />
+
         <nav
           aria-label="Annotator navigation"
           className={cn(
-            "flex flex-col gap-2 px-3",
+            "relative flex flex-col gap-2 px-3",
             hovered ? "items-stretch" : "items-center"
           )}
         >

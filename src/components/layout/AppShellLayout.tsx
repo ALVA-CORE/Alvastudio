@@ -9,11 +9,13 @@ export function AppShellLayout() {
 
   // Path wins over role: admins can reach both staff surfaces, so the route
   // decides which shell renders. Role only picks the default.
-  const surface: AppSurface = pathname.startsWith("/annotator")
-    ? "annotator"
-    : isStaffRole(user?.role)
-      ? "intern"
-      : "contributor";
+  const surface: AppSurface = pathname.startsWith("/admin")
+    ? "admin"
+    : pathname.startsWith("/annotator")
+      ? "annotator"
+      : isStaffRole(user?.role)
+        ? "intern"
+        : "contributor";
 
   return (
     <AppShell surface={surface}>

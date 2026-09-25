@@ -188,6 +188,28 @@
     }
   }
 
+  /*
+    Mask for the desktop rail's blur layer.
+
+    Two problems with an unmasked `backdrop-blur-xl` on a full-height rail.
+    First, the blurred region ends in a hard vertical seam, and the seam jumps
+    across the page when the rail expands on hover. Second, the rail sits above
+    the voice beam, so its backdrop filter smears the glow into a dull column
+    wherever the two overlap.
+
+    One mask solves both: fade out toward the right so there is no seam to see
+    move, and stop short of the bottom so the beam's band is never sampled.
+    `13rem` clears the beam's `h-48` host with a little room over.
+  */
+  .alva-rail-blur {
+    -webkit-mask-image: linear-gradient(to right, #000 45%, transparent 100%),
+      linear-gradient(to bottom, #000 calc(100% - 15rem), transparent calc(100% - 13rem));
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, #000 45%, transparent 100%),
+      linear-gradient(to bottom, #000 calc(100% - 15rem), transparent calc(100% - 13rem));
+    mask-composite: intersect;
+  }
+
   /* The timeline's horizontal bar is a control, not decoration — 4px is not
      grabbable with a mouse, so it gets its own slightly heavier treatment. */
   .alva-timeline-scrollbar {

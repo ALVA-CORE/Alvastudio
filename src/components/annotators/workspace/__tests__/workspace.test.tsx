@@ -544,4 +544,60 @@ describe("AnnotationWorkspace", () => {
     expect(late).toBeDefined();
     expect(Number(late)).toBeGreaterThan(Number(early));
   });
+
+  it("does not submit until the confirm step is accepted", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /mark as done/i }));
+    expect(await screen.findByText(/mark this session as done\?/i)).toBeInTheDocument();
+
+    // Backing out must leave the session exactly where it was.
+    await user.click(screen.getByRole("button", { name: /keep editing/i }));
+    expect(screen.queryByText(/mark this session as done\?/i)).not.toBeInTheDocument();
+    expect(SESSION.status).not.toBe("completed");
+  });
+
+  it("reports what is being handed over in the confirm step", async () => {
+    const user = userEvent.setup();
+    const { doc } = renderWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /mark as done/i }));
+    const dialog = await screen.findByRole("dialog");
+
+    // The decision is made against numbers, not memory.
+    expect(within(dialog).getByText(String(doc.segments.length))).toBeInTheDocument();
+    expect(within(dialog).getByText(/segments/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/tags/i)).toBeInTheDocument();
+  });
+
+  it("keeps the completion action reachable while the panel is collapsed", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /collapse session details/i }));
+
+    // Hiding it would make re-expanding the only way to finish a session.
+    expect(
+      screen.getByRole("button", { name: /mark session as done/i })
+    ).toBeInTheDocument();
+  });
+
+  it("survives a segment going from empty to typed", async () => {
+    const user = userEvent.setup();
+    const { store } = renderWorkspace();
+
+    // An empty segment renders a placeholder branch; typing into it changes the
+    // token count from zero. If that branch sat above a hook, React would render
+    // fewer hooks than the previous pass and throw.
+    act(() => store.getState().insertSegmentAt(store.getState().currentTime));
+
+    const placeholder = await screen.findByText(/empty segment/i);
+    await user.click(placeholder);
+
+    const editor = await screen.findByRole("textbox");
+    await user.type(editor, "abeg");
+
+    expect(screen.queryByText(/empty segment/i)).not.toBeInTheDocument();
+  });
 });

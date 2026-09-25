@@ -10,6 +10,16 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     open: true,
+    /* Without this, a same-origin `/api/v1/...` call hits the dev server, which
+     * 404s with an HTML page — and the app reports "Not found" when the real
+     * problem is that no backend is listening. Set VITE_API_BASE_URL instead if
+     * the backend is somewhere other than localhost:8000. */
+    proxy: {
+      "/api/v1": {
+        target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port: 3000,
@@ -31,6 +41,8 @@ export default defineConfig({
       "@radix-ui/react-tooltip",
       "@radix-ui/react-toast",
       "border-beam",
+      "thinking-orbs",
+      "voice-glow",
       "next-themes",
     ],
   },

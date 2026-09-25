@@ -16,6 +16,8 @@ import {
   type DashboardTimeRange,
 } from "@/data/internDashboard";
 import { useAuth } from "@/lib/auth/context";
+import { useApiResource } from "@/hooks/useApiResource";
+import { internDashboard } from "@/lib/api/dashboard";
 import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 export default function InternDashboard() {
@@ -23,9 +25,27 @@ export default function InternDashboard() {
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
   const isLoading = useSimulatedLoading();
   const { forceEmpty } = useDevUiState();
-  const dataset = forceEmpty
+  /* Live totals from `/dashboard/intern`. The endpoint returns counts and a
+   * demographic breakdown but no time series, so the METRIC CARDS are real and
+   * the charts below still run on seeded data — see docs/backend-gaps.md. */
+  const { data: live, isLoading: loadingLive } = useApiResource(internDashboard, []);
+
+  const base = forceEmpty
     ? getEmptyDashboardDataset(timeRange)
     : DASHBOARD_DATA[timeRange];
+
+  const dataset =
+    live && !forceEmpty
+      ? {
+          ...base,
+          metrics: {
+            ...base.metrics,
+            hours: `${live.hours_recorded.toFixed(1)}h`,
+            participants: String(live.participants_captured),
+            sessions: String(live.sessions_run),
+          },
+        }
+      : base;
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
   return (
@@ -42,7 +62,7 @@ export default function InternDashboard() {
         </div>
       </header>
 
-      {isLoading ? (
+      {isLoading || loadingLive ? (
         <div className="mt-2 space-y-2">
           <AlvaMetricGridSkeleton />
           <div className="grid gap-2 lg:grid-cols-5">

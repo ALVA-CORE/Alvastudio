@@ -69,19 +69,36 @@ export function getRubricFeedback(answers: QualityAnswers): RubricFeedbackItem[]
   });
 }
 
-export function getNotificationDetailMeta(notification: ContributorNotification) {
+export type NotificationDetailRow = { label: string; value: string };
+
+/**
+ * The notification's facts as labelled rows.
+ *
+ * Replaces the dot-joined string this used to return. "Today, 9:12 AM · 0:14 ·
+ * Prompt reader · Nigerian English · iPhone 14" asks the reader to work out
+ * which fact is which from its shape alone; the labels are what the profile
+ * sheets carry, and the two are the same kind of panel. Absent fields drop out
+ * rather than rendering an em dash, so a payout does not show four blank audio
+ * rows.
+ */
+export function getNotificationDetailRows(
+  notification: ContributorNotification
+): NotificationDetailRow[] {
   return [
-    notification.timestamp,
-    notification.duration,
-    notification.mode,
-    notification.language,
-    notification.device,
-    notification.amount,
-    notification.leaderboardMonth,
-    notification.leaderboardPoints
-      ? `${notification.leaderboardPoints.toLocaleString()} pts`
-      : undefined,
-  ].filter(Boolean) as string[];
+    { label: "Received", value: notification.timestamp },
+    { label: "Duration", value: notification.duration },
+    { label: "Mode", value: notification.mode },
+    { label: "Language", value: notification.language },
+    { label: "Device", value: notification.device },
+    { label: "Amount", value: notification.amount },
+    { label: "Month", value: notification.leaderboardMonth },
+    {
+      label: "Points",
+      value: notification.leaderboardPoints
+        ? `${notification.leaderboardPoints.toLocaleString()} pts`
+        : undefined,
+    },
+  ].filter((row): row is NotificationDetailRow => Boolean(row.value));
 }
 
 const MOCK_NOTIFICATIONS: ContributorNotification[] = [

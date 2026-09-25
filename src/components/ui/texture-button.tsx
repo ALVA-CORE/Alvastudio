@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
+import { ThinkingOrb, type OrbTheme } from "thinking-orbs";
 import { alvaAccentTextureClass } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,10 @@ const buttonVariantsOuter = cva("", {
       minimal:
         "group/texture-button w-full border-[1px] dark:border-[2px] border-black/20 bg-white/50 dark:border-neutral-950 dark:bg-neutral-600/80 p-[1px] active:bg-neutral-200 dark:active:bg-neutral-800 hover:bg-gradient-to-t hover:from-neutral-100 to-white dark:hover:from-neutral-600/50 dark:hover:to-neutral-600/70",
       icon: "group/texture-button rounded-full border dark:border-neutral-950 border-black/10 dark:bg-neutral-600/50 bg-white/50 p-[1px] active:bg-neutral-200 dark:active:bg-neutral-800 hover:bg-gradient-to-t hover:from-neutral-100 to-white dark:hover:from-neutral-700 dark:hover:to-neutral-600",
-      alva: "w-full border border-[1px] dark:border-[2px] border-black/10 dark:border-black bg-gradient-to-b from-black/70 to-black dark:from-white dark:to-white/80 p-[2px] transition duration-300 ease-in-out",
+      // No rim. Upstream wraps the face in a 2px white ring over a black
+      // border; on a dark page that reads as a white outline around the accent,
+      // so the face stands on its own. Matches alvacore-landing-page.
+      alva: "block w-full transition duration-300 ease-in-out",
     },
     size: {
       sm: "rounded-full",
@@ -80,7 +84,30 @@ export interface UnifiedButtonProps
     | "alva";
   size?: "default" | "sm" | "lg" | "icon";
   asChild?: boolean;
+  /**
+   * Shows the spinner and blocks input. Keep the label static and let this
+   * carry the state — "Save" with a spinner, not "Saving…".
+   */
+  loading?: boolean;
 }
+
+/**
+ * Which ink the orb needs, per button face.
+ *
+ * The orb's own `auto` reads the `dark` class off <html>, which this app pins
+ * on — so it would draw light ink on every button, including the ones whose
+ * face is bright. The orb cares about what is directly behind it, not the page,
+ * so the variants with a light face are named here. `light` means dark ink.
+ */
+const ORB_THEME: Record<NonNullable<UnifiedButtonProps["variant"]>, OrbTheme> = {
+  alva: "light", // bright accent green
+  primary: "light", // near-white in dark mode
+  accent: "dark",
+  destructive: "dark",
+  secondary: "dark",
+  minimal: "dark",
+  icon: "dark",
+};
 
 const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
   (
@@ -89,6 +116,8 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
       variant = "primary",
       size = "default",
       asChild = false,
+      loading = false,
+      disabled,
       className,
       ...props
     },
@@ -96,15 +125,39 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
   ) => {
     const Comp = asChild ? Slot : "button";
 
+    /* asChild hands rendering to the caller's element, which may not accept
+     * `disabled` — an anchor, say. The visual dim and aria-busy still apply. */
+    const isBlocked = disabled || loading;
+
     return (
       <Comp
-        className={cn(buttonVariantsOuter({ variant, size }), className)}
+        className={cn(
+          buttonVariantsOuter({ variant, size }),
+          loading && "cursor-progress",
+          className
+        )}
         ref={ref}
+        disabled={asChild ? undefined : isBlocked}
+        aria-busy={loading || undefined}
+        aria-disabled={asChild && isBlocked ? true : undefined}
         {...props}
       >
         <div className={cn(innerDivVariants({ variant, size }))}>
           <span className="relative z-[1] flex items-center justify-center gap-2">
             {children}
+            {/* Right of the label. 20 is the orb's inline-text preset — its
+                own tuning, not a scaled-down 64, so it stays legible at
+                button size. The canvas is decorative; aria-busy above is
+                what announces the state. */}
+            {loading && (
+              <ThinkingOrb
+                state="composing"
+                size={20}
+                theme={ORB_THEME[variant]}
+                aria-hidden
+                className="shrink-0"
+              />
+            )}
           </span>
         </div>
       </Comp>

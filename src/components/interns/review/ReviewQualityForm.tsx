@@ -89,9 +89,10 @@ export function ReviewQualityForm({
         size="default"
         className="mt-4 w-full"
         disabled={!canSubmit}
+        loading={isSubmitting}
         onClick={onSubmit}
       >
-        {isSubmitting ? "Submitting…" : "Submit review"}
+        Submit review
       </TextureButton>
     </section>
   );

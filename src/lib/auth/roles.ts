@@ -17,9 +17,14 @@ export function isAnnotatorRole(role?: UserRole) {
   return role === "annotator" || role === "admin";
 }
 
+export function isAdminRole(role?: UserRole) {
+  return role === "admin";
+}
+
 /** Where a role lands after login or on hitting "/". */
 export function homePathForRole(role?: UserRole) {
+  if (role === "admin") return "/admin/dashboard";
   if (role === "annotator") return "/annotator/dashboard";
-  if (role === "intern" || role === "admin") return "/intern/dashboard";
+  if (role === "intern") return "/intern/dashboard";
   return "/contributor/dashboard";
 }

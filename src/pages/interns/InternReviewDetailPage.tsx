@@ -237,12 +237,12 @@ export default function InternReviewDetailPage() {
               <TextureButton
                 variant="alva"
                 size="sm"
-                className={cn("w-auto", isSaving && "opacity-70")}
-                disabled={isSaving}
+                className="w-auto"
+                loading={isSaving}
                 onClick={() => void persistProgress()}
               >
                 <Diskette size={15} weight="Bold" />
-                {isSaving ? "Saving…" : isDirty ? "Save" : "Saved"}
+                {isDirty ? "Save" : "Saved"}
               </TextureButton>
             </BorderBeam>
           </div>

@@ -55,7 +55,7 @@ export default function ContributorProfilePage() {
           sheetTitle="Account details"
           sheetDescription="Your core identity for Alvastudio."
         >
-          <div className="space-y-3">
+          <dl>
             <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />
             <ProfileInfoBlock label="Email" value={user?.email ?? "Not set"} />
             <ProfileInfoBlock label="Phone" value={user?.phone ?? "Not set"} />
@@ -65,7 +65,7 @@ export default function ContributorProfilePage() {
             />
             <ProfileInfoBlock label="Gender" value={formatGenderLabel(profile?.gender ?? "") || "Not set"} />
             <ProfileInfoBlock label="Age bracket" value={profile?.ageBracket ?? "Not set"} />
-          </div>
+          </dl>
         </ProfileActionRow>
 
         <ProfileActionRow
@@ -74,7 +74,7 @@ export default function ContributorProfilePage() {
           sheetTitle="Language profile"
           sheetDescription="The language background that gives your recordings context."
         >
-          <div className="space-y-3">
+          <dl>
             <ProfileInfoBlock
               label="Preferred variety"
               value={formatPreferredVarietyLabel(profile?.preferredVariety ?? "") || "Not set"}
@@ -95,7 +95,7 @@ export default function ContributorProfilePage() {
               label="Languages at home"
               value={profile?.homeLanguages ?? "Not set"}
             />
-          </div>
+          </dl>
         </ProfileActionRow>
 
         <ProfileActionRow
@@ -104,7 +104,7 @@ export default function ContributorProfilePage() {
           sheetTitle="Location & accent"
           sheetDescription="This helps Alva interpret regional speech patterns correctly."
         >
-          <div className="space-y-3">
+          <dl>
             <ProfileInfoBlock
               label="State of origin"
               value={profile?.stateOfOrigin ?? "Not set"}
@@ -113,7 +113,7 @@ export default function ContributorProfilePage() {
             {profile?.occupation ? (
               <ProfileInfoBlock label="Occupation" value={profile.occupation} />
             ) : null}
-          </div>
+          </dl>
         </ProfileActionRow>
 
         <ProfileActionRow
@@ -122,7 +122,7 @@ export default function ContributorProfilePage() {
           sheetTitle="Recording setup"
           sheetDescription="Useful for QA when a clip sounds unusually quiet or noisy."
         >
-          <div className="space-y-3">
+          <dl>
             <ProfileInfoBlock
               label="Self-reported device"
               value={formatRecordingDeviceLabel(profile?.recordingDevice ?? "") || "Not set"}
@@ -139,7 +139,7 @@ export default function ContributorProfilePage() {
               label="Default mode"
               value={isStaff ? "Focus group" : "Prompt reader"}
             />
-          </div>
+          </dl>
         </ProfileActionRow>
 
         <ProfileActionRow
@@ -148,11 +148,11 @@ export default function ContributorProfilePage() {
           sheetTitle="Consent & privacy"
           sheetDescription="Your consent records and how Alva is allowed to use submitted audio."
         >
-          <div className="space-y-3">
+          <dl>
             <ProfileInfoBlock label="Consent status" value="Accepted" />
             <ProfileInfoBlock label="Data usage" value="Speech research and dataset creation" />
             <ProfileInfoBlock label="Terms" value="Accepted during account setup" />
-          </div>
+          </dl>
         </ProfileActionRow>
 
         <ProfileActionRow
@@ -161,11 +161,11 @@ export default function ContributorProfilePage() {
           sheetTitle="Notifications"
           sheetDescription="How often Alva should nudge you about reviews, points, and new tasks."
         >
-          <div className="space-y-3">
+          <dl>
             <ProfileInfoBlock label="Review updates" value="On" />
             <ProfileInfoBlock label="Point log alerts" value="On" />
             <ProfileInfoBlock label="Recording reminders" value="Weekly" />
-          </div>
+          </dl>
         </ProfileActionRow>
 
         <div className="mt-6 flex justify-center">

@@ -4,6 +4,7 @@ import SidebarMinimalistic from "@solar-icons/react/it/SidebarMinimalistic";
 import ListCheck from "@solar-icons/react/list/ListCheck";
 import DocumentText from "@solar-icons/react/notes/DocumentText";
 import Bolt from "@solar-icons/react/ui/Bolt";
+import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import Microphone2 from "@solar-icons/react/video/Microphone2";
 import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStatusBadge";
 import { AutosaveIndicator } from "@/components/annotators/workspace/AutosaveIndicator";
@@ -15,7 +16,7 @@ import {
   PANEL_SECTION_LABEL,
   PanelDivider,
   PanelRow,
-} from "@/components/annotators/workspace/PanelPrimitives";
+} from "@/components/shared/PanelPrimitives";
 import { useResizableSize } from "@/components/annotators/workspace/timeline/useResizableSize";
 import {
   Tooltip,
@@ -23,6 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -61,6 +63,10 @@ export type SessionMetaSidebarProps = {
   collapsed: boolean;
   /** Called with the NEXT collapsed value, so `setCollapsed` can be passed directly. */
   onToggleCollapsed: (collapsed: boolean) => void;
+  /** Opens the confirm step. The page owns what "done" actually does. */
+  onComplete: () => void;
+  /** True once the session has been handed over. */
+  isComplete?: boolean;
   className?: string;
 };
 
@@ -200,6 +206,8 @@ function SessionMetaSidebarImpl({
   stats,
   collapsed,
   onToggleCollapsed,
+  onComplete,
+  isComplete = false,
   className,
 }: SessionMetaSidebarProps) {
   const [tab, setTab] = useState<"details" | "tags">("details");
@@ -282,6 +290,24 @@ function SessionMetaSidebarImpl({
             <span className="rotate-180 select-none text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground [writing-mode:vertical-rl]">
               Details
             </span>
+
+            {/* The action survives the collapse as an icon. Hiding it would mean
+                the only way to finish a session is to re-expand the panel. */}
+            <button
+              type="button"
+              onClick={onComplete}
+              disabled={isComplete}
+              aria-label={isComplete ? "Session submitted" : "Mark session as done"}
+              title={isComplete ? "Session submitted" : "Mark session as done"}
+              className={cn(
+                "mt-auto flex size-8 shrink-0 items-center justify-center rounded-full transition-opacity focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+                isComplete
+                  ? "bg-alva-accent/15 text-alva-accent"
+                  : "bg-alva-accent text-alva-bg hover:opacity-90"
+              )}
+            >
+              <CheckCircle size={17} weight="BoldDuotone" />
+            </button>
           </div>
         ) : (
           <>
@@ -347,7 +373,7 @@ function SessionMetaSidebarImpl({
               </div>
             </header>
 
-            <div className="alva-thin-scrollbar flex-1 overflow-y-auto px-4 pb-4 pt-4">
+            <div className="alva-thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4">
               {tab === "details" ? (
                 <>
                   {/* Live counters. Bare numbers on the panel ground — four boxed
@@ -442,6 +468,28 @@ function SessionMetaSidebarImpl({
                 <TagInspector />
               )}
             </div>
+
+            {/* Footer. Outside the scroll area on purpose: finishing is the last
+                thing you do, and an action you have to scroll to find is one you
+                will not find. The divider is the panel's own, so the button
+                reads as the panel's conclusion rather than another row in it. */}
+            <footer className="shrink-0 border-t border-alva-border px-4 py-3">
+              {isComplete ? (
+                <p className="flex items-center justify-center gap-1.5 rounded-full bg-alva-accent/15 py-2 text-xs font-medium text-alva-accent">
+                  <CheckCircle size={14} weight="BoldDuotone" />
+                  Submitted for review
+                </p>
+              ) : (
+                <TextureButton
+                  variant="alva"
+                  size="sm"
+                  onClick={onComplete}
+                  className="w-full"
+                >
+                  Mark as done
+                </TextureButton>
+              )}
+            </footer>
           </>
         )}
       </aside>

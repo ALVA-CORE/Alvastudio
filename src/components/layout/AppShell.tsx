@@ -2,8 +2,9 @@ import type { ReactNode } from "react";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { FloatingBottomNav } from "./FloatingBottomNav";
 import { AnnotatorSidebar } from "@/components/annotators/layout/AnnotatorSidebar";
+import { AdminShell } from "@/components/admin/layout/AdminShell";
 
-export type AppSurface = "contributor" | "intern" | "annotator";
+export type AppSurface = "contributor" | "intern" | "annotator" | "admin";
 
 type AppShellProps = {
   surface?: AppSurface;
@@ -11,6 +12,11 @@ type AppShellProps = {
 };
 
 export function AppShell({ surface = "contributor", children }: AppShellProps) {
+  if (surface === "admin") {
+    // Desktop-only, and gated inside AdminShell rather than per page.
+    return <AdminShell>{children}</AdminShell>;
+  }
+
   if (surface === "annotator") {
     // Desktop-only surface — no bottom nav. Pages gate small screens
     // themselves via <AnnotatorMobileGate />.

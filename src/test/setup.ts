@@ -168,6 +168,25 @@ class AudioContextStub {
     return { connect: () => {}, disconnect: () => {} };
   }
 
+  /* voice-glow analyses the recorder's stream through these two. It reads
+   * back frequency bins every frame, so getByteFrequencyData must fill the
+   * array it is handed rather than return one. */
+  createMediaStreamSource() {
+    return { connect: () => {}, disconnect: () => {} };
+  }
+
+  createAnalyser() {
+    return {
+      fftSize: 2048,
+      frequencyBinCount: 1024,
+      smoothingTimeConstant: 0.8,
+      connect: () => {},
+      disconnect: () => {},
+      getByteFrequencyData: (array: Uint8Array) => array.fill(0),
+      getByteTimeDomainData: (array: Uint8Array) => array.fill(128),
+    };
+  }
+
   createBufferSource() {
     return {
       buffer: null,
@@ -216,3 +235,35 @@ if (!window.fetch) {
     })
   );
 }
+
+/* ---------------------------------------------------------------- *
+ * Canvas 2D — thinking-orbs paints every loading button into a canvas.
+ * jsdom throws "Not implemented" from getContext unless the native
+ * `canvas` package is installed, which is a compiler toolchain we do not
+ * want in CI for what is a decorative animation. This returns an inert
+ * context so the orb mounts, draws into the void and unmounts cleanly.
+ * ---------------------------------------------------------------- */
+const canvasContextStub = new Proxy(
+  {
+    canvas: null,
+    globalAlpha: 1,
+    fillStyle: "#000",
+    strokeStyle: "#000",
+    lineWidth: 1,
+    createLinearGradient: () => ({ addColorStop: () => {} }),
+    createRadialGradient: () => ({ addColorStop: () => {} }),
+    getImageData: () => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 }),
+    measureText: () => ({ width: 0 }),
+  },
+  {
+    // Every other 2D call — arc, fill, translate, setTransform — is a no-op.
+    get: (target, prop) =>
+      prop in target ? Reflect.get(target, prop) : () => undefined,
+    set: () => true,
+  }
+);
+
+Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+  writable: true,
+  value: vi.fn((type: string) => (type === "2d" ? canvasContextStub : null)),
+});

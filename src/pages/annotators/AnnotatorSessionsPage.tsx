@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
@@ -9,6 +9,7 @@ import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStat
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { MetricCard } from "@/components/shared/MetricCard";
+import { TextureButton } from "@/components/ui/texture-button";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -16,10 +17,10 @@ import {
   EMPTY_SESSION_METRICS,
   SESSION_METRICS,
   formatLanguageShort,
-  getAnnotatorSessions,
   type AnnotatorSession,
 } from "@/data/annotators/sessions";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useAnnotatorSessions } from "@/hooks/useAnnotatorSessions";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type LanguageFilter = AnnotatorSession["language"] | "all";
@@ -33,10 +34,14 @@ const LANGUAGE_FILTERS: { value: LanguageFilter; label: string }[] = [
 
 export default function AnnotatorSessionsPage() {
   const isMobile = useIsMobile();
-  const isLoading = useSimulatedLoading();
   const navigate = useNavigate();
-  const sourceRows = useMemo(() => getAnnotatorSessions(), []);
-  const rows = useDevRows(sourceRows);
+
+  /* Live. `/annotations/queue` is what nobody has claimed; `/annotations` is
+   * what this annotator holds. The hook merges them into one list. */
+  const { sessions, isLoading, error, reload, claimNext, isClaiming } =
+    useAnnotatorSessions();
+
+  const rows = useDevRows(sessions);
 
   const [tab, setTab] = useState<"pending" | "completed">("pending");
   const [language, setLanguage] = useState<LanguageFilter>("all");
@@ -46,7 +51,34 @@ export default function AnnotatorSessionsPage() {
   }
 
   const isEmpty = rows.length === 0;
-  const metrics = isEmpty ? EMPTY_SESSION_METRICS : SESSION_METRICS;
+
+  /* Counts come from the rows themselves. The API has no annotator dashboard
+   * endpoint, so anything it cannot supply is left blank rather than invented —
+   * see docs/backend-gaps.md §1. */
+  const pendingCount = rows.filter((row) => row.status !== "completed").length;
+  const totalSeconds = rows.reduce((sum, row) => sum + row.durationSec, 0);
+  const metrics = isEmpty
+    ? EMPTY_SESSION_METRICS
+    : {
+        ...SESSION_METRICS,
+        queued: String(pendingCount),
+        queuedTrend: "",
+        hoursPending: `${(totalSeconds / 3600).toFixed(1)}h`,
+        hoursPendingTrend: "",
+        avgSession: rows.length
+          ? `${Math.round(totalSeconds / rows.length / 60)}m`
+          : "—",
+        avgSessionTrend: "",
+        speakersCovered: String(
+          rows.reduce((sum, row) => sum + row.participants, 0)
+        ),
+        speakersTrend: "",
+      };
+
+  const handleClaim = async () => {
+    const annotationId = await claimNext();
+    if (annotationId) reload();
+  };
 
   const languageFiltered =
     language === "all" ? rows : rows.filter((row) => row.language === language);
@@ -163,13 +195,44 @@ export default function AnnotatorSessionsPage() {
 
   return (
     <DesktopPageShell className="py-4">
-      <header>
-        <h1 className="text-2xl font-semibold text-foreground">Sessions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Focus group recordings queued for annotation — multi-speaker
-          conversational audio.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Sessions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Focus group recordings queued for annotation — multi-speaker
+            conversational audio.
+          </p>
+        </div>
+
+        {/* The backend hands work out by claim, not assignment, so taking the
+            next session is an explicit action rather than something that
+            happens on load. */}
+        <TextureButton
+          variant="alva"
+          size="sm"
+          className="w-auto shrink-0"
+          onClick={handleClaim}
+          loading={isClaiming}
+        >
+          Claim next session
+        </TextureButton>
       </header>
+
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="mt-2">

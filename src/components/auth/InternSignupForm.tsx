@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BeamInput } from "@/components/auth/BeamInput";
@@ -15,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
+import { ApiError } from "@/lib/api/client";
 import { normalizePhoneDigits } from "@/lib/participant-validation";
 import {
   QUOTA_ALERT_OPTIONS,
@@ -41,22 +43,38 @@ export function InternSignupForm() {
     },
   });
 
-  const onSubmit = (values: InternSignupValues) => {
-    signup({
-      fullName: values.fullName,
-      email: values.email,
-      phone: values.phone,
-      password: values.password,
-      role: "intern",
-      internProfile: {
-        primaryState: values.primaryState,
-        coverage: values.coverage,
-        quotaAlerts: values.quotaAlerts,
-        sessionReminders: true,
-        reviewUpdates: true,
-        device: "desktop-mic",
-      },
-    });
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const onSubmit = async (values: InternSignupValues) => {
+    setFormError(null);
+
+    try {
+      await signup({
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        role: "intern",
+        internProfile: {
+          primaryState: values.primaryState,
+          coverage: values.coverage,
+          quotaAlerts: values.quotaAlerts,
+          sessionReminders: true,
+          reviewUpdates: true,
+          device: "desktop-mic",
+        },
+      });
+    } catch (error) {
+      // Most often "email already registered", which the API returns as a 4xx
+      // with a usable message.
+      setFormError(
+        error instanceof ApiError
+          ? error.message
+          : "Could not reach the server. Check your connection and try again."
+      );
+      return;
+    }
+
     navigate("/intern/dashboard");
   };
 
@@ -232,7 +250,19 @@ export function InternSignupForm() {
             )}
           />
 
-          <TextureButton type="submit" variant="alva" size="lg" className="mt-2">
+          {formError ? (
+            <p role="alert" className="text-center text-xs font-medium text-destructive">
+              {formError}
+            </p>
+          ) : null}
+
+          <TextureButton
+            type="submit"
+            variant="alva"
+            size="lg"
+            className="mt-2"
+            loading={form.formState.isSubmitting}
+          >
             Create intern account
           </TextureButton>
         </form>

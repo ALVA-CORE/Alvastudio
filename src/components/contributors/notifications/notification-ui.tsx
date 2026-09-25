@@ -112,14 +112,6 @@ export function NotificationStatusTag({ status }: { status: NotificationStatus }
   );
 }
 
-export function DotSeparatedMeta({ items }: { items: string[] }) {
-  if (items.length === 0) return null;
-
-  return (
-    <p className="text-sm leading-relaxed text-muted-foreground">{items.join(" · ")}</p>
-  );
-}
-
 export function StackedMetaLines({ items }: { items: string[] }) {
   if (items.length === 0) return null;
 

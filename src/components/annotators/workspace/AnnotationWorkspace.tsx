@@ -5,6 +5,8 @@ import { TranscriptEditor } from "./TranscriptEditor";
 import { TimelineDock } from "./timeline/TimelineDock";
 import { SessionMetaSidebar, type WorkspacePassStats } from "./SessionMetaSidebar";
 import { useWorkspaceHotkeys } from "./useWorkspaceHotkeys";
+import { CompleteSessionDialog } from "./CompleteSessionDialog";
+import { markSessionComplete } from "@/data/annotators/sessions";
 import {
   useAnnotation,
   useAnnotationActions,
@@ -37,7 +39,15 @@ export function AnnotationWorkspace({ session, onFlushSave }: AnnotationWorkspac
   const { setCurrentTime, setPlaying } = useAnnotationActions();
 
   const segments = useAnnotation(selectSegments);
+  /** What the confirm step reports as being handed over. */
+  const tagCount = useAnnotation(
+    (state) =>
+      state.history.present.spans.length + state.history.present.nonSpeech.length
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isSubmitting, setSubmitting] = useState(false);
+  const [isComplete, setComplete] = useState(session.status === "completed");
 
   /* Recomputed only when the document changes — not on playback. */
   const stats = useMemo<WorkspacePassStats>(() => {
@@ -51,6 +61,26 @@ export function AnnotationWorkspace({ session, onFlushSave }: AnnotationWorkspac
   }, [segments]);
 
   const handleBack = useCallback(() => navigate("/annotator/sessions"), [navigate]);
+
+  /**
+   * Flush before marking done, not after.
+   *
+   * Autosave is debounced, so the last edit before someone reaches for the
+   * button is very often still pending. Submitting first and saving second
+   * would hand over a session whose most recent change had not landed.
+   */
+  const handleConfirmComplete = useCallback(async () => {
+    setSubmitting(true);
+    try {
+      await onFlushSave?.();
+      await markSessionComplete(session.id);
+      setComplete(true);
+      setConfirmOpen(false);
+      navigate("/annotator/sessions");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [navigate, onFlushSave, session.id]);
 
   /* Read imperatively: subscribing to isPlaying here would re-render the whole
    * workspace shell every time playback toggles. */
@@ -84,6 +114,18 @@ export function AnnotationWorkspace({ session, onFlushSave }: AnnotationWorkspac
           stats={stats}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={setSidebarCollapsed}
+          onComplete={() => setConfirmOpen(true)}
+          isComplete={isComplete}
+        />
+
+        <CompleteSessionDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          onConfirm={handleConfirmComplete}
+          isSubmitting={isSubmitting}
+          segmentCount={stats.segmentCount}
+          tagCount={tagCount}
+          errors={stats.errors}
         />
       </div>
     </div>

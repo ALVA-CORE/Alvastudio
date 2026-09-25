@@ -21,7 +21,7 @@ import {
 import {
   PANEL_SECTION_LABEL,
   PanelDivider,
-} from "@/components/annotators/workspace/PanelPrimitives";
+} from "@/components/shared/PanelPrimitives";
 import { ScrollableTabStrip } from "@/components/annotators/workspace/tagging/ScrollableTabStrip";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { cn } from "@/lib/utils";
