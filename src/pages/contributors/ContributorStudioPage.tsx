@@ -36,7 +36,6 @@ export default function ContributorStudioPage() {
   const isMobile = useIsMobile();
   const isStaff = isStaffRole(user?.role);
   const [mode, setMode] = useState<Exclude<StudioMode, "focus">>("prompt");
-  const [currentIndex, setCurrentIndex] = useState(0);
   const recorder = useStudioRecorder();
 
   const [isSaving, setSaving] = useState(false);
@@ -79,15 +78,10 @@ export default function ContributorStudioPage() {
   const handleModeChange = (nextMode: StudioMode) => {
     if (nextMode === "focus") return;
     setMode(nextMode);
-    setCurrentIndex(0);
     recorder.discardRecording();
     alvaToast.show(`Switched to ${MODE_LABEL[nextMode]}`, { variant: "default" });
   };
 
-  const goTo = (updater: (prev: number) => number) => {
-    setCurrentIndex((prev) => (updater(prev) + total) % total);
-    recorder.discardRecording();
-  };
 
   const handlePrimary = async () => {
     if (recorder.phase === "idle") {
@@ -213,7 +207,8 @@ export default function ContributorStudioPage() {
             <TrashBinMinimalistic size={16} weight="Outline" />
           </TextureButton>
 
-          <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}>
+          <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}
+              disabled={isSaving}>
             <span className="flex items-center gap-2">
               <Diskette size={16} weight="Bold" />
               Save
