@@ -65,7 +65,68 @@ can.
 
 ---
 
-## 3. No time-series data on any dashboard
+## 3. Participants lose four fields — BLOCKING
+
+The intern intake form collects nine things per participant. `ParticipantIn`
+stores five: `label`, `age_bracket`, `gender`, `role`, `language_variety`.
+
+These four have nowhere to go:
+
+| Field | Why it matters |
+| --- | --- |
+| `consent` | Verbal or signed. **This is a legal record.** |
+| `state` | The corpus samples by state. Without it there is no coverage data. |
+| `native_language` | Needed to interpret the speaker's variety. |
+| `phone` | How the intern re-contacts a participant. |
+
+I am keeping them in browser localStorage so the intern does not lose their own
+work. That is a stopgap and not an acceptable one — it does not survive a
+different browser or device, and a consent record held in one laptop's
+localStorage is not a consent record.
+
+**Please add these four to `ParticipantIn` and `Participant`.**
+
+---
+
+## 4. `GET /focus-groups` returns counts, not participants
+
+The list row has `participant_count` but no participants. To show a participant
+table I fetch the list, then one `GET /focus-groups/{id}` per session.
+
+Twenty sessions is twenty-one requests for one page.
+
+**Please either** add `?expand=participants` to the list, **or** add
+`GET /participants` returning the caller's participants directly.
+
+---
+
+## 5. No way to delete a focus group session
+
+`DELETE /api/v1/focus-groups/{id}` returns 405.
+
+A session created by mistake — wrong topic, wrong participants, a test — is
+permanent, and once it has audio it goes into the annotation queue where someone
+will waste time on it.
+
+**Please add a delete, or a soft-delete/cancel.**
+
+---
+
+## 6. Say which audio formats decode
+
+`POST /focus-groups/{id}/audio` rejected a file with
+`"Could not decode audio; the file may be corrupt or in an unsupported format"`.
+
+The browser's `MediaRecorder` produces **`audio/webm`** (Opus) on Chrome and
+Android, and `audio/mp4` on Safari. Neither is something I can change — it is
+what the browser gives me.
+
+**Please confirm webm/Opus and mp4/AAC both decode.** If they do not, the record
+pages cannot upload at all and I need to know what to convert to.
+
+---
+
+## 7. No time-series data on any dashboard
 
 `/dashboard/contributor` and `/dashboard/intern` return totals only.
 
@@ -78,7 +139,7 @@ the radar, the demographic pyramid over time.
 
 ---
 
-## 4. No waveform data
+## 8. No waveform data
 
 The annotation workspace draws a waveform per segment. I generate a fake one.
 
@@ -87,7 +148,7 @@ real audio.
 
 ---
 
-## 5. Missing fields on list rows
+## 9. Missing fields on list rows
 
 **`/annotations/queue`** gives `session_id`, `topic`, `duration_seconds`,
 `participant_count`, `created_at`.
@@ -103,7 +164,7 @@ queue row, and `prompt_text` to the recording row.
 
 ---
 
-## 6. No contributor points
+## 10. No contributor points
 
 The contributor home shows a points balance. There is no points field anywhere.
 `/payments/earnings` returns money, which is a different thing.
@@ -112,7 +173,7 @@ The contributor home shows a points balance. There is no points field anywhere.
 
 ---
 
-## 7. Small things
+## 11. Small things
 
 **a. Document the audio rule.** A focus-group session does not appear in
 `/annotations/queue` until audio is uploaded. Took me a while to work out.

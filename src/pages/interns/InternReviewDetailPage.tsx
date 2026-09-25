@@ -6,9 +6,11 @@ import { BorderBeam } from "border-beam";
 import {
   VERDICT_LABELS,
   calculateVerdictFromAnswers,
-  getInternReviewQueue,
   type QualityAnswers,
 } from "@/data/reviewQueue";
+import { useReviewItem } from "@/hooks/useReviewItem";
+import { useReviewQueue } from "@/hooks/useReviewQueue";
+import { AlvaTableSkeleton } from "@/components/shared/states/AlvaTableSkeleton";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ReviewClipNavigation } from "@/components/interns/review/ReviewClipNavigation";
 import { ReviewWorkspace } from "@/components/interns/review/ReviewWorkspace";
@@ -20,6 +22,7 @@ import {
   type ReviewProgressSnapshot,
 } from "@/lib/review-progress";
 import { TextureButton } from "@/components/ui/texture-button";
+import type { ReviewQueueItem } from "@/data/reviewQueue";
 import { cn } from "@/lib/utils";
 
 const EMPTY_ANSWERS: QualityAnswers = {
@@ -29,8 +32,6 @@ const EMPTY_ANSWERS: QualityAnswers = {
   natural: "",
   verdict: "",
 };
-
-const INTERN_QUEUE = getInternReviewQueue();
 
 function buildSnapshot(
   answers: QualityAnswers,
@@ -47,7 +48,7 @@ function buildSnapshot(
   };
 }
 
-function resolveInitialState(item: (typeof INTERN_QUEUE)[number]) {
+function resolveInitialState(item: ReviewQueueItem) {
   const saved = loadReviewProgress(item.id);
   if (saved) {
     return {
@@ -75,15 +76,21 @@ function resolveInitialState(item: (typeof INTERN_QUEUE)[number]) {
 export default function InternReviewDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const activeIndex = INTERN_QUEUE.findIndex((item) => item.id === id);
-  const item = activeIndex >= 0 ? INTERN_QUEUE[activeIndex] : undefined;
+  /* The clip itself — recording, prompt text and an authenticated audio URL.
+   * The queue is fetched separately only to work out the neighbours for the
+   * prev/next control; it is not what renders this page. */
+  const { item: fetched, isLoading, error, submit, isSubmitting: isPosting } =
+    useReviewItem(id);
+  const { items: queue } = useReviewQueue();
+
+  const item = fetched ?? undefined;
+  const activeIndex = queue.findIndex((row) => row.id === id);
 
   const initial = item ? resolveInitialState(item) : null;
 
   const [answers, setAnswers] = useState<QualityAnswers>(initial?.answers ?? EMPTY_ANSWERS);
   const [playbackTime, setPlaybackTime] = useState(initial?.playbackTime ?? 0);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
   const lastSavedRef = useRef<ReviewProgressSnapshot | null>(
@@ -108,7 +115,10 @@ export default function InternReviewDetailPage() {
       next.completed
     );
     setIsDirty(false);
-  }, [id]);
+    // `item` is the trigger, not just `id`: the clip arrives one render after
+    // the route changes, and reading the saved draft before it lands would
+    // seed the form from the previous clip.
+  }, [item]);
 
   const currentSnapshot = useCallback(
     () =>
@@ -170,13 +180,34 @@ export default function InternReviewDetailPage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
 
+  if (isLoading) {
+    return (
+      <DesktopPageShell className="py-4">
+        <AlvaTableSkeleton />
+      </DesktopPageShell>
+    );
+  }
+
+  /* A bad id is a wrong turn, not an error screen — back to the queue. A
+   * reachable clip that failed to load is a real error and says so. */
   if (!item) {
+    if (error) {
+      return (
+        <DesktopPageShell className="py-4">
+          <p role="alert" className="mt-8 text-center text-sm text-destructive">
+            {error}
+          </p>
+        </DesktopPageShell>
+      );
+    }
     return <Navigate to="/intern/review" replace />;
   }
 
-  const previousItem = activeIndex > 0 ? INTERN_QUEUE[activeIndex - 1] : undefined;
+  const previousItem = activeIndex > 0 ? queue[activeIndex - 1] : undefined;
   const nextItem =
-    activeIndex < INTERN_QUEUE.length - 1 ? INTERN_QUEUE[activeIndex + 1] : undefined;
+    activeIndex >= 0 && activeIndex < queue.length - 1
+      ? queue[activeIndex + 1]
+      : undefined;
 
   const handleBack = async () => {
     if (isDirty) {
@@ -190,9 +221,17 @@ export default function InternReviewDetailPage() {
     const verdict = calculateVerdictFromAnswers(answers);
     if (!verdict) return;
 
-    setIsSubmitting(true);
     const finalAnswers = { ...answers, verdict };
     setAnswers(finalAnswers);
+
+    /* The verdict goes to the API first. Only once it is accepted do we clear
+     * the local draft and move on — otherwise a failed POST would wipe the
+     * intern's work and advance to the next clip as if it had landed. */
+    const ok = await submit(finalAnswers, verdict);
+    if (!ok) {
+      alvaToast.error("Could not submit the review. Your answers are still here.");
+      return;
+    }
 
     const snapshot = buildSnapshot(finalAnswers, playbackTime, true);
     saveReviewProgress(item.id, snapshot);
@@ -200,8 +239,6 @@ export default function InternReviewDetailPage() {
     setIsDirty(false);
 
     alvaToast.success(`${VERDICT_LABELS[verdict]} — review submitted`);
-
-    setIsSubmitting(false);
 
     if (nextItem) {
       navigate(`/intern/review/${nextItem.id}`);
@@ -255,7 +292,7 @@ export default function InternReviewDetailPage() {
           playbackTime={playbackTime}
           onPlaybackTimeChange={setPlaybackTime}
           onSubmit={() => void handleSubmit()}
-          isSubmitting={isSubmitting}
+          isSubmitting={isPosting}
         />
       </div>
 

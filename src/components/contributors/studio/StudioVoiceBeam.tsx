@@ -24,9 +24,13 @@ const ALVA_BEAM_COLORS = [
  *
  * The glow is painted inside the host and clipped by its `overflow: hidden`,
  * blooming upward from the bottom edge. The `mobile` preset runs at scale 1.25
- * with a 2.1x glow height, so this needs headroom or the bloom gets a flat top.
+ * with a 2.1x glow height, so this needs headroom — and `.alva-beam-fade`
+ * softens whatever still reaches the ceiling on a loud syllable.
+ *
+ * Kept in step with the rail blur's bottom clearance in index.css: that mask
+ * stops 17rem from the bottom so it never smears this band.
  */
-const HOST_HEIGHT = "h-48";
+const HOST_HEIGHT = "h-64";
 
 type StudioVoiceBeamProps = {
   /** The recorder's live capture. Null when nothing is being recorded. */
@@ -64,7 +68,7 @@ export function StudioVoiceBeam({
   return (
     <div
       aria-hidden
-      className={`pointer-events-none fixed inset-x-0 bottom-0 z-30 ${HOST_HEIGHT}`}
+      className={`alva-beam-fade pointer-events-none fixed inset-x-0 bottom-0 z-30 ${HOST_HEIGHT}`}
     >
       <VoiceBeam
         type="mobile"
