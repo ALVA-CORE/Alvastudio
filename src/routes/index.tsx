@@ -18,23 +18,33 @@ import AnnotatorDashboardPage from "@/pages/annotators/AnnotatorDashboardPage";
 import AnnotatorSessionsPage from "@/pages/annotators/AnnotatorSessionsPage";
 import AnnotatorWorkspacePage from "@/pages/annotators/AnnotatorWorkspacePage";
 import AnnotatorProfilePage from "@/pages/annotators/AnnotatorProfilePage";
+import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
+import AdminPromptsPage from "@/pages/admin/AdminPromptsPage";
+import AdminUsersPage from "@/pages/admin/AdminUsersPage";
+import AdminCorpusPage from "@/pages/admin/AdminCorpusPage";
+import AdminReviewsPage from "@/pages/admin/AdminReviewsPage";
+import AdminAnnotationsPage from "@/pages/admin/AdminAnnotationsPage";
+import AdminFocusGroupsPage from "@/pages/admin/AdminFocusGroupsPage";
+import AdminPaymentsPage from "@/pages/admin/AdminPaymentsPage";
+import AdminAudioPage from "@/pages/admin/AdminAudioPage";
+import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 import NotFoundPage from "@/pages/errors/NotFoundPage";
 import { ProtectedRoute, GuestRoute, RoleRoute } from "@/routes/guards";
 import { useAuth } from "@/lib/auth/context";
-import { homePathForRole, isInternRole } from "@/lib/auth/roles";
+import { homePathForRole, isInternRole, isAdminRole } from "@/lib/auth/roles";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * Interns get a real mobile surface (they record in the field), so on a phone
- * they fall back to the contributor dashboard. Annotators do not — annotation
- * is desktop work — so they keep their own home and meet the mobile gate,
+ * they fall back to the contributor dashboard. Annotators and admins do not —
+ * both are desktop work — so they keep their own home and meet the mobile gate,
  * which explains why rather than dropping them somewhere they can't act.
  */
 function useHomePath() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  if (user && isMobile && isInternRole(user.role)) {
+  if (user && isMobile && isInternRole(user.role) && !isAdminRole(user.role)) {
     return "/contributor/dashboard";
   }
 
@@ -93,6 +103,25 @@ export function AppRoutes() {
               path="/annotator/review/:id"
               element={<Navigate to="/annotator/sessions" replace />}
             />
+          </Route>
+
+          {/*
+            Admin is its own surface, not a superset of the intern one. Admins
+            can still reach the intern and annotator routes above — those guards
+            include "admin" — but they land here.
+          */}
+          <Route element={<RoleRoute roles={["admin"]} />}>
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/prompts" element={<AdminPromptsPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/corpus" element={<AdminCorpusPage />} />
+            <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+            <Route path="/admin/annotations" element={<AdminAnnotationsPage />} />
+            <Route path="/admin/focus-groups" element={<AdminFocusGroupsPage />} />
+            <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+            <Route path="/admin/audio" element={<AdminAudioPage />} />
+            <Route path="/admin/settings" element={<AdminSettingsPage />} />
           </Route>
 
           <Route path="/dashboard" element={<LegacyDashboardRedirect />} />
