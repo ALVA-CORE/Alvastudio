@@ -1,5 +1,3 @@
-import { buildReviewQueue } from "@/data/reviewQueueData";
-
 export type ReviewVerdict = "approve" | "reject" | "flag";
 
 export type ReviewQueueStatus = "pending" | "completed";
@@ -24,8 +22,6 @@ export type ReviewQueueItem = {
     completed: boolean;
   };
 };
-
-export const REVIEW_QUEUE: ReviewQueueItem[] = buildReviewQueue();
 
 export type TriStateAnswer = "yes" | "partial" | "no" | "";
 
@@ -161,14 +157,4 @@ export function calculateVerdictFromAnswers(
   if (values.every((value) => value === "yes")) return "approve";
   if (values.some((value) => value === "no")) return "reject";
   return "flag";
-}
-
-/** Interns review contributor-submitted prompt reader and stimuli clips. */
-export function getInternReviewQueue() {
-  return REVIEW_QUEUE.filter((item) => item.mode !== "Focus group");
-}
-
-/** Annotators review focus group session clips. */
-export function getAnnotatorReviewQueue() {
-  return REVIEW_QUEUE.filter((item) => item.mode === "Focus group");
 }

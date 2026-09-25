@@ -203,11 +203,25 @@
   */
   .alva-rail-blur {
     -webkit-mask-image: linear-gradient(to right, #000 45%, transparent 100%),
-      linear-gradient(to bottom, #000 calc(100% - 15rem), transparent calc(100% - 13rem));
+      linear-gradient(to bottom, #000 calc(100% - 20rem), transparent calc(100% - 17rem));
     -webkit-mask-composite: source-in;
     mask-image: linear-gradient(to right, #000 45%, transparent 100%),
-      linear-gradient(to bottom, #000 calc(100% - 15rem), transparent calc(100% - 13rem));
+      linear-gradient(to bottom, #000 calc(100% - 20rem), transparent calc(100% - 17rem));
     mask-composite: intersect;
+  }
+
+  /*
+    Top fade for the voice beam.
+
+    The beam's host clips its own glow (`overflow: hidden`), so wherever the
+    glow is still bright at the top of the host it ends in a hard horizontal
+    line. Height alone cannot fix that — the glow grows with the voice, so any
+    fixed height is one loud syllable away from touching the ceiling. This fades
+    the host out over its top half instead, which holds at every level.
+  */
+  .alva-beam-fade {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 58%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 58%);
   }
 
   /* The timeline's horizontal bar is a control, not decoration — 4px is not

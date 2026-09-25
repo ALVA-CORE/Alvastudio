@@ -103,28 +103,23 @@ export const NIGERIAN_STATES = [
 
 export const PARTICIPANT_COUNT_OPTIONS = [1, 2, 3] as const;
 
-export const PARTICIPANT_METRICS = {
-  total: "214",
-  totalTrend: "+18%",
-  thisWeek: "42",
-  thisWeekTrend: "+6",
-  sessions: "38",
-  sessionsTrend: "+4",
-  quotaFill: "78%",
-  quotaTrend: "+5%",
-  periodLabel: "Last 30 days",
-};
-
-export const EMPTY_PARTICIPANT_METRICS: typeof PARTICIPANT_METRICS = {
+/**
+ * Starting point for the participants metric row.
+ *
+ * Every trend is blank: the API returns participants, not a period-over-period
+ * comparison, so there is no honest number to put there. The page overwrites
+ * the counts it can work out from the rows it has.
+ */
+export const EMPTY_PARTICIPANT_METRICS = {
   total: "0",
-  totalTrend: "0%",
+  totalTrend: "",
   thisWeek: "0",
-  thisWeekTrend: "0",
+  thisWeekTrend: "",
   sessions: "0",
-  sessionsTrend: "0",
-  quotaFill: "0%",
-  quotaTrend: "0%",
-  periodLabel: PARTICIPANT_METRICS.periodLabel,
+  sessionsTrend: "",
+  quotaFill: "—",
+  quotaTrend: "",
+  periodLabel: "",
 };
 
 export function formatGenderLabel(value: Gender | "") {

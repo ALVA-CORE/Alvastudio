@@ -39,11 +39,6 @@ export function saveReviewProgress(clipId: string, snapshot: ReviewProgressSnaps
   writeStore(store);
 }
 
-export function markReviewCompleted(clipId: string) {
-  const existing = loadReviewProgress(clipId);
-  if (!existing) return;
-  saveReviewProgress(clipId, { ...existing, completed: true });
-}
 
 export function getReviewDisplayStatus(
   clipId: string,
