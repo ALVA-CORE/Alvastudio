@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   createSession,
-  getSession,
+  deleteSession,
   listSessions,
   uploadSessionAudio,
   type ApiSession,
@@ -11,13 +11,8 @@ import { ApiError } from "@/lib/api/client";
 import {
   apiToParticipantRecord,
   draftToApiParticipant,
-  draftToExtras,
   toApiSessionVariety,
 } from "@/lib/interns/participantMapping";
-import {
-  loadParticipantExtras,
-  saveParticipantExtras,
-} from "@/lib/intern-participants";
 import type {
   ParticipantDraft,
   ParticipantRecord,
@@ -30,9 +25,6 @@ import type {
  * `POST /focus-groups` takes nested participants, so the intake flow does not
  * need a round trip per person — eight participants is one call, and a partial
  * failure cannot leave a session holding half a room.
- *
- * The four fields the API has no column for are written to the local sidecar
- * against the ids the server hands back. See `participantMapping.ts`.
  */
 export async function createSessionWithParticipants(
   topic: string,
@@ -48,18 +40,12 @@ export async function createSessionWithParticipants(
     participants: drafts.map(draftToApiParticipant),
   });
 
-  /* Match returned participants to the drafts that made them. The API preserves
-   * order, but label is the safer key — fall back to position only if it does
-   * not match, so a duplicate label cannot silently pair the wrong extras. */
-  const extras: Record<string, ReturnType<typeof draftToExtras>> = {};
-  session.participants.forEach((participant, index) => {
-    const byLabel = drafts.filter((draft) => draft.nameOrId === participant.label);
-    const draft = byLabel.length === 1 ? byLabel[0] : drafts[index];
-    if (draft) extras[participant.id] = draftToExtras(draft);
-  });
-  saveParticipantExtras(extras);
-
   return session;
+}
+
+/** Removes a session. 409 when an annotator has already claimed it. */
+export async function removeSession(sessionId: string) {
+  return deleteSession(sessionId);
 }
 
 /** Attaches the take. A session is not claimable for annotation until this runs. */
@@ -77,10 +63,9 @@ export async function attachSessionAudio(
 /**
  * Every participant this intern has logged, flattened out of their sessions.
  *
- * The list endpoint returns counts only, so each session is fetched for its
- * nested participants. That is one request per session — acceptable while an
- * intern has tens of sessions, and the reason `docs/backend-gaps.md` asks for
- * participants to be expandable on the list.
+ * One request: `expand=participants` nests them on each list row. This used to
+ * be a fetch per session, which was a request per row on a page that shows
+ * every participant at once.
  */
 export function useInternParticipants() {
   const [rows, setRows] = useState<ParticipantRecord[]>([]);
@@ -95,26 +80,14 @@ export function useInternParticipants() {
 
     (async () => {
       try {
-        const summaries = await listSessions({ limit: 100 });
+        const summaries = await listSessions({ limit: 100, expand: "participants" });
         if (cancelled) return;
         setSessions(summaries);
 
-        const details = await Promise.all(
-          summaries.map((summary) => getSession(summary.id).catch(() => null))
-        );
-        if (cancelled) return;
-
-        const extras = loadParticipantExtras();
-        const flattened = details.flatMap((session) =>
-          session
-            ? session.participants.map((participant) =>
-                apiToParticipantRecord(
-                  participant,
-                  { focusGroupSession: session.topic },
-                  extras[participant.id]
-                )
-              )
-            : []
+        const flattened = summaries.flatMap((session) =>
+          (session.participants ?? []).map((participant) =>
+            apiToParticipantRecord(participant, { focusGroupSession: session.topic })
+          )
         );
 
         setRows(flattened.sort((a, b) => b.loggedAt - a.loggedAt));

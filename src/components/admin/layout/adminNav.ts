@@ -68,7 +68,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     title: "Prompts and stimuli",
     blurb:
       "The banks contributors record against. Empty banks mean nobody can record.",
-    status: "ready",
+    status: "partial",
+    blockedBy: "PATCH and DELETE for stimuli, matching prompts; and a bulk create",
     Icon: Notebook2,
   },
   {
@@ -77,8 +78,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Users",
     title: "User management",
     blurb: "Create staff accounts, change roles, deactivate people who have left.",
-    status: "blocked",
-    blockedBy: "GET /users, POST /users, PATCH /users/{id}",
+    status: "partial",
+    blockedBy: "POST /users and PATCH /users/{id} — list and delete exist, create and role changes do not",
     Icon: UsersGroupRounded,
   },
   {
@@ -127,7 +128,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     title: "Payments and rates",
     blurb: "What contributors have earned and what has been paid out.",
     status: "partial",
-    blockedBy: "All-contributor earnings, and a CSV export",
+    blockedBy: "All-contributor earnings and a CSV export — per-contributor earnings and rates exist",
     Icon: Wallet,
   },
   {

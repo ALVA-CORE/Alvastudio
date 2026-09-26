@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShellLayout, AuthLayout } from "@/components/layout";
+import { DocumentTitle } from "@/components/layout/DocumentTitle";
 import LoginPage from "@/pages/auth/LoginPage";
 import ContributorSignupPage from "@/pages/auth/ContributorSignupPage";
 import SignupPage from "@/pages/auth/SignupPage";
@@ -61,90 +62,93 @@ function LegacyDashboardRedirect() {
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<RootRedirect />} />
+    <>
+      <DocumentTitle />
+      <Routes>
+        <Route path="/" element={<RootRedirect />} />
 
-      <Route element={<GuestRoute />}>
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/contributor/signup" element={<ContributorSignupPage />} />
-          <Route path="/intern/signup" element={<SignupPage />} />
-          <Route path="/signup" element={<Navigate to="/intern/signup" replace />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        </Route>
-      </Route>
-
-      <Route element={<ProtectedRoute />}>
-        <Route element={<AppShellLayout />}>
-          <Route path="/contributor/dashboard" element={<ContributorDashboardPage />} />
-          <Route path="/contributor/studio" element={<ContributorStudioPage />} />
-          <Route path="/contributor/notifications" element={<ContributorNotificationsPage />} />
-          <Route path="/contributor/profile" element={<ContributorProfilePage />} />
-
-          <Route element={<RoleRoute roles={["intern", "admin"]} />}>
-            <Route path="/intern/dashboard" element={<InternDashboardPage />} />
-            <Route path="/intern/record" element={<InternRecordPage />} />
-            <Route path="/intern/participants" element={<InternParticipantsPage />} />
-            <Route path="/intern/review" element={<InternReviewPage />} />
-            <Route path="/intern/review/:id" element={<InternReviewDetailPage />} />
-            <Route path="/intern/profile" element={<InternProfilePage />} />
+        <Route element={<GuestRoute />}>
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/contributor/signup" element={<ContributorSignupPage />} />
+            <Route path="/intern/signup" element={<SignupPage />} />
+            <Route path="/signup" element={<Navigate to="/intern/signup" replace />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           </Route>
+        </Route>
 
-          <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
-            <Route path="/annotator/dashboard" element={<AnnotatorDashboardPage />} />
-            <Route path="/annotator/sessions" element={<AnnotatorSessionsPage />} />
-            <Route path="/annotator/profile" element={<AnnotatorProfilePage />} />
-            {/* Legacy review paths now resolve to the session queue. */}
-            <Route
-              path="/annotator/review"
-              element={<Navigate to="/annotator/sessions" replace />}
-            />
-            <Route
-              path="/annotator/review/:id"
-              element={<Navigate to="/annotator/sessions" replace />}
-            />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppShellLayout />}>
+            <Route path="/contributor/dashboard" element={<ContributorDashboardPage />} />
+            <Route path="/contributor/studio" element={<ContributorStudioPage />} />
+            <Route path="/contributor/notifications" element={<ContributorNotificationsPage />} />
+            <Route path="/contributor/profile" element={<ContributorProfilePage />} />
+
+            <Route element={<RoleRoute roles={["intern", "admin"]} />}>
+              <Route path="/intern/dashboard" element={<InternDashboardPage />} />
+              <Route path="/intern/record" element={<InternRecordPage />} />
+              <Route path="/intern/participants" element={<InternParticipantsPage />} />
+              <Route path="/intern/review" element={<InternReviewPage />} />
+              <Route path="/intern/review/:id" element={<InternReviewDetailPage />} />
+              <Route path="/intern/profile" element={<InternProfilePage />} />
+            </Route>
+
+            <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
+              <Route path="/annotator/dashboard" element={<AnnotatorDashboardPage />} />
+              <Route path="/annotator/sessions" element={<AnnotatorSessionsPage />} />
+              <Route path="/annotator/profile" element={<AnnotatorProfilePage />} />
+              {/* Legacy review paths now resolve to the session queue. */}
+              <Route
+                path="/annotator/review"
+                element={<Navigate to="/annotator/sessions" replace />}
+              />
+              <Route
+                path="/annotator/review/:id"
+                element={<Navigate to="/annotator/sessions" replace />}
+              />
+            </Route>
+
+            {/*
+              Admin is its own surface, not a superset of the intern one. Admins
+              can still reach the intern and annotator routes above — those guards
+              include "admin" — but they land here.
+            */}
+            <Route element={<RoleRoute roles={["admin"]} />}>
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+              <Route path="/admin/prompts" element={<AdminPromptsPage />} />
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/admin/corpus" element={<AdminCorpusPage />} />
+              <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+              <Route path="/admin/annotations" element={<AdminAnnotationsPage />} />
+              <Route path="/admin/focus-groups" element={<AdminFocusGroupsPage />} />
+              <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+              <Route path="/admin/audio" element={<AdminAudioPage />} />
+              <Route path="/admin/settings" element={<AdminSettingsPage />} />
+            </Route>
+
+            <Route path="/dashboard" element={<LegacyDashboardRedirect />} />
+            <Route path="/studio" element={<Navigate to="/contributor/studio" replace />} />
+            <Route path="/profile" element={<Navigate to="/contributor/profile" replace />} />
+            <Route path="/review" element={<Navigate to="/intern/review" replace />} />
+            <Route path="/review/:id" element={<Navigate to="/intern/review" replace />} />
           </Route>
 
           {/*
-            Admin is its own surface, not a superset of the intern one. Admins
-            can still reach the intern and annotator routes above — those guards
-            include "admin" — but they land here.
+            The workspace sits OUTSIDE AppShellLayout: it is a full-bleed editor
+            with its own header and back link, and the timeline wants every pixel
+            of horizontal room. Still role-guarded.
           */}
-          <Route element={<RoleRoute roles={["admin"]} />}>
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/admin/prompts" element={<AdminPromptsPage />} />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
-            <Route path="/admin/corpus" element={<AdminCorpusPage />} />
-            <Route path="/admin/reviews" element={<AdminReviewsPage />} />
-            <Route path="/admin/annotations" element={<AdminAnnotationsPage />} />
-            <Route path="/admin/focus-groups" element={<AdminFocusGroupsPage />} />
-            <Route path="/admin/payments" element={<AdminPaymentsPage />} />
-            <Route path="/admin/audio" element={<AdminAudioPage />} />
-            <Route path="/admin/settings" element={<AdminSettingsPage />} />
+          <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
+            <Route
+              path="/annotator/sessions/:sessionId"
+              element={<AnnotatorWorkspacePage />}
+            />
           </Route>
-
-          <Route path="/dashboard" element={<LegacyDashboardRedirect />} />
-          <Route path="/studio" element={<Navigate to="/contributor/studio" replace />} />
-          <Route path="/profile" element={<Navigate to="/contributor/profile" replace />} />
-          <Route path="/review" element={<Navigate to="/intern/review" replace />} />
-          <Route path="/review/:id" element={<Navigate to="/intern/review" replace />} />
         </Route>
 
-        {/*
-          The workspace sits OUTSIDE AppShellLayout: it is a full-bleed editor
-          with its own header and back link, and the timeline wants every pixel
-          of horizontal room. Still role-guarded.
-        */}
-        <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
-          <Route
-            path="/annotator/sessions/:sessionId"
-            element={<AnnotatorWorkspacePage />}
-          />
-        </Route>
-      </Route>
-
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </>
   );
 }

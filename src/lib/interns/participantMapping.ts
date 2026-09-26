@@ -3,37 +3,12 @@ import type { ApiLanguageVariety } from "@/lib/api/enums";
 import { fromApiAgeBracket, fromApiGender, toApiAgeBracket, toApiGender } from "@/lib/api/enums";
 import type {
   AgeBracket,
+  ConsentType,
   Gender,
   ParticipantDraft,
   ParticipantRecord,
   SessionLanguage,
 } from "@/data/interns/participants";
-
-/**
- * What the intake form collects that `/focus-groups` cannot store.
- *
- * `ApiParticipant` has five usable fields — label, age_bracket, gender, role
- * and language_variety. The form collects four more, and they are not
- * decorative: **consent is a legal record**, and state and native language are
- * the corpus's whole sampling rationale.
- *
- * Until the backend carries them, they are kept in a local sidecar (see
- * `intern-participants.ts`) so the intern's own device does not lose them. That
- * is a stopgap, not a design — it does not survive a different browser, and a
- * consent record that lives in one laptop's localStorage is not a consent
- * record. Listed in docs/backend-gaps.md.
- */
-export const UNMAPPED_PARTICIPANT_FIELDS = [
-  "phone",
-  "state",
-  "nativeLanguage",
-  "consent",
-] as const;
-
-export type ParticipantExtras = Pick<
-  ParticipantRecord,
-  (typeof UNMAPPED_PARTICIPANT_FIELDS)[number]
->;
 
 /**
  * Session language → API variety.
@@ -57,7 +32,23 @@ export function fromApiSessionVariety(
   return "";
 }
 
-/** The part of a draft the API will accept. */
+/**
+ * How consent is carried.
+ *
+ * The API models consent as a boolean plus a free-text version string; the
+ * intake form asks *how* it was given, verbal or signed. Both mean consent was
+ * obtained, so `consent_given` is the boolean and the method rides in
+ * `consent_version`. That field is meant for a document version, so this is a
+ * near-miss rather than a fit — noted in docs/backend-gaps.md as a small ask
+ * for a proper `consent_method`.
+ */
+const CONSENT_METHODS = new Set<string>(["verbal", "signed"]);
+
+function fromConsentVersion(value: string | null): ConsentType | "" {
+  return value && CONSENT_METHODS.has(value) ? (value as ConsentType) : "";
+}
+
+/** A draft, in the shape the API accepts. Every field now has a home. */
 export function draftToApiParticipant(draft: ParticipantDraft): ApiParticipantIn {
   return {
     label: draft.nameOrId,
@@ -66,24 +57,19 @@ export function draftToApiParticipant(draft: ParticipantDraft): ApiParticipantIn
     // `role` is the nearest field the API has to what someone does for a living.
     role: draft.occupation || null,
     language_variety: toApiSessionVariety(draft.sessionLanguage) ?? null,
+    state: draft.state || null,
+    native_language: draft.nativeLanguage || null,
+    phone: draft.phone || null,
+    // The form does not offer "no" — an unconsented participant is not logged.
+    consent_given: Boolean(draft.consent),
+    consent_version: draft.consent || undefined,
   };
 }
 
-/** The part of a draft the API will drop, for the local sidecar. */
-export function draftToExtras(draft: ParticipantDraft): ParticipantExtras {
-  return {
-    phone: draft.phone,
-    state: draft.state,
-    nativeLanguage: draft.nativeLanguage,
-    consent: draft.consent,
-  };
-}
-
-/** API participant + whatever the sidecar still remembers → a table row. */
+/** An API participant → a table row. */
 export function apiToParticipantRecord(
   participant: ApiParticipant,
-  context: { focusGroupSession: string },
-  extras?: ParticipantExtras
+  context: { focusGroupSession: string }
 ): ParticipantRecord {
   return {
     id: participant.id,
@@ -94,11 +80,10 @@ export function apiToParticipantRecord(
     gender: fromApiGender(participant.gender) as Gender | "",
     sessionLanguage: fromApiSessionVariety(participant.language_variety),
     occupation: participant.role ?? "",
+    state: participant.state ?? "",
+    nativeLanguage: participant.native_language ?? "",
+    phone: participant.phone ?? "",
+    consent: fromConsentVersion(participant.consent_version),
     loggedAt: new Date(participant.created_at).getTime(),
-    // Blank rather than invented when the sidecar has nothing.
-    phone: extras?.phone ?? "",
-    state: extras?.state ?? "",
-    nativeLanguage: extras?.nativeLanguage ?? "",
-    consent: extras?.consent ?? "",
   };
 }

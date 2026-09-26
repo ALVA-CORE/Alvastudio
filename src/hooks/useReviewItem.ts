@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRecording, recordingAudioUrl } from "@/lib/api/recordings";
-import { getPrompt, getStimulus } from "@/lib/api/catalog";
 import { submitReview } from "@/lib/api/reviews";
 import { ApiError } from "@/lib/api/client";
 import { toQueueItem } from "@/hooks/useReviewQueue";
@@ -9,14 +8,14 @@ import type { QualityAnswers, ReviewQueueItem, ReviewVerdict } from "@/data/revi
 /**
  * One recording, ready to review.
  *
- * Three calls the queue deliberately does not make per row: the recording
- * itself, the prompt or stimulus TEXT behind its id, and an authenticated fetch
- * of the audio. Doing the last two per row would be an N+1 across the whole
- * queue, so they happen here, once, for the clip actually open.
+ * Two calls the queue deliberately does not make per row: the recording itself
+ * and an authenticated fetch of its audio. The audio route needs the bearer
+ * token, so it is fetched as a blob and handed back as an object URL — revoked
+ * when the id changes or the page unmounts, or every clip reviewed would leak
+ * its audio for the life of the tab.
  *
- * The audio route needs the bearer token, so it is fetched as a blob and handed
- * back as an object URL — revoked when the id changes or the page unmounts, or
- * every clip reviewed would leak its audio for the life of the tab.
+ * The prompt text used to be a third call. `RecordingOut` now carries
+ * `prompt_text` and `stimulus_text`, so it comes back with the recording.
  */
 export function useReviewItem(id: string | undefined) {
   const [item, setItem] = useState<ReviewQueueItem | null>(null);
@@ -50,12 +49,9 @@ export function useReviewItem(id: string | undefined) {
 
         const row = toQueueItem(recording);
 
-        /* Prompt text and audio are independent — neither should block the
-         * other, and a missing prompt must not cost us the clip. */
-        const [text, audio] = await Promise.all([
-          resolvePromptText(recording.prompt_id, recording.stimulus_id),
-          recordingAudioUrl(id).catch(() => null),
-        ]);
+        /* A clip whose audio failed to fetch is still worth showing — the
+         * metadata and rubric are useful, and the player reports the gap. */
+        const audio = await recordingAudioUrl(id).catch(() => null);
         if (cancelled) {
           if (audio) URL.revokeObjectURL(audio);
           return;
@@ -64,11 +60,7 @@ export function useReviewItem(id: string | undefined) {
         revoke();
         blobUrlRef.current = audio;
 
-        setItem({
-          ...row,
-          prompt: text ?? row.prompt,
-          audioSrc: audio ?? "",
-        });
+        setItem({ ...row, audioSrc: audio ?? "" });
       } catch (cause) {
         if (cancelled) return;
         setError(
@@ -114,18 +106,4 @@ export function useReviewItem(id: string | undefined) {
   );
 
   return { item, isLoading, error, submit, isSubmitting };
-}
-
-/** A recording carries one id or the other, never both. */
-async function resolvePromptText(
-  promptId: string | null,
-  stimulusId: string | null
-): Promise<string | null> {
-  try {
-    if (promptId) return (await getPrompt(promptId)).text;
-    if (stimulusId) return (await getStimulus(stimulusId)).text;
-  } catch {
-    // A deactivated prompt 404s; the clip is still reviewable without it.
-  }
-  return null;
 }
