@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { AuthProvider } from "@/lib/auth/context";
 import { AdminSidebar } from "../AdminSidebar";
 import { ADMIN_NAV_ITEMS } from "../adminNav";
 
 function renderAt(pathname: string) {
+  /* The rail reads the signed-in account to scope itself. With no stored
+   * token the provider is inert and the user is null, which the permission
+   * check treats as unrestricted — so every area renders. */
   return render(
     <MemoryRouter initialEntries={[pathname]}>
-      <AdminSidebar />
+      <AuthProvider>
+        <AdminSidebar />
+      </AuthProvider>
     </MemoryRouter>
   );
 }

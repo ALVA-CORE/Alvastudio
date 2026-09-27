@@ -1,5 +1,286 @@
-import { AdminPlaceholderPage } from "@/components/admin/layout/AdminPlaceholderPage";
+import { useRef, useState } from "react";
+import Soundwave from "@solar-icons/react/video/Soundwave";
+import Upload from "@solar-icons/react/arrows-action/Upload";
+import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
+import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
+import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import { PanelRow } from "@/components/shared/PanelPrimitives";
+import { TextureButton } from "@/components/ui/texture-button";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
+import { alvaToast } from "@/lib/alva-toast";
+import { round1 } from "@/data/admin/shared";
+import { useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { cn } from "@/lib/utils";
 
+type QcResult = {
+  filename: string;
+  durationSec: number;
+  sampleRate: number;
+  snrDb: number;
+  silenceRatio: number;
+  clippingRatio: number;
+  qualityScore: number;
+  transcript: string;
+  relevance: number;
+};
+
+/** Stands in for `/audio/analyze` + `/audio/transcribe` + `/audio/quality-score`. */
+function fakeAnalyse(file: File): QcResult {
+  // Deterministic from the filename, so the same clip reads the same twice.
+  let hash = 0;
+  for (let i = 0; i < file.name.length; i += 1) {
+    hash = (hash * 31 + file.name.charCodeAt(i)) % 100000;
+  }
+  const unit = (offset: number) => ((hash + offset * 7919) % 1000) / 1000;
+
+  return {
+    filename: file.name,
+    durationSec: round1(6 + unit(1) * 40),
+    sampleRate: unit(2) > 0.5 ? 48000 : 16000,
+    snrDb: round1(8 + unit(3) * 26),
+    silenceRatio: round1(unit(4) * 0.4),
+    clippingRatio: round1(unit(5) * 0.06),
+    qualityScore: round1(0.45 + unit(6) * 0.5),
+    transcript:
+      "The traffic for Lagos island go always choke by seven a.m., especially when rain fall.",
+    relevance: round1(0.5 + unit(7) * 0.5),
+  };
+}
+
+function scoreTone(value: number) {
+  return value >= 0.75 ? "good" : value >= 0.5 ? "pending" : "bad";
+}
+
+/**
+ * A bench for the ML endpoints.
+ *
+ * Its purpose is tuning thresholds before they are applied to the whole corpus:
+ * run a few clips you already have an opinion about, see what the scorer says,
+ * and decide where the cut-off belongs.
+ *
+ * The real endpoints return 503 when the optional ML stack is not installed,
+ * which is a normal state and not an error — the panel below is what that
+ * looks like.
+ */
 export default function AdminAudioPage() {
-  return <AdminPlaceholderPage id="audio" />;
+  const isLoading = useSimulatedLoading();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [results, setResults] = useState<QcResult[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [isRunning, setRunning] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  const result = results[selected] ?? null;
+
+  /**
+   * Scores a whole drop, not one file.
+   *
+   * Tuning a threshold means seeing where a batch falls either side of it —
+   * one clip at a time tells you about that clip. Files are run in sequence
+   * rather than in parallel because the real endpoints are ML inference and
+   * would queue anyway; this way the progress count is honest.
+   */
+  const runBatch = async (files: File[]) => {
+    setRunning(true);
+    setResults([]);
+    setProgress({ done: 0, total: files.length });
+
+    const scored: QcResult[] = [];
+    for (const [index, file] of files.entries()) {
+      // Stand-in for the round trip, so the loading state is visible at all.
+      await new Promise((resolve) => setTimeout(resolve, 420));
+      scored.push(fakeAnalyse(file));
+      setResults([...scored]);
+      setProgress({ done: index + 1, total: files.length });
+    }
+
+    setRunning(false);
+    alvaToast.success(
+      files.length === 1 ? "Analysis complete" : `${files.length} clips scored`
+    );
+  };
+
+  const handleFiles = (files: FileList | null) => {
+    const audio = Array.from(files ?? []).filter((file) =>
+      file.type.startsWith("audio/")
+    );
+
+    if (audio.length === 0) {
+      alvaToast.error("No audio files in that drop");
+      return;
+    }
+
+    void runBatch(audio);
+  };
+
+  return (
+    <DesktopPageShell className="py-4">
+      <AdminPageHeader id="audio" />
+
+      {isLoading ? (
+        <AdminPageSkeleton metrics={false} charts={2} chartColumns={2} />
+      ) : (
+        <>
+      <div className="mt-3 grid gap-2 lg:grid-cols-2">
+        <AlvaChartCard title="Run clips" subtitle="Analysis, transcription and scoring">
+          <div
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragging(false);
+              handleFiles(event.dataTransfer.files);
+            }}
+            className={cn(
+              "flex min-h-[13rem] flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-colors",
+              dragging
+                ? "border-alva-accent bg-alva-accent/5"
+                : "border-alva-border bg-alva-surface/40"
+            )}
+          >
+            <span className="flex size-12 items-center justify-center rounded-full bg-alva-card">
+              <Upload size={22} weight="BoldDuotone" className="text-alva-accent" />
+            </span>
+            <p className="mt-3 text-sm text-foreground">Drop audio files here</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              wav, mp3, m4a or webm — several at once, nothing is stored
+            </p>
+            {isRunning && progress.total > 1 ? (
+              <p className="mt-2 text-xs tabular-nums text-alva-accent">
+                {progress.done} of {progress.total} scored
+              </p>
+            ) : null}
+
+            <input
+              ref={inputRef}
+              type="file"
+              accept="audio/*"
+              multiple
+              className="sr-only"
+              onChange={(event) => handleFiles(event.target.files)}
+            />
+
+            <TextureButton
+              variant="minimal"
+              size="sm"
+              className="mt-4 w-auto"
+              loading={isRunning}
+              onClick={() => inputRef.current?.click()}
+            >
+              Choose files
+            </TextureButton>
+
+            {results.length > 1 ? (
+              <ul className="mt-4 w-full space-y-0.5 text-left">
+                {results.map((entry, index) => (
+                  <li key={entry.filename}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(index)}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 transition-colors",
+                        index === selected ? "bg-alva-card" : "hover:bg-alva-card/60"
+                      )}
+                    >
+                      <span className="min-w-0 truncate text-xs text-foreground">
+                        {entry.filename}
+                      </span>
+                      <AdminStatusPill tone={scoreTone(entry.qualityScore)}>
+                        {Math.round(entry.qualityScore * 100)}
+                      </AdminStatusPill>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </AlvaChartCard>
+
+        <AlvaChartCard title="Result" subtitle="What the scorer made of it">
+          {result ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm text-foreground" title={result.filename}>
+                  {result.filename}
+                </p>
+                <AdminStatusPill tone={scoreTone(result.qualityScore)}>
+                  Quality {Math.round(result.qualityScore * 100)}
+                </AdminStatusPill>
+              </div>
+
+              <dl>
+                <PanelRow label="Duration" value={`${result.durationSec}s`} />
+                <PanelRow label="Sample rate" value={`${result.sampleRate / 1000} kHz`} />
+                <PanelRow label="Signal-to-noise" value={`${result.snrDb} dB`} />
+                <PanelRow
+                  label="Silence"
+                  value={`${Math.round(result.silenceRatio * 100)}%`}
+                />
+                <PanelRow
+                  label="Clipping"
+                  value={`${Math.round(result.clippingRatio * 100)}%`}
+                />
+                <PanelRow
+                  label="Prompt relevance"
+                  value={`${Math.round(result.relevance * 100)}%`}
+                />
+              </dl>
+
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Transcript
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-foreground">
+                  {result.transcript}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <AlvaEmptyState
+              icon={<Soundwave size={20} weight="Outline" />}
+              title={isRunning ? "Analysing…" : "Nothing analysed yet"}
+              description={
+                isRunning
+                  ? "Running analysis, transcription and scoring."
+                  : "Drop clips on the left to see their scores."
+              }
+            />
+          )}
+        </AlvaChartCard>
+      </div>
+
+      {/* The 503 case, shown rather than described — it is a normal state and
+          the UI should not treat it as a failure. */}
+      <div className="mt-2 flex items-start gap-3 rounded-2xl bg-alva-card p-4">
+        <DangerTriangle
+          size={18}
+          weight="BoldDuotone"
+          className="mt-0.5 shrink-0 text-amber-300"
+        />
+        <div>
+          <p className="text-sm text-foreground">
+            These four endpoints are optional on the server
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            <code className="text-muted-foreground">/audio/analyze</code>,{" "}
+            <code className="text-muted-foreground">/audio/transcribe</code>,{" "}
+            <code className="text-muted-foreground">/audio/quality-score</code> and{" "}
+            <code className="text-muted-foreground">/relevance/score</code> return
+            503 when the ML stack is not installed. That is a normal deployment,
+            not an outage — this page will say the tools are unavailable rather
+            than showing an error.
+          </p>
+        </div>
+      </div>
+        </>
+      )}
+    </DesktopPageShell>
+  );
 }

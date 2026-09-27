@@ -344,9 +344,14 @@ export function AlvaDataTable<T extends { id: string }>({
                       <TableCell
                         key={column.key}
                         className={cn(
-                          "max-w-0",
+                          /* `max-w-0` lets the browser share width out by
+                             proportion; `truncate` is what actually stops a
+                             long cell spilling into its neighbour. A column
+                             that needs to overflow can undo it via
+                             `column.className`, which is applied after. */
+                          "max-w-0 truncate",
                           column.className,
-                          column.key === "_actions" && "text-right"
+                          column.key === "_actions" && "overflow-visible text-right"
                         )}
                         onClick={
                           column.key === "_actions" ? (event) => event.stopPropagation() : undefined

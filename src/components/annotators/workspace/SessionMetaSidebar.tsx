@@ -17,7 +17,7 @@ import {
   PanelDivider,
   PanelRow,
 } from "@/components/shared/PanelPrimitives";
-import { useResizableSize } from "@/components/annotators/workspace/timeline/useResizableSize";
+import { useResizableSize } from "@/hooks/useResizableSize";
 import {
   Tooltip,
   TooltipContent,

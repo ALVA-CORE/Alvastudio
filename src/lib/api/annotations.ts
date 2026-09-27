@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { ApiLanguageVariety } from "./enums";
 
 /**
  * Annotations API — `/api/v1/annotations`.
@@ -84,6 +85,9 @@ export type ApiQueueRow = {
   duration_seconds: number | null;
   participant_count: number;
   created_at: string;
+  language_variety: ApiLanguageVariety | null;
+  intern_name: string | null;
+  state: string | null;
 };
 
 /** One of this annotator's own annotations. */

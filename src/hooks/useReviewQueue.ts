@@ -11,9 +11,8 @@ import type { ReviewQueueItem } from "@/data/reviewQueue";
  * reviewer can see. Both are merged into the row shape the table already
  * renders so the page's markup does not change.
  *
- * Prompt and stimulus TEXT is not on the recording — only the id. Resolving it
- * would be an N+1 per row, so the queue shows the id-derived label and the
- * detail page fetches the real text. See docs/backend-gaps.md.
+ * The recording now carries `prompt_text` and `stimulus_text`, so the queue
+ * shows the real prompt rather than an id.
  */
 
 function relative(iso: string): string {
@@ -44,8 +43,7 @@ export function toQueueItem(recording: ApiRecording): ReviewQueueItem {
     duration: duration(recording.duration_seconds),
     durationSec: Math.round(recording.duration_seconds ?? 0),
     submittedAt: relative(recording.created_at),
-    // Resolved on the detail page; the list would need one call per row.
-    prompt: recording.prompt_id ?? recording.stimulus_id ?? "",
+    prompt: recording.prompt_text ?? recording.stimulus_text ?? "",
     audioSrc: `/recordings/${recording.id}/audio`,
     device: recording.device_mic ?? "—",
     language: "—",

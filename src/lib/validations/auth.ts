@@ -101,6 +101,14 @@ export type AuthUser = {
   internProfile?: InternProfileData;
   contributorProfile?: ContributorProfileData;
   annotatorProfile?: AnnotatorProfileData;
+  /**
+   * Admins only — which admin areas this account may open.
+   *
+   * Undefined means unrestricted, which is what the bootstrap admin gets and
+   * what every account created before per-account permissions existed gets.
+   * An empty array means genuinely nothing beyond the overview.
+   */
+  adminPermissions?: string[];
 };
 
 export const AGREEMENT_TARGET_OPTIONS = [
