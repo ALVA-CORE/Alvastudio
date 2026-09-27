@@ -11,7 +11,7 @@ import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dro
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
-import { CategoryBars } from "@/components/admin/shared/CategoryBars";
+import { SharePie } from "@/components/admin/shared/SharePie";
 import { StatusRings } from "@/components/admin/shared/StatusRings";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
@@ -36,6 +36,16 @@ const STATUS_TONE: Record<RecordingStatus, PillTone> = {
 
 const STATUSES: StatusFilter[] = [
   "all", "submitted", "in_review", "approved", "rejected", "flagged",
+];
+
+/* Reds and ambers — every slice here is a loss, so none of them should read
+   as the accent, which on this surface means "kept". */
+const REJECTION_PALETTE = [
+  "hsl(0 72% 55%)",
+  "hsl(14 80% 57%)",
+  "hsl(28 85% 55%)",
+  "hsl(38 92% 52%)",
+  "hsl(350 60% 48%)",
 ];
 
 /**
@@ -237,12 +247,16 @@ export default function AdminReviewsPage() {
               : undefined
           }
         >
-          <CategoryBars
-            color="hsl(0 72% 51%)"
-            data={rejections.map((entry) => ({
-              name: entry.reason,
-              value: entry.count,
-            }))}
+          {/* Five causes of one total — the question is "which share of our
+              rejections is this", and a donut answers that without the reader
+              having to add the bars up. */}
+          <SharePie
+            centerLabel="rejected"
+            palette={REJECTION_PALETTE}
+            valueSuffix=""
+            slices={rejections
+              .filter((entry) => entry.count > 0)
+              .map((entry) => ({ label: entry.reason, hours: entry.count }))}
           />
         </AlvaChartCard>
 

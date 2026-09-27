@@ -161,7 +161,7 @@ export function UserDetailPanel({
           hideClose
           aria-describedby={undefined}
           style={{ width: resize.size, maxWidth: "100vw" }}
-          className="flex max-w-none flex-col gap-0 border-0 bg-alva-bg p-0"
+          className="flex max-w-none flex-col gap-0 border-alva-border bg-alva-card p-0"
         >
           {/* Drag handle — the panel's own left edge, so there is no rule
               sitting between it and the page when nobody is resizing. */}
@@ -218,7 +218,7 @@ export function UserDetailPanel({
                 )}
               >
                 <AvatarImage src={diceBearAvatarUrl(user.email, "202020")} alt="" />
-                <AvatarFallback className="bg-alva-card text-2xl font-semibold text-foreground">
+                <AvatarFallback className="bg-alva-surface text-2xl font-semibold text-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -433,7 +433,7 @@ function EditField({
           type={type}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={cn(alvaFieldClass, "mt-1 h-9")}
+          className={cn(alvaFieldClass(), "mt-1 h-9")}
         />
       </label>
     </div>

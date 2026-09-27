@@ -14,6 +14,7 @@ import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dro
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   EARNINGS,
   EMPTY_PAYMENT_METRICS,
@@ -55,8 +56,10 @@ export default function AdminPaymentsPage() {
   const [editingUnit, setEditingUnit] = useState<string | null>(null);
   const [draftAmount, setDraftAmount] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [earnings, setEarnings] = useState<Earning[]>(EARNINGS);
+  const [confirmRun, setConfirmRun] = useState(false);
 
-  const rows = useDevRows(EARNINGS);
+  const rows = useDevRows(earnings);
   const isEmpty = rows.length === 0;
   const metrics = isEmpty ? EMPTY_PAYMENT_METRICS : paymentMetrics(rows);
 
@@ -91,6 +94,37 @@ export default function AdminPaymentsPage() {
     );
     setEditingUnit(null);
     alvaToast.success(`${RATE_UNIT_LABELS[rate.unit]} rate updated`);
+  };
+
+  /* Everyone who is owed and has not been started — what a run would pick up. */
+  const payable = rows.filter((row) => row.status === "pending");
+  const payableTotal = payable.reduce((sum, row) => sum + row.earnedKobo, 0);
+
+  const advance = (row: Earning) => {
+    setEarnings((prev) =>
+      prev.map((entry) =>
+        entry.id !== row.id
+          ? entry
+          : entry.status === "pending"
+            ? { ...entry, status: "processing" }
+            : { ...entry, status: "paid", paidKobo: entry.earnedKobo }
+      )
+    );
+    alvaToast.success(
+      row.status === "pending"
+        ? `${row.contributor} queued for payment`
+        : `${row.contributor} marked as paid`
+    );
+  };
+
+  const runPayment = () => {
+    setEarnings((prev) =>
+      prev.map((entry) =>
+        entry.status === "pending" ? { ...entry, status: "processing" } : entry
+      )
+    );
+    setConfirmRun(false);
+    alvaToast.success(`${payable.length} contributors queued for payment`);
   };
 
   const columns = [
@@ -155,6 +189,17 @@ export default function AdminPaymentsPage() {
       <AdminPageHeader
         id="payments"
         actions={
+          <>
+            {payable.length > 0 ? (
+              <TextureButton
+                variant="alva"
+                size="sm"
+                className="w-auto"
+                onClick={() => setConfirmRun(true)}
+              >
+                Run payment · {formatNaira(payableTotal)}
+              </TextureButton>
+            ) : null}
           <TextureButton
             variant="minimal"
             size="sm"
@@ -167,6 +212,7 @@ export default function AdminPaymentsPage() {
             <Download size={15} weight="Outline" />
             Export CSV
           </TextureButton>
+          </>
         }
       />
 
@@ -239,7 +285,7 @@ export default function AdminPaymentsPage() {
                         if (event.key === "Enter") commitEdit(rate);
                         if (event.key === "Escape") setEditingUnit(null);
                       }}
-                      className={cn(alvaFieldClass, "h-9 w-28 text-right tabular-nums")}
+                      className={cn(alvaFieldClass(), "h-9 w-28 text-right tabular-nums")}
                     />
                     <TextureButton
                       variant="alva"
@@ -278,6 +324,17 @@ export default function AdminPaymentsPage() {
             title: row.contributor,
             subtitle: `${formatNaira(row.earnedKobo)} · ${PAYOUT_STATUS_LABELS[row.status]}`,
           })}
+          renderRowActions={(row) =>
+            row.status === "paid" ? null : (
+              <button
+                type="button"
+                onClick={() => advance(row)}
+                className="whitespace-nowrap rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-alva-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+              >
+                {row.status === "pending" ? "Queue" : "Mark paid"}
+              </button>
+            )
+          }
           filterMenuContent={
             <>
               <DropdownMenuLabel className="text-xs text-muted-foreground">

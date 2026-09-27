@@ -48,13 +48,15 @@ const SETTLE = { duration: 0.45, ease: EASE } as const;
 const PRESS = { type: "spring", stiffness: 520, damping: 18, mass: 0.5 } as const;
 const INSTANT = { duration: 0 } as const;
 
-const SURFACE = "bg-alva-card";
-const RECESS = "bg-alva-surface";
+/* `surface` sits above both `alva-bg` and `alva-card`; the recess goes darker
+   than either, so the pair reads the same wherever the button is dropped. */
+const SURFACE = "bg-alva-surface";
+const RECESS = "bg-alva-bg";
 const GLYPH = "text-muted-foreground";
 const FOCUS = "outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 const DANGER = "hsl(0 72% 60%)";
 
-const CIRCLE = `grid h-6 w-6 place-items-center rounded-full transition-colors duration-200 hover:bg-alva-border ${FOCUS} ${SURFACE}`;
+const CIRCLE = `grid h-6 w-6 place-items-center rounded-full transition-colors duration-200 hover:bg-alva-border ${FOCUS} bg-alva-card`;
 
 const ICON = {
   viewBox: "0 0 24 24",

@@ -12,7 +12,7 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
-import { UserSheet, type UserDraft } from "@/components/admin/users/UserSheet";
+import { CreateUserDialog, type NewUserDraft } from "@/components/admin/users/CreateUserDialog";
 import { UserDetailPanel } from "@/components/admin/users/UserDetailPanel";
 import {
   ADMIN_USERS,
@@ -56,27 +56,31 @@ export default function AdminUsersPage() {
     [rows, roleFilter, statusFilter]
   );
 
-  const handleSave = (draft: UserDraft) => {
+  const handleCreate = (draft: NewUserDraft) => {
+    /* Inactive until the invite is accepted — the account exists so it can be
+     * assigned work, but it cannot be signed into yet. */
     setUsers((prev) => [
       {
         id: `u-${crypto.randomUUID().slice(0, 6)}`,
-        ...draft,
-        isActive: true,
+        fullName: draft.fullName,
+        email: draft.email,
+        phone: draft.phone,
+        role: draft.role,
+        permissions: draft.role === "admin" ? draft.permissions : undefined,
+        isActive: false,
         createdAt: Date.now(),
         joinedLabel: "Just now",
         output: 0,
         outputLabel:
-          draft.role === "contributor"
-            ? "recordings"
-            : draft.role === "intern"
-              ? "sessions"
-              : draft.role === "annotator"
-                ? "annotations"
-                : "—",
+          draft.role === "intern"
+            ? "sessions"
+            : draft.role === "annotator"
+              ? "annotations"
+              : "—",
       },
       ...prev,
     ]);
-    alvaToast.success(`${ROLE_LABELS[draft.role]} account created`);
+    alvaToast.success(`Invite sent to ${draft.email}`);
   };
 
   const handleDelete = (user: AdminUser) => {
@@ -286,11 +290,10 @@ export default function AdminUsersPage() {
       />
 
       {/* Creating only — an existing user is edited inside the detail panel. */}
-      <UserSheet
+      <CreateUserDialog
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        user={null}
-        onSave={handleSave}
+        onCreate={handleCreate}
       />
         </>
       )}

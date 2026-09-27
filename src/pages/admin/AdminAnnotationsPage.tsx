@@ -11,6 +11,8 @@ import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dro
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
+import { alvaToast } from "@/lib/alva-toast";
 import {
   ADMIN_ANNOTATIONS,
   ANNOTATION_STATUS_LABELS,
@@ -47,6 +49,9 @@ const STATUSES: StatusFilter[] = [
 export default function AdminAnnotationsPage() {
   const isLoading = useSimulatedLoading();
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [assigning, setAssigning] = useState<{ id: string; topic: string } | null>(null);
+  /* Sessions handed out from here, so the list reflects the action taken. */
+  const [assigned, setAssigned] = useState<Record<string, string>>({});
   const rows = useDevRows(ADMIN_ANNOTATIONS);
 
   const filtered = useMemo(
@@ -61,9 +66,10 @@ export default function AdminAnnotationsPage() {
   const unclaimed = useMemo(() => {
     const claimed = new Set(rows.map((row) => row.topic));
     return ADMIN_SESSIONS.filter(
-      (session) => session.hasAudio && !claimed.has(session.topic)
+      (session) =>
+        session.hasAudio && !claimed.has(session.topic) && !assigned[session.id]
     );
-  }, [rows]);
+  }, [rows, assigned]);
 
   const approved = rows.filter((row) => row.status === "approved").length;
   const inFlight = rows.filter(
@@ -233,17 +239,28 @@ export default function AdminAnnotationsPage() {
               : undefined
           }
         >
+          {/* Each row is actionable. A list of things nobody has picked up, with
+              no way to hand one to somebody, is just a complaint. */}
           <dl className="space-y-1">
             {unclaimed.slice(0, 7).map((session) => (
               <div
                 key={session.id}
-                className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
+                className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-1.5 last:border-0"
               >
                 <dt className="min-w-0 truncate text-xs text-foreground" title={session.topic}>
                   {session.topic}
                 </dt>
-                <dd className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {session.duration} · {session.createdLabel}
+                <dd className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {session.duration} · {session.createdLabel}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAssigning({ id: session.id, topic: session.topic })}
+                    className="rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-alva-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                  >
+                    Assign
+                  </button>
                 </dd>
               </div>
             ))}

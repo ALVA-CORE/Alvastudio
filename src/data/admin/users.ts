@@ -3,6 +3,55 @@ import { NIGERIAN_NAMES, daysAgo, relativeDays, round1, seeded } from "./shared"
 
 export type AdminUserRole = "contributor" | "intern" | "annotator" | "admin";
 
+/**
+ * Roles an admin can create.
+ *
+ * Contributor is absent on purpose: contributors sign themselves up, and a
+ * hand-made one would have no consent record and no onboarding profile. The
+ * rest cannot self-register, which is the whole reason this screen exists.
+ */
+export const CREATABLE_ROLES: AdminUserRole[] = ["intern", "annotator", "admin"];
+
+/**
+ * Which admin areas an account may open.
+ *
+ * Only meaningful for `admin`. Every other role's reach is fixed by the role
+ * itself, so the picker is hidden for them rather than shown and ignored.
+ */
+export type AdminPermission =
+  | "prompts"
+  | "users"
+  | "corpus"
+  | "reviews"
+  | "annotations"
+  | "focus-groups"
+  | "payments"
+  | "audio";
+
+export const ADMIN_PERMISSIONS: Array<{
+  id: AdminPermission;
+  label: string;
+  detail: string;
+}> = [
+  { id: "prompts", label: "Prompts and stimuli", detail: "Add, edit and retire bank items" },
+  { id: "users", label: "Users", detail: "Create accounts and change roles" },
+  { id: "corpus", label: "Corpus", detail: "Read-only totals and coverage" },
+  { id: "reviews", label: "Reviews", detail: "Every recording and its verdict" },
+  { id: "annotations", label: "Annotations", detail: "Every annotation and its status" },
+  { id: "focus-groups", label: "Focus groups", detail: "Sessions across all interns" },
+  { id: "payments", label: "Payments", detail: "Rates, earnings and payment runs" },
+  { id: "audio", label: "Audio QC", detail: "Run the ML scoring tools" },
+];
+
+/** What a new admin gets unless the creator says otherwise. */
+export const DEFAULT_ADMIN_PERMISSIONS: AdminPermission[] = [
+  "prompts",
+  "corpus",
+  "reviews",
+  "annotations",
+  "focus-groups",
+];
+
 export type AdminUser = {
   id: string;
   fullName: string;
@@ -15,6 +64,8 @@ export type AdminUser = {
   /** Role-appropriate headline number — recordings, sessions or annotations. */
   output: number;
   outputLabel: string;
+  /** Admins only — which areas they can open. */
+  permissions?: AdminPermission[];
 };
 
 export const ROLE_LABELS: Record<AdminUserRole, string> = {

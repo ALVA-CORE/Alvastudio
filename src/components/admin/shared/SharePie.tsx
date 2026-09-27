@@ -24,14 +24,20 @@ const PALETTE = [
 export function SharePie({
   slices,
   centerLabel,
+  palette = PALETTE,
+  valueSuffix = "h",
 }: {
   slices: CorpusSlice[];
   centerLabel: string;
+  /** Overrides the default accent-led palette. */
+  palette?: readonly string[];
+  /** Unit after the centre figure. Empty for plain counts. */
+  valueSuffix?: string;
 }) {
   const data = slices.map((slice, index) => ({
     label: slice.label,
     value: round1(slice.hours),
-    color: PALETTE[index % PALETTE.length],
+    color: palette[index % palette.length],
   }));
 
   return (
@@ -49,7 +55,7 @@ export function SharePie({
         ))}
         <PieCenter
           defaultLabel={centerLabel}
-          suffix="h"
+          suffix={valueSuffix}
           valueClassName="text-foreground"
           labelClassName="text-[10px] text-muted-foreground"
         />

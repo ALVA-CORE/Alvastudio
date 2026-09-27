@@ -33,17 +33,20 @@ export function VarietyRings({
     color: PALETTE[index % PALETTE.length],
   }));
 
-  /* Fewer rings, fatter rings: three at 12px leaves the innermost a thread,
-     while two can carry 18px and read as a pair of tracks. */
-  const strokeWidth = slices.length <= 2 ? 18 : slices.length === 3 ? 14 : 11;
+  /* Fewer rings, fatter rings, and a larger hole to hang them from — two at
+     12px in a box sized for six leaves most of the card empty. As more series
+     arrive the stroke thins and the inner radius pulls in, so the outermost
+     ring stays roughly where it was and the chart grows inward. */
+  const strokeWidth = slices.length <= 2 ? 26 : slices.length === 3 ? 20 : 14;
+  const baseInnerRadius = slices.length <= 2 ? 56 : slices.length === 3 ? 46 : 36;
 
   return (
     <div className="flex h-full w-full items-center justify-center">
       <RingChart
         data={data}
         strokeWidth={strokeWidth}
-        ringGap={6}
-        baseInnerRadius={slices.length <= 2 ? 46 : 38}
+        ringGap={7}
+        baseInnerRadius={baseInnerRadius}
       >
         {slices.map((_, index) => (
           <Ring key={index} index={index} showGlow={index === 0} />

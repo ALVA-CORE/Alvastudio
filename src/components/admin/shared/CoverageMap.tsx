@@ -14,11 +14,14 @@ import { cn } from "@/lib/utils";
  * sorted list will never show you. The bar chart answered "who is biggest";
  * this answers "where are we not".
  *
- * Fill is our own grey ramp rather than the accent one: a whole country lit
- * green would make the page's single accent meaningless, and the point here is
- * the *gap*, which greys carry better than a brand colour. Every state keeps a
- * border so the country reads as 37 shapes rather than one blob — without it,
- * neighbours at the same level merge into a single region.
+ * A state with no audio is grey — the floor, not a dim green, so the gap reads
+ * as absence rather than as a small amount. Everything above zero steps up the
+ * accent ramp by how much it holds. That keeps the one thing the accent means
+ * on this page — "we have data here" — and leaves the quiet parts genuinely
+ * quiet.
+ *
+ * Every state keeps a border so the country reads as 37 shapes rather than one
+ * blob; without it, neighbours at the same level merge into a single region.
  */
 export function CoverageMap({ slices }: { slices: CorpusSlice[] }) {
   const { regions, byName } = useMemo(() => {
@@ -73,7 +76,7 @@ export function CoverageMap({ slices }: { slices: CorpusSlice[] }) {
 }
 
 /**
- * Five steps of our own greys, from `--alva-surface` to a light neutral.
+ * Index 0 is the empty grey; 1–4 walk the accent ramp.
  *
  * Written out rather than computed because Tailwind cannot see a class name it
  * did not read in the source. Hover lifts one step, so pointing at a state
@@ -81,8 +84,8 @@ export function CoverageMap({ slices }: { slices: CorpusSlice[] }) {
  */
 const LEVEL_FILL = [
   "fill-alva-surface hover:fill-alva-card",
-  "fill-alva-card hover:fill-alva-border",
-  "fill-alva-border hover:fill-neutral-600",
-  "fill-neutral-600 hover:fill-neutral-400",
-  "fill-neutral-400 hover:fill-neutral-300",
+  "fill-[var(--chart-scale-02)] hover:fill-[var(--chart-scale-03)]",
+  "fill-[var(--chart-scale-03)] hover:fill-[var(--chart-scale-04)]",
+  "fill-[var(--chart-scale-04)] hover:fill-[var(--chart-scale-05)]",
+  "fill-[var(--chart-scale-05)] hover:fill-[var(--chart-scale-05)]",
 ] as const;
