@@ -309,6 +309,48 @@ export default function AdminAnnotationsPage() {
           }}
         />
       </div>
+
+      <AnnotationDetailPanel
+        open={detail !== null}
+        onOpenChange={(next) => !next && setDetail(null)}
+        annotation={detail}
+        onApprove={(annotation) => {
+          setAnnotations((prev) =>
+            prev.map((row) =>
+              row.id === annotation.id ? { ...row, status: "approved" } : row
+            )
+          );
+          setDetail(null);
+          alvaToast.success(`${annotation.code} approved`);
+        }}
+        onSendBack={(annotation) => {
+          setAnnotations((prev) =>
+            prev.map((row) =>
+              row.id === annotation.id ? { ...row, status: "needs_rework" } : row
+            )
+          );
+          setDetail(null);
+          alvaToast.show(`${annotation.code} sent back`, { variant: "default" });
+        }}
+        onReassign={(annotation) =>
+          setAssigning({ id: annotation.id, topic: annotation.topic })
+        }
+      />
+
+      <AssignAnnotatorDialog
+        open={assigning !== null}
+        onOpenChange={(next) => !next && setAssigning(null)}
+        subject={assigning?.topic ?? null}
+        onAssign={(annotator) => {
+          if (!assigning) return;
+          setAssigned((prev) => ({ ...prev, [assigning.id]: annotator }));
+          setAnnotations((prev) =>
+            prev.map((row) => (row.id === assigning.id ? { ...row, annotator } : row))
+          );
+          alvaToast.success(`Assigned to ${annotator}`);
+          setAssigning(null);
+        }}
+      />
         </>
       )}
     </DesktopPageShell>

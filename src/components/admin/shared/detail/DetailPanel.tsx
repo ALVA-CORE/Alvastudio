@@ -77,6 +77,15 @@ export function DetailPanel({
         hideClose
         aria-describedby={undefined}
         style={{ width: resize.size, maxWidth: "100vw" }}
+        /* Radix focuses the first tabbable node on open. That is the resize
+           grip, which then wears its focus ring — a bright rule down the edge
+           of every panel the first time it opens. The panel takes focus
+           instead, which is also the better place to start reading from. */
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          (event.currentTarget as HTMLElement | null)?.focus({ preventScroll: true });
+        }}
+        tabIndex={-1}
         className="flex max-w-none flex-col gap-0 border-alva-border bg-alva-card p-0"
       >
         {/* Same grip as the annotator's timeline and side panel: an invisible

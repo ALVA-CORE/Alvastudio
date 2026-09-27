@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import Wallet from "@solar-icons/react/money/Wallet";
 import BillList from "@solar-icons/react/money/BillList";
+import BillCheck from "@solar-icons/react/money/BillCheck";
+import ClockSquare from "@solar-icons/react/time/ClockSquare";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
-import Download from "@solar-icons/react/arrows-action/Download";
+import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
@@ -199,7 +201,7 @@ export default function AdminPaymentsPage() {
                 className="w-auto"
                 onClick={() => setConfirmRun(true)}
               >
-                Run payment · {formatNaira(payableTotal)}
+                Queue {payable.length} · {formatNaira(payableTotal)}
               </TextureButton>
             ) : null}
           <TextureButton
@@ -211,7 +213,7 @@ export default function AdminPaymentsPage() {
               alvaToast.success(`Exported ${filtered.length} rows`);
             }}
           >
-            <Download size={15} weight="Outline" />
+            <Upload size={15} weight="Outline" />
             Export CSV
           </TextureButton>
           </>
@@ -327,14 +329,27 @@ export default function AdminPaymentsPage() {
             title: row.contributor,
             subtitle: `${formatNaira(row.earnedKobo)} · ${PAYOUT_STATUS_LABELS[row.status]}`,
           })}
+          /* Icons, not labels. The actions column is the narrowest on the
+             table and "Mark paid" was being clipped to "Mar…" — a truncated
+             verb on a money action is worse than a glyph with a tooltip. */
           renderRowActions={(row) =>
             row.status === "paid" ? null : (
               <button
                 type="button"
+                title={row.status === "pending" ? "Queue for payment" : "Mark as paid"}
+                aria-label={
+                  row.status === "pending"
+                    ? `Queue ${row.contributor} for payment`
+                    : `Mark ${row.contributor} as paid`
+                }
                 onClick={() => advance(row)}
-                className="whitespace-nowrap rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-alva-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
               >
-                {row.status === "pending" ? "Queue" : "Mark paid"}
+                {row.status === "pending" ? (
+                  <ClockSquare size={16} weight="Outline" />
+                ) : (
+                  <BillCheck size={16} weight="Outline" />
+                )}
               </button>
             )
           }
@@ -362,6 +377,16 @@ export default function AdminPaymentsPage() {
           }}
         />
       </div>
+
+      <EarningDetailPanel
+        open={detail !== null}
+        onOpenChange={(next) => !next && setDetail(null)}
+        earning={detail}
+        onAdvance={(row) => {
+          advance(row);
+          setDetail(null);
+        }}
+      />
         </>
       )}
     </DesktopPageShell>

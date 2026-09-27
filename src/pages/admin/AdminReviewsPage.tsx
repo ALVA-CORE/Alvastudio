@@ -338,6 +338,41 @@ export default function AdminReviewsPage() {
           }}
         />
       </div>
+
+      <RecordingDetailPanel
+        open={detail !== null}
+        onOpenChange={(next) => !next && setDetail(null)}
+        recording={detail}
+        onReopen={(recording) => {
+          setRecordings((prev) =>
+            prev.map((row) =>
+              row.id === recording.id
+                ? { ...row, status: "submitted", reviewer: "", rejectionReason: undefined }
+                : row
+            )
+          );
+          setDetail(null);
+          alvaToast.success(`${recording.code} back in the queue`);
+        }}
+        onReassign={(row: AdminRecording) => setReassigning(row)}
+      />
+
+      <ReassignReviewerDialog
+        open={reassigning !== null}
+        onOpenChange={(next) => !next && setReassigning(null)}
+        subject={reassigning ? `${reassigning.code} · ${reassigning.contributor}` : null}
+        exclude={reassigning?.reviewer}
+        onAssign={(reviewer) => {
+          if (!reassigning) return;
+          setRecordings((prev) =>
+            prev.map((row) =>
+              row.id === reassigning.id ? { ...row, reviewer, status: "in_review" } : row
+            )
+          );
+          alvaToast.success(`Reassigned to ${reviewer}`);
+          setReassigning(null);
+        }}
+      />
         </>
       )}
     </DesktopPageShell>

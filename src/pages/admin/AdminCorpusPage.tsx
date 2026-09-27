@@ -3,7 +3,7 @@ import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import MapPointWave from "@solar-icons/react/map/MapPointWave";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
-import Download from "@solar-icons/react/arrows-action/Download";
+import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
@@ -65,7 +65,7 @@ export default function AdminCorpusPage() {
               className="w-auto"
               onClick={() => downloadCsv("corpus-growth.csv", growthToCsv(corpus.growth))}
             >
-              <Download size={15} weight="Outline" />
+              <Upload size={15} weight="Outline" />
               Export
             </TextureButton>
           </div>
@@ -120,7 +120,7 @@ export default function AdminCorpusPage() {
       <AlvaChartCard
         title="Corpus growth"
         subtitle="Cumulative hours collected"
-        className="mt-2 min-h-[13rem]"
+        className="mt-2 h-[15rem]"
         emptyMessage={
           forceEmpty
             ? { title: "No audio yet", description: "Nothing has been collected." }

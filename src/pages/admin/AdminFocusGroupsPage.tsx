@@ -246,6 +246,23 @@ export default function AdminFocusGroupsPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <SessionDetailPanel
+        open={detail !== null}
+        onOpenChange={(next) => !next && setDetail(null)}
+        session={detail}
+        onAssign={(row: AdminSession) => setAssigning(row)}
+      />
+
+      <AssignAnnotatorDialog
+        open={assigning !== null}
+        onOpenChange={(next) => !next && setAssigning(null)}
+        subject={assigning ? `${assigning.code} · ${assigning.topic}` : null}
+        onAssign={(annotator) => {
+          alvaToast.success(`${assigning?.code} assigned to ${annotator}`);
+          setAssigning(null);
+        }}
+      />
         </>
       )}
     </DesktopPageShell>

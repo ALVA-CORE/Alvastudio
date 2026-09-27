@@ -52,7 +52,9 @@ const INSTANT = { duration: 0 } as const;
    than either, so the pair reads the same wherever the button is dropped. */
 const SURFACE = "bg-alva-surface";
 const RECESS = "bg-alva-bg";
-const GLYPH = "text-muted-foreground";
+/* The bin is the only irreversible control it sits next to, so it carries
+   the destructive colour rather than reading as another grey icon. */
+const GLYPH = "text-red-400/80";
 const FOCUS = "outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 const DANGER = "hsl(0 72% 60%)";
 

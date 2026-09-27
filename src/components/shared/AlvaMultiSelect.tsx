@@ -93,11 +93,7 @@ export function AlvaMultiSelect({
                 event.preventDefault();
                 toggle(option.value);
               }}
-              className={cn(
-                "flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors",
-                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
-                selected ? "bg-alva-surface" : "hover:bg-alva-surface/60"
-              )}
+              className="flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
             >
               <CheckCircle
                 size={16}

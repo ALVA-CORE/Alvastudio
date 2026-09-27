@@ -44,7 +44,7 @@ const TABS = [
  * Wide enough for a year of the contribution graph — 53 columns at 7px with a
  * 2px gap is 477px, plus the panel's 48px of padding.
  */
-const PANEL_WIDTH = 536;
+const PANEL_WIDTH = 500;
 
 type UserDraft = Pick<AdminUser, "fullName" | "email" | "phone" | "role"> & {
   permissions: AdminPermission[];

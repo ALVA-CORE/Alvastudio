@@ -1,49 +1,33 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { TextureButton } from "@/components/ui/texture-button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { alvaFieldClass } from "@/lib/alva-form-styles";
 import {
-  BANK_CATEGORIES,
-  type BankCategory,
-  type BankItem,
-  type BankKind,
-} from "@/data/admin/prompts";
-import { VARIETIES, type Variety } from "@/data/admin/shared";
-import { cn } from "@/lib/utils";
+  BankItemForm,
+  EMPTY_BANK_DRAFT,
+  validateBankDraft,
+  type BankDraft,
+} from "@/components/admin/prompts/BankItemForm";
+import type { BankItem, BankKind } from "@/data/admin/prompts";
 
-export type BankDraft = {
-  text: string;
-  variety: Variety;
-  category: BankCategory;
-};
-
-const EMPTY: BankDraft = {
-  text: "",
-  variety: "Nigerian Pidgin",
-  category: "Everyday life",
-};
-
-/** Roughly two spoken sentences — past this a prompt stops being readable aloud. */
-const SOFT_LIMIT = 220;
+export type { BankDraft };
 
 type BankItemSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   kind: BankKind;
-  /** Null for a new item. */
   item: BankItem | null;
   onSave: (draft: BankDraft) => void;
   onRetire?: (item: BankItem) => void;
 };
 
 /**
- * Create or edit one bank item.
+ * Edit one bank item.
  *
- * Same three-band shape as the other detail sheets — divided header, scrolling
- * body, divided footer — so it reads as part of the set rather than a form
- * that happened to open from the side.
+ * Creating is a modal — see `CreateBankItemDialog` — and this is the panel you
+ * get by opening an existing row, matching how accounts work. The fields
+ * themselves come from `BankItemForm`, shared by both, so the two cannot
+ * drift.
  *
  * Retiring lives here rather than as a row action, because it is the one
  * destructive thing on this page and it belongs next to the text it applies
@@ -58,27 +42,26 @@ export function BankItemSheet({
   onSave,
   onRetire,
 }: BankItemSheetProps) {
-  const [draft, setDraft] = useState<BankDraft>(EMPTY);
+  const [draft, setDraft] = useState<BankDraft>(EMPTY_BANK_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const [confirmRetire, setConfirmRetire] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setDraft(
-      item ? { text: item.text, variety: item.variety, category: item.category } : EMPTY
+      item
+        ? { text: item.text, variety: item.variety, category: item.category }
+        : EMPTY_BANK_DRAFT
     );
     setError(null);
     setConfirmRetire(false);
   }, [open, item]);
 
   const noun = kind === "prompt" ? "prompt" : "stimulus";
-  const length = draft.text.trim().length;
 
   const handleSave = () => {
-    if (!length) {
-      setError(`A ${noun} needs some text.`);
-      return;
-    }
+    const problem = validateBankDraft(draft, noun);
+    if (problem) return setError(problem);
     onSave({ ...draft, text: draft.text.trim() });
     onOpenChange(false);
   };
@@ -101,85 +84,16 @@ export function BankItemSheet({
             </p>
           </SheetHeader>
 
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-            <div>
-              <label
-                htmlFor="bank-text"
-                className="block text-xs text-muted-foreground"
-              >
-                Text
-              </label>
-              {/* `resize-none`: the native grabber let the box be dragged over
-                  its own label, and a prompt long enough to need more room is
-                  already too long to read aloud. */}
-              <textarea
-                id="bank-text"
-                rows={5}
-                value={draft.text}
-                onChange={(event) => {
-                  setDraft((prev) => ({ ...prev, text: event.target.value }));
-                  setError(null);
-                }}
-                className={cn(
-                  alvaFieldClass(Boolean(error)),
-                  "mt-1.5 h-auto w-full resize-none px-3 py-2.5 text-sm leading-relaxed"
-                )}
-                placeholder={
-                  kind === "prompt"
-                    ? "Tell us about a market day you still remember…"
-                    : "A photograph of a crowded danfo park at rush hour…"
-                }
-              />
-              <div className="mt-1.5 flex items-baseline justify-between gap-3">
-                {error ? (
-                  <p role="alert" className="text-xs text-destructive">
-                    {error}
-                  </p>
-                ) : (
-                  <span />
-                )}
-                <span
-                  className={cn(
-                    "shrink-0 text-xs tabular-nums",
-                    length > SOFT_LIMIT ? "text-amber-300" : "text-muted-foreground"
-                  )}
-                >
-                  {length}
-                  {length > SOFT_LIMIT ? " — long for one breath" : " characters"}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <span className="block text-xs text-muted-foreground">
-                Language variety
-              </span>
-              <AlvaSelect
-                aria-label="Language variety"
-                className="mt-1.5"
-                value={draft.variety}
-                onValueChange={(value) =>
-                  setDraft((prev) => ({ ...prev, variety: value as Variety }))
-                }
-                options={VARIETIES.map((variety) => ({ value: variety, label: variety }))}
-              />
-            </div>
-
-            <div>
-              <span className="block text-xs text-muted-foreground">Category</span>
-              <AlvaSelect
-                aria-label="Category"
-                className="mt-1.5"
-                value={draft.category}
-                onValueChange={(value) =>
-                  setDraft((prev) => ({ ...prev, category: value as BankCategory }))
-                }
-                options={BANK_CATEGORIES.map((category) => ({
-                  value: category,
-                  label: category,
-                }))}
-              />
-            </div>
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <BankItemForm
+              kind={kind}
+              draft={draft}
+              error={error}
+              onChange={(next) => {
+                setDraft((prev) => ({ ...prev, ...next }));
+                setError(null);
+              }}
+            />
 
             {item ? (
               <dl className="border-t border-alva-border pt-4">
@@ -210,7 +124,7 @@ export function BankItemSheet({
               className="w-auto"
               onClick={handleSave}
             >
-              {item ? "Save changes" : `Add ${noun}`}
+              Save changes
             </TextureButton>
 
             {item && item.isActive && onRetire ? (
