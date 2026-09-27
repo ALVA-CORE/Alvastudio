@@ -154,15 +154,21 @@
     --chart-label: oklch(0.75 0.01 260);
     /* Sequential ramp — heatmap levels, gauge fill, funnel stages.
        Shipped from the registry on hue 270, which is nobody's brand colour.
-       Re-cut on the accent's own hue (151) and stepped from just above
-       `--alva-surface` to full `#25F07D`, so an empty cell reads as
-       background rather than as a dim green. Chroma is eased rather than
-       linear: the low steps stay near-neutral and colour only arrives as the
-       value climbs, which is what stops a sparse calendar looking busy. */
-    --chart-scale-01: oklch(0.24 0.03 151);
-    --chart-scale-02: oklch(0.39 0.05 151);
-    --chart-scale-03: oklch(0.539 0.091 151);
-    --chart-scale-04: oklch(0.689 0.147 151);
+       Re-cut on the accent's own hue (151) and stepped up to full `#25F07D`.
+
+       Step 1 starts at L 0.32 rather than hugging the page floor. These sit on
+       `--alva-card` (L 0.243) as often as on `--alva-bg`, and an earlier ramp
+       started at 0.24 — identical to card, so an empty heatmap cell vanished
+       into the panel behind it. The floor now clears the lightest surface it
+       can land on.
+
+       Chroma is eased rather than linear: the low steps stay near-neutral and
+       colour only arrives as the value climbs, which is what stops a sparse
+       calendar looking busy. */
+    --chart-scale-01: oklch(0.32 0.035 151);
+    --chart-scale-02: oklch(0.45 0.055 151);
+    --chart-scale-03: oklch(0.579 0.095 151);
+    --chart-scale-04: oklch(0.709 0.149 151);
     --chart-scale-05: oklch(0.839 0.216 151);
     --chart-scale-pattern-color: oklch(0.145 0 0);
     --map-region: oklch(44.3% 0.11 240.79);

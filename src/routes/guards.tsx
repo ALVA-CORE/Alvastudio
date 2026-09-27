@@ -2,6 +2,9 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth/context";
 import { homePathForRole } from "@/lib/auth/roles";
 import type { UserRole } from "@/lib/validations/auth";
+import type { AdminNavId } from "@/components/admin/layout/adminNav";
+import type { AdminPermission } from "@/data/admin/users";
+import { canOpenAdminArea } from "@/lib/auth/adminPermissions";
 
 /**
  * Held while the session is being verified.
@@ -38,6 +41,25 @@ export function GuestRoute() {
 
   if (isAuthenticated) {
     return <Navigate to={homePathForRole(user?.role)} replace />;
+  }
+
+  return <Outlet />;
+}
+
+/**
+ * Keeps an admin out of an area their account is not scoped to.
+ *
+ * A convenience, not a security boundary: it stops the URL bar reaching a page
+ * the rail is hiding, but the same rule has to exist on the API, because
+ * anything the client enforces the client can also skip.
+ */
+export function AdminAreaRoute({ area }: { area: AdminNavId }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <SessionGate />;
+
+  if (!canOpenAdminArea(area, user?.adminPermissions as AdminPermission[] | undefined)) {
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return <Outlet />;

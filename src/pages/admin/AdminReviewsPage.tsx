@@ -12,6 +12,9 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { SharePie } from "@/components/admin/shared/SharePie";
+import { RecordingDetailPanel } from "@/components/admin/reviews/RecordingDetailPanel";
+import { ReassignReviewerDialog } from "@/components/admin/shared/ReassignReviewerDialog";
+import { alvaToast } from "@/lib/alva-toast";
 import { StatusRings } from "@/components/admin/shared/StatusRings";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
@@ -59,7 +62,10 @@ const REJECTION_PALETTE = [
 export default function AdminReviewsPage() {
   const isLoading = useSimulatedLoading();
   const [status, setStatus] = useState<StatusFilter>("all");
-  const rows = useDevRows(ADMIN_RECORDINGS);
+  const [recordings, setRecordings] = useState<AdminRecording[]>(ADMIN_RECORDINGS);
+  const [detail, setDetail] = useState<AdminRecording | null>(null);
+  const [reassigning, setReassigning] = useState<AdminRecording | null>(null);
+  const rows = useDevRows(recordings);
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
@@ -303,6 +309,7 @@ export default function AdminReviewsPage() {
           searchPlaceholder="Search clip, contributor or prompt"
           searchKeys={["code", "contributor", "prompt"]}
           activeFilterCount={status === "all" ? 0 : 1}
+          onRowClick={(row: AdminRecording) => setDetail(row)}
           mobilePrimary={(row) => ({
             title: row.code,
             subtitle: `${row.contributor} · ${row.duration}`,

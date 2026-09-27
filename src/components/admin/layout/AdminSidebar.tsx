@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { SidebarRailBlur } from "@/components/layout/SidebarRailBlur";
 import { ADMIN_NAV_ITEMS, getActiveAdminNav } from "./adminNav";
+import { allowedAdminAreas } from "@/lib/auth/adminPermissions";
+import { useAuth } from "@/lib/auth/context";
+import type { AdminPermission } from "@/data/admin/users";
 
 /**
  * Desktop rail for the admin surface.
@@ -17,6 +20,14 @@ export function AdminSidebar() {
   const location = useLocation();
   const activeId = getActiveAdminNav(location.pathname);
   const [hovered, setHovered] = useState(false);
+  const { user } = useAuth();
+
+  /* Hiding a rail item an admin cannot use is the point of scoped access —
+   * showing it and failing on click would be worse than not scoping at all. */
+  const items = allowedAdminAreas(
+    ADMIN_NAV_ITEMS,
+    user?.adminPermissions as AdminPermission[] | undefined
+  );
 
   return (
     <div
@@ -39,7 +50,7 @@ export function AdminSidebar() {
             hovered ? "items-stretch" : "items-center"
           )}
         >
-          {ADMIN_NAV_ITEMS.map(({ id, path, label, Icon }) => {
+          {items.map(({ id, path, label, Icon }) => {
             const isActive = id === activeId;
 
             return (

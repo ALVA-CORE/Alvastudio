@@ -40,7 +40,11 @@ describe("CreateUserDialog", () => {
     await userEvent.click(screen.getByRole("option", { name: "Admin" }));
 
     expect(screen.getByText("Page access")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /Payments/ })).toBeInTheDocument();
+
+    // The options live behind the trigger — a column of checkboxes was what
+    // this replaced.
+    await userEvent.click(screen.getByRole("button", { name: "Page access" }));
+    expect(screen.getByRole("checkbox", { name: "Payments" })).toBeInTheDocument();
   });
 
   it("refuses an invalid email", async () => {

@@ -312,3 +312,141 @@ function buildSessions(count: number): AdminSession[] {
 }
 
 export const ADMIN_SESSIONS: AdminSession[] = buildSessions(42);
+
+
+/* ------------------------------------------------------------------ *
+ * Detail-panel extras
+ * ------------------------------------------------------------------ */
+
+import type { AuditEntry } from "@/components/admin/shared/detail";
+
+export type RubricAnswer = "yes" | "partial" | "no";
+
+export const RUBRIC_QUESTIONS = [
+  { id: "noiseFree", label: "Free of background noise" },
+  { id: "audible", label: "Clear and audible" },
+  { id: "matchesPrompt", label: "Matches the prompt" },
+  { id: "natural", label: "Natural and intelligible" },
+] as const;
+
+export const RUBRIC_LABELS: Record<RubricAnswer, string> = {
+  yes: "Yes",
+  partial: "Partly",
+  no: "No",
+};
+
+/** The rubric a reviewer filled in, derived from the verdict so the two agree. */
+export function recordingRubric(
+  recording: AdminRecording
+): Array<{ id: string; label: string; answer: RubricAnswer }> {
+  const random = seeded(
+    [...recording.id].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 1e5, 7)
+  );
+
+  return RUBRIC_QUESTIONS.map((question) => {
+    if (recording.status === "approved") return { ...question, answer: "yes" as const };
+    if (recording.status === "submitted" || recording.status === "in_review") {
+      return { ...question, answer: "yes" as const };
+    }
+    // A rejection needs at least one "no"; a flag is softer.
+    const roll = random();
+    const answer: RubricAnswer =
+      recording.status === "rejected"
+        ? roll > 0.6
+          ? "no"
+          : roll > 0.3
+            ? "partial"
+            : "yes"
+        : roll > 0.55
+          ? "partial"
+          : "yes";
+    return { ...question, answer };
+  });
+}
+
+export function recordingAudit(recording: AdminRecording): AuditEntry[] {
+  const entries: AuditEntry[] = [
+    {
+      id: "submitted",
+      label: `Submitted by ${recording.contributor}`,
+      at: new Date(recording.submittedAt),
+    },
+  ];
+
+  if (recording.reviewer) {
+    entries.push({
+      id: "claimed",
+      label: `Claimed by ${recording.reviewer}`,
+      at: new Date(recording.submittedAt + 36e5),
+      byAdmin: true,
+    });
+  }
+
+  if (recording.status !== "submitted" && recording.status !== "in_review") {
+    entries.push({
+      id: "decided",
+      label: `${RECORDING_STATUS_LABELS[recording.status]}${
+        recording.rejectionReason ? ` — ${recording.rejectionReason}` : ""
+      }`,
+      at: new Date(recording.submittedAt + 72e5),
+      byAdmin: true,
+    });
+  }
+
+  return entries.sort((a, b) => b.at.getTime() - a.at.getTime());
+}
+
+export function annotationAudit(annotation: AdminAnnotation): AuditEntry[] {
+  const entries: AuditEntry[] = [
+    {
+      id: "claimed",
+      label: `Claimed by ${annotation.annotator}`,
+      at: new Date(annotation.claimedAt),
+    },
+  ];
+
+  if (annotation.status !== "draft" && annotation.status !== "in_progress") {
+    entries.push({
+      id: "submitted",
+      label: "Submitted for review",
+      at: new Date(annotation.claimedAt + 864e5),
+    });
+  }
+
+  if (annotation.status === "approved" || annotation.status === "needs_rework") {
+    entries.push({
+      id: "reviewed",
+      label:
+        annotation.status === "approved" ? "Approved" : "Sent back for rework",
+      at: new Date(annotation.claimedAt + 1728e5),
+      byAdmin: true,
+    });
+  }
+
+  return entries.sort((a, b) => b.at.getTime() - a.at.getTime());
+}
+
+export function sessionAudit(session: AdminSession): AuditEntry[] {
+  const entries: AuditEntry[] = [
+    {
+      id: "created",
+      label: `Session created by ${session.intern}`,
+      at: new Date(session.createdAt),
+    },
+    {
+      id: "participants",
+      label: `${session.participants} participants logged`,
+      at: new Date(session.createdAt + 6e5),
+    },
+  ];
+
+  if (session.hasAudio) {
+    entries.push({
+      id: "audio",
+      label: "Audio uploaded",
+      at: new Date(session.createdAt + 36e5),
+    });
+  }
+
+  return entries.sort((a, b) => b.at.getTime() - a.at.getTime());
+}

@@ -68,28 +68,53 @@ function scoreTone(value: number) {
 export default function AdminAudioPage() {
   const isLoading = useSimulatedLoading();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [result, setResult] = useState<QcResult | null>(null);
+  const [results, setResults] = useState<QcResult[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [isRunning, setRunning] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  const run = async (file: File) => {
+  const result = results[selected] ?? null;
+
+  /**
+   * Scores a whole drop, not one file.
+   *
+   * Tuning a threshold means seeing where a batch falls either side of it —
+   * one clip at a time tells you about that clip. Files are run in sequence
+   * rather than in parallel because the real endpoints are ML inference and
+   * would queue anyway; this way the progress count is honest.
+   */
+  const runBatch = async (files: File[]) => {
     setRunning(true);
-    setResult(null);
-    // Stand-in for the round trip, so the loading state is visible at all.
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    setResult(fakeAnalyse(file));
+    setResults([]);
+    setProgress({ done: 0, total: files.length });
+
+    const scored: QcResult[] = [];
+    for (const [index, file] of files.entries()) {
+      // Stand-in for the round trip, so the loading state is visible at all.
+      await new Promise((resolve) => setTimeout(resolve, 420));
+      scored.push(fakeAnalyse(file));
+      setResults([...scored]);
+      setProgress({ done: index + 1, total: files.length });
+    }
+
     setRunning(false);
-    alvaToast.success("Analysis complete");
+    alvaToast.success(
+      files.length === 1 ? "Analysis complete" : `${files.length} clips scored`
+    );
   };
 
   const handleFiles = (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("audio/")) {
-      alvaToast.error("That is not an audio file");
+    const audio = Array.from(files ?? []).filter((file) =>
+      file.type.startsWith("audio/")
+    );
+
+    if (audio.length === 0) {
+      alvaToast.error("No audio files in that drop");
       return;
     }
-    void run(file);
+
+    void runBatch(audio);
   };
 
   return (
@@ -101,7 +126,7 @@ export default function AdminAudioPage() {
       ) : (
         <>
       <div className="mt-3 grid gap-2 lg:grid-cols-2">
-        <AlvaChartCard title="Run a clip" subtitle="Analysis, transcription and scoring">
+        <AlvaChartCard title="Run clips" subtitle="Analysis, transcription and scoring">
           <div
             onDragOver={(event) => {
               event.preventDefault();
@@ -123,15 +148,21 @@ export default function AdminAudioPage() {
             <span className="flex size-12 items-center justify-center rounded-full bg-alva-card">
               <Upload size={22} weight="BoldDuotone" className="text-alva-accent" />
             </span>
-            <p className="mt-3 text-sm text-foreground">Drop an audio file here</p>
+            <p className="mt-3 text-sm text-foreground">Drop audio files here</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              wav, mp3, m4a or webm — nothing is stored
+              wav, mp3, m4a or webm — several at once, nothing is stored
             </p>
+            {isRunning && progress.total > 1 ? (
+              <p className="mt-2 text-xs tabular-nums text-alva-accent">
+                {progress.done} of {progress.total} scored
+              </p>
+            ) : null}
 
             <input
               ref={inputRef}
               type="file"
               accept="audio/*"
+              multiple
               className="sr-only"
               onChange={(event) => handleFiles(event.target.files)}
             />
@@ -143,8 +174,32 @@ export default function AdminAudioPage() {
               loading={isRunning}
               onClick={() => inputRef.current?.click()}
             >
-              Choose a file
+              Choose files
             </TextureButton>
+
+            {results.length > 1 ? (
+              <ul className="mt-4 w-full space-y-0.5 text-left">
+                {results.map((entry, index) => (
+                  <li key={entry.filename}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(index)}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 transition-colors",
+                        index === selected ? "bg-alva-card" : "hover:bg-alva-card/60"
+                      )}
+                    >
+                      <span className="min-w-0 truncate text-xs text-foreground">
+                        {entry.filename}
+                      </span>
+                      <AdminStatusPill tone={scoreTone(entry.qualityScore)}>
+                        {Math.round(entry.qualityScore * 100)}
+                      </AdminStatusPill>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         </AlvaChartCard>
 
@@ -194,7 +249,7 @@ export default function AdminAudioPage() {
               description={
                 isRunning
                   ? "Running analysis, transcription and scoring."
-                  : "Drop a clip on the left to see its scores."
+                  : "Drop clips on the left to see their scores."
               }
             />
           )}

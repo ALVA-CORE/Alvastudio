@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import Letter from "@solar-icons/react/messages/Letter";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
+import { AlvaMultiSelect } from "@/components/shared/AlvaMultiSelect";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import {
@@ -69,15 +69,6 @@ export function CreateUserDialog({
   const patch = (next: Partial<NewUserDraft>) => {
     setDraft((prev) => ({ ...prev, ...next }));
     setError(null);
-  };
-
-  const togglePermission = (id: AdminPermission) => {
-    setDraft((prev) => ({
-      ...prev,
-      permissions: prev.permissions.includes(id)
-        ? prev.permissions.filter((entry) => entry !== id)
-        : [...prev.permissions, id],
-    }));
   };
 
   const submit = () => {
@@ -165,54 +156,22 @@ export function CreateUserDialog({
           {/* Only admins have anything to scope — every other role's reach is
               fixed by the role itself. */}
           {draft.role === "admin" ? (
-            <div className="border-t border-alva-border pt-4">
-              <p className="text-sm font-medium text-foreground">Page access</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                Which admin areas this account can open. Everything is off by
-                default except the read-only views.
-              </p>
-
-              <div className="mt-3 space-y-1">
-                {ADMIN_PERMISSIONS.map((permission) => {
-                  const checked = draft.permissions.includes(permission.id);
-                  return (
-                    <label
-                      key={permission.id}
-                      className="flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-alva-surface"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => togglePermission(permission.id)}
-                        className="mt-0.5 size-4 shrink-0 cursor-pointer accent-alva-accent"
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-sm text-foreground">
-                          {permission.label}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {permission.detail}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+            <div>
+              <span className="block text-xs text-muted-foreground">Page access</span>
+              <AlvaMultiSelect
+                aria-label="Page access"
+                className="mt-1.5"
+                value={draft.permissions}
+                onChange={(next) => patch({ permissions: next as AdminPermission[] })}
+                options={ADMIN_PERMISSIONS.map((permission) => ({
+                  value: permission.id,
+                  label: permission.label,
+                  detail: permission.detail,
+                }))}
+                placeholder="No areas — they can sign in and see nothing"
+              />
             </div>
           ) : null}
-
-          <div className="flex items-start gap-3 rounded-xl bg-alva-surface p-3">
-            <Letter
-              size={17}
-              weight="BoldDuotone"
-              className="mt-0.5 shrink-0 text-alva-accent"
-            />
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              An invite goes to{" "}
-              <span className="text-foreground">{draft.email || "their email"}</span>.
-              They set their own password from the link; it is never shown here.
-            </p>
-          </div>
 
           {error ? (
             <p role="alert" className="text-xs text-destructive">

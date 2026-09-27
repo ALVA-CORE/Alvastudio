@@ -31,7 +31,7 @@ import AdminPaymentsPage from "@/pages/admin/AdminPaymentsPage";
 import AdminAudioPage from "@/pages/admin/AdminAudioPage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 import NotFoundPage from "@/pages/errors/NotFoundPage";
-import { ProtectedRoute, GuestRoute, RoleRoute } from "@/routes/guards";
+import { ProtectedRoute, GuestRoute, RoleRoute, AdminAreaRoute } from "@/routes/guards";
 import { useAuth } from "@/lib/auth/context";
 import { homePathForRole, isInternRole, isAdminRole } from "@/lib/auth/roles";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -118,14 +118,30 @@ export function AppRoutes() {
             <Route element={<RoleRoute roles={["admin"]} />}>
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+              <Route element={<AdminAreaRoute area="prompts" />}>
               <Route path="/admin/prompts" element={<AdminPromptsPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="users" />}>
               <Route path="/admin/users" element={<AdminUsersPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="corpus" />}>
               <Route path="/admin/corpus" element={<AdminCorpusPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="reviews" />}>
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="annotations" />}>
               <Route path="/admin/annotations" element={<AdminAnnotationsPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="focus-groups" />}>
               <Route path="/admin/focus-groups" element={<AdminFocusGroupsPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="payments" />}>
               <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="audio" />}>
               <Route path="/admin/audio" element={<AdminAudioPage />} />
+            </Route>
               <Route path="/admin/settings" element={<AdminSettingsPage />} />
             </Route>
 

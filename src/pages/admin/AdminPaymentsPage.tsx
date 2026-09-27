@@ -15,6 +15,7 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
 import {
   EARNINGS,
   EMPTY_PAYMENT_METRICS,
@@ -58,6 +59,7 @@ export default function AdminPaymentsPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [earnings, setEarnings] = useState<Earning[]>(EARNINGS);
   const [confirmRun, setConfirmRun] = useState(false);
+  const [detail, setDetail] = useState<Earning | null>(null);
 
   const rows = useDevRows(earnings);
   const isEmpty = rows.length === 0;
@@ -320,6 +322,7 @@ export default function AdminPaymentsPage() {
           searchPlaceholder="Search contributor"
           searchKeys={["contributor"]}
           activeFilterCount={status === "all" ? 0 : 1}
+          onRowClick={(row: Earning) => setDetail(row)}
           mobilePrimary={(row) => ({
             title: row.contributor,
             subtitle: `${formatNaira(row.earnedKobo)} · ${PAYOUT_STATUS_LABELS[row.status]}`,

@@ -12,6 +12,7 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
+import { AnnotationDetailPanel } from "@/components/admin/annotations/AnnotationDetailPanel";
 import { alvaToast } from "@/lib/alva-toast";
 import {
   ADMIN_ANNOTATIONS,
@@ -52,7 +53,9 @@ export default function AdminAnnotationsPage() {
   const [assigning, setAssigning] = useState<{ id: string; topic: string } | null>(null);
   /* Sessions handed out from here, so the list reflects the action taken. */
   const [assigned, setAssigned] = useState<Record<string, string>>({});
-  const rows = useDevRows(ADMIN_ANNOTATIONS);
+  const [annotations, setAnnotations] = useState<AdminAnnotation[]>(ADMIN_ANNOTATIONS);
+  const [detail, setDetail] = useState<AdminAnnotation | null>(null);
+  const rows = useDevRows(annotations);
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
@@ -277,6 +280,7 @@ export default function AdminAnnotationsPage() {
           searchPlaceholder="Search annotation, topic or annotator"
           searchKeys={["code", "topic", "annotator"]}
           activeFilterCount={status === "all" ? 0 : 1}
+          onRowClick={(row: AdminAnnotation) => setDetail(row)}
           mobilePrimary={(row) => ({
             title: row.code,
             subtitle: `${row.annotator} · ${row.segments} segments`,

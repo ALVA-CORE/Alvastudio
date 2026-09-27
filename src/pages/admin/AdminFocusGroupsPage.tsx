@@ -11,6 +11,9 @@ import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dro
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
+import { SessionDetailPanel } from "@/components/admin/sessions/SessionDetailPanel";
+import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
+import { alvaToast } from "@/lib/alva-toast";
 import { ADMIN_SESSIONS, type AdminSession } from "@/data/admin/oversight";
 import { STATES, round1 } from "@/data/admin/shared";
 import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
@@ -30,6 +33,8 @@ export default function AdminFocusGroupsPage() {
   const isLoading = useSimulatedLoading();
   const [tab, setTab] = useState<Tab>("all");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const [detail, setDetail] = useState<AdminSession | null>(null);
+  const [assigning, setAssigning] = useState<AdminSession | null>(null);
   const rows = useDevRows(ADMIN_SESSIONS);
 
   const missingAudio = useMemo(() => rows.filter((row) => !row.hasAudio), [rows]);
@@ -123,6 +128,7 @@ export default function AdminFocusGroupsPage() {
     searchPlaceholder: "Search session, topic or intern",
     searchKeys: ["code", "topic", "intern", "state"] as (keyof AdminSession)[],
     activeFilterCount: stateFilter === "all" ? 0 : 1,
+    onRowClick: (row: AdminSession) => setDetail(row),
     mobilePrimary: (row: AdminSession) => ({
       title: row.code,
       subtitle: `${row.intern} · ${row.participants} speakers`,

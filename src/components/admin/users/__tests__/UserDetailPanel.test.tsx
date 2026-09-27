@@ -23,7 +23,7 @@ function renderPanel(overrides: Partial<Parameters<typeof UserDetailPanel>[0]> =
 describe("UserDetailPanel", () => {
   it("opens on the profile tab with the account facts", () => {
     renderPanel();
-    expect(screen.getByRole("heading", { name: user.fullName })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: user.fullName })).toBeInTheDocument();
     expect(screen.getByText(user.email)).toBeInTheDocument();
     expect(screen.getByText("Joined")).toBeInTheDocument();
   });
