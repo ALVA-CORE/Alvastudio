@@ -1,3 +1,4 @@
+import type { DemographicHoursPoint } from "@/data/internDashboard";
 import { STATES, daysAgo, isoDay, round1, seeded } from "./shared";
 
 export type CorpusSlice = { label: string; hours: number };
@@ -120,3 +121,76 @@ export function growthToCsv(points: GrowthPoint[]) {
     ...points.map((point) => `${isoDay(point.date)},${point.hours}`),
   ].join("\n");
 }
+
+/* ------------------------------------------------------------------ *
+ * Corpus pipeline
+ * ------------------------------------------------------------------ */
+
+export type SankeyFlow = {
+  nodes: { name: string; category?: "source" | "landing" | "outcome" }[];
+  links: { source: number; target: number; value: number }[];
+};
+
+/**
+ * Where audio comes from and how it resolves, in hours.
+ *
+ * This is the view the annotator dashboard correctly refused: an annotator
+ * cannot change intake volume or another reviewer's scoring, so it was a
+ * pipeline dashboard wearing a personal one's clothes. On the admin surface it
+ * is exactly the right question — the whole job is moving hours from left to
+ * right, and the diagram shows where they stop.
+ */
+export const CORPUS_FLOW: SankeyFlow = {
+  nodes: [
+    { name: "Prompt read", category: "source" },
+    { name: "Focus group", category: "source" },
+    { name: "Stimuli", category: "source" },
+    { name: "In review", category: "landing" },
+    { name: "Annotating", category: "landing" },
+    { name: "Approved", category: "outcome" },
+    { name: "Flagged", category: "outcome" },
+    { name: "Rejected", category: "outcome" },
+  ],
+  links: [
+    // Prompt reads and stimuli go to review; focus groups go to annotation.
+    { source: 0, target: 3, value: 243 },
+    { source: 2, target: 3, value: 74 },
+    { source: 1, target: 4, value: 168 },
+
+    { source: 3, target: 5, value: 241 },
+    { source: 3, target: 6, value: 45 },
+    { source: 3, target: 7, value: 31 },
+
+    { source: 4, target: 5, value: 110 },
+    { source: 4, target: 6, value: 38 },
+    { source: 4, target: 7, value: 20 },
+  ],
+};
+
+export const EMPTY_CORPUS_FLOW: SankeyFlow = {
+  nodes: CORPUS_FLOW.nodes,
+  links: CORPUS_FLOW.links.map((link) => ({ ...link, value: 0 })),
+};
+
+/**
+ * Age and gender as one series rather than two.
+ *
+ * They are a cross-tab, not two independent breakdowns, and the pyramid the
+ * intern dashboard already uses shows the skew in a way two separate lists
+ * cannot: male hours run left of the age gutter, female right.
+ */
+export const CORPUS_DEMOGRAPHICS: DemographicHoursPoint[] = [
+  { ageBracket: "18–24", male: 61.4, female: 74.8, undisclosed: 6.4 },
+  { ageBracket: "25–34", male: 82.1, female: 92.6, undisclosed: 3.6 },
+  { ageBracket: "35–44", male: 43.9, female: 47.9, undisclosed: 2.9 },
+  { ageBracket: "45–54", male: 22.7, female: 23.6, undisclosed: 1.9 },
+  { ageBracket: "55+", male: 9.3, female: 12.9, undisclosed: 0.4 },
+];
+
+export const EMPTY_CORPUS_DEMOGRAPHICS: DemographicHoursPoint[] =
+  CORPUS_DEMOGRAPHICS.map((point) => ({
+    ...point,
+    male: 0,
+    female: 0,
+    undisclosed: 0,
+  }));

@@ -1,4 +1,4 @@
-import { useResizableSize, type ResizableSize } from "./useResizableSize";
+import { useResizableSize, type ResizableSize } from "@/hooks/useResizableSize";
 
 /**
  * Drag-to-resize for a panel whose handle sits on its TOP edge, so dragging up

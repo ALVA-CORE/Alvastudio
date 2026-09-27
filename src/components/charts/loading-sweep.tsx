@@ -250,9 +250,9 @@ export function LineLoadingSweep({
     range: [0, innerWidth],
   });
   const yScale = scaleLinear({ domain: [0, 100], range: [innerHeight, 0] });
-  // Both accessors must name the FULL datum type. Registry ships them with
-  // narrowed, differing params, so visx infers the datum from `getX` alone and
-  // then rejects `getY`.
+  /* Both accessors take the WHOLE datum. Typed one field each — as the
+     registry ships them — visx infers the datum from `getX` alone and then
+     rejects `getY` for not matching it. */
   type SweepPoint = { index: number; value: number };
   const points: SweepPoint[] = heights.map((value, index) => ({ index, value }));
   const getX = (d: SweepPoint) => xScale(d.index);

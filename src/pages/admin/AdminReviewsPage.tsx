@@ -10,7 +10,9 @@ import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
-import { HoursBreakdownBars } from "@/components/admin/shared/HoursBreakdownBars";
+import { CategoryBars } from "@/components/admin/shared/CategoryBars";
+import { StatusRings } from "@/components/admin/shared/StatusRings";
+import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
   ADMIN_RECORDINGS,
   RECORDING_STATUS_LABELS,
@@ -138,7 +140,7 @@ export default function AdminReviewsPage() {
   ];
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader id="reviews" />
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -177,7 +179,48 @@ export default function AdminReviewsPage() {
         />
       </div>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
+      <div className="mt-2 grid gap-2 lg:grid-cols-3">
+        <AlvaChartCard
+          title="Queue at a glance"
+          subtitle="Each status as a share of everything submitted"
+          className="min-h-[15rem]"
+        >
+          <StatusRings
+            centerLabel="clips"
+            slices={[
+              {
+                label: "Approved",
+                value: approved,
+                total: rows.length,
+                color: "hsl(146 87% 54%)",
+              },
+              {
+                label: "Awaiting",
+                value: pending,
+                total: rows.length,
+                color: "hsl(38 92% 50%)",
+              },
+              {
+                label: "Rejected",
+                value: rejected,
+                total: rows.length,
+                color: "hsl(0 72% 51%)",
+              },
+            ]}
+          />
+        </AlvaChartCard>
+
+        <AlvaChartCard
+          title="Approval rate"
+          subtitle="Share of decided clips kept"
+          className="min-h-[15rem]"
+        >
+          <ApprovalGauge
+            value={decided ? Math.round((approved / decided) * 100) : 0}
+            label="approved"
+          />
+        </AlvaChartCard>
+
         <AlvaChartCard
           title="Why clips get rejected"
           subtitle="Guidance problem, or equipment problem"
@@ -187,15 +230,18 @@ export default function AdminReviewsPage() {
               : undefined
           }
         >
-          <HoursBreakdownBars
-            emphasiseFirst
-            slices={rejections.map((entry) => ({
-              label: entry.reason,
-              hours: entry.count,
+          <CategoryBars
+            color="hsl(0 72% 51%)"
+            data={rejections.map((entry) => ({
+              name: entry.reason,
+              value: entry.count,
             }))}
           />
         </AlvaChartCard>
 
+      </div>
+
+      <div className="mt-2">
         <AlvaChartCard title="Reviewer throughput" subtitle="Clips decided, and how strictly">
           <dl className="space-y-1">
             {reviewers.length === 0 ? (

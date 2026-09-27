@@ -175,7 +175,7 @@ export default function AdminPromptsPage() {
   );
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader
         id="prompts"
         actions={
@@ -185,7 +185,7 @@ export default function AdminPromptsPage() {
             className="w-auto"
             onClick={openNew}
           >
-            <AddCircle size={15} weight="Bold" />
+            <AddCircle size={15} weight="Outline" />
             New {kind === "prompt" ? "prompt" : "stimulus"}
           </TextureButton>
         }

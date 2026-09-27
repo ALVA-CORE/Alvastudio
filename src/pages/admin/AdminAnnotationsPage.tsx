@@ -141,7 +141,7 @@ export default function AdminAnnotationsPage() {
   ];
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader id="annotations" />
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">

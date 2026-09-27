@@ -11,9 +11,12 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
-import { HoursBreakdownBars } from "@/components/admin/shared/HoursBreakdownBars";
+import { VarietyRings } from "@/components/admin/shared/VarietyRings";
+import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
-import { CORPUS, EMPTY_CORPUS } from "@/data/admin/corpus";
+import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
+import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
+import { CORPUS, CORPUS_FLOW, EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
 import { ADMIN_SESSIONS } from "@/data/admin/oversight";
 import { BANK_ITEMS } from "@/data/admin/prompts";
 import { EARNINGS } from "@/data/admin/payments";
@@ -83,7 +86,7 @@ export default function AdminDashboardPage() {
       : 0;
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader
         id="overview"
         blurb="How much usable audio exists, and what is currently stuck."
@@ -194,15 +197,42 @@ export default function AdminDashboardPage() {
         </section>
       </div>
 
+      <AlvaChartCard
+        title="Where the hours go"
+        subtitle="Collection type → review stage → outcome"
+        className="mt-2 min-h-[14rem]"
+        emptyMessage={
+          forceEmpty
+            ? { title: "Nothing collected", description: "No flow to trace yet." }
+            : undefined
+        }
+      >
+        <CorpusFlowChart data={forceEmpty ? EMPTY_CORPUS_FLOW : CORPUS_FLOW} />
+      </AlvaChartCard>
+
+      {/* Collection type is already the sankey's left column, so it is not
+          repeated here — this row is the two questions the flow cannot answer. */}
       <div className="mt-2 grid gap-2 lg:grid-cols-3">
-        <AlvaChartCard title="By variety" subtitle="Hours of each language">
-          <HoursBreakdownBars slices={corpus.byVariety} emphasiseFirst />
+        <AlvaChartCard
+          title="Approval rate"
+          subtitle="Share of decided hours kept"
+          className="min-h-[14rem]"
+        >
+          <ApprovalGauge value={approvalRate} label="approved" />
         </AlvaChartCard>
-        <AlvaChartCard title="By status" subtitle="Where hours sit in review">
-          <HoursBreakdownBars slices={corpus.byStatus} />
+        <AlvaChartCard
+          title="By variety"
+          subtitle="Hours of each language"
+          className="min-h-[14rem]"
+        >
+          <VarietyRings slices={corpus.byVariety} centerLabel="total" />
         </AlvaChartCard>
-        <AlvaChartCard title="By collection type" subtitle="How the audio was captured">
-          <HoursBreakdownBars slices={corpus.byType} />
+        <AlvaChartCard
+          title="Review funnel"
+          subtitle="Hours narrowing from submitted to approved"
+          className="min-h-[14rem]"
+        >
+          <CorpusFunnel slices={corpus.byStatus} />
         </AlvaChartCard>
       </div>
     </DesktopPageShell>

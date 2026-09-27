@@ -149,7 +149,7 @@ export default function AdminPaymentsPage() {
   ];
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader
         id="payments"
         actions={

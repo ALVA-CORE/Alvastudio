@@ -10,9 +10,22 @@ import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { TextureButton } from "@/components/ui/texture-button";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
-import { HoursBreakdownBars } from "@/components/admin/shared/HoursBreakdownBars";
+import { VarietyRings } from "@/components/admin/shared/VarietyRings";
+import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
+import { CategoryBars } from "@/components/admin/shared/CategoryBars";
+import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
-import { CORPUS, EMPTY_CORPUS, growthToCsv, underCoveredStates } from "@/data/admin/corpus";
+import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
+import {
+  CORPUS,
+  CORPUS_FLOW,
+  EMPTY_CORPUS,
+  EMPTY_CORPUS_FLOW,
+  growthToCsv,
+  underCoveredStates,
+  CORPUS_DEMOGRAPHICS,
+  EMPTY_CORPUS_DEMOGRAPHICS,
+} from "@/data/admin/corpus";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
 import { downloadCsv } from "@/lib/download-csv";
@@ -37,7 +50,7 @@ export default function AdminCorpusPage() {
       : 0;
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader
         id="corpus"
         actions={
@@ -109,31 +122,67 @@ export default function AdminCorpusPage() {
         <CorpusGrowthChart data={corpus.growth} window={range} />
       </AlvaChartCard>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-3">
-        <AlvaChartCard title="By variety" subtitle="Which language was spoken">
-          <HoursBreakdownBars slices={corpus.byVariety} emphasiseFirst />
-        </AlvaChartCard>
-        <AlvaChartCard title="By status" subtitle="Where hours sit in review">
-          <HoursBreakdownBars slices={corpus.byStatus} />
-        </AlvaChartCard>
-        <AlvaChartCard title="By collection type" subtitle="How the audio was captured">
-          <HoursBreakdownBars slices={corpus.byType} />
-        </AlvaChartCard>
-      </div>
+      <AlvaChartCard
+        title="Where the hours go"
+        subtitle="Collection type → review stage → outcome"
+        className="mt-2 min-h-[14rem]"
+        emptyMessage={
+          forceEmpty
+            ? { title: "Nothing collected", description: "No flow to trace yet." }
+            : undefined
+        }
+      >
+        <CorpusFlowChart data={forceEmpty ? EMPTY_CORPUS_FLOW : CORPUS_FLOW} />
+      </AlvaChartCard>
 
       <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
+          title="By variety"
+          subtitle="Which language was spoken"
+          className="min-h-[15rem]"
+        >
+          <VarietyRings slices={corpus.byVariety} centerLabel="total" />
+        </AlvaChartCard>
+        <AlvaChartCard
+          title="By collection type"
+          subtitle="How the audio was captured"
+          className="min-h-[15rem]"
+        >
+          <VarietyRings slices={corpus.byType} centerLabel="total" />
+        </AlvaChartCard>
+        <AlvaChartCard
+          title="Review funnel"
+          subtitle="Hours narrowing from submitted to approved"
+          className="min-h-[15rem]"
+        >
+          <CorpusFunnel slices={corpus.byStatus} />
+        </AlvaChartCard>
+      </div>
+
+      <div className="mt-2 grid gap-2 lg:grid-cols-2">
+        <AlvaChartCard
           title="By state"
           subtitle="Where speakers are from"
-          className="lg:col-span-1"
+          className="min-h-[19rem]"
         >
-          <HoursBreakdownBars slices={corpus.byState} emphasiseFirst />
+          <CategoryBars
+            data={corpus.byState.map((slice) => ({
+              name: slice.label,
+              value: Math.round(slice.hours),
+            }))}
+          />
         </AlvaChartCard>
-        <AlvaChartCard title="By age bracket" subtitle="Speaker age distribution">
-          <HoursBreakdownBars slices={corpus.byAge} />
-        </AlvaChartCard>
-        <AlvaChartCard title="By gender" subtitle="Speaker gender distribution">
-          <HoursBreakdownBars slices={corpus.byGender} />
+
+        {/* Age and gender are a cross-tab, so they are one pyramid rather
+            than two lists — the skew is the whole point. */}
+        <AlvaChartCard
+          title="Speaker demographics"
+          subtitle="Hours by age bracket and gender"
+          className="min-h-[19rem]"
+        >
+          <DemographicHoursChart
+            data={forceEmpty ? EMPTY_CORPUS_DEMOGRAPHICS : CORPUS_DEMOGRAPHICS}
+          />
         </AlvaChartCard>
       </div>
     </DesktopPageShell>

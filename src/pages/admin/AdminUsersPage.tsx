@@ -10,7 +10,9 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
+import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { UserSheet, type UserDraft } from "@/components/admin/users/UserSheet";
+import { UserDetailPanel } from "@/components/admin/users/UserDetailPanel";
 import {
   ADMIN_USERS,
   EMPTY_USER_METRICS,
@@ -25,19 +27,17 @@ import { useDevRows } from "@/hooks/use-dev-ui-state";
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | "active" | "inactive";
 
-const ROLE_TONE: Record<AdminUserRole, "good" | "pending" | "neutral"> = {
-  admin: "pending",
-  annotator: "good",
-  intern: "good",
-  contributor: "neutral",
-};
-
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>(ADMIN_USERS);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  /* Two panels, deliberately. Clicking a row opens the record — the thing an
+   * admin wants nine times out of ten — and editing is a second step from
+   * inside it. A row click that drops you straight into a form makes reading
+   * an account feel like you are about to change it. */
+  const [detail, setDetail] = useState<AdminUser | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editing, setEditing] = useState<AdminUser | null>(null);
 
   const rows = useDevRows(users);
   const isEmpty = rows.length === 0;
@@ -55,14 +55,6 @@ export default function AdminUsersPage() {
   );
 
   const handleSave = (draft: UserDraft) => {
-    if (editing) {
-      setUsers((prev) =>
-        prev.map((row) => (row.id === editing.id ? { ...row, ...draft } : row))
-      );
-      alvaToast.success("Saved");
-      return;
-    }
-
     setUsers((prev) => [
       {
         id: `u-${crypto.randomUUID().slice(0, 6)}`,
@@ -83,6 +75,11 @@ export default function AdminUsersPage() {
       ...prev,
     ]);
     alvaToast.success(`${ROLE_LABELS[draft.role]} account created`);
+  };
+
+  const handleDelete = (user: AdminUser) => {
+    setUsers((prev) => prev.filter((row) => row.id !== user.id));
+    alvaToast.show(`${user.fullName} removed`, { variant: "default" });
   };
 
   const handleToggleActive = (user: AdminUser) => {
@@ -117,11 +114,7 @@ export default function AdminUsersPage() {
       key: "role",
       header: "Role",
       sortValue: (row: AdminUser) => row.role,
-      render: (row: AdminUser) => (
-        <AdminStatusPill tone={ROLE_TONE[row.role]}>
-          {ROLE_LABELS[row.role]}
-        </AdminStatusPill>
-      ),
+      render: (row: AdminUser) => <RoleTag role={row.role} />,
     },
     {
       key: "output",
@@ -160,7 +153,7 @@ export default function AdminUsersPage() {
     (roleFilter === "all" ? 0 : 1) + (statusFilter === "active" ? 0 : 1);
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader
         id="users"
         actions={
@@ -168,12 +161,9 @@ export default function AdminUsersPage() {
             variant="alva"
             size="sm"
             className="w-auto"
-            onClick={() => {
-              setEditing(null);
-              setSheetOpen(true);
-            }}
+            onClick={() => setSheetOpen(true)}
           >
-            <AddCircle size={15} weight="Bold" />
+            <AddCircle size={15} weight="Outline" />
             New user
           </TextureButton>
         }
@@ -221,8 +211,8 @@ export default function AdminUsersPage() {
           searchKeys={["fullName", "email"]}
           activeFilterCount={activeFilterCount}
           onRowClick={(row) => {
-            setEditing(row);
-            setSheetOpen(true);
+            setDetail(row);
+            setDetailOpen(true);
           }}
           mobilePrimary={(row) => ({
             title: row.fullName,
@@ -272,12 +262,28 @@ export default function AdminUsersPage() {
         />
       </div>
 
+      <UserDetailPanel
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        user={detail}
+        onToggleActive={handleToggleActive}
+        onDelete={handleDelete}
+        onSave={(target, draft) => {
+          setUsers((prev) =>
+            prev.map((row) => (row.id === target.id ? { ...row, ...draft } : row))
+          );
+          setDetail((current) =>
+            current && current.id === target.id ? { ...current, ...draft } : current
+          );
+        }}
+      />
+
+      {/* Creating only — an existing user is edited inside the detail panel. */}
       <UserSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        user={editing}
+        user={null}
         onSave={handleSave}
-        onToggleActive={handleToggleActive}
       />
     </DesktopPageShell>
   );

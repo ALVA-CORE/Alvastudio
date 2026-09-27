@@ -90,7 +90,7 @@ export default function AdminAudioPage() {
   };
 
   return (
-    <DesktopPageShell className="py-4" fullWidth>
+    <DesktopPageShell className="py-4">
       <AdminPageHeader id="audio" />
 
       <div className="mt-3 grid gap-2 lg:grid-cols-2">
