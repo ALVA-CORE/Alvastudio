@@ -6,6 +6,7 @@ import Diskette from "@solar-icons/react/devices/Diskette";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
+import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { useApiResource } from "@/hooks/useApiResource";
 import { nextPrompt, nextStimulus } from "@/lib/api/catalog";
 import { submitPromptRead, submitStimulus } from "@/lib/api/recordings";
@@ -20,6 +21,7 @@ import { StudioModeDropdown, type StudioMode } from "@/components/contributors/s
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
 import { TextureButton } from "@/components/ui/texture-button";
 
@@ -85,6 +87,14 @@ export default function ContributorStudioPage() {
 
 
   const handlePrimary = async () => {
+    /* No card means no `prompt_id` to submit against, so a take recorded here
+       could never be uploaded — it used to be allowed, then failed at Save
+       with "Record a take first", which blamed the wrong thing. */
+    if (!card && recorder.phase === "idle") {
+      alvaToast.show("Nothing to record right now", { variant: "default" });
+      return;
+    }
+
     if (recorder.phase === "idle") {
       await recorder.startRecording();
       alvaToast.accent("Recording started", <Microphone3 size={14} weight="Bold" />);
@@ -111,8 +121,12 @@ export default function ContributorStudioPage() {
 
   const handleSave = async () => {
     const blob = recorder.getBlob();
-    if (!card || !blob) {
+    if (!blob) {
       alvaToast.error("Record a take first");
+      return;
+    }
+    if (!card) {
+      alvaToast.error("This take has no prompt to attach to");
       return;
     }
 
@@ -167,9 +181,12 @@ export default function ContributorStudioPage() {
         ) : !loadingCard && total === 0 ? (
           /* 404 from /next means the bank is exhausted for this contributor —
              an end state, not a failure. */
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Nothing left to record right now. Check back later.
-          </p>
+          <AlvaEmptyState
+            className="mt-6"
+            icon={<ClipboardCheck size={20} weight="Outline" />}
+            title="Nothing left to record"
+            description="You have worked through every prompt in the bank. Check back later for more."
+          />
         ) : (
           <StudioPromptStack
             className="mt-8"
@@ -184,6 +201,8 @@ export default function ContributorStudioPage() {
           className="mt-10 h-28"
           phase={recorder.phase}
           onPrimary={handlePrimary}
+          disabled={!card && recorder.phase === "idle"}
+          disabledLabel="Nothing to record right now"
         />
 
         {recorder.error && (

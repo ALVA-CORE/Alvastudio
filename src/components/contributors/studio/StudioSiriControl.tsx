@@ -7,6 +7,9 @@ import { SiriBlob } from "./SiriBlob";
 type StudioSiriControlProps = {
   phase: RecorderPhase;
   onPrimary: () => void;
+  /** Nothing to record against — the control is inert and says why. */
+  disabled?: boolean;
+  disabledLabel?: string;
   className?: string;
 };
 
@@ -15,6 +18,8 @@ const BAR_COUNT = 40;
 export function StudioSiriControl({
   phase,
   onPrimary,
+  disabled = false,
+  disabledLabel = "Nothing to record",
   className,
 }: StudioSiriControlProps) {
   const waveActive = phase === "recording" || phase === "playing";
@@ -27,8 +32,11 @@ export function StudioSiriControl({
       <button
         type="button"
         onClick={onPrimary}
+        disabled={disabled}
         aria-label={
-          phase === "idle"
+          disabled
+            ? disabledLabel
+            : phase === "idle"
             ? "Start recording"
             : phase === "recording"
               ? "Stop recording"
@@ -36,19 +44,27 @@ export function StudioSiriControl({
                 ? "Playing recording"
                 : "Replay recording"
         }
-        className="relative z-[2]"
+        className={cn(
+          "relative z-[2] transition-opacity",
+          disabled && "cursor-not-allowed opacity-40"
+        )}
       >
         <div className="relative overflow-visible rounded-full">
-          <BorderBeam
-            size="pulse-outside"
-            colorVariant="mono"
-            theme="dark"
-            strength={1}
-            duration={phase === "recording" ? 1.6 : 2.4}
-            borderRadius={999}
-          >
+          {/* The beam is an invitation to press. Nothing to press, no beam. */}
+          {disabled ? (
             <SiriBlob phase={phase} />
-          </BorderBeam>
+          ) : (
+            <BorderBeam
+              size="pulse-outside"
+              colorVariant="mono"
+              theme="dark"
+              strength={1}
+              duration={phase === "recording" ? 1.6 : 2.4}
+              borderRadius={999}
+            >
+              <SiriBlob phase={phase} />
+            </BorderBeam>
+          )}
         </div>
       </button>
     </div>
