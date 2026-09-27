@@ -6,6 +6,8 @@ import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
 import { FOCUS_GROUP_PROMPTS } from "@/data/prompts";
+import { attachSessionAudio } from "@/hooks/useFocusGroups";
+import { ApiError } from "@/lib/api/client";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
 import { alvaToast } from "@/lib/alva-toast";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
@@ -22,8 +24,12 @@ function toCards(items: { id: number; text: string }[]): PromptCard[] {
 
 export default function InternRecordPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [sessionReady, setSessionReady] = useState(false);
+  /* The session the intake modal created. Its id is what the take uploads
+   * against, so there is no recording without it — which is also why the
+   * primary button opens intake first. */
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [intakeOpen, setIntakeOpen] = useState(false);
+  const [isSaving, setSaving] = useState(false);
   const recorder = useStudioRecorder();
 
   const items = useMemo(() => toCards(FOCUS_GROUP_PROMPTS), []);
@@ -35,7 +41,7 @@ export default function InternRecordPage() {
   };
 
   const handlePrimary = async () => {
-    if (!sessionReady && recorder.phase === "idle") {
+    if (!sessionId && recorder.phase === "idle") {
       setIntakeOpen(true);
       return;
     }
@@ -64,9 +70,43 @@ export default function InternRecordPage() {
     alvaToast.show("Take cleared, ready to record again");
   };
 
-  const handleSave = () => {
-    alvaToast.success("Focus group clip saved", <Diskette size={14} weight="Bold" />);
-    goTo((prev) => prev + 1);
+  /**
+   * Attaching the audio is what makes the session real.
+   *
+   * Until a file is uploaded the session does not appear in
+   * `/annotations/queue`, so an intern who records and never saves has created
+   * nothing an annotator can pick up.
+   */
+  const handleSave = async () => {
+    const blob = recorder.getBlob();
+    if (!blob) {
+      alvaToast.error("Record a take first");
+      return;
+    }
+    if (!sessionId) {
+      alvaToast.error("Log the session participants before saving");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await attachSessionAudio(sessionId, blob, recorder.getDuration());
+      alvaToast.success(
+        "Focus group session submitted",
+        <Diskette size={14} weight="Bold" />
+      );
+      /* The session now has its audio; a second take would replace it, so the
+       * page starts a fresh session rather than reusing this one. */
+      setSessionId(null);
+      recorder.discardRecording();
+      goTo((prev) => prev + 1);
+    } catch (cause) {
+      alvaToast.error(
+        cause instanceof ApiError ? cause.message : "Could not upload the session."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -117,7 +157,13 @@ export default function InternRecordPage() {
               <TrashBinMinimalistic size={16} weight="Outline" />
             </TextureButton>
 
-            <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}>
+            <TextureButton
+            variant="alva"
+            size="sm"
+            className="w-auto"
+            loading={isSaving}
+            onClick={() => void handleSave()}
+          >
               <span className="flex items-center gap-2">
                 <Diskette size={16} weight="Bold" />
                 Save
@@ -130,14 +176,15 @@ export default function InternRecordPage() {
           open={intakeOpen}
           onOpenChange={setIntakeOpen}
           focusGroupSession={items[currentIndex]?.prompt ?? "Focus group session"}
-          onComplete={() => setSessionReady(true)}
+          onComplete={(session) => setSessionId(session.id)}
         />
       </DesktopPageShell>
 
-      {/* No `processing`: this page's save is still local, so there is no
-          upload for the beam to travel through. Wire it when the focus-group
-          upload endpoint lands. */}
-      <StudioVoiceBeam stream={recorder.stream} phase={recorder.phase} />
+      <StudioVoiceBeam
+        stream={recorder.stream}
+        phase={recorder.phase}
+        processing={isSaving}
+      />
     </>
   );
 }

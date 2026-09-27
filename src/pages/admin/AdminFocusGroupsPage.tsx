@@ -9,10 +9,11 @@ import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { ADMIN_SESSIONS, type AdminSession } from "@/data/admin/oversight";
 import { STATES, round1 } from "@/data/admin/shared";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 type Tab = "all" | "no-audio";
 type StateFilter = string | "all";
@@ -26,6 +27,7 @@ type StateFilter = string | "all";
  * the first thing an admin sees, not something they have to sort for.
  */
 export default function AdminFocusGroupsPage() {
+  const isLoading = useSimulatedLoading();
   const [tab, setTab] = useState<Tab>("all");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const rows = useDevRows(ADMIN_SESSIONS);
@@ -155,6 +157,11 @@ export default function AdminFocusGroupsPage() {
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="focus-groups" />
 
+      {isLoading ? (
+        <AdminPageSkeleton charts={0} chartColumns={3} table={true} />
+      ) : (
+        <>
+
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           variant="accent"
@@ -233,6 +240,8 @@ export default function AdminFocusGroupsPage() {
           />
         </TabsContent>
       </Tabs>
+        </>
+      )}
     </DesktopPageShell>
   );
 }

@@ -7,6 +7,8 @@ export type ApiRecording = {
   session_type: ApiSessionType;
   prompt_id: string | null;
   stimulus_id: string | null;
+  prompt_text: string | null;
+  stimulus_text: string | null;
   audio_content_type: string;
   audio_size_bytes: number;
   original_filename: string | null;

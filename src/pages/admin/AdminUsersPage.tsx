@@ -9,6 +9,7 @@ import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { UserSheet, type UserDraft } from "@/components/admin/users/UserSheet";
@@ -22,12 +23,13 @@ import {
   type AdminUserRole,
 } from "@/data/admin/users";
 import { alvaToast } from "@/lib/alva-toast";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | "active" | "inactive";
 
 export default function AdminUsersPage() {
+  const isLoading = useSimulatedLoading();
   const [users, setUsers] = useState<AdminUser[]>(ADMIN_USERS);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
@@ -169,6 +171,11 @@ export default function AdminUsersPage() {
         }
       />
 
+      {isLoading ? (
+        <AdminPageSkeleton charts={0} chartColumns={3} table={true} />
+      ) : (
+        <>
+
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           variant="accent"
@@ -285,6 +292,8 @@ export default function AdminUsersPage() {
         user={null}
         onSave={handleSave}
       />
+        </>
+      )}
     </DesktopPageShell>
   );
 }

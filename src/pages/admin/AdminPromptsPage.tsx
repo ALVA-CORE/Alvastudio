@@ -11,6 +11,7 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { BankItemSheet, type BankDraft } from "@/components/admin/prompts/BankItemSheet";
 import {
@@ -21,7 +22,7 @@ import {
   type BankKind,
 } from "@/data/admin/prompts";
 import { alvaToast } from "@/lib/alva-toast";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 type ActiveFilter = "all" | "active" | "retired";
 
@@ -34,6 +35,7 @@ type ActiveFilter = "all" | "active" | "retired";
  * either unreachable or not worth keeping, and nothing else surfaces that.
  */
 export default function AdminPromptsPage() {
+  const isLoading = useSimulatedLoading();
   const [kind, setKind] = useState<BankKind>("prompt");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -191,6 +193,11 @@ export default function AdminPromptsPage() {
         }
       />
 
+      {isLoading ? (
+        <AdminPageSkeleton charts={0} chartColumns={3} table={true} />
+      ) : (
+        <>
+
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           variant="accent"
@@ -281,6 +288,8 @@ export default function AdminPromptsPage() {
         onSave={handleSave}
         onRetire={handleRetire}
       />
+        </>
+      )}
     </DesktopPageShell>
   );
 }

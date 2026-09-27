@@ -29,7 +29,7 @@ export function StatusRings({
 
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <RingChart data={data} strokeWidth={11} ringGap={5} baseInnerRadius={40}>
+      <RingChart data={data} strokeWidth={14} ringGap={6} baseInnerRadius={40}>
         <Ring index={0} showGlow />
         {slices.slice(1).map((_, index) => (
           <Ring key={index + 1} index={index + 1} />
@@ -37,7 +37,7 @@ export function StatusRings({
         <RingCenter
           defaultLabel={centerLabel}
           valueClassName="text-foreground"
-          labelClassName="text-muted-foreground"
+          labelClassName="text-[10px] text-muted-foreground"
         />
       </RingChart>
     </div>

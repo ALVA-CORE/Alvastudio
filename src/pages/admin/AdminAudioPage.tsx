@@ -8,9 +8,11 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { PanelRow } from "@/components/shared/PanelPrimitives";
 import { TextureButton } from "@/components/ui/texture-button";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { alvaToast } from "@/lib/alva-toast";
 import { round1 } from "@/data/admin/shared";
+import { useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { cn } from "@/lib/utils";
 
 type QcResult = {
@@ -64,6 +66,7 @@ function scoreTone(value: number) {
  * looks like.
  */
 export default function AdminAudioPage() {
+  const isLoading = useSimulatedLoading();
   const inputRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<QcResult | null>(null);
   const [isRunning, setRunning] = useState(false);
@@ -93,6 +96,10 @@ export default function AdminAudioPage() {
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="audio" />
 
+      {isLoading ? (
+        <AdminPageSkeleton metrics={false} charts={2} chartColumns={2} />
+      ) : (
+        <>
       <div className="mt-3 grid gap-2 lg:grid-cols-2">
         <AlvaChartCard title="Run a clip" subtitle="Analysis, transcription and scoring">
           <div
@@ -217,6 +224,8 @@ export default function AdminAudioPage() {
           </p>
         </div>
       </div>
+        </>
+      )}
     </DesktopPageShell>
   );
 }

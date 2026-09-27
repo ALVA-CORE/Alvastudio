@@ -35,7 +35,35 @@ export const contributorDashboard = () =>
 
 export const internDashboard = () => apiFetch<ApiInternDashboard>("/dashboard/intern");
 
-/* NOTE: there is no /dashboard/annotator. See docs/backend-gaps.md §1. */
+export type ApiDailyActivity = { date: string; count: number };
+
+export type ApiAnnotationStatusBreakdown = {
+  draft: number;
+  in_progress: number;
+  submitted: number;
+  approved: number;
+  needs_rework: number;
+  rejected: number;
+  total: number;
+};
+
+export type ApiAnnotatorDashboard = {
+  annotator_id: string;
+  annotations_total: number;
+  sessions_annotated: number;
+  status_breakdown: ApiAnnotationStatusBreakdown;
+  hours_annotated: number;
+  segments_created: number;
+  tags_applied: number;
+  tokens_annotated: number;
+  gold_count: number;
+  queue_available: number;
+  /** 365 days, zero-filled, oldest first, `YYYY-MM-DD` in Africa/Lagos. */
+  daily_activity: ApiDailyActivity[];
+};
+
+export const annotatorDashboard = () =>
+  apiFetch<ApiAnnotatorDashboard>("/dashboard/annotator");
 
 export type ApiEarnings = {
   contributor_id: string;

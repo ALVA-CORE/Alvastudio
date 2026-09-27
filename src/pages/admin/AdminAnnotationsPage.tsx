@@ -9,6 +9,7 @@ import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import {
   ADMIN_ANNOTATIONS,
@@ -18,7 +19,7 @@ import {
   type AdminAnnotation,
   type AnnotationStatus,
 } from "@/data/admin/oversight";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 type StatusFilter = AnnotationStatus | "all";
 
@@ -44,6 +45,7 @@ const STATUSES: StatusFilter[] = [
  * long it has been waiting.
  */
 export default function AdminAnnotationsPage() {
+  const isLoading = useSimulatedLoading();
   const [status, setStatus] = useState<StatusFilter>("all");
   const rows = useDevRows(ADMIN_ANNOTATIONS);
 
@@ -143,6 +145,11 @@ export default function AdminAnnotationsPage() {
   return (
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="annotations" />
+
+      {isLoading ? (
+        <AdminPageSkeleton charts={2} chartColumns={2} table={true} />
+      ) : (
+        <>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -281,6 +288,8 @@ export default function AdminAnnotationsPage() {
           }}
         />
       </div>
+        </>
+      )}
     </DesktopPageShell>
   );
 }

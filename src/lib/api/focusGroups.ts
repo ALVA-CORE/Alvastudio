@@ -9,6 +9,13 @@ export type ApiParticipant = {
   gender: ApiGender | null;
   role: string | null;
   language_variety: ApiLanguageVariety | null;
+  state: string | null;
+  native_language: string | null;
+  phone: string | null;
+  consent_given: boolean | null;
+  /** Server-set when consent is recorded. */
+  consent_at: string | null;
+  consent_version: string | null;
   created_at: string;
 };
 
@@ -18,6 +25,12 @@ export type ApiParticipantIn = {
   gender?: ApiGender | null;
   role?: string | null;
   language_variety?: ApiLanguageVariety | null;
+  state?: string | null;
+  native_language?: string | null;
+  phone?: string | null;
+  /** Required. There is no logging a participant without recording consent. */
+  consent_given: boolean;
+  consent_version?: string;
 };
 
 export type ApiSpeakerTurn = {
@@ -29,7 +42,7 @@ export type ApiSpeakerTurn = {
   created_at: string;
 };
 
-/** List row — counts only. */
+/** List row. Carries nested participants when asked for with `expand`. */
 export type ApiSessionSummary = {
   id: string;
   intern_id: string;
@@ -40,6 +53,7 @@ export type ApiSessionSummary = {
   participant_count: number;
   turn_count: number;
   created_at: string;
+  participants?: ApiParticipant[];
 };
 
 /** Detail — nested participants and turns. */
@@ -54,11 +68,21 @@ export type ApiSession = Omit<
   turns: ApiSpeakerTurn[];
 };
 
-/** Interns see their own sessions; admins see all. */
-export const listSessions = (query: { limit?: number; offset?: number } = {}) =>
-  apiFetch<ApiSessionSummary[]>("/focus-groups", { query });
+/**
+ * Interns see their own sessions; admins see all.
+ *
+ * `expand=participants` nests them on each row, which is the difference
+ * between one request and one-per-session for the participants table.
+ */
+export const listSessions = (
+  query: { limit?: number; offset?: number; expand?: "participants" } = {}
+) => apiFetch<ApiSessionSummary[]>("/focus-groups", { query });
 
 export const getSession = (id: string) => apiFetch<ApiSession>(`/focus-groups/${id}`);
+
+/** 409 when the session is already claimed for annotation. */
+export const deleteSession = (id: string) =>
+  apiFetch<void>(`/focus-groups/${id}`, { method: "DELETE" });
 
 export const createSession = (payload: {
   topic: string;

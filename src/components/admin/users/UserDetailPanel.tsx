@@ -6,6 +6,7 @@ import Pen from "@solar-icons/react/messages/Pen";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { TextureButton } from "@/components/ui/texture-button";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
@@ -38,15 +39,16 @@ const TABS: Array<{ id: Tab; label: string }> = [
 const ROLES: AdminUserRole[] = ["contributor", "intern", "annotator", "admin"];
 
 /**
- * Default width.
+ * Default panel width, in px. **Change this to change the default.**
  *
- * Set by the contribution graph, not by taste: 53 week columns at 9px with a
- * 2px gap is 583px, plus the y-axis gutter and the panel's own padding. Any
- * narrower and a year of activity scrolls sideways, which defeats the point of
- * a calendar you are meant to read at a glance.
+ * Set by the contribution graph, not by taste: 53 week columns at 7px with a
+ * 2px gap is 477px, plus the panel's own 48px of padding. Any narrower and a
+ * year of activity scrolls sideways, which defeats the point of a calendar you
+ * are meant to read at a glance. Drag the left edge to go wider; that choice
+ * is per-session and is not persisted.
  */
-const PANEL_WIDTH = 664;
-const MIN_WIDTH = 420;
+const PANEL_WIDTH = 500;
+const MIN_WIDTH = 500;
 
 type UserDraft = Pick<AdminUser, "fullName" | "email" | "phone" | "role">;
 
@@ -163,21 +165,31 @@ export function UserDetailPanel({
         >
           {/* Drag handle — the panel's own left edge, so there is no rule
               sitting between it and the page when nobody is resizing. */}
+          {/* Same grip as the annotator's timeline and side panel: an invisible
+              strip that shows a short pill on hover, rather than a coloured bar
+              that draws a rule down the edge of the panel at rest. */}
           <div
             role="separator"
             aria-label="Resize panel"
             aria-orientation="vertical"
-            aria-valuenow={resize.size}
+            aria-valuenow={Math.round(resize.size)}
             aria-valuemin={resize.min}
             aria-valuemax={resize.max}
             tabIndex={0}
             {...resize.handleProps}
             className={cn(
-              "absolute inset-y-0 left-0 z-30 w-1.5 cursor-col-resize transition-colors",
-              "hover:bg-alva-accent/30 focus-visible:bg-alva-accent/40 focus-visible:outline-none",
-              resize.isResizing && "bg-alva-accent/40"
+              "group/resize absolute inset-y-0 left-0 z-30 flex w-2 cursor-ew-resize touch-none items-center justify-center focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
+              resize.isResizing && "bg-alva-surface"
             )}
-          />
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "h-8 w-0.5 rounded-full bg-transparent transition-colors group-hover/resize:bg-muted-foreground",
+                resize.isResizing && "bg-muted-foreground"
+              )}
+            />
+          </div>
 
           <div className="relative shrink-0 px-6 pb-0 pt-5">
             <div className="absolute left-5 top-4">
@@ -224,7 +236,7 @@ export function UserDetailPanel({
 
             <nav
               aria-label="User detail sections"
-              className="mt-5 flex items-center justify-center gap-7"
+              className="mt-5 flex items-center justify-center gap-7 border-b border-alva-border"
             >
               {TABS.map((entry) => {
                 const isActive = entry.id === tab;
@@ -235,7 +247,7 @@ export function UserDetailPanel({
                     aria-current={isActive ? "true" : undefined}
                     onClick={() => setTab(entry.id)}
                     className={cn(
-                      "relative pb-2.5 text-sm transition-colors focus-visible:outline-none",
+                      "relative -mb-px pb-2.5 text-sm transition-colors focus-visible:outline-none",
                       isActive
                         ? "font-medium text-foreground"
                         : "text-muted-foreground hover:text-foreground"
@@ -243,7 +255,7 @@ export function UserDetailPanel({
                   >
                     {entry.label}
                     {isActive ? (
-                      <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-alva-accent" />
+                      <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-alva-accent" />
                     ) : null}
                   </button>
                 );
@@ -267,28 +279,55 @@ export function UserDetailPanel({
             {tab === "audit" ? <AuditTab events={audit} /> : null}
           </div>
 
+          {/* Fixed to the bottom of the panel — only the body between the tabs
+              and here scrolls. Buttons size to their own labels; stretching
+              three to equal thirds gave "Edit" a button four times its word.
+              They cannot wrap, because `MIN_WIDTH` will not let the panel get
+              narrow enough for them to. */}
           <div className="flex shrink-0 items-center gap-2 px-6 pb-5 pt-2">
             {isEditing ? (
               <>
-                <PanelAction label="Save changes" tone="accent" onClick={commitEdit} />
-                <PanelAction label="Cancel" onClick={cancelEdit} />
+                <TextureButton
+                  variant="alva"
+                  size="sm"
+                  className="w-auto"
+                  onClick={commitEdit}
+                >
+                  Save changes
+                </TextureButton>
+                <TextureButton
+                  variant="minimal"
+                  size="sm"
+                  className="w-auto"
+                  onClick={cancelEdit}
+                >
+                  Cancel
+                </TextureButton>
               </>
             ) : (
               <>
-                <PanelAction
-                  icon={<KeyMinimalistic size={16} weight="Outline" />}
-                  label="Reset password"
+                <TextureButton
+                  variant="minimal"
+                  size="sm"
+                  className="w-auto"
                   onClick={() => alvaToast.success(`Reset link sent to ${user.email}`)}
-                />
-                <PanelAction
-                  icon={<Pen size={16} weight="Outline" />}
-                  label="Edit"
+                >
+                  <KeyMinimalistic size={15} weight="Outline" />
+                  Reset password
+                </TextureButton>
+                <TextureButton
+                  variant="minimal"
+                  size="sm"
+                  className="w-auto"
                   onClick={startEdit}
-                />
-                <PanelAction
-                  icon={<UserBlock size={16} weight="Outline" />}
-                  label={user.isActive ? "Deactivate" : "Reactivate"}
-                  tone={user.isActive ? "danger" : "default"}
+                >
+                  <Pen size={15} weight="Outline" />
+                  Edit
+                </TextureButton>
+                <TextureButton
+                  variant={user.isActive ? "destructive" : "alva"}
+                  size="sm"
+                  className="ml-auto w-auto"
                   onClick={() => {
                     if (user.isActive) {
                       setConfirmDeactivate(true);
@@ -296,7 +335,10 @@ export function UserDetailPanel({
                     }
                     onToggleActive(user);
                   }}
-                />
+                >
+                  <UserBlock size={15} weight="Outline" />
+                  {user.isActive ? "Deactivate" : "Reactivate"}
+                </TextureButton>
               </>
             )}
           </div>
@@ -325,50 +367,25 @@ export function UserDetailPanel({
   );
 }
 
-function PanelAction({
-  icon,
-  label,
-  onClick,
-  tone = "default",
-}: {
-  icon?: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  tone?: "default" | "danger" | "accent";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
-        tone === "danger" && "bg-red-500/10 text-red-400 hover:bg-red-500/15",
-        tone === "accent" && "bg-alva-accent text-alva-bg hover:bg-alva-accent/90",
-        tone === "default" && "bg-alva-card text-foreground hover:bg-alva-surface"
-      )}
-    >
-      {label}
-      {icon}
-    </button>
-  );
-}
-
 /* ------------------------------------------------------------------ *
  * Tabs
  * ------------------------------------------------------------------ */
 
-/** A group of facts. Separated by a rule rather than titled — with two groups
- *  a heading is a label on the obvious. */
-function Group({ children, first }: { children: React.ReactNode; first?: boolean }) {
+/** A titled group of facts. */
+function Group({
+  title,
+  children,
+  first,
+}: {
+  title: string;
+  children: React.ReactNode;
+  first?: boolean;
+}) {
   return (
-    <dl
-      className={cn(
-        "grid grid-cols-2 gap-x-5 gap-y-4",
-        !first && "mt-6 border-t border-alva-border pt-6"
-      )}
-    >
-      {children}
-    </dl>
+    <section className={cn(!first && "mt-6 border-t border-alva-border pt-6")}>
+      <h3 className="text-sm font-medium text-foreground">{title}</h3>
+      <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{children}</dl>
+    </section>
   );
 }
 
@@ -438,7 +455,7 @@ function ProfileTab({
 }) {
   return (
     <>
-      <Group first>
+      <Group title="Account" first>
         {isEditing ? (
           <>
             <EditField
@@ -496,7 +513,7 @@ function ProfileTab({
       ) : null}
 
       {!isEditing ? (
-        <Group>
+        <Group title="Output">
           <Field
             label={
               user.outputLabel === "—"
@@ -534,7 +551,7 @@ function ActivityTab({
 }) {
   return (
     <>
-      <Group first>
+      <Group title="Last 12 months" first>
         <Field
           label="Total"
           value={`${summary.total} ${user.outputLabel === "—" ? "actions" : user.outputLabel}`}
@@ -544,9 +561,12 @@ function ActivityTab({
         <Field label="Per active day" value={String(summary.perActiveDay)} />
       </Group>
 
-      <div className="mt-6 border-t border-alva-border pt-6">
-        <UserActivityHeatmap data={data} />
-      </div>
+      <section className="mt-6 border-t border-alva-border pt-6">
+        <h3 className="text-sm font-medium text-foreground">Contribution graph</h3>
+        <div className="mt-3">
+          <UserActivityHeatmap data={data} />
+        </div>
+      </section>
     </>
   );
 }

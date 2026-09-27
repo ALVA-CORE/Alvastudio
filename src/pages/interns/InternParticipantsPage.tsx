@@ -11,20 +11,35 @@ import { ParticipantDetailSheet } from "@/components/interns/participants/Partic
 import {
   EMPTY_PARTICIPANT_METRICS,
   formatGenderLabel,
-  PARTICIPANT_METRICS,
   type ParticipantRecord,
 } from "@/data/interns/participants";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
-import { loadParticipants } from "@/lib/intern-participants";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useInternParticipants } from "@/hooks/useFocusGroups";
 
 export default function InternParticipantsPage() {
-  const sourceRows = useMemo(() => loadParticipants(), []);
+  const { rows: sourceRows, sessions, isLoading, error, reload } =
+    useInternParticipants();
   const rows = useDevRows(sourceRows);
-  const isLoading = useSimulatedLoading();
   const [selected, setSelected] = useState<ParticipantRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const isEmpty = rows.length === 0;
-  const metrics = isEmpty ? EMPTY_PARTICIPANT_METRICS : PARTICIPANT_METRICS;
+
+  /* Counted from the rows themselves. There is no participants dashboard
+   * endpoint, so anything the API cannot supply is left blank rather than
+   * invented — the quota target in particular is not something the backend
+   * knows. See docs/backend-gaps.md. */
+  const metrics = useMemo(() => {
+    if (isEmpty) return EMPTY_PARTICIPANT_METRICS;
+
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return {
+      ...EMPTY_PARTICIPANT_METRICS,
+      total: String(rows.length),
+      thisWeek: String(rows.filter((row) => row.loggedAt >= weekAgo).length),
+      sessions: String(sessions.length),
+      quotaFill: "—",
+    };
+  }, [isEmpty, rows, sessions.length]);
 
   const tableRows = useMemo(
     () =>
@@ -52,6 +67,22 @@ export default function InternParticipantsPage() {
           Session participants logged before focus group recording.
         </p>
       </header>
+
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="mt-2">

@@ -5,9 +5,10 @@ import {
   EMPTY_PARTICIPANT_DRAFT,
   PARTICIPANT_COUNT_OPTIONS,
   type ParticipantDraft,
-  type ParticipantRecord,
 } from "@/data/interns/participants";
-import { createSessionId, saveParticipantsBatch } from "@/lib/intern-participants";
+import { createSessionWithParticipants } from "@/hooks/useFocusGroups";
+import { ApiError } from "@/lib/api/client";
+import type { ApiSession } from "@/lib/api/focusGroups";
 import {
   normalizePhoneDigits,
   validateParticipantDraft,
@@ -33,7 +34,8 @@ type ParticipantIntakeModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   focusGroupSession: string;
-  onComplete?: (participants: ParticipantRecord[]) => void;
+  /** Receives the created session — its id is what the take uploads against. */
+  onComplete?: (session: ApiSession) => void;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -52,6 +54,8 @@ export function ParticipantIntakeModal({
   const [drafts, setDrafts] = useState<ParticipantDraft[]>([]);
   const [countError, setCountError] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<ParticipantFieldErrors>({});
+  const [isCreating, setCreating] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const totalSteps = participantCount ? 1 + participantCount : 1;
   const isCountStep = step === 1;
@@ -65,6 +69,7 @@ export function ParticipantIntakeModal({
     setDrafts([]);
     setCountError(undefined);
     setFieldErrors({});
+    setSubmitError(null);
   };
 
   const patchDraft = (index: number, patch: Partial<ParticipantDraft>) => {
@@ -86,7 +91,7 @@ export function ParticipantIntakeModal({
     setCountError(undefined);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (isCountStep) {
       if (!participantCount) {
         setCountError("Select how many participants are in this session.");
@@ -110,19 +115,25 @@ export function ParticipantIntakeModal({
       return;
     }
 
-    const sessionId = createSessionId();
-    const records: ParticipantRecord[] = drafts.map((draft) => ({
-      ...draft,
-      id: crypto.randomUUID(),
-      sessionId,
-      focusGroupSession,
-      loggedAt: Date.now(),
-    }));
-
-    saveParticipantsBatch(records);
-    onComplete?.(records);
-    onOpenChange(false);
-    reset();
+    /* One call creates the session and every participant in it. The modal
+       stays open and keeps the drafts if it fails — re-entering eight people
+       because of a dropped connection is not acceptable. */
+    setCreating(true);
+    setSubmitError(null);
+    try {
+      const session = await createSessionWithParticipants(focusGroupSession, drafts);
+      onComplete?.(session);
+      onOpenChange(false);
+      reset();
+    } catch (cause) {
+      setSubmitError(
+        cause instanceof ApiError
+          ? cause.message
+          : "Could not save this session. Your entries are still here."
+      );
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleBack = () => {
@@ -353,17 +364,28 @@ export function ParticipantIntakeModal({
               <div className="h-4 w-px bg-alva-border" />
             </>
           )}
+          {submitError ? (
+            <p role="alert" className="mr-auto text-xs text-destructive">
+              {submitError}
+            </p>
+          ) : null}
           {!isLastStep ? (
             <button
               type="button"
-              onClick={handleNext}
+              onClick={() => void handleNext()}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground transition-colors hover:text-alva-accent"
             >
               Next
               <AltArrowRight size={14} weight="Outline" />
             </button>
           ) : (
-            <TextureButton variant="alva" size="default" className="w-auto" onClick={handleNext}>
+            <TextureButton
+              variant="alva"
+              size="default"
+              className="w-auto"
+              loading={isCreating}
+              onClick={() => void handleNext()}
+            >
               Save participants
             </TextureButton>
           )}

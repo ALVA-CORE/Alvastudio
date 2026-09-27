@@ -4,7 +4,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -22,16 +21,18 @@ type ConfirmDialogProps = {
   isPending?: boolean;
   /** `danger` for anything that removes access or data. */
   tone?: "danger" | "default";
+  /** Optional receipt line under the description — counts, names, totals. */
+  detail?: ReactNode;
 };
 
 /**
  * One confirmation, shared by every destructive action.
  *
- * Destructive actions used to differ per surface — a two-tap trash here, a bare
- * click there — which meant the amount of protection you got depended on which
- * button you happened to reach for. This is the single answer: it names the
- * thing, says what will happen to it, and puts the irreversible option on the
- * right in red.
+ * Built on the same shape as `CompleteSessionDialog`, which is the pattern the
+ * rest of the app already uses: centred icon, centred title and body, and a
+ * divided footer with the action on the right. Destructive actions used to
+ * differ per surface — a two-tap trash here, a bare click there — which meant
+ * how much protection you got depended on which button you reached for.
  *
  * Cancel is focused on open, not confirm: the default action of a dialog you
  * opened by accident should be to leave.
@@ -46,30 +47,46 @@ export function ConfirmDialog({
   onConfirm,
   isPending = false,
   tone = "danger",
+  detail,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-3xl border-alva-border bg-alva-card p-6">
-        <DialogHeader className="space-y-3 text-left">
+      <DialogContent
+        className={cn(
+          // Fully rounded rather than the card radius: this is a transient
+          // object over the page, not another panel in it.
+          "max-w-md gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
+          "[&>button]:hidden"
+        )}
+      >
+        <div className="px-6 pb-5 pt-7 text-center">
           <span
             className={cn(
-              "flex size-10 items-center justify-center rounded-full",
-              tone === "danger" ? "bg-red-500/10" : "bg-alva-surface"
+              "mx-auto mb-4 flex size-11 items-center justify-center rounded-full",
+              tone === "danger"
+                ? "bg-red-500/15 text-red-400"
+                : "bg-amber-500/15 text-amber-300"
             )}
           >
-            <DangerTriangle
-              size={20}
-              weight="BoldDuotone"
-              className={tone === "danger" ? "text-red-400" : "text-amber-300"}
-            />
+            <DangerTriangle size={22} weight="BoldDuotone" />
           </span>
-          <DialogTitle className="text-lg text-foreground">{title}</DialogTitle>
-          <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
+
+          <DialogTitle className="text-base font-semibold text-foreground">
+            {title}
+          </DialogTitle>
+
+          <DialogDescription className="mx-auto mt-2 max-w-[22rem] text-sm leading-relaxed text-muted-foreground">
             {description}
           </DialogDescription>
-        </DialogHeader>
 
-        <div className="mt-5 flex items-center justify-end gap-2">
+          {detail ? (
+            <div className="mt-5 flex items-center justify-center gap-3 border-t border-alva-border pt-4 text-xs text-muted-foreground">
+              {detail}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-alva-border px-6 py-4">
           <button
             type="button"
             autoFocus
@@ -78,6 +95,7 @@ export function ConfirmDialog({
           >
             {cancelLabel}
           </button>
+
           <TextureButton
             variant={tone === "danger" ? "destructive" : "alva"}
             size="sm"

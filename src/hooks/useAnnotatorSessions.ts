@@ -46,10 +46,21 @@ function formatDuration(seconds: number): string {
   return `${mins}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 }
 
+/** The queue carries these; the annotator's own list does not. */
+type SessionExtras = {
+  languageVariety?: string | null;
+  internName?: string | null;
+  state?: string | null;
+};
+
+const LANGUAGE: Record<string, AnnotatorSession["language"]> = {
+  nigerian_english: "Nigerian English",
+  nigerian_pidgin: "Nigerian Pidgin",
+};
+
 /**
- * Fields the API does not carry on either list — `state`, `language`,
- * `recordedBy`, `tagCount` — are left blank rather than invented. The table
- * renders them as "—"; fabricating a value would look like data.
+ * `tagCount` is still blank — neither list carries it, and fabricating a
+ * number would look like data. The table renders it as "—".
  */
 function toSession(
   sessionId: string,
@@ -58,7 +69,8 @@ function toSession(
   participantCount: number,
   createdAt: string,
   status: AnnotationStatus,
-  annotationId?: string
+  annotationId?: string,
+  extras: SessionExtras = {}
 ): AnnotatorSession & { annotationId?: string } {
   const durationSec = durationSeconds ?? 0;
 
@@ -67,13 +79,13 @@ function toSession(
     annotationId,
     code: sessionCode(sessionId),
     topic,
-    state: "",
+    state: extras.state ?? "",
     participants: participantCount,
     speakers: participantCount,
     duration: formatDuration(durationSec),
     durationSec,
-    language: "Mixed",
-    recordedBy: "",
+    language: LANGUAGE[extras.languageVariety ?? ""] ?? "Mixed",
+    recordedBy: extras.internName ?? "",
     recordedAt: relativeTime(createdAt),
     recordedAtTs: new Date(createdAt).getTime() || 0,
     status,
@@ -119,25 +131,37 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
               row.duration_seconds,
               row.participant_count,
               row.created_at,
-              "not-started"
+              "not-started",
+              undefined,
+              {
+                languageVariety: row.language_variety,
+                internName: row.intern_name,
+                state: row.state,
+              }
             )
           );
 
         /* Claimed rows come from `/annotations`, which carries no topic or
-         * duration — only the annotation's own metadata. Shown with what is
-         * there; the detail page fills the rest. */
-        const held = mine.map((entry) =>
-          toSession(
+         * duration — only the annotation's own metadata. A session already
+         * claimed has also left the queue, so the lookup usually misses and
+         * the row shows what the annotation itself knows. */
+        const held = mine.map((entry) => {
+          const row = queue.find((item) => item.session_id === entry.session_id);
+          return toSession(
             entry.session_id,
-            queue.find((row) => row.session_id === entry.session_id)?.topic ??
-              "Focus group session",
-            queue.find((row) => row.session_id === entry.session_id)?.duration_seconds ?? null,
-            queue.find((row) => row.session_id === entry.session_id)?.participant_count ?? 0,
+            row?.topic ?? "Focus group session",
+            row?.duration_seconds ?? null,
+            row?.participant_count ?? 0,
             entry.created_at,
             STATUS_MAP[entry.status],
-            entry.id
-          )
-        );
+            entry.id,
+            {
+              languageVariety: row?.language_variety,
+              internName: row?.intern_name,
+              state: row?.state,
+            }
+          );
+        });
 
         setSessions([...held, ...rows]);
         setError(null);

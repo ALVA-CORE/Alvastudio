@@ -23,7 +23,7 @@ export function AppShell({ surface = "contributor", children }: AppShellProps) {
     return (
       <div className="min-h-screen bg-background">
         <AnnotatorSidebar />
-        <main className="min-h-screen">{children}</main>
+        <main data-scroll-root className="min-h-screen">{children}</main>
       </div>
     );
   }

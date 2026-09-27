@@ -11,7 +11,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
-import { VarietyRings } from "@/components/admin/shared/VarietyRings";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { SharePie } from "@/components/admin/shared/SharePie";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
 import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
@@ -22,7 +23,7 @@ import { BANK_ITEMS } from "@/data/admin/prompts";
 import { EARNINGS } from "@/data/admin/payments";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,6 +35,7 @@ import { cn } from "@/lib/utils";
  * unpaid contributor are all invisible everywhere else in the product.
  */
 export default function AdminDashboardPage() {
+  const isLoading = useSimulatedLoading();
   const navigate = useNavigate();
   const { forceEmpty } = useDevUiState();
   const [range, setRange] = useState<DashboardTimeRange>("12m");
@@ -89,9 +91,13 @@ export default function AdminDashboardPage() {
     <DesktopPageShell className="py-4">
       <AdminPageHeader
         id="overview"
-        blurb="How much usable audio exists, and what is currently stuck."
         actions={<DashboardTimeFilter value={range} onChange={setRange} />}
       />
+
+      {isLoading ? (
+        <AdminPageSkeleton charts={4} chartColumns={2} table={false} />
+      ) : (
+        <>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -225,7 +231,7 @@ export default function AdminDashboardPage() {
           subtitle="Hours of each language"
           className="min-h-[14rem]"
         >
-          <VarietyRings slices={corpus.byVariety} centerLabel="total" />
+          <SharePie slices={corpus.byVariety} centerLabel="total" />
         </AlvaChartCard>
         <AlvaChartCard
           title="Review funnel"
@@ -235,6 +241,8 @@ export default function AdminDashboardPage() {
           <CorpusFunnel slices={corpus.byStatus} />
         </AlvaChartCard>
       </div>
+        </>
+      )}
     </DesktopPageShell>
   );
 }

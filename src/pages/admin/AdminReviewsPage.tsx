@@ -9,6 +9,7 @@ import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { CategoryBars } from "@/components/admin/shared/CategoryBars";
 import { StatusRings } from "@/components/admin/shared/StatusRings";
@@ -21,7 +22,7 @@ import {
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 type StatusFilter = RecordingStatus | "all";
 
@@ -46,6 +47,7 @@ const STATUSES: StatusFilter[] = [
  * completely different fixes.
  */
 export default function AdminReviewsPage() {
+  const isLoading = useSimulatedLoading();
   const [status, setStatus] = useState<StatusFilter>("all");
   const rows = useDevRows(ADMIN_RECORDINGS);
 
@@ -142,6 +144,11 @@ export default function AdminReviewsPage() {
   return (
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="reviews" />
+
+      {isLoading ? (
+        <AdminPageSkeleton charts={3} chartColumns={3} table={true} />
+      ) : (
+        <>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -310,6 +317,8 @@ export default function AdminReviewsPage() {
           }}
         />
       </div>
+        </>
+      )}
     </DesktopPageShell>
   );
 }

@@ -12,6 +12,7 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import {
   EARNINGS,
@@ -29,7 +30,7 @@ import {
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { downloadCsv } from "@/lib/download-csv";
 import { alvaToast } from "@/lib/alva-toast";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = PayoutStatus | "all";
@@ -49,6 +50,7 @@ const STATUS_TONE: Record<PayoutStatus, PillTone> = {
  * complaint from someone who was underpaid by a kobo.
  */
 export default function AdminPaymentsPage() {
+  const isLoading = useSimulatedLoading();
   const [rates, setRates] = useState<Rate[]>(RATES);
   const [editingUnit, setEditingUnit] = useState<string | null>(null);
   const [draftAmount, setDraftAmount] = useState("");
@@ -167,6 +169,11 @@ export default function AdminPaymentsPage() {
           </TextureButton>
         }
       />
+
+      {isLoading ? (
+        <AdminPageSkeleton charts={1} chartColumns={1} table={true} />
+      ) : (
+        <>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -295,6 +302,8 @@ export default function AdminPaymentsPage() {
           }}
         />
       </div>
+        </>
+      )}
     </DesktopPageShell>
   );
 }

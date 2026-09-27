@@ -14,7 +14,8 @@ import {
   getEmptyAnnotatorDataset,
 } from "@/data/annotators/dashboard";
 import type { DashboardTimeRange } from "@/data/internDashboard";
-import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useAnnotatorDashboard } from "@/hooks/useAnnotatorDashboard";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth/context";
 
@@ -22,16 +23,25 @@ export default function AnnotatorDashboardPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
-  const isLoading = useSimulatedLoading();
+  const { metrics, activity, isLoading, error, reload } = useAnnotatorDashboard();
   const { forceEmpty } = useDevUiState();
 
   if (isMobile) {
     return <AnnotatorMobileGate />;
   }
 
-  const dataset = forceEmpty
+  /* Metrics and the activity series are live. The tag-mix sunburst and the
+   * demographic-reach chart are not — the API exposes no per-tag or per-speaker
+   * breakdown for an annotator, so those two keep their sample shapes. See
+   * docs/backend-gaps.md. */
+  const base = forceEmpty
     ? getEmptyAnnotatorDataset(timeRange)
     : ANNOTATOR_DASHBOARD_DATA[timeRange];
+
+  const dataset = {
+    ...base,
+    activity: forceEmpty ? base.activity : activity,
+  };
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
   return (
@@ -48,6 +58,22 @@ export default function AnnotatorDashboardPage() {
         <DashboardTimeFilter value={timeRange} onChange={setTimeRange} />
       </header>
 
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       {isLoading ? (
         <div className="mt-2 space-y-2">
           <AlvaMetricGridSkeleton />
@@ -59,35 +85,23 @@ export default function AnnotatorDashboardPage() {
             <MetricCard
               variant="accent"
               title="Clips annotated"
-              value={dataset.metrics.clipsAnnotated}
-              trend={{
-                label: dataset.metrics.clipsTrend,
-                positive: dataset.metrics.clipsTrend.startsWith("+"),
-                neutral: forceEmpty,
-              }}
-              period={dataset.metrics.periodLabel}
+              value={forceEmpty ? "0" : metrics.clipsAnnotated}
+              trend={{ label: "", positive: false, neutral: true }}
+              period={metrics.periodLabel}
               icon={ClipboardCheck}
             />
             <MetricCard
               title="Hours annotated"
-              value={dataset.metrics.hoursAnnotated}
-              trend={{
-                label: dataset.metrics.hoursTrend,
-                positive: dataset.metrics.hoursTrend.startsWith("+"),
-                neutral: forceEmpty,
-              }}
-              period={dataset.metrics.periodLabel}
+              value={forceEmpty ? "0" : metrics.hoursAnnotated}
+              trend={{ label: "", positive: false, neutral: true }}
+              period={metrics.periodLabel}
               icon={ClockCircle}
             />
             <MetricCard
               title="Tags applied"
-              value={dataset.metrics.tagsApplied}
-              trend={{
-                label: dataset.metrics.tagsTrend,
-                positive: dataset.metrics.tagsTrend.startsWith("+"),
-                neutral: forceEmpty,
-              }}
-              period={dataset.metrics.periodLabel}
+              value={forceEmpty ? "0" : metrics.tagsApplied}
+              trend={{ label: "", positive: false, neutral: true }}
+              period={metrics.periodLabel}
               icon={TagHorizontal}
             />
           </div>
@@ -96,7 +110,7 @@ export default function AnnotatorDashboardPage() {
             className="mt-2"
             dataset={dataset}
             range={timeRange}
-            isEmpty={forceEmpty}
+            isEmpty={forceEmpty || activity.length === 0}
           />
         </>
       )}

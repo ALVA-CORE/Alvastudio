@@ -10,9 +10,11 @@ import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { TextureButton } from "@/components/ui/texture-button";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { VarietyRings } from "@/components/admin/shared/VarietyRings";
+import { SharePie } from "@/components/admin/shared/SharePie";
+import { CoverageMap } from "@/components/admin/shared/CoverageMap";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
-import { CategoryBars } from "@/components/admin/shared/CategoryBars";
 import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
 import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
@@ -29,7 +31,7 @@ import {
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
 import { downloadCsv } from "@/lib/download-csv";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 /**
  * The corpus, sliced every way the project is judged on.
@@ -39,6 +41,7 @@ import { useDevUiState } from "@/hooks/use-dev-ui-state";
  * the dataset is balanced, not who made it.
  */
 export default function AdminCorpusPage() {
+  const isLoading = useSimulatedLoading();
   const { forceEmpty } = useDevUiState();
   const [range, setRange] = useState<DashboardTimeRange>("12m");
   const corpus = forceEmpty ? EMPTY_CORPUS : CORPUS;
@@ -68,6 +71,11 @@ export default function AdminCorpusPage() {
           </div>
         }
       />
+
+      {isLoading ? (
+        <AdminPageSkeleton charts={6} chartColumns={3} table={false} />
+      ) : (
+        <>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -141,7 +149,9 @@ export default function AdminCorpusPage() {
           subtitle="Which language was spoken"
           className="min-h-[15rem]"
         >
-          <VarietyRings slices={corpus.byVariety} centerLabel="total" />
+          {/* Two slices of one whole — a donut reads that faster than two
+              separate tracks, because the parts sit against each other. */}
+          <SharePie slices={corpus.byVariety} centerLabel="total" />
         </AlvaChartCard>
         <AlvaChartCard
           title="By collection type"
@@ -161,16 +171,11 @@ export default function AdminCorpusPage() {
 
       <div className="mt-2 grid gap-2 lg:grid-cols-2">
         <AlvaChartCard
-          title="By state"
-          subtitle="Where speakers are from"
-          className="min-h-[19rem]"
+          title="Coverage"
+          subtitle="Hours collected by state — hover for the figure"
+          className="min-h-[24rem]"
         >
-          <CategoryBars
-            data={corpus.byState.map((slice) => ({
-              name: slice.label,
-              value: Math.round(slice.hours),
-            }))}
-          />
+          <CoverageMap slices={corpus.byState} />
         </AlvaChartCard>
 
         {/* Age and gender are a cross-tab, so they are one pyramid rather
@@ -185,6 +190,8 @@ export default function AdminCorpusPage() {
           />
         </AlvaChartCard>
       </div>
+        </>
+      )}
     </DesktopPageShell>
   );
 }

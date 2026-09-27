@@ -33,9 +33,18 @@ export function VarietyRings({
     color: PALETTE[index % PALETTE.length],
   }));
 
+  /* Fewer rings, fatter rings: three at 12px leaves the innermost a thread,
+     while two can carry 18px and read as a pair of tracks. */
+  const strokeWidth = slices.length <= 2 ? 18 : slices.length === 3 ? 14 : 11;
+
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <RingChart data={data} strokeWidth={12} ringGap={5} baseInnerRadius={38}>
+      <RingChart
+        data={data}
+        strokeWidth={strokeWidth}
+        ringGap={6}
+        baseInnerRadius={slices.length <= 2 ? 46 : 38}
+      >
         {slices.map((_, index) => (
           <Ring key={index} index={index} showGlow={index === 0} />
         ))}
@@ -43,7 +52,7 @@ export function VarietyRings({
           defaultLabel={centerLabel}
           suffix="h"
           valueClassName="text-foreground"
-          labelClassName="text-muted-foreground"
+          labelClassName="text-[10px] text-muted-foreground"
         />
       </RingChart>
     </div>
