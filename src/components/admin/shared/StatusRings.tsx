@@ -29,7 +29,14 @@ export function StatusRings({
 
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <RingChart data={data} strokeWidth={14} ringGap={6} baseInnerRadius={40}>
+      {/* Three rings in a box sized for six leaves most of the card empty, so
+          the stroke and the hole both grow when there are few. */}
+      <RingChart
+        data={data}
+        strokeWidth={slices.length <= 3 ? 22 : 14}
+        ringGap={7}
+        baseInnerRadius={slices.length <= 3 ? 52 : 40}
+      >
         <Ring index={0} showGlow />
         {slices.slice(1).map((_, index) => (
           <Ring key={index + 1} index={index + 1} />

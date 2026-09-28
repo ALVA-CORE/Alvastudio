@@ -137,3 +137,28 @@ describe("user activity", () => {
     }
   });
 });
+
+describe("role-specific detail", () => {
+  /* "17 sessions" under a shared label tells an admin nothing. Each role does
+   * a different job, so the panel shows that role's own figures. */
+  it.each([
+    ["contributor", "Recording", "Prompts read"],
+    ["intern", "Field work", "Participants logged"],
+    ["annotator", "Annotation", "Segments created"],
+  ] as const)("shows %s work under %s", (role, heading, field) => {
+    const subject = ADMIN_USERS.find((row) => row.role === role);
+    expect(subject).toBeTruthy();
+
+    renderPanel({ user: { ...subject!, isActive: true } });
+    expect(screen.getByText(heading)).toBeInTheDocument();
+    expect(screen.getByText(field)).toBeInTheDocument();
+  });
+
+  it("does not show one role's figures on another", () => {
+    const contributor = ADMIN_USERS.find((row) => row.role === "contributor");
+    renderPanel({ user: { ...contributor!, isActive: true } });
+
+    expect(screen.queryByText("Segments created")).not.toBeInTheDocument();
+    expect(screen.queryByText("Participants logged")).not.toBeInTheDocument();
+  });
+});

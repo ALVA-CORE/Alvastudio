@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import { alvaSelectClass } from "@/lib/alva-form-styles";
 import { cn } from "@/lib/utils";
 
@@ -62,18 +63,19 @@ export function AlvaMultiSelect({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={ariaLabel}
-        className={cn(
-          alvaSelectClass(),
-          "flex w-full items-center justify-between gap-2 px-3 text-sm",
-          value.length === 0 && "text-muted-foreground",
-          className
-        )}
-      >
-        <span className="truncate">{label}</span>
-        <AltArrowDown size={15} weight="Outline" className="shrink-0 opacity-60" />
-      </DropdownMenuTrigger>
+      <FieldBeam className={className}>
+        <DropdownMenuTrigger
+          aria-label={ariaLabel}
+          className={cn(
+            alvaSelectClass(),
+            "flex w-full items-center justify-between gap-2 px-3 text-sm",
+            value.length === 0 && "text-muted-foreground"
+          )}
+        >
+          <span className="truncate">{label}</span>
+          <AltArrowDown size={15} weight="Outline" className="shrink-0 opacity-60" />
+        </DropdownMenuTrigger>
+      </FieldBeam>
 
       <DropdownMenuContent
         align="start"

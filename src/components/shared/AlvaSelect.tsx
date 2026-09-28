@@ -6,6 +6,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { alvaSelectClass } from "@/lib/alva-form-styles";
+import { useState } from "react";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import { cn } from "@/lib/utils";
 
 type AlvaSelectOption = {
@@ -35,11 +37,21 @@ export function AlvaSelect({
   size = "md",
   className,
 }: AlvaSelectProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger aria-label={ariaLabel} className={cn(alvaSelectClass(hasError, size), className)}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
+    <Select value={value} onValueChange={onValueChange} open={open} onOpenChange={setOpen}>
+      {/* The beam is held open while the menu is, not just while the trigger
+          has focus — a select whose affordance vanishes the moment you open it
+          looks like it lost focus. */}
+      <FieldBeam active={open || undefined} className={className}>
+        <SelectTrigger
+          aria-label={ariaLabel}
+          className={cn(alvaSelectClass(hasError, size), "w-full")}
+        >
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+      </FieldBeam>
       <SelectContent className="rounded-2xl border-alva-border bg-alva-card">
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>

@@ -160,7 +160,7 @@ export default function AdminDashboardPage() {
             Work that is stuck somewhere nobody is looking
           </p>
 
-          <div className="mt-3 flex min-h-0 flex-1 flex-col gap-1.5">
+          <div className="alva-thin-scrollbar mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
             {attention.length === 0 ? (
               <p className="my-auto text-center text-xs text-muted-foreground">
                 Nothing stuck. Everything recorded has audio, every prompt is
