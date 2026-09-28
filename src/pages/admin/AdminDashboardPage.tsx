@@ -139,7 +139,7 @@ export default function AdminDashboardPage() {
         <AlvaChartCard
           title="Corpus growth"
           subtitle="Cumulative hours collected"
-          className="h-[15rem] lg:col-span-4"
+          className="h-[25rem] lg:col-span-4"
           emptyMessage={
             forceEmpty
               ? {

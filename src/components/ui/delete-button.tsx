@@ -50,7 +50,10 @@ const INSTANT = { duration: 0 } as const;
 
 /* `surface` sits above both `alva-bg` and `alva-card`; the recess goes darker
    than either, so the pair reads the same wherever the button is dropped. */
-const SURFACE = "bg-alva-surface";
+/* The closed tile matches the destructive texture button it sits near, so the
+   panel's two dangerous controls look like the same kind of thing. The recess
+   behind the confirm pair goes darker than either surface it can land on. */
+const SURFACE = "bg-red-500/10";
 const RECESS = "bg-alva-bg";
 /* The bin is the only irreversible control it sits next to, so it carries
    the destructive colour rather than reading as another grey icon. */
@@ -59,6 +62,10 @@ const FOCUS = "outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
 const DANGER = "hsl(0 72% 60%)";
 
 const CIRCLE = `grid h-6 w-6 place-items-center rounded-full transition-colors duration-200 hover:bg-alva-border ${FOCUS} bg-alva-card`;
+
+/* Confirm is the accent, cancel is grey: the safe option should not compete
+   for attention with the one that cannot be undone. */
+const CONFIRM = "hsl(var(--alva-accent))";
 
 const ICON = {
   viewBox: "0 0 24 24",
@@ -175,6 +182,7 @@ export function DeleteButton({
         ref={trigger}
         type="button"
         aria-label="Delete"
+        title={open ? "Cancel" : "Delete this account"}
         aria-expanded={open}
         onClick={() => {
           if (open) return resolve("kept");
@@ -261,7 +269,7 @@ export function DeleteButton({
               )}
             />
             <Circle label="Confirm delete" onClick={() => resolve("deleted")}>
-              <path d="M4 12.5 9.5 18 20 7" stroke={DANGER} />
+              <path d="M4 12.5 9.5 18 20 7" stroke={CONFIRM} />
             </Circle>
             <Circle label="Cancel" onClick={() => resolve("kept")}>
               <path d="M6 6 18 18M18 6 6 18" />

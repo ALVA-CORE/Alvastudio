@@ -14,7 +14,6 @@ export function PanelAction({
   icon,
   onClick,
   tone = "default",
-  pushRight = false,
   loading = false,
   disabled = false,
 }: {
@@ -22,8 +21,6 @@ export function PanelAction({
   icon?: ReactNode;
   onClick: () => void;
   tone?: "default" | "danger" | "primary";
-  /** Pushes this and everything after it to the right edge. */
-  pushRight?: boolean;
   loading?: boolean;
   disabled?: boolean;
 }) {
@@ -31,7 +28,7 @@ export function PanelAction({
     <TextureButton
       variant={tone === "danger" ? "destructive" : tone === "primary" ? "alva" : "minimal"}
       size="sm"
-      className={pushRight ? "ml-auto w-auto" : "w-auto"}
+      className="w-auto"
       loading={loading}
       disabled={disabled}
       onClick={onClick}

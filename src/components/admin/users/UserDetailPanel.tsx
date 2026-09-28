@@ -197,7 +197,6 @@ export function UserDetailPanel({
                 }}
               />
               <PanelAction
-                pushRight
                 icon={<UserBlock size={15} weight="Outline" />}
                 label={user.isActive ? "Deactivate" : "Reactivate"}
                 tone={user.isActive ? "danger" : "primary"}
