@@ -37,7 +37,7 @@ export default function InternParticipantsPage() {
       total: String(rows.length),
       thisWeek: String(rows.filter((row) => row.loggedAt >= weekAgo).length),
       sessions: String(sessions.length),
-      quotaFill: "—",
+      quotaFill: ", ",
     };
   }, [isEmpty, rows, sessions.length]);
 

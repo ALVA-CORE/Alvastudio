@@ -42,7 +42,7 @@ const MOCK_INTERN_NOTIFICATIONS: InternNotification[] = [
     id: "i-003",
     category: "session-submitted",
     title: "Session uploaded",
-    subtitle: "Thursday focus group — 4 participants",
+    subtitle: "Thursday focus group, 4 participants",
     body: "Audio files synced successfully. Transcripts will be available within two hours.",
     timestamp: "Yesterday, 6:10 PM",
     timestampTs: Date.now() - 1000 * 60 * 60 * 20,

@@ -80,7 +80,7 @@ export function usePolarPart(part: string, kind: "pie" | "radar") {
   }
   if (ctx.chartType !== kind) {
     throw new Error(
-      `<${part} /> is not valid inside ${ROOT_OF[ctx.chartType]} — it belongs in ${ROOT_OF[kind]}.`
+      `<${part} /> is not valid inside ${ROOT_OF[ctx.chartType]}, it belongs in ${ROOT_OF[kind]}.`
     )
   }
   return ctx

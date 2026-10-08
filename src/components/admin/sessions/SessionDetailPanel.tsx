@@ -123,7 +123,7 @@ export function SessionDetailPanel({
             <DetailField label="Speakers" value={String(session.participants)} />
             <DetailField
               label="Speaker turns"
-              value={session.turns > 0 ? String(session.turns) : "—"}
+              value={session.turns > 0 ? String(session.turns) : ", "}
             />
             <DetailField label="Length" value={session.duration} />
             <DetailField
@@ -131,7 +131,7 @@ export function SessionDetailPanel({
               value={
                 session.durationSec > 0
                   ? `${round1(session.durationSec / 3600)}h`
-                  : "—"
+                  : ", "
               }
             />
           </DetailGroup>

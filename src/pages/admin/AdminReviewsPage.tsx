@@ -11,6 +11,7 @@ import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dro
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { PeopleBars } from "@/components/admin/shared/PeopleBars";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { RecordingDetailPanel } from "@/components/admin/reviews/RecordingDetailPanel";
 import { ReassignReviewerDialog } from "@/components/admin/shared/ReassignReviewerDialog";
@@ -131,7 +132,7 @@ export default function AdminReviewsPage() {
       sortValue: (row: AdminRecording) => row.reviewer,
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">
-          {row.reviewer || "—"}
+          {row.reviewer || ", "}
         </span>
       ),
     },
@@ -240,31 +241,16 @@ export default function AdminReviewsPage() {
         >
           {/* Scrolls rather than growing: the card sits in a fixed row and a
               tenth reviewer should not push the page down. */}
-          <dl className="alva-thin-scrollbar max-h-[13rem] space-y-1 overflow-y-auto pr-1">
-            {reviewers.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                Nobody has reviewed anything yet.
-              </p>
-            ) : (
-              reviewers.map((reviewer) => (
-                <div
-                  key={reviewer.id}
-                  className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
-                >
-                  <dt className="truncate text-xs text-foreground">{reviewer.name}</dt>
-                  <dd className="flex shrink-0 items-baseline gap-3 text-xs tabular-nums">
-                    <span className="text-muted-foreground">{reviewer.reviewed} clips</span>
-                    <span className="text-muted-foreground">
-                      {reviewer.approvalRate}% kept
-                    </span>
-                    <span className="w-14 text-right text-foreground">
-                      {reviewer.medianMinutes}m
-                    </span>
-                  </dd>
-                </div>
-              ))
-            )}
-          </dl>
+          <PeopleBars
+            rows={reviewers.map((reviewer) => ({
+              id: reviewer.id,
+              name: reviewer.name,
+              value: reviewer.reviewed,
+              unit: "clips",
+              meta: `${reviewer.approvalRate}% kept · ${reviewer.medianMinutes}m`,
+            }))}
+            emptyMessage="Nobody has reviewed anything yet."
+          />
         </AlvaChartCard>
       </div>
 

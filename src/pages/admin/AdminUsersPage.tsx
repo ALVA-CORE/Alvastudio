@@ -18,7 +18,10 @@ import {
   ADMIN_USERS,
   EMPTY_USER_METRICS,
   ROLE_LABELS,
+  STATUS_LABEL,
+  accountStatus,
   userMetrics,
+  type AccountStatus,
   type AdminUser,
   type AdminUserRole,
 } from "@/data/admin/users";
@@ -26,13 +29,13 @@ import { alvaToast } from "@/lib/alva-toast";
 import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 type RoleFilter = AdminUserRole | "all";
-type StatusFilter = "all" | "active" | "inactive";
+type StatusFilter = "all" | AccountStatus;
 
 export default function AdminUsersPage() {
   const isLoading = useSimulatedLoading();
   const [users, setUsers] = useState<AdminUser[]>(ADMIN_USERS);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   /* Two panels, deliberately. Clicking a row opens the record — the thing an
    * admin wants nine times out of ten — and editing is a second step from
    * inside it. A row click that drops you straight into a form makes reading
@@ -49,8 +52,9 @@ export default function AdminUsersPage() {
     () =>
       rows.filter((row) => {
         if (roleFilter !== "all" && row.role !== roleFilter) return false;
-        if (statusFilter === "active" && !row.isActive) return false;
-        if (statusFilter === "inactive" && row.isActive) return false;
+        if (statusFilter !== "all" && accountStatus(row) !== statusFilter) {
+          return false;
+        }
         return true;
       }),
     [rows, roleFilter, statusFilter]
@@ -76,7 +80,7 @@ export default function AdminUsersPage() {
             ? "sessions"
             : draft.role === "annotator"
               ? "annotations"
-              : "—",
+              : ", ",
       },
       ...prev,
     ]);
@@ -88,11 +92,29 @@ export default function AdminUsersPage() {
     alvaToast.show(`${user.fullName} removed`, { variant: "default" });
   };
 
-  const handleToggleActive = (user: AdminUser) => {
+  /* Approving turns the application into an account: it can be signed into
+   * from this moment, which is the whole of what the intern is waiting for. */
+  const handleApprove = (user: AdminUser) => {
+    const approved = { approval: "approved" as const, isActive: true };
     setUsers((prev) =>
-      prev.map((row) =>
-        row.id === user.id ? { ...row, isActive: !row.isActive } : row
-      )
+      prev.map((row) => (row.id === user.id ? { ...row, ...approved } : row))
+    );
+    setDetail((current) =>
+      current && current.id === user.id ? { ...current, ...approved } : current
+    );
+    alvaToast.success(`${user.fullName} approved`);
+  };
+
+  const handleToggleActive = (user: AdminUser) => {
+    const next = { isActive: !user.isActive };
+    setUsers((prev) =>
+      prev.map((row) => (row.id === user.id ? { ...row, ...next } : row))
+    );
+    /* The panel renders from `detail`, not from the table, so an action taken
+     * inside it has to update both or the status it shows goes stale under
+     * the button that just changed it. */
+    setDetail((current) =>
+      current && current.id === user.id ? { ...current, ...next } : current
     );
     alvaToast.show(user.isActive ? "Account deactivated" : "Account reactivated", {
       variant: "default",
@@ -127,7 +149,7 @@ export default function AdminUsersPage() {
       header: "Output",
       sortValue: (row: AdminUser) => row.output,
       render: (row: AdminUser) =>
-        row.outputLabel === "—" ? (
+        row.outputLabel === ", " ? (
           <span className="text-muted-foreground">—</span>
         ) : (
           <span className="whitespace-nowrap tabular-nums text-muted-foreground">
@@ -138,12 +160,23 @@ export default function AdminUsersPage() {
     {
       key: "isActive",
       header: "Status",
-      sortValue: (row: AdminUser) => String(row.isActive),
-      render: (row: AdminUser) => (
-        <AdminStatusPill tone={row.isActive ? "good" : "neutral"}>
-          {row.isActive ? "Active" : "Deactivated"}
-        </AdminStatusPill>
-      ),
+      sortValue: (row: AdminUser) => accountStatus(row),
+      render: (row: AdminUser) => {
+        const status = accountStatus(row);
+        return (
+          <AdminStatusPill
+            tone={
+              status === "active"
+                ? "good"
+                : status === "pending"
+                  ? "pending"
+                  : "neutral"
+            }
+          >
+            {STATUS_LABEL[status]}
+          </AdminStatusPill>
+        );
+      },
     },
     {
       key: "joinedLabel",
@@ -156,7 +189,7 @@ export default function AdminUsersPage() {
   ];
 
   const activeFilterCount =
-    (roleFilter === "all" ? 0 : 1) + (statusFilter === "active" ? 0 : 1);
+    (roleFilter === "all" ? 0 : 1) + (statusFilter === "all" ? 0 : 1);
 
   return (
     <DesktopPageShell className="py-4">
@@ -197,9 +230,9 @@ export default function AdminUsersPage() {
           icon={CheckCircle}
         />
         <MetricCard
-          title="Staff"
-          value={metrics.staff}
-          trend={{ label: "interns, annotators, admins", positive: false, neutral: true }}
+          title="Pending approval"
+          value={metrics.pending}
+          trend={{ label: "interns awaiting an admin", positive: false, neutral: true }}
           period=""
           icon={ShieldUser}
         />
@@ -249,20 +282,18 @@ export default function AdminUsersPage() {
               <DropdownMenuLabel className="mt-1 text-xs text-muted-foreground">
                 Status
               </DropdownMenuLabel>
-              {(["active", "inactive", "all"] as StatusFilter[]).map((value) => (
-                <DropdownMenuCheckboxItem
-                  key={value}
-                  checked={statusFilter === value}
-                  onCheckedChange={() => setStatusFilter(value)}
-                  onSelect={(event) => event.preventDefault()}
-                >
-                  {value === "all"
-                    ? "All"
-                    : value === "active"
-                      ? "Active only"
-                      : "Deactivated only"}
-                </DropdownMenuCheckboxItem>
-              ))}
+              {(["active", "pending", "deactivated", "all"] as StatusFilter[]).map(
+                (value) => (
+                  <DropdownMenuCheckboxItem
+                    key={value}
+                    checked={statusFilter === value}
+                    onCheckedChange={() => setStatusFilter(value)}
+                    onSelect={(event) => event.preventDefault()}
+                  >
+                    {value === "all" ? "All" : STATUS_LABEL[value]}
+                  </DropdownMenuCheckboxItem>
+                )
+              )}
             </>
           }
           emptyState={{
@@ -278,6 +309,7 @@ export default function AdminUsersPage() {
         onOpenChange={setDetailOpen}
         user={detail}
         onToggleActive={handleToggleActive}
+        onApprove={handleApprove}
         onDelete={handleDelete}
         onSave={(target, draft) => {
           setUsers((prev) =>

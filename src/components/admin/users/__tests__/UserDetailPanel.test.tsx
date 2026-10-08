@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UserDetailPanel } from "../UserDetailPanel";
 import { ADMIN_USERS, activitySummary, userActivity } from "@/data/admin/users";
@@ -12,6 +12,7 @@ function renderPanel(overrides: Partial<Parameters<typeof UserDetailPanel>[0]> =
     onOpenChange: vi.fn(),
     user,
     onToggleActive: vi.fn(),
+    onApprove: vi.fn(),
     onDelete: vi.fn(),
     onSave: vi.fn(),
     ...overrides,
@@ -160,5 +161,40 @@ describe("role-specific detail", () => {
 
     expect(screen.queryByText("Segments created")).not.toBeInTheDocument();
     expect(screen.queryByText("Participants logged")).not.toBeInTheDocument();
+  });
+});
+
+describe("intern approval", () => {
+  const pendingIntern = {
+    ...user,
+    id: "u-intern",
+    role: "intern" as const,
+    isActive: false,
+    approval: "pending" as const,
+  };
+
+  it("approves a pending intern instead of offering to reactivate them", async () => {
+    const props = renderPanel({ user: pendingIntern });
+
+    expect(screen.getByText("· Pending approval")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Reactivate/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect(props.onApprove).toHaveBeenCalledWith(pendingIntern);
+  });
+
+  /* There is no admin-triggered reset for the roles that sign themselves up,
+   * so the button was a toast with nothing behind it. */
+  it("offers a password reset to staff only", () => {
+    renderPanel({ user: { ...user, role: "annotator" as const } });
+    expect(screen.getByRole("button", { name: /Reset password/ })).toBeInTheDocument();
+
+    cleanup();
+    renderPanel({ user: pendingIntern });
+    expect(screen.queryByRole("button", { name: /Reset password/ })).not.toBeInTheDocument();
+
+    cleanup();
+    renderPanel({ user: { ...user, role: "contributor" as const } });
+    expect(screen.queryByRole("button", { name: /Reset password/ })).not.toBeInTheDocument();
   });
 });

@@ -168,7 +168,7 @@ export function CreateUserDialog({
                   label: permission.label,
                   detail: permission.detail,
                 }))}
-                placeholder="No areas — they can sign in and see nothing"
+                placeholder="No areas, they can sign in and see nothing"
               />
             </div>
           ) : null}

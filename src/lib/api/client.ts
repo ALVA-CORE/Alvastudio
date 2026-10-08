@@ -175,7 +175,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     /* Said the way someone without a terminal would say it. The developer
      * detail — which base URL, which proxy — belongs in the console, not in
      * front of a contributor who just lost signal. */
-    const error = new ApiError(0, "You're offline. We'll try again when you're back.");
+    const error = new ApiError(0, "You're offline");
     error.unreachable = true;
     throw error;
   }
@@ -204,14 +204,14 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       if (import.meta.env.DEV) {
         console.warn(
           `[alva] ${method} ${path} returned a non-JSON ${response.status}. ` +
-            "The request probably never reached the API — check that the backend " +
+            "The request probably never reached the API, check that the backend " +
             "is running and VITE_API_BASE_URL points at it."
         );
       }
 
       const error = new ApiError(
         response.status,
-        "We can't reach Alvastudio right now. Please try again in a moment."
+        "Can't reach Alvastudio"
       );
       error.unreachable = true;
       throw error;

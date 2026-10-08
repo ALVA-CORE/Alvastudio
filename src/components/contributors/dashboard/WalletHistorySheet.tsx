@@ -5,10 +5,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Money } from "@/components/contributors/wallet/Money";
 import {
-  formatEntryAmount,
   formatEntryDate,
-  formatWalletNaira,
   type Wallet as WalletData,
   type WalletEntry,
 } from "@/data/contributors/wallet";
@@ -44,15 +43,19 @@ export function WalletHistorySheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
+        aria-describedby={undefined}
         className="max-h-[85vh] overflow-y-auto rounded-t-[28px] border-alva-border bg-alva-card px-4 pb-8 pt-7"
       >
         <SheetHeader className="pr-8 text-left">
           <SheetTitle className="text-xl text-foreground">Wallet history</SheetTitle>
           <p className="text-sm text-muted-foreground">
-            {formatWalletNaira(wallet.balanceKobo)} available
-            {wallet.pendingKobo > 0
-              ? ` · ${formatWalletNaira(wallet.pendingKobo)} on hold`
-              : ""}
+            <Money kobo={wallet.balanceKobo} /> available
+            {wallet.pendingKobo > 0 ? (
+              <>
+                {" · "}
+                <Money kobo={wallet.pendingKobo} /> on hold
+              </>
+            ) : null}
           </p>
         </SheetHeader>
 
@@ -80,14 +83,14 @@ export function WalletHistorySheet({
                   </p>
                 </div>
 
-                <p
+                <Money
+                  kobo={entry.amountKobo}
+                  signed
                   className={cn(
-                    "shrink-0 text-sm tabular-nums",
+                    "shrink-0 text-sm",
                     entry.amountKobo > 0 ? "text-alva-accent" : "text-foreground"
                   )}
-                >
-                  {formatEntryAmount(entry.amountKobo)}
-                </p>
+                />
               </li>
             ))}
           </ul>

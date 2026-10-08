@@ -1,3 +1,9 @@
+import {
+  EMPTY_QUALITY_INSIGHTS,
+  QUALITY_INSIGHTS,
+  QUALITY_SEGMENTS,
+  type QualitySegment,
+} from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
 
 type QualityProgressBarProps = {
@@ -20,35 +26,9 @@ type QualityProgressBarProps = {
   total?: number;
 };
 
-type QualitySegment = {
-  key: string;
-  label: string;
-  value: number;
-  color: string;
-};
-
-const SEGMENTS: QualitySegment[] = [
-  { key: "approved", label: "Approved", value: 62, color: "hsl(var(--alva-accent))" },
-  { key: "pending", label: "In review", value: 24, color: "hsl(0 0% 42%)" },
-  { key: "rework", label: "Re-record", value: 9, color: "hsl(38 92% 50%)" },
-  { key: "rejected", label: "Rejected", value: 5, color: "hsl(0 72% 51%)" },
-];
-
-const INSIGHTS = [
-  { label: "Acceptance rate", value: "87%" },
-  { label: "Avg review time", value: "1.2d" },
-  { label: "This week", value: "+12 clips" },
-];
-
 function pct(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
 }
-
-const EMPTY_INSIGHTS = [
-  { label: "Acceptance rate", value: "0%" },
-  { label: "Avg review time", value: "—" },
-  { label: "This week", value: "0 clips" },
-];
 
 export function QualityProgressBar({
   className,
@@ -67,7 +47,7 @@ export function QualityProgressBar({
           { key: "rework", label: "Re-record", value: pct(breakdown.not_approved, breakdown.total), color: "hsl(38 92% 50%)" },
           { key: "rejected", label: "Rejected", value: pct(breakdown.rejected, breakdown.total), color: "hsl(0 72% 51%)" },
         ]
-      : SEGMENTS;
+      : QUALITY_SEGMENTS;
 
   const liveRate =
     total && total > 0 && approved != null
@@ -75,15 +55,15 @@ export function QualityProgressBar({
       : null;
 
   const insights = isEmpty
-    ? EMPTY_INSIGHTS
+    ? EMPTY_QUALITY_INSIGHTS
     : liveRate
       ? [
           { label: "Acceptance rate", value: liveRate },
           // No review-time or weekly figure on the endpoint yet.
-          { label: "Avg review time", value: "—" },
+          { label: "Avg review time", value: ", " },
           { label: "Total clips", value: String(total) },
         ]
-      : INSIGHTS;
+      : QUALITY_INSIGHTS;
 
   return (
     <section className={cn("mt-6 px-4", className)}>

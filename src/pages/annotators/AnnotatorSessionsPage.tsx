@@ -67,7 +67,7 @@ export default function AnnotatorSessionsPage() {
         hoursPendingTrend: "",
         avgSession: rows.length
           ? `${Math.round(totalSeconds / rows.length / 60)}m`
-          : "—",
+          : ", ",
         avgSessionTrend: "",
         speakersCovered: String(
           rows.reduce((sum, row) => sum + row.participants, 0)
@@ -150,7 +150,7 @@ export default function AnnotatorSessionsPage() {
       sortValue: (row: AnnotatorSession) => row.tagCount,
       render: (row: AnnotatorSession) => (
         <span className="tabular-nums text-muted-foreground">
-          {row.tagCount === 0 ? "—" : row.tagCount}
+          {row.tagCount === 0 ? ", " : row.tagCount}
         </span>
       ),
     },

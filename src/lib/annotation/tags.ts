@@ -56,7 +56,7 @@ const LANGUAGE_OPTIONS: TagOption[] = [
     label: "Undetermined",
     // Straight from the schema: a token in neither lexicon must be `und`, or
     // every out-of-vocabulary item is silently labelled English.
-    hint: "In neither lexicon — never leave these unmarked",
+    hint: "In neither lexicon, never leave these unmarked",
   },
 ];
 

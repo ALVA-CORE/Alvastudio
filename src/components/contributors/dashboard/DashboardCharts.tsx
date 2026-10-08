@@ -23,30 +23,13 @@ import {
 } from "@/components/ui/chart";
 import { AlvaChartEmptyOverlay } from "@/components/shared/states/AlvaChartEmptyOverlay";
 import GraphUp from "@solar-icons/react/business/GraphUp";
+import {
+  EMPTY_RECORDING_MIX,
+  EMPTY_WEEKLY_SESSIONS,
+  RECORDING_MIX,
+  WEEKLY_SESSIONS,
+} from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
-
-const recordingMixData = [
-  { type: "prompts", value: 58, fill: "var(--color-prompts)" },
-  { type: "stimuli", value: 42, fill: "var(--color-stimuli)" },
-];
-
-const weeklyData = [
-  { day: "Mon", sessions: 4 },
-  { day: "Tue", sessions: 7 },
-  { day: "Wed", sessions: 5 },
-  { day: "Thu", sessions: 9 },
-  { day: "Fri", sessions: 6 },
-  { day: "Sat", sessions: 3 },
-  { day: "Sun", sessions: 8 },
-];
-
-const emptyWeeklyData = weeklyData.map((point) => ({ ...point, sessions: 0 }));
-
-/** Ghost ring so the donut keeps its shape behind the empty overlay. */
-const emptyRecordingMixData = [
-  { type: "prompts", value: 1, fill: "hsl(0 0% 20%)" },
-  { type: "stimuli", value: 1, fill: "hsl(0 0% 16%)" },
-];
 
 const pieConfig = {
   prompts: { label: "Prompt reads", color: "hsl(var(--alva-accent))" },
@@ -207,7 +190,7 @@ export function DashboardCharts({
                 <PieChart margin={{ top: 10, right: 42, bottom: 10, left: 42 }}>
                   {!isEmpty && <ChartTooltip content={<ChartTooltipContent hideLabel />} />}
                   <Pie
-                    data={isEmpty ? emptyRecordingMixData : recordingMixData}
+                    data={isEmpty ? EMPTY_RECORDING_MIX : RECORDING_MIX}
                     dataKey="value"
                     nameKey="type"
                     innerRadius={42}
@@ -224,7 +207,7 @@ export function DashboardCharts({
                           )
                     }
                   >
-                    {(isEmpty ? emptyRecordingMixData : recordingMixData).map((entry) => (
+                    {(isEmpty ? EMPTY_RECORDING_MIX : RECORDING_MIX).map((entry) => (
                       <Cell key={entry.type} fill={entry.fill} />
                     ))}
                   </Pie>
@@ -273,7 +256,7 @@ export function DashboardCharts({
                 className="aspect-[4/3] w-full max-h-[240px]"
               >
                 <BarChart
-                  data={isEmpty ? emptyWeeklyData : weeklyData}
+                  data={isEmpty ? EMPTY_WEEKLY_SESSIONS : WEEKLY_SESSIONS}
                   margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid

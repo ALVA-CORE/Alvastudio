@@ -105,11 +105,11 @@ export function EarningDetailPanel({
         <DetailGroup title="Rates applied">
           <DetailField
             label={RATE_UNIT_LABELS.prompt_read}
-            value={perRecording ? formatNaira(perRecording.amountKobo) : "—"}
+            value={perRecording ? formatNaira(perRecording.amountKobo) : ", "}
           />
           <DetailField
             label={RATE_UNIT_LABELS.focus_group_minute}
-            value={perMinute ? formatNaira(perMinute.amountKobo) : "—"}
+            value={perMinute ? formatNaira(perMinute.amountKobo) : ", "}
           />
         </DetailGroup>
 

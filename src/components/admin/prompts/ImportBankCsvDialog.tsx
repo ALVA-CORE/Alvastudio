@@ -65,7 +65,7 @@ export function ImportBankCsvDialog({
           <DialogDescription className="mt-1 text-sm leading-relaxed text-muted-foreground">
             One per line. Columns are <span className="text-foreground">text</span>,{" "}
             <span className="text-foreground">variety</span> and{" "}
-            <span className="text-foreground">category</span> — the last two are
+            <span className="text-foreground">category</span>. The last two are
             optional and fall back to Pidgin and Everyday life.
           </DialogDescription>
         </div>
@@ -132,7 +132,7 @@ export function ImportBankCsvDialog({
                   />
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     {parsed.skipped.length}{" "}
-                    {parsed.skipped.length === 1 ? "line" : "lines"} skipped —{" "}
+                    {parsed.skipped.length === 1 ? "line" : "lines"} skipped,{" "}
                     {parsed.skipped.slice(0, 3).join("; ")}
                     {parsed.skipped.length > 3 ? "…" : ""}
                   </p>

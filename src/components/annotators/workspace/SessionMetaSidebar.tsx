@@ -409,14 +409,14 @@ function SessionMetaSidebarImpl({
                       <Stat
                         label="Errors"
                         value={String(stats.errors)}
-                        title={`${stats.errors} conformance ${stats.errors === 1 ? "error" : "errors"} — line length, line count or duration`}
+                        title={`${stats.errors} conformance ${stats.errors === 1 ? "error" : "errors"}, line length, line count or duration`}
                         tone={stats.errors > 0 ? "negative" : "neutral"}
                       />
                       <StatDivider />
                       <Stat
                         label="Warns"
                         value={String(stats.warnings)}
-                        title={`${stats.warnings} conformance ${stats.warnings === 1 ? "warning" : "warnings"} — reading speed or empty text`}
+                        title={`${stats.warnings} conformance ${stats.warnings === 1 ? "warning" : "warnings"}, reading speed or empty text`}
                         tone={stats.warnings > 0 ? "warning" : "neutral"}
                       />
                     </div>

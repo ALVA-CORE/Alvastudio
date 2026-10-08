@@ -89,7 +89,7 @@ export function BankItemForm({
             )}
           >
             {length}
-            {length > SOFT_LIMIT ? " — long for one breath" : " characters"}
+            {length > SOFT_LIMIT ? ", long for one breath" : " characters"}
           </span>
         </div>
       </div>

@@ -81,6 +81,13 @@ export interface GaugeProps {
   enterStaggerScale?: number;
   /** Studio-only: static paths while scrubbing geometry controls */
   geometryScrubbing?: boolean;
+  /**
+   * Added to the vendor source. `PieCenterShell` already takes these; the
+   * gauge just never forwarded them, so the centre figure was stuck at the
+   * default clamp with no way to size it from the call site.
+   */
+  centerValueClassName?: string;
+  centerLabelClassName?: string;
 }
 
 interface GaugeInnerProps extends Omit<GaugeProps, "className" | "minWidth"> {
@@ -288,6 +295,8 @@ function GaugeArcInner(props: GaugeInnerProps) {
     notchLengthPercent = 100,
     enterTransition,
     enterStaggerScale = 1,
+    centerValueClassName,
+    centerLabelClassName,
   } = props;
 
   const prefersReducedMotion = useReducedMotion();
@@ -441,8 +450,10 @@ function GaugeArcInner(props: GaugeInnerProps) {
             defaultLabel={defaultLabel}
             formatOptions={formatOptions}
             innerRadiusPx={Math.max(size * 0.2, 52)}
+            labelClassName={centerLabelClassName}
             prefix={prefix}
             suffix={suffix}
+            valueClassName={centerValueClassName}
           />
         </div>
       ) : null}

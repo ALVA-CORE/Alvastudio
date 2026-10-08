@@ -104,7 +104,7 @@ export default function AdminPromptsPage() {
     setItems((prev) =>
       prev.map((row) => (row.id === item.id ? { ...row, isActive: false } : row))
     );
-    alvaToast.show("Retired — existing recordings keep working", {
+    alvaToast.show("Retired, existing recordings keep working", {
       variant: "default",
     });
   };

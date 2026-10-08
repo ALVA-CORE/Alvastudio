@@ -29,7 +29,7 @@ function sessionCode(sessionId: string): string {
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return "—";
+  if (!Number.isFinite(then)) return ", ";
 
   const hours = Math.floor((Date.now() - then) / 36e5);
   if (hours < 1) return "Just now";

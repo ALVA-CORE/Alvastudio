@@ -12,15 +12,7 @@ import { ContributorDashboardSkeleton } from "@/components/contributors/dashboar
 import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { useApiResource } from "@/hooks/useApiResource";
 import { contributorDashboard } from "@/lib/api/dashboard";
-
-/**
- * Points have no backend equivalent yet.
- *
- * `/dashboard/contributor` returns recording counts, hours and a status
- * breakdown, and `/payments/earnings` returns money — neither is a points
- * balance. See docs/backend-gaps.md.
- */
-const MOCK_POINTS = 1420;
+import { MOCK_POINTS } from "@/data/contributors/dashboard";
 
 export default function ContributorDashboardPage() {
   const { user } = useAuth();

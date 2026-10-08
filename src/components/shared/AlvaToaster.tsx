@@ -67,6 +67,9 @@ function ToastPill({ item }: { item: AlvaToastItem }) {
       animate={{ y: 0, opacity: 1, scale: 1 }}
       exit={{ y: -20, opacity: 0, scale: 0.96 }}
       transition={{ type: "spring", stiffness: 420, damping: 32 }}
+      /* A pill is one line by definition — a message that wraps turns it into
+         a slab and shoves the stack around. Long copy truncates here and the
+         full text stays available as the title. */
       className="pointer-events-auto inline-flex max-w-[min(100%,22rem)] cursor-grab touch-none items-center gap-2.5 rounded-full bg-alva-card px-4 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.35)] active:cursor-grabbing"
     >
       {(item.icon || DefaultIcon) && (
@@ -86,7 +89,12 @@ function ToastPill({ item }: { item: AlvaToastItem }) {
           ) : null}
         </span>
       )}
-      <p className="text-sm font-medium leading-snug text-foreground">{item.message}</p>
+      <p
+        title={item.message}
+        className="min-w-0 truncate text-sm font-medium leading-snug text-foreground"
+      >
+        {item.message}
+      </p>
     </motion.div>
   );
 }

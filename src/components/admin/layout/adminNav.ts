@@ -58,7 +58,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     title: "Overview",
     blurb: "Where the corpus stands and what needs attention today.",
     status: "blocked",
-    blockedBy: "GET /dashboard/admin — corpus totals and a growth series",
+    blockedBy: "GET /dashboard/admin, corpus totals and a growth series",
     Icon: HomeSmile,
   },
   {

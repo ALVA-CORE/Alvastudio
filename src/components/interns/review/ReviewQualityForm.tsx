@@ -37,7 +37,7 @@ export function ReviewQualityForm({
     <section className={cn("flex h-full flex-col rounded-2xl bg-alva-card p-4", className)}>
       <h3 className="text-sm font-semibold text-foreground">Quality rubric</h3>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        Complete all questions — the outcome is calculated automatically
+        Complete all questions, the outcome is calculated automatically
       </p>
 
       <div className="mt-3 flex-1">

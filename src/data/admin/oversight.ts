@@ -303,7 +303,7 @@ function buildSessions(count: number): AdminSession[] {
       participants,
       turns: hasAudio ? Math.floor(random() * 90) + participants * 4 : 0,
       durationSec,
-      duration: hasAudio ? formatDuration(durationSec) : "—",
+      duration: hasAudio ? formatDuration(durationSec) : ", ",
       hasAudio,
       createdAt: created.getTime(),
       createdLabel: relativeDays(created),
@@ -386,7 +386,7 @@ export function recordingAudit(recording: AdminRecording): AuditEntry[] {
     entries.push({
       id: "decided",
       label: `${RECORDING_STATUS_LABELS[recording.status]}${
-        recording.rejectionReason ? ` — ${recording.rejectionReason}` : ""
+        recording.rejectionReason ? `, ${recording.rejectionReason}` : ""
       }`,
       at: new Date(recording.submittedAt + 72e5),
       byAdmin: true,

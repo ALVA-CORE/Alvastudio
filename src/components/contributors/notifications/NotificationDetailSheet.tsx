@@ -48,7 +48,7 @@ export function NotificationDetailSheet({
           value:
             TRI_STATE_OPTIONS.find(
               (option) => option.value === notification.answers?.[question.id]
-            )?.label ?? "—",
+            )?.label ?? ", ",
         }))
       : [];
 

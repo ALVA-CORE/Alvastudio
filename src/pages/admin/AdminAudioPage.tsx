@@ -11,44 +11,9 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { alvaToast } from "@/lib/alva-toast";
-import { round1 } from "@/data/admin/shared";
+import { fakeAnalyse, type QcResult } from "@/data/admin/audioQc";
 import { useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { cn } from "@/lib/utils";
-
-type QcResult = {
-  filename: string;
-  durationSec: number;
-  sampleRate: number;
-  snrDb: number;
-  silenceRatio: number;
-  clippingRatio: number;
-  qualityScore: number;
-  transcript: string;
-  relevance: number;
-};
-
-/** Stands in for `/audio/analyze` + `/audio/transcribe` + `/audio/quality-score`. */
-function fakeAnalyse(file: File): QcResult {
-  // Deterministic from the filename, so the same clip reads the same twice.
-  let hash = 0;
-  for (let i = 0; i < file.name.length; i += 1) {
-    hash = (hash * 31 + file.name.charCodeAt(i)) % 100000;
-  }
-  const unit = (offset: number) => ((hash + offset * 7919) % 1000) / 1000;
-
-  return {
-    filename: file.name,
-    durationSec: round1(6 + unit(1) * 40),
-    sampleRate: unit(2) > 0.5 ? 48000 : 16000,
-    snrDb: round1(8 + unit(3) * 26),
-    silenceRatio: round1(unit(4) * 0.4),
-    clippingRatio: round1(unit(5) * 0.06),
-    qualityScore: round1(0.45 + unit(6) * 0.5),
-    transcript:
-      "The traffic for Lagos island go always choke by seven a.m., especially when rain fall.",
-    relevance: round1(0.5 + unit(7) * 0.5),
-  };
-}
 
 function scoreTone(value: number) {
   return value >= 0.75 ? "good" : value >= 0.5 ? "pending" : "bad";

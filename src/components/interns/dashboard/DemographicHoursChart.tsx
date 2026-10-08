@@ -143,7 +143,7 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
       </div>
 
       <p className="mt-2 text-[11px] text-muted-foreground">
-        {"Total — male "}
+        {"Total, male "}
         <span className="font-medium text-foreground">{formatHours(totals.male)}</span>
         {", female "}
         <span className="font-medium text-foreground">{formatHours(totals.female)}</span>
