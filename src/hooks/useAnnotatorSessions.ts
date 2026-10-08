@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import * as annotations from "@/lib/api/annotations";
 import type { ApiAnnotationStatus } from "@/lib/api/annotations";
-import { ApiError } from "@/lib/api/client";
+import { reportApiError } from "@/lib/api/reportApiError";
 import type { AnnotationStatus, AnnotatorSession } from "@/data/annotators/sessions";
 
 /**
@@ -168,9 +168,7 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
-        setError(
-          cause instanceof ApiError ? cause.message : "Could not load your sessions."
-        );
+        setError(reportApiError(cause, "Could not load your sessions."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -190,9 +188,7 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
       setAttempt((value) => value + 1);
       return doc.id;
     } catch (cause) {
-      setError(
-        cause instanceof ApiError ? cause.message : "Could not claim a session."
-      );
+      setError(reportApiError(cause, "Could not claim a session."));
       return null;
     } finally {
       setClaiming(false);

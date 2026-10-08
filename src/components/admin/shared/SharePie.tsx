@@ -44,9 +44,9 @@ export function SharePie({
     <div className="flex h-full w-full items-center justify-center">
       <PieChart
         data={data}
-        innerRadius={52}
+        innerRadius={82}
         padAngle={0.03}
-        cornerRadius={6}
+        cornerRadius={10}
         hoverOffset={8}
         className="h-full w-full"
       >

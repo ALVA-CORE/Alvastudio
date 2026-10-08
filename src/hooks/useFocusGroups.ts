@@ -7,7 +7,7 @@ import {
   type ApiSession,
   type ApiSessionSummary,
 } from "@/lib/api/focusGroups";
-import { ApiError } from "@/lib/api/client";
+import { reportApiError } from "@/lib/api/reportApiError";
 import {
   apiToParticipantRecord,
   draftToApiParticipant,
@@ -94,9 +94,7 @@ export function useInternParticipants() {
         setError(null);
       } catch (cause) {
         if (cancelled) return;
-        setError(
-          cause instanceof ApiError ? cause.message : "Could not load participants."
-        );
+        setError(reportApiError(cause, "Could not load participants."));
       } finally {
         if (!cancelled) setLoading(false);
       }

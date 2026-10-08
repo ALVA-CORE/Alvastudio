@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRecording, recordingAudioUrl } from "@/lib/api/recordings";
 import { submitReview } from "@/lib/api/reviews";
-import { ApiError } from "@/lib/api/client";
+import { reportApiError } from "@/lib/api/reportApiError";
 import { toQueueItem } from "@/hooks/useReviewQueue";
 import type { QualityAnswers, ReviewQueueItem, ReviewVerdict } from "@/data/reviewQueue";
 
@@ -63,9 +63,7 @@ export function useReviewItem(id: string | undefined) {
         setItem({ ...row, audioSrc: audio ?? "" });
       } catch (cause) {
         if (cancelled) return;
-        setError(
-          cause instanceof ApiError ? cause.message : "Could not load this clip."
-        );
+        setError(reportApiError(cause, "Could not load this clip."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -94,9 +92,7 @@ export function useReviewItem(id: string | undefined) {
         });
         return true;
       } catch (cause) {
-        setError(
-          cause instanceof ApiError ? cause.message : "Could not submit the review."
-        );
+        setError(reportApiError(cause, "Could not submit the review."));
         return false;
       } finally {
         setSubmitting(false);

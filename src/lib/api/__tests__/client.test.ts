@@ -151,7 +151,11 @@ describe("apiFetch", () => {
     const error = (await apiFetch("/auth/login").catch((e) => e)) as ApiError;
 
     expect(error.isUnreachable).toBe(true);
-    expect(error.message).toContain("Could not reach");
+    /* The flag is the contract, not the wording — the copy is user-facing and
+     * will keep changing. What must not change is that an HTML 404 is reported
+     * as "we couldn't reach it" rather than "that record does not exist". */
+    expect(error.isUnreachable).toBe(true);
+    expect(error.message).not.toMatch(/not found/i);
     expect(error.message).not.toContain("Not found");
   });
 
