@@ -173,22 +173,16 @@ export default function AdminFocusGroupsPage() {
           variant="accent"
           title="Sessions"
           value={String(rows.length)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={UsersGroupTwoRounded}
         />
         <MetricCard
           title="Hours recorded"
           value={`${totalHours}h`}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={ClockCircle}
         />
         <MetricCard
           title="Speakers captured"
           value={String(participants)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={Microphone3}
         />
         <MetricCard
@@ -199,7 +193,6 @@ export default function AdminFocusGroupsPage() {
             positive: false,
             neutral: true,
           }}
-          period=""
           icon={DangerTriangle}
         />
       </div>

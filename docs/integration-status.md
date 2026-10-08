@@ -116,6 +116,9 @@ Every admin page runs on mock data in `src/data/admin/`.
 | `POST /wallet/withdrawals` | the withdrawal | Withdraw |
 | `GET /notifications` | list, with read state | Contributor and intern notifications |
 | Points on `/dashboard/contributor` | `points`, `rank` | Points card, leaderboard |
+| `audio_url` on `/recordings` rows | a playable URL | Admin plays the clip from the review panel |
+| `POST /annotations/{id}/events` | accepted seq | Annotation activity playback, see section 4 |
+| `GET /annotations/{id}/events` | ordered page | Annotation activity playback, see section 4 |
 
 ### Medium
 
@@ -131,7 +134,72 @@ Every admin page runs on mock data in `src/data/admin/`.
 
 ---
 
-## 4. Other blockers
+## 4. Annotation activity playback
+
+New requirement: admins want to see the complete work an annotator did on an
+annotation, in order. What tag went on when, which speaker was switched, how
+long it took.
+
+The finished annotation cannot answer that, so it is answered from an
+append-only **operation log**. Replay is a fold: the state at step *n* is the
+first *n* events applied in order. The workspace already keeps an undo stack,
+so the operations exist client side; persisting them is the whole feature.
+
+The UI is built and runs on seeded data in `src/data/admin/activity.ts`. It is
+reachable from the **Activity** tab on both the annotation and the review
+detail panels.
+
+### 4.1 Event shape
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | string | Client-generated. Makes retries idempotent. |
+| `seq` | int | Monotonic within one annotation. Client assigns. |
+| `at` | timestamp | Wall clock. Answers "how long did this take". |
+| `media_time` | float | Seconds into the audio. Drives the scrubber. |
+| `op` | enum | See below. |
+| `actor_id` | string | Who did it. |
+| `payload` | object | Op-specific. |
+
+Ops: `session.claim`, `segment.create`, `segment.resize`, `segment.delete`,
+`speaker.create`, `speaker.assign`, `tag.add`, `tag.remove`, `text.edit`,
+`session.submit`.
+
+### 4.2 Endpoints
+
+| Endpoint | Body / params | Returns |
+| --- | --- | --- |
+| `POST /annotations/{id}/events` | `{events: [...]}`, batched | Highest accepted `seq` |
+| `GET /annotations/{id}/events` | `?after_seq=&limit=` | Ordered page of events |
+| `GET /annotations/{id}/events/summary` | — | Counts by op and actor, active minutes, first and last event |
+| `GET /annotations/{id}/snapshot` | `?at_seq=` | Optional. Server-side fold, so long sessions do not replay client side. |
+
+### 4.3 Rules
+
+| Rule | Why |
+| --- | --- |
+| Append only, never rewrite | It is an audit record. A log that can be edited proves nothing. |
+| Client sends `id` and `seq` | Retries and offline batches merge deterministically. |
+| Reject out-of-order `seq` per actor | Catches a client replaying a stale buffer. |
+| Server sets its own receipt time alongside `at` | Client clocks drift and can be set by hand. |
+| Batch writes, ~2s or 50 events | Per-keystroke writes are 100× the volume for no extra answer. |
+| Coalesce `text.edit` per segment per idle gap | Otherwise 90% of the log is typing. |
+
+### 4.4 Volume
+
+A 40-minute session with 300 segments and 1,200 tags is roughly 3,000 events,
+a few hundred KB of JSON. Keystroke-level would be ~100× that, which is why
+`text.edit` is coalesced rather than streamed.
+
+### 4.5 Open question for the team
+
+This is worker monitoring data. It needs a stated purpose, a retention window,
+and annotators should know it is being recorded. Worth settling before it
+ships, not after.
+
+---
+
+## 5. Other blockers
 
 | Issue | Impact |
 | --- | --- |

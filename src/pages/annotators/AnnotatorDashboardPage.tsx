@@ -86,21 +86,18 @@ export default function AnnotatorDashboardPage() {
               variant="accent"
               title="Clips annotated"
               value={forceEmpty ? "0" : metrics.clipsAnnotated}
-              trend={{ label: "", positive: false, neutral: true }}
               period={metrics.periodLabel}
               icon={ClipboardCheck}
             />
             <MetricCard
               title="Hours annotated"
               value={forceEmpty ? "0" : metrics.hoursAnnotated}
-              trend={{ label: "", positive: false, neutral: true }}
               period={metrics.periodLabel}
               icon={ClockCircle}
             />
             <MetricCard
               title="Tags applied"
               value={forceEmpty ? "0" : metrics.tagsApplied}
-              trend={{ label: "", positive: false, neutral: true }}
               period={metrics.periodLabel}
               icon={TagHorizontal}
             />

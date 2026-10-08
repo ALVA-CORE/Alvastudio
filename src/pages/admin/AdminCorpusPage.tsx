@@ -82,8 +82,6 @@ export default function AdminCorpusPage() {
           variant="accent"
           title="Total hours"
           value={formatHours(corpus.totalHours)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={ClockCircle}
         />
         <MetricCard
@@ -94,14 +92,11 @@ export default function AdminCorpusPage() {
             positive: false,
             neutral: true,
           }}
-          period=""
           icon={CheckCircle}
         />
         <MetricCard
           title="Contributors"
           value={String(corpus.contributors)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={UsersGroupRounded}
         />
         <MetricCard
@@ -112,7 +107,6 @@ export default function AdminCorpusPage() {
             positive: false,
             neutral: true,
           }}
-          period=""
           icon={MapPointWave}
         />
       </div>

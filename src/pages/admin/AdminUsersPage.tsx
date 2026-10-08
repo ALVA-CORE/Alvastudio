@@ -218,29 +218,22 @@ export default function AdminUsersPage() {
           variant="accent"
           title="Total accounts"
           value={metrics.total}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={UsersGroupRounded}
         />
         <MetricCard
           title="Active"
           value={metrics.active}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={CheckCircle}
         />
         <MetricCard
           title="Pending approval"
           value={metrics.pending}
           trend={{ label: "interns awaiting an admin", positive: false, neutral: true }}
-          period=""
           icon={ShieldUser}
         />
         <MetricCard
           title="Joined this week"
           value={metrics.joinedThisWeek}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={AddCircle}
         />
       </div>

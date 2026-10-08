@@ -4,6 +4,8 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { ActivityReplay } from "@/components/admin/shared/ActivityReplay";
+import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
 import {
   AuditTimeline,
   DetailField,
@@ -12,6 +14,7 @@ import {
   DetailProse,
   PanelAction,
 } from "@/components/admin/shared/detail";
+import { annotationActivity } from "@/data/admin/activity";
 import {
   RECORDING_STATUS_LABELS,
   RUBRIC_LABELS,
@@ -32,6 +35,7 @@ const STATUS_TONE: Record<RecordingStatus, PillTone> = {
 
 const TABS = [
   { id: "detail", label: "Clip" },
+  { id: "activity", label: "Activity" },
   { id: "audit", label: "History" },
 ];
 
@@ -66,10 +70,27 @@ export function RecordingDetailPanel({
   );
   const audit = useMemo(() => (recording ? recordingAudit(recording) : []), [recording]);
 
+  /* How the session this clip belongs to was annotated. Keyed off the clip id
+   * for now; once `GET /annotations/{id}/events` exists it is the annotation
+   * covering this recording that is fetched. */
+  const activity = useMemo(
+    () =>
+      recording
+        ? annotationActivity({
+            id: recording.id,
+            annotator: recording.reviewer,
+            durationSec: recording.durationSec,
+            segments: Math.max(8, Math.round(recording.durationSec / 18)),
+          })
+        : [],
+    [recording]
+  );
+
   if (!recording) return null;
 
   const isDecided =
     recording.status !== "submitted" && recording.status !== "in_review";
+  const isFocusGroup = recording.mode === "Focus group";
 
   return (
     <>
@@ -122,6 +143,9 @@ export function RecordingDetailPanel({
         {tab === "detail" ? (
           <>
             <DetailGroup title="Clip" first>
+              <div className="col-span-2">
+                <ClipPlayer src={recording.audioUrl} />
+              </div>
               <DetailProse label="Prompt">{recording.prompt}</DetailProse>
               <DetailField label="Contributor" value={recording.contributor} />
               <DetailField label="Type" value={recording.mode} />
@@ -135,6 +159,10 @@ export function RecordingDetailPanel({
               />
             </DetailGroup>
 
+            {/* No rubric on a focus group. The four questions are about one
+                person reading one prompt; nobody answers them about a
+                forty-minute conversation, so the card was four blanks. */}
+            {isFocusGroup ? null : (
             <DetailGroup title="Reviewer answers">
               <div className="col-span-2">
                 <dl className="space-y-0">
@@ -159,6 +187,7 @@ export function RecordingDetailPanel({
                 </dl>
               </div>
             </DetailGroup>
+            )}
 
             {recording.rejectionReason ? (
               <DetailGroup title="Outcome">
@@ -171,6 +200,8 @@ export function RecordingDetailPanel({
               </DetailGroup>
             ) : null}
           </>
+        ) : tab === "activity" ? (
+          <ActivityReplay events={activity} />
         ) : (
           <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
         )}

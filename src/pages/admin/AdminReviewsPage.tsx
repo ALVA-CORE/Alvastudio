@@ -11,7 +11,7 @@ import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dro
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
-import { PeopleBars } from "@/components/admin/shared/PeopleBars";
+import { ReviewerFlowChart } from "@/components/admin/shared/ReviewerFlowChart";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { RecordingDetailPanel } from "@/components/admin/reviews/RecordingDetailPanel";
 import { ReassignReviewerDialog } from "@/components/admin/shared/ReassignReviewerDialog";
@@ -22,7 +22,7 @@ import {
   ADMIN_RECORDINGS,
   RECORDING_STATUS_LABELS,
   rejectionBreakdown,
-  reviewerThroughput,
+  reviewerFlow,
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
@@ -74,7 +74,6 @@ export default function AdminReviewsPage() {
   );
 
   const rejections = useMemo(() => rejectionBreakdown(rows), [rows]);
-  const reviewers = useMemo(() => reviewerThroughput(rows), [rows]);
 
   const approved = rows.filter((row) => row.status === "approved").length;
   const rejected = rows.filter((row) => row.status === "rejected").length;
@@ -82,6 +81,8 @@ export default function AdminReviewsPage() {
     (row) => row.status === "submitted" || row.status === "in_review"
   ).length;
   const decided = approved + rejected;
+
+  const flow = useMemo(() => reviewerFlow(rows), [rows]);
 
   const columns = [
     {
@@ -172,8 +173,6 @@ export default function AdminReviewsPage() {
           variant="accent"
           title="Recordings"
           value={String(rows.length)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={ClipboardCheck}
         />
         <MetricCard
@@ -184,30 +183,27 @@ export default function AdminReviewsPage() {
             positive: false,
             neutral: true,
           }}
-          period=""
           icon={CheckCircle}
         />
         <MetricCard
           title="Rejected"
           value={String(rejected)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={CloseCircle}
         />
         <MetricCard
           title="Awaiting a verdict"
           value={String(pending)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={ClockCircle}
         />
       </div>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
+      {/* Three readings of the same queue, side by side: how it splits,
+          how much of it survives, and why the rest does not. */}
+      <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
           title="Queue at a glance"
           subtitle="Each status as a share of everything submitted"
-          className="min-h-[17rem]"
+          className="min-h-[16rem]"
         >
           <StatusRings
             centerLabel="clips"
@@ -235,30 +231,9 @@ export default function AdminReviewsPage() {
         </AlvaChartCard>
 
         <AlvaChartCard
-          title="Who is clearing the queue"
-          subtitle="Clips each reviewer decided, and how many they kept"
-          className="min-h-[17rem]"
-        >
-          {/* Scrolls rather than growing: the card sits in a fixed row and a
-              tenth reviewer should not push the page down. */}
-          <PeopleBars
-            rows={reviewers.map((reviewer) => ({
-              id: reviewer.id,
-              name: reviewer.name,
-              value: reviewer.reviewed,
-              unit: "clips",
-              meta: `${reviewer.approvalRate}% kept · ${reviewer.medianMinutes}m`,
-            }))}
-            emptyMessage="Nobody has reviewed anything yet."
-          />
-        </AlvaChartCard>
-      </div>
-
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
-        <AlvaChartCard
           title="Approval rate"
           subtitle="Share of decided clips kept"
-          className="min-h-[15rem]"
+          className="min-h-[16rem]"
         >
           <ApprovalGauge
             value={decided ? Math.round((approved / decided) * 100) : 0}
@@ -287,7 +262,21 @@ export default function AdminReviewsPage() {
               .map((entry) => ({ label: entry.reason, hours: entry.count }))}
           />
         </AlvaChartCard>
+      </div>
 
+      {/* Full width. A sankey needs the horizontal run, and in half a row
+          the reviewer names on the left ran into the bands. */}
+      <div className="mt-2">
+        <AlvaChartCard
+          title="Who is clearing the queue"
+          subtitle="Clips each reviewer decided, and how they landed"
+          className="min-h-[18rem]"
+        >
+          <ReviewerFlowChart
+            flow={flow}
+            emptyMessage="Nobody has reviewed anything yet."
+          />
+        </AlvaChartCard>
       </div>
 
       <div className="mt-2">
