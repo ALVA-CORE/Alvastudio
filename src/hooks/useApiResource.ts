@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "@/lib/api/client";
+import { reportApiError } from "@/lib/api/reportApiError";
 
 /**
  * One fetch, one state machine.
@@ -57,9 +58,9 @@ export function useApiResource<T>(
           return;
         }
 
-        setError(
-          cause instanceof ApiError ? cause.message : "Something went wrong."
-        );
+        // A dropped connection goes to a toast; everything else stays inline
+        // next to the retry. See `reportApiError`.
+        setError(reportApiError(cause));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import * as reviewsApi from "@/lib/api/reviews";
 import { listRecordings, type ApiRecording } from "@/lib/api/recordings";
-import { ApiError } from "@/lib/api/client";
+import { reportApiError } from "@/lib/api/reportApiError";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 
 /**
@@ -77,7 +77,7 @@ export function useReviewQueue() {
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
-        setError(cause instanceof ApiError ? cause.message : "Could not load the queue.");
+        setError(reportApiError(cause, "Could not load the queue."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -98,7 +98,7 @@ export function useReviewQueue() {
       setAttempt((v) => v + 1);
       return recording.id;
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Nothing left to review.");
+      setError(reportApiError(cause, "Nothing left to review."));
       return null;
     } finally {
       setAssigning(false);

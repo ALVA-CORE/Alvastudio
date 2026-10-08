@@ -9,12 +9,22 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
+import Upload from "@solar-icons/react/arrows-action/Upload";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { BankItemSheet } from "@/components/admin/prompts/BankItemSheet";
 import { CreateBankItemDialog } from "@/components/admin/prompts/CreateBankItemDialog";
+import { ImportBankCsvDialog } from "@/components/admin/prompts/ImportBankCsvDialog";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 import {
   BANK_ITEMS,
@@ -42,6 +52,7 @@ export default function AdminPromptsPage() {
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<BankItem | null>(null);
   const [items, setItems] = useState<BankItem[]>(BANK_ITEMS);
 
@@ -179,15 +190,37 @@ export default function AdminPromptsPage() {
       <AdminPageHeader
         id="prompts"
         actions={
-          <TextureButton
-            variant="alva"
-            size="sm"
-            className="w-auto"
-            onClick={() => setCreateOpen(true)}
-          >
-            <AddCircle size={15} weight="Outline" />
-            New {kind === "prompt" ? "prompt" : "stimulus"}
-          </TextureButton>
+          /* One button, two ways in. Adding one and loading two hundred are
+             the same intent at different scales, so they share a control
+             rather than competing for the same corner. */
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <TextureButton variant="alva" size="sm" className="w-auto">
+                <AddCircle size={15} weight="Outline" />
+                Add {kind === "prompt" ? "prompts" : "stimuli"}
+                <AltArrowDown size={14} weight="Outline" />
+              </TextureButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="rounded-2xl border-alva-border bg-alva-card p-1.5"
+            >
+              <DropdownMenuItem
+                className="gap-2 rounded-xl"
+                onSelect={() => setCreateOpen(true)}
+              >
+                <AddCircle size={15} weight="Outline" />
+                Write one
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-xl"
+                onSelect={() => setImportOpen(true)}
+              >
+                <Upload size={15} weight="Outline" />
+                Import a CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
       />
 
@@ -277,6 +310,27 @@ export default function AdminPromptsPage() {
           />
         </TabsContent>
       </Tabs>
+
+      <ImportBankCsvDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        kind={kind}
+        onImport={(drafts) => {
+          setItems((prev) => [
+            ...drafts.map((draft) => ({
+              id: `${kind === "prompt" ? "p" : "s"}-${crypto.randomUUID().slice(0, 6)}`,
+              kind,
+              ...draft,
+              isActive: true,
+              usedByCount: 0,
+              createdAt: Date.now(),
+              createdLabel: "Just now",
+            })),
+            ...prev,
+          ]);
+          alvaToast.success(`${drafts.length} added`);
+        }}
+      />
 
       <CreateBankItemDialog
         open={createOpen}

@@ -275,3 +275,99 @@ export function formatAuditTimestamp(date: Date) {
   });
 }
 
+
+
+/* ------------------------------------------------------------------ *
+ * Role-specific detail
+ * ------------------------------------------------------------------ */
+
+/**
+ * What an admin sees about one person, by role.
+ *
+ * A contributor, an intern and an annotator do completely different jobs, so
+ * "17 sessions" against a shared label tells an admin almost nothing. These
+ * are the figures each role already sees on their own dashboard — the admin
+ * should be looking at the same numbers the person is, not a flattened
+ * summary of them.
+ */
+export type RoleStat = { label: string; value: string; tone?: "accent" | "danger" };
+
+const HOURS = (seed: () => number, max: number) => `${round1(seed() * max)}h`;
+
+export function roleStats(user: AdminUser): RoleStat[] {
+  let hash = 0;
+  for (let i = 0; i < user.id.length; i += 1) {
+    hash = (hash * 31 + user.id.charCodeAt(i)) % 100000;
+  }
+  const random = seeded(hash + 5);
+  const output = user.output;
+
+  if (user.role === "contributor") {
+    const approved = Math.round(output * (0.62 + random() * 0.3));
+    const rejected = Math.round((output - approved) * (0.3 + random() * 0.5));
+    return [
+      { label: "Recordings", value: String(output) },
+      { label: "Approved", value: String(approved), tone: "accent" },
+      { label: "Rejected", value: String(rejected), tone: rejected > 0 ? "danger" : undefined },
+      { label: "Awaiting review", value: String(Math.max(output - approved - rejected, 0)) },
+      { label: "Hours contributed", value: HOURS(random, 6) },
+      { label: "Prompts read", value: String(Math.round(output * 0.8)) },
+      { label: "Points", value: String(output * 12) },
+      { label: "Earned", value: `₦${(output * 150).toLocaleString()}` },
+    ];
+  }
+
+  if (user.role === "intern") {
+    const withAudio = Math.round(output * (0.7 + random() * 0.28));
+    return [
+      { label: "Sessions run", value: String(output) },
+      { label: "Audio uploaded", value: String(withAudio), tone: "accent" },
+      {
+        label: "Missing audio",
+        value: String(output - withAudio),
+        tone: output - withAudio > 0 ? "danger" : undefined,
+      },
+      { label: "Participants logged", value: String(Math.round(output * 3.4)) },
+      { label: "Hours recorded", value: HOURS(random, 40) },
+      { label: "Clips reviewed", value: String(Math.round(output * 2.1)) },
+      { label: "States covered", value: String(Math.min(Math.ceil(output / 4), 12)) },
+      { label: "Avg session", value: `${Math.round(18 + random() * 22)}m` },
+    ];
+  }
+
+  if (user.role === "annotator") {
+    const segments = Math.round(output * (90 + random() * 120));
+    return [
+      { label: "Annotations", value: String(output) },
+      { label: "Approved", value: String(Math.round(output * 0.78)), tone: "accent" },
+      {
+        label: "Needs rework",
+        value: String(Math.round(output * 0.09)),
+        tone: "danger",
+      },
+      { label: "Segments created", value: segments.toLocaleString() },
+      { label: "Tags applied", value: Math.round(segments * 0.6).toLocaleString() },
+      { label: "Hours annotated", value: HOURS(random, 60) },
+      { label: "Segments per hour", value: String(Math.round(40 + random() * 45)) },
+      { label: "Currently claimed", value: String(Math.round(random() * 3)) },
+    ];
+  }
+
+  return [
+    { label: "Areas granted", value: String(user.permissions?.length ?? "All") },
+    { label: "Accounts created", value: String(Math.round(random() * 14)) },
+    { label: "Rates changed", value: String(Math.round(random() * 6)) },
+    { label: "Prompts added", value: String(Math.round(random() * 60)) },
+  ];
+}
+
+/** What the activity tab's headline reads as, per role. */
+export function activityNoun(user: AdminUser) {
+  return user.role === "contributor"
+    ? "recordings"
+    : user.role === "intern"
+      ? "sessions"
+      : user.role === "annotator"
+        ? "segments"
+        : "actions";
+}

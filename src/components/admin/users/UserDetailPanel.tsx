@@ -9,6 +9,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { UserActivityHeatmap } from "@/components/admin/users/UserActivityHeatmap";
+import { SharePie } from "@/components/admin/shared/SharePie";
+import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
   AuditTimeline,
   DetailEditField,
@@ -25,14 +27,101 @@ import {
   ADMIN_PERMISSIONS,
   CREATABLE_ROLES,
   ROLE_LABELS,
+  activityNoun,
   activitySummary,
+  roleStats,
   userActivity,
   userAuditLog,
   type AdminPermission,
   type AdminUser,
   type AdminUserRole,
+  type RoleStat,
 } from "@/data/admin/users";
 import { cn } from "@/lib/utils";
+
+/** Names the work, not the person — "Output" told an admin nothing. */
+const ROLE_WORK_TITLE: Record<AdminUserRole, string> = {
+  contributor: "Recording",
+  intern: "Field work",
+  annotator: "Annotation",
+  admin: "Admin activity",
+};
+
+/** Kept, in flight, lost — the accent only for the part that counted. */
+const OUTCOME_PALETTE = [
+  "hsl(146 87% 54%)",
+  "hsl(38 92% 50%)",
+  "hsl(0 72% 55%)",
+];
+
+/**
+ * Splits a person's work into kept / pending / lost.
+ *
+ * Read off the role stats rather than recomputed, so the pie and the figures
+ * above it can never disagree — two views of the same numbers that drift apart
+ * is worse than one view.
+ */
+function outcomeSplit(user: AdminUser, stats: RoleStat[]) {
+  const find = (label: string) =>
+    Number(stats.find((stat) => stat.label === label)?.value.replace(/[^\d]/g, "") ?? 0);
+
+  if (user.role === "contributor") {
+    const kept = find("Approved");
+    const lost = find("Rejected");
+    const waiting = find("Awaiting review");
+    if (kept + lost + waiting === 0) return null;
+    return {
+      title: "How their recordings landed",
+      centerLabel: "clips",
+      rateLabel: "approved",
+      rate: kept + lost > 0 ? Math.round((kept / (kept + lost)) * 100) : 0,
+      slices: [
+        { label: "Approved", hours: kept },
+        { label: "Awaiting", hours: waiting },
+        { label: "Rejected", hours: lost },
+      ].filter((slice) => slice.hours > 0),
+    };
+  }
+
+  if (user.role === "annotator") {
+    const kept = find("Approved");
+    const lost = find("Needs rework");
+    const open = find("Currently claimed");
+    if (kept + lost + open === 0) return null;
+    return {
+      title: "How their annotations landed",
+      centerLabel: "sessions",
+      rateLabel: "approved",
+      rate: kept + lost > 0 ? Math.round((kept / (kept + lost)) * 100) : 0,
+      slices: [
+        { label: "Approved", hours: kept },
+        { label: "In progress", hours: open },
+        { label: "Needs rework", hours: lost },
+      ].filter((slice) => slice.hours > 0),
+    };
+  }
+
+  if (user.role === "intern") {
+    const uploaded = find("Audio uploaded");
+    const missing = find("Missing audio");
+    if (uploaded + missing === 0) return null;
+    return {
+      title: "Sessions that reached an annotator",
+      centerLabel: "sessions",
+      rateLabel: "uploaded",
+      rate:
+        uploaded + missing > 0
+          ? Math.round((uploaded / (uploaded + missing)) * 100)
+          : 0,
+      slices: [
+        { label: "Audio uploaded", hours: uploaded },
+        { label: "Missing audio", hours: missing },
+      ].filter((slice) => slice.hours > 0),
+    };
+  }
+
+  return null;
+}
 
 const TABS = [
   { id: "profile", label: "Profile" },
@@ -74,6 +163,14 @@ export function UserDetailPanel({
   const activity = useMemo(() => (user ? userActivity(user) : []), [user]);
   const summary = useMemo(() => activitySummary(activity), [activity]);
   const audit = useMemo(() => (user ? userAuditLog(user) : []), [user]);
+  /* The figures this person sees on their own dashboard. An admin reading a
+   * contributor should be looking at the same numbers the contributor is. */
+  const stats = useMemo(() => (user ? roleStats(user) : []), [user]);
+
+  /* Two charts rather than a third tab. The activity tab already answers
+   * "how much and how often"; this answers "how much of it was any good",
+   * which is the next question in every case and belongs beside the first. */
+  const outcome = useMemo(() => (user ? outcomeSplit(user, stats) : null), [user, stats]);
 
   /* Opening a different user must not carry the previous one's edits. */
   useEffect(() => {
@@ -197,7 +294,6 @@ export function UserDetailPanel({
                 }}
               />
               <PanelAction
-                pushRight
                 icon={<UserBlock size={15} weight="Outline" />}
                 label={user.isActive ? "Deactivate" : "Reactivate"}
                 tone={user.isActive ? "danger" : "primary"}
@@ -308,27 +404,15 @@ export function UserDetailPanel({
             ) : null}
 
             {!isEditing ? (
-              <DetailGroup title="Output">
-                <DetailField
-                  label={
-                    user.outputLabel === "—"
-                      ? "Submissions"
-                      : user.outputLabel[0].toUpperCase() + user.outputLabel.slice(1)
-                  }
-                  value={user.outputLabel === "—" ? "—" : String(user.output)}
-                />
-                <DetailField
-                  label="Can reach"
-                  value={
-                    user.role === "admin"
-                      ? "Admin areas"
-                      : user.role === "contributor"
-                        ? "Studio"
-                        : user.role === "intern"
-                          ? "Record, review"
-                          : "Annotation queue"
-                  }
-                />
+              <DetailGroup title={ROLE_WORK_TITLE[user.role]}>
+                {stats.map((stat) => (
+                  <DetailField
+                    key={stat.label}
+                    label={stat.label}
+                    value={stat.value}
+                    tone={stat.tone}
+                  />
+                ))}
               </DetailGroup>
             ) : null}
           </>
@@ -339,9 +423,7 @@ export function UserDetailPanel({
             <DetailGroup title="Last 12 months" first>
               <DetailField
                 label="Total"
-                value={`${summary.total} ${
-                  user.outputLabel === "—" ? "actions" : user.outputLabel
-                }`}
+                value={`${summary.total} ${activityNoun(user)}`}
               />
               <DetailField label="Active days" value={String(summary.activeDays)} />
               <DetailField label="Best streak" value={`${summary.bestStreak} days`} />
@@ -354,6 +436,27 @@ export function UserDetailPanel({
                 <UserActivityHeatmap data={activity} />
               </div>
             </section>
+
+            {outcome ? (
+              <section className="mt-6 border-t border-alva-border pt-6">
+                <h3 className="text-sm font-medium text-foreground">
+                  {outcome.title}
+                </h3>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="h-40 rounded-xl bg-alva-surface p-2">
+                    <SharePie
+                      slices={outcome.slices}
+                      centerLabel={outcome.centerLabel}
+                      valueSuffix=""
+                      palette={OUTCOME_PALETTE}
+                    />
+                  </div>
+                  <div className="h-40 rounded-xl bg-alva-surface p-2">
+                    <ApprovalGauge value={outcome.rate} label={outcome.rateLabel} />
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </>
         ) : null}
 

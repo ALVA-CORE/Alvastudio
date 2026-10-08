@@ -201,7 +201,7 @@ export default function AdminAnnotationsPage() {
           title="Annotator throughput"
           subtitle="Segments produced, and hours worked"
         >
-          <dl className="space-y-1">
+          <dl className="alva-thin-scrollbar max-h-[13rem] space-y-1 overflow-y-auto pr-1">
             {annotators.length === 0 ? (
               <p className="py-6 text-center text-xs text-muted-foreground">
                 Nobody has annotated anything yet.
@@ -244,8 +244,8 @@ export default function AdminAnnotationsPage() {
         >
           {/* Each row is actionable. A list of things nobody has picked up, with
               no way to hand one to somebody, is just a complaint. */}
-          <dl className="space-y-1">
-            {unclaimed.slice(0, 7).map((session) => (
+          <dl className="alva-thin-scrollbar max-h-[13rem] space-y-1 overflow-y-auto pr-1">
+            {unclaimed.map((session) => (
               <div
                 key={session.id}
                 className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-1.5 last:border-0"

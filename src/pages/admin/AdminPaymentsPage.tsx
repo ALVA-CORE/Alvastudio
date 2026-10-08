@@ -16,7 +16,6 @@ import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dro
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
 import {
   EARNINGS,
@@ -60,7 +59,6 @@ export default function AdminPaymentsPage() {
   const [draftAmount, setDraftAmount] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [earnings, setEarnings] = useState<Earning[]>(EARNINGS);
-  const [confirmRun, setConfirmRun] = useState(false);
   const [detail, setDetail] = useState<Earning | null>(null);
 
   const rows = useDevRows(earnings);
@@ -71,6 +69,10 @@ export default function AdminPaymentsPage() {
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
     [rows, status]
   );
+
+  /* Bars are relative to the highest rate, so the shape says "this one pays
+   * about half what that one does" without reading two numbers. */
+  const maxRate = Math.max(...rates.map((rate) => rate.amountKobo), 1);
 
   const startEdit = (rate: Rate) => {
     setEditingUnit(rate.unit);
@@ -100,10 +102,6 @@ export default function AdminPaymentsPage() {
     alvaToast.success(`${RATE_UNIT_LABELS[rate.unit]} rate updated`);
   };
 
-  /* Everyone who is owed and has not been started — what a run would pick up. */
-  const payable = rows.filter((row) => row.status === "pending");
-  const payableTotal = payable.reduce((sum, row) => sum + row.earnedKobo, 0);
-
   const advance = (row: Earning) => {
     setEarnings((prev) =>
       prev.map((entry) =>
@@ -119,16 +117,6 @@ export default function AdminPaymentsPage() {
         ? `${row.contributor} queued for payment`
         : `${row.contributor} marked as paid`
     );
-  };
-
-  const runPayment = () => {
-    setEarnings((prev) =>
-      prev.map((entry) =>
-        entry.status === "pending" ? { ...entry, status: "processing" } : entry
-      )
-    );
-    setConfirmRun(false);
-    alvaToast.success(`${payable.length} contributors queued for payment`);
   };
 
   const columns = [
@@ -193,17 +181,6 @@ export default function AdminPaymentsPage() {
       <AdminPageHeader
         id="payments"
         actions={
-          <>
-            {payable.length > 0 ? (
-              <TextureButton
-                variant="alva"
-                size="sm"
-                className="w-auto"
-                onClick={() => setConfirmRun(true)}
-              >
-                Queue {payable.length} · {formatNaira(payableTotal)}
-              </TextureButton>
-            ) : null}
           <TextureButton
             variant="minimal"
             size="sm"
@@ -216,7 +193,6 @@ export default function AdminPaymentsPage() {
             <Upload size={15} weight="Outline" />
             Export CSV
           </TextureButton>
-          </>
         }
       />
 
@@ -258,61 +234,74 @@ export default function AdminPaymentsPage() {
       </div>
 
       <AlvaChartCard
-        title="Rates"
-        subtitle="What each unit of work pays. Changing one affects every figure below."
+        title="What each unit of work pays"
+        subtitle="Change a rate and every figure below is calculated from the new one"
         className="mt-2"
       >
-        <dl className="space-y-1">
-          {rates.map((rate) => (
-            <div
-              key={rate.unit}
-              className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-2.5 last:border-0"
-            >
-              <dt className="min-w-0">
-                <span className="block truncate text-sm text-foreground">
-                  {RATE_UNIT_LABELS[rate.unit]}
-                </span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Updated {rate.updatedLabel} by {rate.updatedBy}
-                </span>
-              </dt>
+        {/* Bars, not a list of numbers. The question a rate card answers is
+            "is annotation paid fairly against recording", and a column of
+            currency strings makes you do that comparison in your head. */}
+        <ul className="alva-thin-scrollbar max-h-[15rem] space-y-3 overflow-y-auto pr-1">
+          {rates.map((rate) => {
+            const share = rate.amountKobo / maxRate;
+            const isEditing = editingUnit === rate.unit;
 
-              <dd className="flex shrink-0 items-center gap-2">
-                {editingUnit === rate.unit ? (
-                  <>
-                    <Input
-                      autoFocus
-                      inputMode="decimal"
-                      value={draftAmount}
-                      onChange={(event) => setDraftAmount(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") commitEdit(rate);
-                        if (event.key === "Escape") setEditingUnit(null);
-                      }}
-                      className={cn(alvaFieldClass(), "h-9 w-28 text-right tabular-nums")}
-                    />
-                    <TextureButton
-                      variant="alva"
-                      size="sm"
-                      className="w-auto"
-                      onClick={() => commitEdit(rate)}
+            return (
+              <li key={rate.unit}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 truncate text-sm text-foreground">
+                    {RATE_UNIT_LABELS[rate.unit]}
+                  </span>
+
+                  {isEditing ? (
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Input
+                        autoFocus
+                        inputMode="decimal"
+                        aria-label={`${RATE_UNIT_LABELS[rate.unit]} rate in naira`}
+                        value={draftAmount}
+                        onChange={(event) => setDraftAmount(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") commitEdit(rate);
+                          if (event.key === "Escape") setEditingUnit(null);
+                        }}
+                        wrapperClassName="w-28"
+                        className="h-9 text-right tabular-nums"
+                      />
+                      <TextureButton
+                        variant="alva"
+                        size="sm"
+                        className="w-auto"
+                        onClick={() => commitEdit(rate)}
+                      >
+                        Save
+                      </TextureButton>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(rate)}
+                      title={`Updated ${rate.updatedLabel} by ${rate.updatedBy}`}
+                      className="shrink-0 rounded-full px-2.5 py-1 text-sm tabular-nums text-foreground transition-colors hover:bg-alva-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
                     >
-                      Save
-                    </TextureButton>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => startEdit(rate)}
-                    className="rounded-full px-3 py-1.5 text-sm tabular-nums text-foreground transition-colors hover:bg-alva-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                  >
-                    {formatNaira(rate.amountKobo)}
-                  </button>
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
+                      {formatNaira(rate.amountKobo)}
+                    </button>
+                  )}
+                </div>
+
+                <div
+                  aria-hidden
+                  className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-alva-surface"
+                >
+                  <div
+                    className="h-full rounded-full bg-alva-accent transition-[width] duration-500 ease-out"
+                    style={{ width: `${Math.max(share * 100, 4)}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </AlvaChartCard>
 
       <div className="mt-2">
@@ -329,30 +318,6 @@ export default function AdminPaymentsPage() {
             title: row.contributor,
             subtitle: `${formatNaira(row.earnedKobo)} · ${PAYOUT_STATUS_LABELS[row.status]}`,
           })}
-          /* Icons, not labels. The actions column is the narrowest on the
-             table and "Mark paid" was being clipped to "Mar…" — a truncated
-             verb on a money action is worse than a glyph with a tooltip. */
-          renderRowActions={(row) =>
-            row.status === "paid" ? null : (
-              <button
-                type="button"
-                title={row.status === "pending" ? "Queue for payment" : "Mark as paid"}
-                aria-label={
-                  row.status === "pending"
-                    ? `Queue ${row.contributor} for payment`
-                    : `Mark ${row.contributor} as paid`
-                }
-                onClick={() => advance(row)}
-                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-              >
-                {row.status === "pending" ? (
-                  <ClockSquare size={16} weight="Outline" />
-                ) : (
-                  <BillCheck size={16} weight="Outline" />
-                )}
-              </button>
-            )
-          }
           filterMenuContent={
             <>
               <DropdownMenuLabel className="text-xs text-muted-foreground">

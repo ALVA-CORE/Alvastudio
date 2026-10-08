@@ -202,11 +202,11 @@ export default function AdminReviewsPage() {
         />
       </div>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-3">
+      <div className="mt-2 grid gap-2 lg:grid-cols-2">
         <AlvaChartCard
           title="Queue at a glance"
           subtitle="Each status as a share of everything submitted"
-          className="min-h-[15rem]"
+          className="min-h-[17rem]"
         >
           <StatusRings
             centerLabel="clips"
@@ -233,6 +233,42 @@ export default function AdminReviewsPage() {
           />
         </AlvaChartCard>
 
+        <AlvaChartCard
+          title="Who is clearing the queue"
+          subtitle="Clips each reviewer decided, and how many they kept"
+          className="min-h-[17rem]"
+        >
+          {/* Scrolls rather than growing: the card sits in a fixed row and a
+              tenth reviewer should not push the page down. */}
+          <dl className="alva-thin-scrollbar max-h-[13rem] space-y-1 overflow-y-auto pr-1">
+            {reviewers.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                Nobody has reviewed anything yet.
+              </p>
+            ) : (
+              reviewers.map((reviewer) => (
+                <div
+                  key={reviewer.id}
+                  className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
+                >
+                  <dt className="truncate text-xs text-foreground">{reviewer.name}</dt>
+                  <dd className="flex shrink-0 items-baseline gap-3 text-xs tabular-nums">
+                    <span className="text-muted-foreground">{reviewer.reviewed} clips</span>
+                    <span className="text-muted-foreground">
+                      {reviewer.approvalRate}% kept
+                    </span>
+                    <span className="w-14 text-right text-foreground">
+                      {reviewer.medianMinutes}m
+                    </span>
+                  </dd>
+                </div>
+              ))
+            )}
+          </dl>
+        </AlvaChartCard>
+      </div>
+
+      <div className="mt-2 grid gap-2 lg:grid-cols-2">
         <AlvaChartCard
           title="Approval rate"
           subtitle="Share of decided clips kept"
@@ -266,38 +302,6 @@ export default function AdminReviewsPage() {
           />
         </AlvaChartCard>
 
-      </div>
-
-      <div className="mt-2">
-        <AlvaChartCard title="Reviewer throughput" subtitle="Clips decided, and how strictly">
-          <dl className="space-y-1">
-            {reviewers.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                Nobody has reviewed anything yet.
-              </p>
-            ) : (
-              reviewers.map((reviewer) => (
-                <div
-                  key={reviewer.id}
-                  className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
-                >
-                  <dt className="truncate text-xs text-foreground">{reviewer.name}</dt>
-                  <dd className="flex shrink-0 items-baseline gap-3 text-xs tabular-nums">
-                    <span className="text-muted-foreground">
-                      {reviewer.reviewed} clips
-                    </span>
-                    <span className="text-muted-foreground">
-                      {reviewer.approvalRate}% approved
-                    </span>
-                    <span className="w-14 text-right text-foreground">
-                      {reviewer.medianMinutes}m
-                    </span>
-                  </dd>
-                </div>
-              ))
-            )}
-          </dl>
-        </AlvaChartCard>
       </div>
 
       <div className="mt-2">

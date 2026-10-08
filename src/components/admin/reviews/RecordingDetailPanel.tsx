@@ -110,7 +110,6 @@ export function RecordingDetailPanel({
             />
             {isDecided ? (
               <PanelAction
-                pushRight
                 icon={<Restart size={15} weight="Outline" />}
                 label="Reopen"
                 tone="primary"

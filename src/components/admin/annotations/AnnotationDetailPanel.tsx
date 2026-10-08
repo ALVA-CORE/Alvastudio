@@ -118,7 +118,6 @@ export function AnnotationDetailPanel({
                   onClick={() => setConfirm("rework")}
                 />
                 <PanelAction
-                  pushRight
                   icon={<CheckCircle size={15} weight="Outline" />}
                   label="Approve"
                   tone="primary"
@@ -127,7 +126,6 @@ export function AnnotationDetailPanel({
               </>
             ) : awaitingVerdict ? (
               <PanelAction
-                pushRight
                 icon={<Restart size={15} weight="Outline" />}
                 label="Send back"
                 tone="danger"

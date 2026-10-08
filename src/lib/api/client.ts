@@ -172,7 +172,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     // untouched so callers can tell a cancellation from an outage.
     if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
 
-    const error = new ApiError(0, "Could not reach the Alva Studio API. Check your connection.");
+    /* Said the way someone without a terminal would say it. The developer
+     * detail — which base URL, which proxy — belongs in the console, not in
+     * front of a contributor who just lost signal. */
+    const error = new ApiError(0, "You're offline. We'll try again when you're back.");
     error.unreachable = true;
     throw error;
   }
@@ -195,9 +198,20 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
      * bare status ("Not found") sends people looking for a missing record when
      * the real problem is a missing server. */
     if (!isJson) {
+      /* The user-facing message is the same as a dropped connection, because
+       * from where they sit it is the same thing. The cause only helps
+       * whoever is running the app, so it goes to the console. */
+      if (import.meta.env.DEV) {
+        console.warn(
+          `[alva] ${method} ${path} returned a non-JSON ${response.status}. ` +
+            "The request probably never reached the API — check that the backend " +
+            "is running and VITE_API_BASE_URL points at it."
+        );
+      }
+
       const error = new ApiError(
         response.status,
-        "Could not reach the Alva Studio API. Check that the backend is running and VITE_API_BASE_URL points at it."
+        "We can't reach Alvastudio right now. Please try again in a moment."
       );
       error.unreachable = true;
       throw error;

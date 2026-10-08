@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { cn } from "@/lib/utils";
@@ -58,7 +58,13 @@ export function DetailField({
   );
 }
 
-/** The same slot, editable — so the layout does not shift when Edit is hit. */
+/**
+ * The same slot, editable — so the layout does not shift when Edit is hit.
+ *
+ * Explicitly associated with `htmlFor`, not by nesting: the field's focus beam
+ * wraps the input in its own elements, and an implicit label stops reaching
+ * through them.
+ */
 export function DetailEditField({
   label,
   value,
@@ -72,17 +78,21 @@ export function DetailEditField({
   span?: boolean;
   type?: string;
 }) {
+  const id = useId();
+
   return (
     <div className={cn("min-w-0", span && "col-span-2")}>
-      <label className="text-xs text-muted-foreground">
+      <label htmlFor={id} className="block text-xs text-muted-foreground">
         {label}
-        <Input
-          type={type}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={cn(alvaFieldClass(), "mt-1 h-9")}
-        />
       </label>
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        wrapperClassName="mt-1"
+        className={cn(alvaFieldClass(), "h-9")}
+      />
     </div>
   );
 }

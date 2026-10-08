@@ -120,7 +120,7 @@ export default function AdminCorpusPage() {
       <AlvaChartCard
         title="Corpus growth"
         subtitle="Cumulative hours collected"
-        className="mt-2 h-[15rem]"
+        className="mt-2 h-[25rem]"
         emptyMessage={
           forceEmpty
             ? { title: "No audio yet", description: "Nothing has been collected." }
