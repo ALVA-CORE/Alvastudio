@@ -84,3 +84,17 @@ describe("admin overview", () => {
     }
   });
 });
+
+/* The approval queue is the one thing on this page waiting on the person
+ * reading it, so it has to be on screen without touching a filter first. */
+describe("intern approvals", () => {
+  it("shows pending applications on first load, at the top", async () => {
+    renderPage(AdminUsersPage);
+
+    const pills = await screen.findAllByText("Pending approval");
+    expect(pills.length).toBeGreaterThan(0);
+
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("Pending approval")).toBeInTheDocument();
+  });
+});

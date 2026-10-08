@@ -137,10 +137,11 @@ function buildUsers(): AdminUser[] {
       phone: `080${Math.floor(random() * 90000000 + 10000000)}`,
       role,
       // A handful of leavers, so the filter has something to hide.
-      isActive: role === "intern" && index % 3 === 0 ? false : random() > 0.12,
-      // A couple of interns still waiting on an admin.
+      isActive: role === "intern" && index % 2 === 0 ? false : random() > 0.12,
+      // Half the interns are still waiting on an admin, so the queue is
+      // visible the moment the page opens.
       approval: (role === "intern"
-        ? index % 3 === 0
+        ? index % 2 === 0
           ? "pending"
           : "approved"
         : undefined) as AdminUser["approval"],
@@ -152,7 +153,14 @@ function buildUsers(): AdminUser[] {
           : Math.floor(random() * (role === "contributor" ? 180 : 40)) + 1,
       outputLabel: OUTPUT_LABEL[role],
     };
-  }).sort((a, b) => b.createdAt - a.createdAt);
+  })
+    /* Applications first. They are the only rows on this page that are
+     * waiting on the person reading it; everything else is a record. */
+    .sort((a, b) => {
+      const waiting = Number(accountStatus(b) === "pending") -
+        Number(accountStatus(a) === "pending");
+      return waiting !== 0 ? waiting : b.createdAt - a.createdAt;
+    });
 }
 
 export const ADMIN_USERS: AdminUser[] = buildUsers();

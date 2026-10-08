@@ -471,7 +471,7 @@ export function UserDetailPanel({
                   {outcome.title}
                 </h3>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="h-40 rounded-xl bg-alva-surface p-2">
+                  <div className="h-48 rounded-xl bg-alva-surface p-3">
                     <SharePie
                       slices={outcome.slices}
                       centerLabel={outcome.centerLabel}
@@ -479,7 +479,7 @@ export function UserDetailPanel({
                       palette={OUTCOME_PALETTE}
                     />
                   </div>
-                  <div className="h-40 rounded-xl bg-alva-surface p-2">
+                  <div className="h-48 rounded-xl bg-alva-surface p-3">
                     <ApprovalGauge value={outcome.rate} label={outcome.rateLabel} />
                   </div>
                 </div>

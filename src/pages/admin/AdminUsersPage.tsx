@@ -35,7 +35,7 @@ export default function AdminUsersPage() {
   const isLoading = useSimulatedLoading();
   const [users, setUsers] = useState<AdminUser[]>(ADMIN_USERS);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   /* Two panels, deliberately. Clicking a row opens the record — the thing an
    * admin wants nine times out of ten — and editing is a second step from
    * inside it. A row click that drops you straight into a form makes reading
@@ -106,10 +106,15 @@ export default function AdminUsersPage() {
   };
 
   const handleToggleActive = (user: AdminUser) => {
+    const next = { isActive: !user.isActive };
     setUsers((prev) =>
-      prev.map((row) =>
-        row.id === user.id ? { ...row, isActive: !row.isActive } : row
-      )
+      prev.map((row) => (row.id === user.id ? { ...row, ...next } : row))
+    );
+    /* The panel renders from `detail`, not from the table, so an action taken
+     * inside it has to update both or the status it shows goes stale under
+     * the button that just changed it. */
+    setDetail((current) =>
+      current && current.id === user.id ? { ...current, ...next } : current
     );
     alvaToast.show(user.isActive ? "Account deactivated" : "Account reactivated", {
       variant: "default",
@@ -184,7 +189,7 @@ export default function AdminUsersPage() {
   ];
 
   const activeFilterCount =
-    (roleFilter === "all" ? 0 : 1) + (statusFilter === "active" ? 0 : 1);
+    (roleFilter === "all" ? 0 : 1) + (statusFilter === "all" ? 0 : 1);
 
   return (
     <DesktopPageShell className="py-4">

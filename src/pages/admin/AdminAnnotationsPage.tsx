@@ -7,6 +7,7 @@ import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
+import { PeopleBars } from "@/components/admin/shared/PeopleBars";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
@@ -201,33 +202,16 @@ export default function AdminAnnotationsPage() {
           title="Annotator throughput"
           subtitle="Segments produced, and hours worked"
         >
-          <dl className="alva-thin-scrollbar max-h-[13rem] space-y-1 overflow-y-auto pr-1">
-            {annotators.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                Nobody has annotated anything yet.
-              </p>
-            ) : (
-              annotators.map((annotator) => (
-                <div
-                  key={annotator.id}
-                  className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
-                >
-                  <dt className="truncate text-xs text-foreground">{annotator.name}</dt>
-                  <dd className="flex shrink-0 items-baseline gap-3 text-xs tabular-nums">
-                    <span className="text-muted-foreground">
-                      {annotator.annotations} sessions
-                    </span>
-                    <span className="text-muted-foreground">
-                      {annotator.segments} segments
-                    </span>
-                    <span className="w-14 text-right text-foreground">
-                      {annotator.hours}h
-                    </span>
-                  </dd>
-                </div>
-              ))
-            )}
-          </dl>
+          <PeopleBars
+            rows={annotators.map((annotator) => ({
+              id: annotator.id,
+              name: annotator.name,
+              value: annotator.segments,
+              unit: "segments",
+              meta: `${annotator.annotations} sessions · ${annotator.hours}h`,
+            }))}
+            emptyMessage="Nobody has annotated anything yet."
+          />
         </AlvaChartCard>
 
         <AlvaChartCard
