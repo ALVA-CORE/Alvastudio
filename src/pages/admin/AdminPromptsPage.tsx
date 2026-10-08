@@ -234,29 +234,21 @@ export default function AdminPromptsPage() {
           variant="accent"
           title="In this bank"
           value={metrics.total}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={Notebook2}
         />
         <MetricCard
           title="Active"
           value={metrics.active}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={CheckCircle}
         />
         <MetricCard
           title="Never recorded"
           value={metrics.unused}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={DangerTriangle}
         />
         <MetricCard
           title="Recordings made"
           value={metrics.recordings}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={Microphone3}
         />
       </div>

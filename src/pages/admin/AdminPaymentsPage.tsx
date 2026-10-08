@@ -207,28 +207,21 @@ export default function AdminPaymentsPage() {
           title="Owed"
           value={metrics.owed}
           trend={{ label: "not yet paid out", positive: false, neutral: true }}
-          period=""
           icon={Wallet}
         />
         <MetricCard
           title="Paid to date"
           value={metrics.paid}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={BillList}
         />
         <MetricCard
           title="Contributors"
           value={metrics.contributors}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={UsersGroupRounded}
         />
         <MetricCard
           title="Awaiting payment"
           value={metrics.pending}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={ClockCircle}
         />
       </div>

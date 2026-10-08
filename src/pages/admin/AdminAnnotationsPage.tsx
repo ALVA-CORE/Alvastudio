@@ -7,7 +7,7 @@ import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
-import { PeopleBars } from "@/components/admin/shared/PeopleBars";
+import { AnnotatorBreakdownChart } from "@/components/admin/shared/AnnotatorBreakdownChart";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
@@ -19,7 +19,7 @@ import {
   ADMIN_ANNOTATIONS,
   ANNOTATION_STATUS_LABELS,
   ADMIN_SESSIONS,
-  annotatorThroughput,
+  annotatorBreakdown,
   type AdminAnnotation,
   type AnnotationStatus,
 } from "@/data/admin/oversight";
@@ -63,7 +63,7 @@ export default function AdminAnnotationsPage() {
     [rows, status]
   );
 
-  const annotators = useMemo(() => annotatorThroughput(rows), [rows]);
+  const breakdown = useMemo(() => annotatorBreakdown(rows), [rows]);
 
   /* Sessions with audio that nobody has claimed. Those without audio are the
    * focus-group page's problem, not this one's. */
@@ -166,22 +166,16 @@ export default function AdminAnnotationsPage() {
           variant="accent"
           title="Annotations"
           value={String(rows.length)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={DocumentText}
         />
         <MetricCard
           title="Approved"
           value={String(approved)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={CheckCircle}
         />
         <MetricCard
           title="In progress"
           value={String(inFlight)}
-          trend={{ label: "", positive: false, neutral: true }}
-          period=""
           icon={ClockCircle}
         />
         <MetricCard
@@ -192,7 +186,6 @@ export default function AdminAnnotationsPage() {
             positive: false,
             neutral: true,
           }}
-          period=""
           icon={DangerTriangle}
         />
       </div>
@@ -200,16 +193,10 @@ export default function AdminAnnotationsPage() {
       <div className="mt-2 grid gap-2 lg:grid-cols-2">
         <AlvaChartCard
           title="Annotator throughput"
-          subtitle="Segments produced, and hours worked"
+          subtitle="Sessions each annotator claimed, and where they stand"
         >
-          <PeopleBars
-            rows={annotators.map((annotator) => ({
-              id: annotator.id,
-              name: annotator.name,
-              value: annotator.segments,
-              unit: "segments",
-              meta: `${annotator.annotations} sessions · ${annotator.hours}h`,
-            }))}
+          <AnnotatorBreakdownChart
+            data={breakdown}
             emptyMessage="Nobody has annotated anything yet."
           />
         </AlvaChartCard>

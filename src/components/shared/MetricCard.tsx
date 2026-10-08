@@ -6,8 +6,10 @@ import { alvaAccentTextureClass } from "@/lib/alva-texture";
 type MetricCardProps = {
   title: string;
   value: string;
-  period: string;
-  trend: {
+  /** Omit, or pass an empty string, when there is no period to name. */
+  period?: string;
+  /** Omit when there is nothing to compare against. */
+  trend?: {
     label: string;
     positive?: boolean;
     neutral?: boolean;
@@ -20,7 +22,7 @@ type MetricCardProps = {
 export function MetricCard({
   title,
   value,
-  period,
+  period = "",
   trend,
   icon: Icon,
   variant = "card",
@@ -59,19 +61,32 @@ export function MetricCard({
 
       <div className="mt-auto pt-6">
         <p className="text-3xl font-semibold tracking-tight">{value}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <TrendBadge positive={trend.positive} neutral={trend.neutral} accent={isAccent}>
-            {trend.label}
-          </TrendBadge>
-          <span
-            className={cn(
-              "text-xs",
-              isAccent ? "text-alva-bg/75" : "text-muted-foreground"
-            )}
-          >
-            {period}
-          </span>
-        </div>
+        {/* An empty pill is not a quiet pill: a card with no trend to report
+            was drawing a grey tab with nothing in it. Nothing to say, nothing
+            drawn, and the row collapses with it. */}
+        {trend?.label || period ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {trend?.label ? (
+              <TrendBadge
+                positive={trend.positive}
+                neutral={trend.neutral}
+                accent={isAccent}
+              >
+                {trend.label}
+              </TrendBadge>
+            ) : null}
+            {period ? (
+              <span
+                className={cn(
+                  "text-xs",
+                  isAccent ? "text-alva-bg/75" : "text-muted-foreground"
+                )}
+              >
+                {period}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </article>
   );
