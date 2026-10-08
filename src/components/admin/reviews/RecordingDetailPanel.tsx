@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Restart from "@solar-icons/react/arrows/Restart";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
@@ -33,7 +33,18 @@ const STATUS_TONE: Record<RecordingStatus, PillTone> = {
   flagged: "pending",
 };
 
-const TABS = [
+/**
+ * Activity is a focus-group tab.
+ *
+ * Only focus groups go to an annotator, so only they have a build history to
+ * replay. On a prompt read the tab would open on an empty log every time.
+ */
+const BASE_TABS = [
+  { id: "detail", label: "Clip" },
+  { id: "audit", label: "History" },
+];
+
+const FOCUS_GROUP_TABS = [
   { id: "detail", label: "Clip" },
   { id: "activity", label: "Activity" },
   { id: "audit", label: "History" },
@@ -86,6 +97,12 @@ export function RecordingDetailPanel({
     [recording]
   );
 
+  /* Opening a prompt read while parked on Activity would leave the panel on a
+   * tab that is no longer in the row of tabs. */
+  useEffect(() => {
+    if (recording && recording.mode !== "Focus group") setTab("detail");
+  }, [recording]);
+
   if (!recording) return null;
 
   const isDecided =
@@ -101,7 +118,7 @@ export function RecordingDetailPanel({
           onOpenChange(next);
         }}
         title={`Recording ${recording.code}`}
-        tabs={TABS}
+        tabs={isFocusGroup ? FOCUS_GROUP_TABS : BASE_TABS}
         activeTab={tab}
         onTabChange={setTab}
         header={
@@ -143,9 +160,14 @@ export function RecordingDetailPanel({
         {tab === "detail" ? (
           <>
             <DetailGroup title="Clip" first>
-              <div className="col-span-2">
-                <ClipPlayer src={recording.audioUrl} />
-              </div>
+              {/* On a focus group the player lives on the Activity tab, next
+                  to the replay it is being matched against. Two players in one
+                  panel is two places to pause. */}
+              {isFocusGroup ? null : (
+                <div className="col-span-2">
+                  <ClipPlayer src={recording.audioUrl} />
+                </div>
+              )}
               <DetailProse label="Prompt">{recording.prompt}</DetailProse>
               <DetailField label="Contributor" value={recording.contributor} />
               <DetailField label="Type" value={recording.mode} />
@@ -201,7 +223,10 @@ export function RecordingDetailPanel({
             ) : null}
           </>
         ) : tab === "activity" ? (
-          <ActivityReplay events={activity} />
+          <div className="space-y-4">
+            <ClipPlayer src={recording.audioUrl} />
+            <ActivityReplay events={activity} />
+          </div>
         ) : (
           <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
         )}

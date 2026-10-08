@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import WavesurferPlayer from "@wavesurfer/react";
 import type WaveSurfer from "wavesurfer.js";
-import Pause from "@solar-icons/react/video/Pause";
-import Play from "@solar-icons/react/video/Play";
 import Rewind5SecondsBack from "@solar-icons/react/video/Rewind5SecondsBack";
 import Rewind5SecondsForward from "@solar-icons/react/video/Rewind5SecondsForward";
 import { BorderBeam } from "border-beam";
 import { Slider } from "@/components/ui/slider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { BeamPlayButton } from "@/components/shared/BeamPlayButton";
+import { SpeedControl } from "@/components/shared/SpeedControl";
 import { formatAudioTime } from "@/hooks/useAudioPlayer";
 import { cn } from "@/lib/utils";
 
@@ -143,31 +142,11 @@ export function ReviewAudioBar({
             <Rewind5SecondsBack size={18} weight="Outline" />
           </button>
 
-          <div className="relative overflow-visible rounded-full">
-            <BorderBeam
-              size="pulse-outside"
-              colorVariant="mono"
-              theme="dark"
-              strength={1}
-              duration={1.9}
-              borderRadius={999}
-              className="overflow-visible rounded-full"
-            >
-              <button
-                type="button"
-                aria-label={isPlaying ? "Pause" : "Play"}
-                onClick={togglePlay}
-                disabled={!isReady}
-                className="relative z-[1] flex size-11 items-center justify-center rounded-full bg-alva-accent text-alva-bg disabled:opacity-40"
-              >
-                {isPlaying ? (
-                  <Pause size={20} weight="Bold" />
-                ) : (
-                  <Play size={20} weight="Bold" />
-                )}
-              </button>
-            </BorderBeam>
-          </div>
+          <BeamPlayButton
+            playing={isPlaying}
+            onClick={togglePlay}
+            disabled={!isReady}
+          />
 
           <button
             type="button"
@@ -180,24 +159,10 @@ export function ReviewAudioBar({
           </button>
         </div>
 
-        <ToggleGroup
-          type="single"
-          value={String(playbackRate)}
-          onValueChange={(value) => {
-            if (value) setRate(Number(value));
-          }}
-          className="rounded-full bg-alva-surface p-1"
-        >
-          {["0.75", "1", "1.25", "1.5"].map((rate) => (
-            <ToggleGroupItem
-              key={rate}
-              value={rate}
-              className="h-7 rounded-full px-2.5 text-xs data-[state=on]:bg-alva-card data-[state=on]:text-alva-accent"
-            >
-              {rate}x
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        {/* Same control as the admin clip player: closed it states the rate,
+            open it is the full set. Four permanent targets beside the
+            transport were four ways to miss the play button. */}
+        <SpeedControl value={playbackRate} onChange={setRate} disabled={!isReady} />
       </div>
     </section>
   );

@@ -71,12 +71,16 @@ describe("review panel", () => {
   }
 
   it("plays the clip, with skip and speed", async () => {
-    await openFirstRow(() => true);
+    await openFirstRow((text) => !text.includes("Focus group"));
 
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back 10 seconds" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Forward 10 seconds" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Playback speed" })).toBeInTheDocument();
+
+    // Closed, the speed control is one button stating the current rate.
+    const speed = screen.getByRole("button", { name: /Playback speed/ });
+    await userEvent.click(speed);
+    expect(await screen.findByRole("button", { name: "1.5×" })).toBeInTheDocument();
   });
 
   /* The four rubric questions are about one person reading one prompt. Nobody
@@ -86,8 +90,14 @@ describe("review panel", () => {
     expect(screen.queryByText("Reviewer answers")).not.toBeInTheDocument();
   });
 
-  it("replays the annotation activity", async () => {
-    await openFirstRow(() => true);
+  it("hides the activity tab on a prompt read", async () => {
+    await openFirstRow((text) => !text.includes("Focus group"));
+    expect(screen.queryByRole("button", { name: "Activity" })).not.toBeInTheDocument();
+  });
+
+  /* Only focus groups reach an annotator, so only they have a build history. */
+  it("replays the annotation activity on a focus group", async () => {
+    await openFirstRow((text) => text.includes("Focus group"));
 
     await userEvent.click(screen.getByRole("button", { name: "Activity" }));
     expect(
