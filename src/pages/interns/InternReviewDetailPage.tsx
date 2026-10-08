@@ -229,7 +229,7 @@ export default function InternReviewDetailPage() {
      * intern's work and advance to the next clip as if it had landed. */
     const ok = await submit(finalAnswers, verdict);
     if (!ok) {
-      alvaToast.error("Could not submit the review. Your answers are still here.");
+      alvaToast.error("Could not submit, your answers are safe");
       return;
     }
 
@@ -238,7 +238,7 @@ export default function InternReviewDetailPage() {
     lastSavedRef.current = snapshot;
     setIsDirty(false);
 
-    alvaToast.success(`${VERDICT_LABELS[verdict]} — review submitted`);
+    alvaToast.success(`${VERDICT_LABELS[verdict]}, review submitted`);
 
     if (nextItem) {
       navigate(`/intern/review/${nextItem.id}`);

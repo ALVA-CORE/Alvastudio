@@ -46,7 +46,7 @@ function pct(part: number, whole: number): number {
 
 const EMPTY_INSIGHTS = [
   { label: "Acceptance rate", value: "0%" },
-  { label: "Avg review time", value: "—" },
+  { label: "Avg review time", value: ", " },
   { label: "This week", value: "0 clips" },
 ];
 
@@ -80,7 +80,7 @@ export function QualityProgressBar({
       ? [
           { label: "Acceptance rate", value: liveRate },
           // No review-time or weekly figure on the endpoint yet.
-          { label: "Avg review time", value: "—" },
+          { label: "Avg review time", value: ", " },
           { label: "Total clips", value: String(total) },
         ]
       : INSIGHTS;

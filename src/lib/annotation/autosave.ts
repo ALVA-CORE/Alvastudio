@@ -193,5 +193,5 @@ export const SAVE_STATUS_LABELS: Record<SaveStatus, string> = {
   saving: "Saving…",
   saved: "Saved",
   error: "Save failed",
-  offline: "Offline — changes held",
+  offline: "Offline, changes held",
 };

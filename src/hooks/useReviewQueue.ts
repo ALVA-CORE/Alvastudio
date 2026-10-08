@@ -17,7 +17,7 @@ import type { ReviewQueueItem } from "@/data/reviewQueue";
 
 function relative(iso: string): string {
   const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return "—";
+  if (!Number.isFinite(then)) return ", ";
   const hours = Math.floor((Date.now() - then) / 36e5);
   if (hours < 1) return "Just now";
   if (hours < 24) return `${hours}h ago`;
@@ -45,8 +45,8 @@ export function toQueueItem(recording: ApiRecording): ReviewQueueItem {
     submittedAt: relative(recording.created_at),
     prompt: recording.prompt_text ?? recording.stimulus_text ?? "",
     audioSrc: `/recordings/${recording.id}/audio`,
-    device: recording.device_mic ?? "—",
-    language: "—",
+    device: recording.device_mic ?? ", ",
+    language: ", ",
     status: recording.status === "submitted" || recording.status === "in_review"
       ? "pending"
       : "completed",

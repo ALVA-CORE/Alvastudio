@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
             ? "sessions"
             : draft.role === "annotator"
               ? "annotations"
-              : "—",
+              : ", ",
       },
       ...prev,
     ]);
@@ -127,7 +127,7 @@ export default function AdminUsersPage() {
       header: "Output",
       sortValue: (row: AdminUser) => row.output,
       render: (row: AdminUser) =>
-        row.outputLabel === "—" ? (
+        row.outputLabel === ", " ? (
           <span className="text-muted-foreground">—</span>
         ) : (
           <span className="whitespace-nowrap tabular-nums text-muted-foreground">

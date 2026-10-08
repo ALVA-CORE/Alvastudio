@@ -172,7 +172,7 @@ export default function AdminCorpusPage() {
       <div className="mt-2 grid gap-2 lg:grid-cols-2">
         <AlvaChartCard
           title="Coverage"
-          subtitle="Hours collected by state — hover for the figure"
+          subtitle="Hours collected by state, hover for the figure"
           className="min-h-[24rem]"
         >
           <CoverageMap slices={corpus.byState} />

@@ -70,6 +70,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "thinking-orbs": "0.3.2",
+    "vgpu": "^0.5.0",
     "voice-glow": "0.2.1",
     "wavesurfer.js": "^7.12.10",
     "zod": "^3.25.76",

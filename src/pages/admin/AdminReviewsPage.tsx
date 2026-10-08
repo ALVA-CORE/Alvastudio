@@ -131,7 +131,7 @@ export default function AdminReviewsPage() {
       sortValue: (row: AdminRecording) => row.reviewer,
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">
-          {row.reviewer || "—"}
+          {row.reviewer || ", "}
         </span>
       ),
     },

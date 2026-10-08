@@ -117,7 +117,7 @@ export const EMPTY_PARTICIPANT_METRICS = {
   thisWeekTrend: "",
   sessions: "0",
   sessionsTrend: "",
-  quotaFill: "—",
+  quotaFill: ", ",
   quotaTrend: "",
   periodLabel: "",
 };

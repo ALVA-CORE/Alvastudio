@@ -52,7 +52,7 @@ export function DetailField({
         )}
         title={typeof value === "string" ? value : undefined}
       >
-        {value || "—"}
+        {value || ", "}
       </dd>
     </div>
   );

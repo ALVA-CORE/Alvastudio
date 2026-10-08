@@ -214,7 +214,7 @@ function TaggedSegmentTextImpl({
   if (tokens.length === 0) {
     return (
       <p className="text-sm italic text-muted-foreground/60">
-        Empty segment — click to transcribe
+        Empty segment, click to transcribe
       </p>
     );
   }

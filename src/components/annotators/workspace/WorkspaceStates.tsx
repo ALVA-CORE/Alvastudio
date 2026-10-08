@@ -176,7 +176,7 @@ export function WorkspaceEmpty({ onAddSegment, className }: WorkspaceEmptyProps)
       className={className}
       icon={<Subtitles size={22} weight="Linear" />}
       title="No segments on this tape yet"
-      description="The automatic pass came back empty for this recording — add the first segment and type the transcript yourself."
+      description="The automatic pass came back empty for this recording, add the first segment and type the transcript yourself."
       actions={
         <button type="button" onClick={onAddSegment} className={pillButtonClass}>
           <AddCircle size={16} weight="Linear" />

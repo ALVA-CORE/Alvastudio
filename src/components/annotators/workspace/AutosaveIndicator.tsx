@@ -108,7 +108,7 @@ export const AutosaveIndicator = memo(function AutosaveIndicator({
   let label: string;
   if (status === "saving") label = "Saving…";
   else if (status === "error") label = "Save failed";
-  else if (status === "offline") label = "Offline — changes held";
+  else if (status === "offline") label = "Offline, changes held";
   else if (status === "dirty") label = "Unsaved changes";
   else if (lastSavedAt !== null) label = relativeLabel(lastSavedAt, Date.now());
   else label = "All changes saved";

@@ -166,7 +166,7 @@ export const EMPTY_SESSION_METRICS: AnnotatorSessionMetrics = {
   queuedTrend: "0",
   hoursPending: "0h",
   hoursPendingTrend: "0h",
-  avgSession: "—",
+  avgSession: ", ",
   avgSessionTrend: "0m",
   speakersCovered: "0",
   speakersTrend: "0",

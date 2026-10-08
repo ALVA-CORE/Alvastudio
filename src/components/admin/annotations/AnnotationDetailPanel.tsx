@@ -186,7 +186,7 @@ export function AnnotationDetailPanel({
         open={confirm === "rework"}
         onOpenChange={(next) => !next && setConfirm(null)}
         title={`Send ${annotation.code} back?`}
-        description={`It returns to ${annotation.annotator} as needing rework. Their segments and tags are kept — nothing is discarded.`}
+        description={`It returns to ${annotation.annotator} as needing rework. Their segments and tags are kept, nothing is discarded.`}
         confirmLabel="Send back"
         onConfirm={() => {
           onSendBack(annotation);

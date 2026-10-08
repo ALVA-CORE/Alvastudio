@@ -50,7 +50,7 @@ export function toHeatmapColumns(daily: ApiDailyActivity[]): HeatmapColumn[] {
 
 /** Whole-number metric, or an em dash when there is genuinely nothing. */
 function count(value: number | undefined) {
-  return value == null ? "—" : value.toLocaleString();
+  return value == null ? ", " : value.toLocaleString();
 }
 
 export function useAnnotatorDashboard() {
@@ -64,7 +64,7 @@ export function useAnnotatorDashboard() {
   const metrics = useMemo(
     () => ({
       clipsAnnotated: count(data?.segments_created),
-      hoursAnnotated: data ? `${data.hours_annotated.toFixed(1)}h` : "—",
+      hoursAnnotated: data ? `${data.hours_annotated.toFixed(1)}h` : ", ",
       tagsApplied: count(data?.tags_applied),
       sessionsAnnotated: count(data?.sessions_annotated),
       queueAvailable: count(data?.queue_available),

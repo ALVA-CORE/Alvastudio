@@ -73,10 +73,10 @@ export function ParticipantDetailSheet({
           <PanelDivider className="-mx-6 my-0" />
 
           <DetailSection title="Demographics">
-            <ProfileInfoBlock label="Age bracket" value={participant.ageBracket || "—"} />
-            <ProfileInfoBlock label="Gender" value={formatGenderLabel(participant.gender) || "—"} />
-            <ProfileInfoBlock label="State" value={participant.state || "—"} />
-            <ProfileInfoBlock label="Native language" value={participant.nativeLanguage || "—"} />
+            <ProfileInfoBlock label="Age bracket" value={participant.ageBracket || ", "} />
+            <ProfileInfoBlock label="Gender" value={formatGenderLabel(participant.gender) || ", "} />
+            <ProfileInfoBlock label="State" value={participant.state || ", "} />
+            <ProfileInfoBlock label="Native language" value={participant.nativeLanguage || ", "} />
           </DetailSection>
 
           <PanelDivider className="-mx-6 my-0" />
@@ -85,11 +85,11 @@ export function ParticipantDetailSheet({
             <ProfileInfoBlock label="Focus group session" value={participant.focusGroupSession} />
             <ProfileInfoBlock
               label="Language used"
-              value={formatSessionLanguageLabel(participant.sessionLanguage) || "—"}
+              value={formatSessionLanguageLabel(participant.sessionLanguage) || ", "}
             />
             <ProfileInfoBlock
               label="Consent"
-              value={formatConsentLabel(participant.consent) || "—"}
+              value={formatConsentLabel(participant.consent) || ", "}
             />
             <ProfileInfoBlock label="Logged at" value={loggedAt} />
           </DetailSection>
@@ -97,7 +97,7 @@ export function ParticipantDetailSheet({
           <PanelDivider className="-mx-6 my-0" />
 
           <DetailSection title="Domain">
-            <ProfileInfoBlock label="Occupation / sector" value={participant.occupation || "—"} />
+            <ProfileInfoBlock label="Occupation / sector" value={participant.occupation || ", "} />
           </DetailSection>
         </div>
       </SheetContent>

@@ -79,7 +79,7 @@ const OUTPUT_LABEL: Record<AdminUserRole, string> = {
   contributor: "recordings",
   intern: "sessions",
   annotator: "annotations",
-  admin: "—",
+  admin: ", ",
 };
 
 /* Weighted: a speech corpus is mostly contributors, with a thin staff layer. */

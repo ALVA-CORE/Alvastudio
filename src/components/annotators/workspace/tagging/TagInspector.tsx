@@ -429,7 +429,7 @@ export const TagInspector = memo(function TagInspector() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs text-foreground">
-                        {surfaceOf(span.startToken, span.endToken) || "—"}
+                        {surfaceOf(span.startToken, span.endToken) || ", "}
                       </p>
                       <p className="truncate text-[10px] text-muted-foreground">
                         {tagLabel(span.kind, span.value)}
