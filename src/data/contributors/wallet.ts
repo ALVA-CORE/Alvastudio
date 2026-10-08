@@ -66,7 +66,7 @@ export const MOCK_WALLET: Wallet = {
   payoutAccount: {
     bank: "Guaranty Trust Bank",
     accountNumber: "0123456789",
-    accountName: "CHIOMA OKAFOR",
+    accountName: "Chioma Okafor",
   },
   entries: [
     { id: "w-1", kind: "earned", label: "12 prompt reads approved", amountKobo: 18_000_00, at: at(0, 14, 6) },
@@ -93,21 +93,25 @@ export const EMPTY_WALLET: Wallet = {
  * what you remember doing, and two entries on the same day become one blur.
  */
 export function formatEntryDate(ms: number) {
-  return new Date(ms).toLocaleString(undefined, {
+  const date = new Date(ms);
+  const day = date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
+  });
+  const time = date.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
   });
+  return `${day} · ${time}`;
 }
 
 
 const SAMPLE_NAMES = [
-  "CHIOMA OKAFOR",
-  "TUNDE ADEYEMI",
-  "AMAKA NWOSU",
-  "IBRAHIM BELLO",
-  "BLESSING UCHE",
+  "Chioma Okafor",
+  "Tunde Adeyemi",
+  "Amaka Nwosu",
+  "Ibrahim Bello",
+  "Blessing Uche",
 ];
 
 /**

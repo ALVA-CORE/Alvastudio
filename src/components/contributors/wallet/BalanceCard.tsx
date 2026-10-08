@@ -85,7 +85,7 @@ export function BalanceCard({
                 {groupDigits(account!.accountNumber)}
               </span>
               <span className="mt-1 flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-wider text-alva-bg/85">
+                <span className="min-w-0 truncate text-[11px] font-semibold text-alva-bg/85">
                   {account!.accountName}
                 </span>
                 <span className="shrink-0 truncate text-[11px] font-semibold text-alva-bg/85">

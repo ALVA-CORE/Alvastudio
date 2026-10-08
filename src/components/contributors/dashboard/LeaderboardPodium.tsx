@@ -1,21 +1,11 @@
 import MedalStar from "@solar-icons/react/like/MedalStar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { diceBearAvatarUrl } from "@/lib/dicebear";
+import {
+  MOCK_LEADERBOARD,
+  type LeaderboardEntry,
+} from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
-
-export type LeaderboardEntry = {
-  id: string;
-  name: string;
-  points: number;
-  seed: string;
-  avatarBg?: string;
-};
-
-export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  { id: "2", name: "Adaeze Okafor", points: 1180, seed: "adaeze-okafor", avatarBg: "202020" },
-  { id: "1", name: "Okonkwo James", points: 1420, seed: "okonkwo-james", avatarBg: "252525" },
-  { id: "3", name: "Chioma Eze", points: 960, seed: "chioma-eze", avatarBg: "1a1a1a" },
-];
 
 type PodiumSlotProps = {
   entry: LeaderboardEntry;

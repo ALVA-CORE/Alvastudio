@@ -1,6 +1,5 @@
 import { useState } from "react";
 import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
-import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -95,17 +94,20 @@ export function AlvaCombobox({
                       onValueChange(option.value);
                       setOpen(false);
                     }}
-                    className="gap-2.5 rounded-xl px-2.5 py-2 text-sm aria-selected:bg-alva-surface"
+                    className="rounded-xl px-2.5 py-2 text-sm aria-selected:bg-alva-surface"
                   >
-                    <CheckCircle
-                      size={16}
-                      weight={isSelected ? "Bold" : "Outline"}
+                    {/* No tick. The list is a search result, and a column of
+                        empty circles down the side of it reads as a set of
+                        checkboxes you are meant to fill in. The chosen one is
+                        marked by colour. */}
+                    <span
                       className={cn(
-                        "shrink-0",
-                        isSelected ? "text-alva-accent" : "text-muted-foreground/40"
+                        "truncate",
+                        isSelected && "font-medium text-alva-accent"
                       )}
-                    />
-                    <span className="truncate">{option.label}</span>
+                    >
+                      {option.label}
+                    </span>
                   </CommandItem>
                 );
               })}

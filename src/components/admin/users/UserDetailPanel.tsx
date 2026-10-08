@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import KeyMinimalistic from "@solar-icons/react/security/KeyMinimalistic";
 import UserBlock from "@solar-icons/react/users/UserBlock";
+import UserCheckRounded from "@solar-icons/react/users/UserCheckRounded";
 import Pen from "@solar-icons/react/messages/Pen";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
@@ -27,6 +28,9 @@ import {
   ADMIN_PERMISSIONS,
   CREATABLE_ROLES,
   ROLE_LABELS,
+  STATUS_LABEL,
+  accountStatus,
+  canResetPassword,
   activityNoun,
   activitySummary,
   roleStats,
@@ -144,6 +148,7 @@ export function UserDetailPanel({
   onOpenChange,
   user,
   onToggleActive,
+  onApprove,
   onDelete,
   onSave,
 }: {
@@ -151,6 +156,7 @@ export function UserDetailPanel({
   onOpenChange: (open: boolean) => void;
   user: AdminUser | null;
   onToggleActive: (user: AdminUser) => void;
+  onApprove: (user: AdminUser) => void;
   onDelete: (user: AdminUser) => void;
   onSave: (user: AdminUser, draft: UserDraft) => void;
 }) {
@@ -216,6 +222,8 @@ export function UserDetailPanel({
     alvaToast.success("Saved");
   };
 
+  const status = accountStatus(user);
+
   const initials = user.fullName
     .split(" ")
     .slice(0, 2)
@@ -265,8 +273,15 @@ export function UserDetailPanel({
             </p>
             <div className="mt-1 flex items-center gap-2">
               <RoleTag role={user.role} />
-              {!user.isActive ? (
-                <span className="text-sm text-muted-foreground">· Deactivated</span>
+              {status !== "active" ? (
+                <span
+                  className={cn(
+                    "text-sm",
+                    status === "pending" ? "text-amber-300" : "text-muted-foreground"
+                  )}
+                >
+                  · {STATUS_LABEL[status]}
+                </span>
               ) : null}
             </div>
           </div>
@@ -279,11 +294,13 @@ export function UserDetailPanel({
             </>
           ) : (
             <>
-              <PanelAction
-                icon={<KeyMinimalistic size={15} weight="Outline" />}
-                label="Reset password"
-                onClick={() => alvaToast.success(`Reset link sent to ${user.email}`)}
-              />
+              {canResetPassword(user) ? (
+                <PanelAction
+                  icon={<KeyMinimalistic size={15} weight="Outline" />}
+                  label="Reset password"
+                  onClick={() => alvaToast.success(`Reset link sent to ${user.email}`)}
+                />
+              ) : null}
               <PanelAction
                 icon={<Pen size={15} weight="Outline" />}
                 label="Edit"
@@ -293,15 +310,26 @@ export function UserDetailPanel({
                   setEditing(true);
                 }}
               />
-              <PanelAction
-                icon={<UserBlock size={15} weight="Outline" />}
-                label={user.isActive ? "Deactivate" : "Reactivate"}
-                tone={user.isActive ? "danger" : "primary"}
-                onClick={() => {
-                  if (user.isActive) return setConfirmDeactivate(true);
-                  onToggleActive(user);
-                }}
-              />
+              {/* An application is approved or it is deleted. Deactivating one
+                  would park it in a third state nobody is waiting on. */}
+              {status === "pending" ? (
+                <PanelAction
+                  icon={<UserCheckRounded size={15} weight="Outline" />}
+                  label="Approve"
+                  tone="primary"
+                  onClick={() => onApprove(user)}
+                />
+              ) : (
+                <PanelAction
+                  icon={<UserBlock size={15} weight="Outline" />}
+                  label={user.isActive ? "Deactivate" : "Reactivate"}
+                  tone={user.isActive ? "danger" : "primary"}
+                  onClick={() => {
+                    if (user.isActive) return setConfirmDeactivate(true);
+                    onToggleActive(user);
+                  }}
+                />
+              )}
             </>
           )
         }

@@ -18,7 +18,10 @@ import {
   ADMIN_USERS,
   EMPTY_USER_METRICS,
   ROLE_LABELS,
+  STATUS_LABEL,
+  accountStatus,
   userMetrics,
+  type AccountStatus,
   type AdminUser,
   type AdminUserRole,
 } from "@/data/admin/users";
@@ -26,7 +29,7 @@ import { alvaToast } from "@/lib/alva-toast";
 import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 type RoleFilter = AdminUserRole | "all";
-type StatusFilter = "all" | "active" | "inactive";
+type StatusFilter = "all" | AccountStatus;
 
 export default function AdminUsersPage() {
   const isLoading = useSimulatedLoading();
@@ -49,8 +52,9 @@ export default function AdminUsersPage() {
     () =>
       rows.filter((row) => {
         if (roleFilter !== "all" && row.role !== roleFilter) return false;
-        if (statusFilter === "active" && !row.isActive) return false;
-        if (statusFilter === "inactive" && row.isActive) return false;
+        if (statusFilter !== "all" && accountStatus(row) !== statusFilter) {
+          return false;
+        }
         return true;
       }),
     [rows, roleFilter, statusFilter]
@@ -86,6 +90,19 @@ export default function AdminUsersPage() {
   const handleDelete = (user: AdminUser) => {
     setUsers((prev) => prev.filter((row) => row.id !== user.id));
     alvaToast.show(`${user.fullName} removed`, { variant: "default" });
+  };
+
+  /* Approving turns the application into an account: it can be signed into
+   * from this moment, which is the whole of what the intern is waiting for. */
+  const handleApprove = (user: AdminUser) => {
+    const approved = { approval: "approved" as const, isActive: true };
+    setUsers((prev) =>
+      prev.map((row) => (row.id === user.id ? { ...row, ...approved } : row))
+    );
+    setDetail((current) =>
+      current && current.id === user.id ? { ...current, ...approved } : current
+    );
+    alvaToast.success(`${user.fullName} approved`);
   };
 
   const handleToggleActive = (user: AdminUser) => {
@@ -138,12 +155,23 @@ export default function AdminUsersPage() {
     {
       key: "isActive",
       header: "Status",
-      sortValue: (row: AdminUser) => String(row.isActive),
-      render: (row: AdminUser) => (
-        <AdminStatusPill tone={row.isActive ? "good" : "neutral"}>
-          {row.isActive ? "Active" : "Deactivated"}
-        </AdminStatusPill>
-      ),
+      sortValue: (row: AdminUser) => accountStatus(row),
+      render: (row: AdminUser) => {
+        const status = accountStatus(row);
+        return (
+          <AdminStatusPill
+            tone={
+              status === "active"
+                ? "good"
+                : status === "pending"
+                  ? "pending"
+                  : "neutral"
+            }
+          >
+            {STATUS_LABEL[status]}
+          </AdminStatusPill>
+        );
+      },
     },
     {
       key: "joinedLabel",
@@ -197,9 +225,9 @@ export default function AdminUsersPage() {
           icon={CheckCircle}
         />
         <MetricCard
-          title="Staff"
-          value={metrics.staff}
-          trend={{ label: "interns, annotators, admins", positive: false, neutral: true }}
+          title="Pending approval"
+          value={metrics.pending}
+          trend={{ label: "interns awaiting an admin", positive: false, neutral: true }}
           period=""
           icon={ShieldUser}
         />
@@ -249,20 +277,18 @@ export default function AdminUsersPage() {
               <DropdownMenuLabel className="mt-1 text-xs text-muted-foreground">
                 Status
               </DropdownMenuLabel>
-              {(["active", "inactive", "all"] as StatusFilter[]).map((value) => (
-                <DropdownMenuCheckboxItem
-                  key={value}
-                  checked={statusFilter === value}
-                  onCheckedChange={() => setStatusFilter(value)}
-                  onSelect={(event) => event.preventDefault()}
-                >
-                  {value === "all"
-                    ? "All"
-                    : value === "active"
-                      ? "Active only"
-                      : "Deactivated only"}
-                </DropdownMenuCheckboxItem>
-              ))}
+              {(["active", "pending", "deactivated", "all"] as StatusFilter[]).map(
+                (value) => (
+                  <DropdownMenuCheckboxItem
+                    key={value}
+                    checked={statusFilter === value}
+                    onCheckedChange={() => setStatusFilter(value)}
+                    onSelect={(event) => event.preventDefault()}
+                  >
+                    {value === "all" ? "All" : STATUS_LABEL[value]}
+                  </DropdownMenuCheckboxItem>
+                )
+              )}
             </>
           }
           emptyState={{
@@ -278,6 +304,7 @@ export default function AdminUsersPage() {
         onOpenChange={setDetailOpen}
         user={detail}
         onToggleActive={handleToggleActive}
+        onApprove={handleApprove}
         onDelete={handleDelete}
         onSave={(target, draft) => {
           setUsers((prev) =>

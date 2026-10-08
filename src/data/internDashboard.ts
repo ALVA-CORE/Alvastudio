@@ -39,7 +39,7 @@ type DashboardDataset = {
   };
 };
 
-const WEEKLY_7D: WeeklyPoint[] = [
+export const WEEKLY_7D: WeeklyPoint[] = [
   { day: "Mon", sessions: 4 },
   { day: "Tue", sessions: 7 },
   { day: "Wed", sessions: 5 },

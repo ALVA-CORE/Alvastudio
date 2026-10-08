@@ -66,7 +66,39 @@ export type AdminUser = {
   outputLabel: string;
   /** Admins only — which areas they can open. */
   permissions?: AdminPermission[];
+  /**
+   * Interns only. They apply rather than being invited, so the account exists
+   * before anyone has agreed to it and cannot be signed into until an admin
+   * says so. Every other role is either self-serve (contributor) or created by
+   * an admin, which is the approval.
+   */
+  approval?: "pending" | "approved";
 };
+
+export type AccountStatus = "pending" | "active" | "deactivated";
+
+/** One status, so the table, the panel and the filter cannot disagree. */
+export function accountStatus(user: AdminUser): AccountStatus {
+  if (user.role === "intern" && user.approval === "pending") return "pending";
+  return user.isActive ? "active" : "deactivated";
+}
+
+export const STATUS_LABEL: Record<AccountStatus, string> = {
+  pending: "Pending approval",
+  active: "Active",
+  deactivated: "Deactivated",
+};
+
+/**
+ * Who an admin can send a reset link to.
+ *
+ * Staff accounts only. Contributors and interns authenticate through the
+ * signup flow they came in on, and there is no admin-triggered reset for them
+ * to call, so the button was a toast with nothing behind it.
+ */
+export function canResetPassword(user: AdminUser) {
+  return user.role === "annotator" || user.role === "admin";
+}
 
 export const ROLE_LABELS: Record<AdminUserRole, string> = {
   contributor: "Contributor",
@@ -105,7 +137,13 @@ function buildUsers(): AdminUser[] {
       phone: `080${Math.floor(random() * 90000000 + 10000000)}`,
       role,
       // A handful of leavers, so the filter has something to hide.
-      isActive: random() > 0.12,
+      isActive: role === "intern" && index % 3 === 0 ? false : random() > 0.12,
+      // A couple of interns still waiting on an admin.
+      approval: (role === "intern"
+        ? index % 3 === 0
+          ? "pending"
+          : "approved"
+        : undefined) as AdminUser["approval"],
       createdAt: created.getTime(),
       joinedLabel: relativeDays(created),
       output:
@@ -130,6 +168,9 @@ export function userMetrics(rows: AdminUser[]) {
       active.filter((row) => row.role !== "contributor").length
     ),
     joinedThisWeek: String(rows.filter((row) => row.createdAt >= weekAgo).length),
+    pending: String(
+      rows.filter((row) => accountStatus(row) === "pending").length
+    ),
   };
 }
 
@@ -138,6 +179,7 @@ export const EMPTY_USER_METRICS = {
   active: "0",
   staff: "0",
   joinedThisWeek: "0",
+  pending: "0",
 };
 
 /** Mirrors the ids the mock table uses, so a picked row can be found again. */
