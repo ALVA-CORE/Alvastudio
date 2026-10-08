@@ -50,7 +50,7 @@ export function ReviewerFlowChart({
     <div className="flex h-full w-full items-center justify-center">
       <SankeyChart
         data={graph}
-        aspectRatio="2.4 / 1"
+        aspectRatio="4.2 / 1"
         nodeWidth={10}
         nodePadding={10}
         className="w-full"

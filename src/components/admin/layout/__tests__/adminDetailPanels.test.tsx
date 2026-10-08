@@ -50,3 +50,49 @@ describe("admin detail panels", () => {
     );
   });
 });
+
+/* The two things the review panel gained, and the one it should lose. */
+describe("review panel", () => {
+  async function openFirstRow(matcher: (code: string) => boolean) {
+    render(
+      <MemoryRouter>
+        <AdminReviewsPage />
+      </MemoryRouter>
+    );
+    await waitFor(() =>
+      expect(document.querySelector('[aria-busy="true"]')).not.toBeInTheDocument()
+    );
+
+    const rows = [...document.querySelectorAll("tbody tr")];
+    const row = rows.find((candidate) => matcher(candidate.textContent ?? ""));
+    expect(row).toBeDefined();
+    await userEvent.click(row as HTMLElement);
+    return screen.findByRole("dialog");
+  }
+
+  it("plays the clip, with skip and speed", async () => {
+    await openFirstRow(() => true);
+
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back 10 seconds" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Forward 10 seconds" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Playback speed" })).toBeInTheDocument();
+  });
+
+  /* The four rubric questions are about one person reading one prompt. Nobody
+   * answers them about a forty-minute conversation. */
+  it("drops the rubric for a focus group clip", async () => {
+    await openFirstRow((text) => text.includes("Focus group"));
+    expect(screen.queryByText("Reviewer answers")).not.toBeInTheDocument();
+  });
+
+  it("replays the annotation activity", async () => {
+    await openFirstRow(() => true);
+
+    await userEvent.click(screen.getByRole("button", { name: "Activity" }));
+    expect(
+      await screen.findByRole("slider", { name: "Scrub the annotation history" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Segments")).toBeInTheDocument();
+  });
+});

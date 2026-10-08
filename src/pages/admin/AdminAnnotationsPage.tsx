@@ -67,13 +67,14 @@ export default function AdminAnnotationsPage() {
 
   /* Sessions with audio that nobody has claimed. Those without audio are the
    * focus-group page's problem, not this one's. */
-  const unclaimed = useMemo(() => {
-    const claimed = new Set(rows.map((row) => row.topic));
-    return ADMIN_SESSIONS.filter(
-      (session) =>
-        session.hasAudio && !claimed.has(session.topic) && !assigned[session.id]
-    );
-  }, [rows, assigned]);
+  const unclaimed = useMemo(
+    () =>
+      ADMIN_SESSIONS.filter(
+        (session) =>
+          session.hasAudio && !session.claimedBy && !assigned[session.id]
+      ),
+    [assigned]
+  );
 
   const approved = rows.filter((row) => row.status === "approved").length;
   const inFlight = rows.filter(

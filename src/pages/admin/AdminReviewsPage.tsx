@@ -197,11 +197,13 @@ export default function AdminReviewsPage() {
         />
       </div>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
+      {/* Three readings of the same queue, side by side: how it splits,
+          how much of it survives, and why the rest does not. */}
+      <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
           title="Queue at a glance"
           subtitle="Each status as a share of everything submitted"
-          className="min-h-[17rem]"
+          className="min-h-[16rem]"
         >
           <StatusRings
             centerLabel="clips"
@@ -229,22 +231,9 @@ export default function AdminReviewsPage() {
         </AlvaChartCard>
 
         <AlvaChartCard
-          title="Who is clearing the queue"
-          subtitle="Clips each reviewer decided, and how they landed"
-          className="min-h-[17rem]"
-        >
-          <ReviewerFlowChart
-            flow={flow}
-            emptyMessage="Nobody has reviewed anything yet."
-          />
-        </AlvaChartCard>
-      </div>
-
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
-        <AlvaChartCard
           title="Approval rate"
           subtitle="Share of decided clips kept"
-          className="min-h-[15rem]"
+          className="min-h-[16rem]"
         >
           <ApprovalGauge
             value={decided ? Math.round((approved / decided) * 100) : 0}
@@ -273,7 +262,21 @@ export default function AdminReviewsPage() {
               .map((entry) => ({ label: entry.reason, hours: entry.count }))}
           />
         </AlvaChartCard>
+      </div>
 
+      {/* Full width. A sankey needs the horizontal run, and in half a row
+          the reviewer names on the left ran into the bands. */}
+      <div className="mt-2">
+        <AlvaChartCard
+          title="Who is clearing the queue"
+          subtitle="Clips each reviewer decided, and how they landed"
+          className="min-h-[18rem]"
+        >
+          <ReviewerFlowChart
+            flow={flow}
+            emptyMessage="Nobody has reviewed anything yet."
+          />
+        </AlvaChartCard>
       </div>
 
       <div className="mt-2">

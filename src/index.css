@@ -298,3 +298,30 @@
     background: hsl(var(--alva-border));
   }
 }
+
+/**
+ * Range input, house style.
+ *
+ * The native track and thumb are drawn by the browser chrome and ignore every
+ * Tailwind class, so these two vendor pseudo-elements are the only place a
+ * range slider can be styled from.
+ */
+.alva-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 0.875rem;
+  width: 0.875rem;
+  border-radius: 9999px;
+  background: hsl(var(--alva-accent));
+  cursor: pointer;
+  border: none;
+}
+
+.alva-range::-moz-range-thumb {
+  height: 0.875rem;
+  width: 0.875rem;
+  border-radius: 9999px;
+  background: hsl(var(--alva-accent));
+  cursor: pointer;
+  border: none;
+}

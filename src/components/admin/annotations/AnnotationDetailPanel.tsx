@@ -5,6 +5,7 @@ import Restart from "@solar-icons/react/arrows/Restart";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { ActivityReplay } from "@/components/admin/shared/ActivityReplay";
 import {
   AuditTimeline,
   DetailField,
@@ -19,6 +20,7 @@ import {
   type AdminAnnotation,
   type AnnotationStatus,
 } from "@/data/admin/oversight";
+import { annotationActivity } from "@/data/admin/activity";
 import { round1 } from "@/data/admin/shared";
 
 const STATUS_TONE: Record<AnnotationStatus, PillTone> = {
@@ -32,6 +34,7 @@ const STATUS_TONE: Record<AnnotationStatus, PillTone> = {
 
 const TABS = [
   { id: "detail", label: "Annotation" },
+  { id: "activity", label: "Activity" },
   { id: "audit", label: "History" },
 ];
 
@@ -64,6 +67,21 @@ export function AnnotationDetailPanel({
 
   const audit = useMemo(
     () => (annotation ? annotationAudit(annotation) : []),
+    [annotation]
+  );
+
+  /* Every move the annotator made, in order. Seeded for now; the shape is
+   * what `GET /annotations/{id}/events` should return. */
+  const activity = useMemo(
+    () =>
+      annotation
+        ? annotationActivity({
+            id: annotation.id,
+            annotator: annotation.annotator,
+            durationSec: annotation.durationSec,
+            segments: annotation.segments,
+          })
+        : [],
     [annotation]
   );
 
@@ -163,6 +181,8 @@ export function AnnotationDetailPanel({
               />
             </DetailGroup>
           </>
+        ) : tab === "activity" ? (
+          <ActivityReplay events={activity} />
         ) : (
           <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
         )}

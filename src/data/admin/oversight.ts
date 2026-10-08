@@ -12,6 +12,7 @@ import {
 } from "./shared";
 import type { SunburstNode } from "@/components/charts/sunburst-data";
 import type { SankeyFlow } from "./corpus";
+import { ANNOTATION_STATUS_COLORS, PERSON_COLORS } from "./statusColors";
 
 /* ------------------------------------------------------------------ *
  * Review oversight
@@ -47,7 +48,17 @@ export type AdminRecording = {
   submittedLabel: string;
   /** Set only when rejected, and it is the thing the page exists to aggregate. */
   rejectionReason?: RejectionReason;
+  /**
+   * Where the audio lives.
+   *
+   * One demo file stands in for every clip until `/recordings/{id}` returns a
+   * playable URL. The player is real; only the source is not.
+   */
+  audioUrl: string;
 };
+
+/** Stands in for every clip's audio until the backend returns a URL. */
+const DEMO_CLIP = "/audio/demo-review.mp3";
 
 export type RejectionReason =
   | "Background noise"
@@ -101,6 +112,7 @@ function buildRecordings(count: number): AdminRecording[] {
       status,
       reviewer:
         status === "submitted" ? "" : pick(random, NIGERIAN_NAMES.slice(0, 6)),
+      audioUrl: DEMO_CLIP,
       submittedAt: submitted.getTime(),
       submittedLabel: relativeDays(submitted),
       rejectionReason:
@@ -167,6 +179,15 @@ const TOPICS = [
   "Talk about how social media changed communication in Nigeria.",
   "Discuss what makes a voice sound trustworthy.",
   "Tell us about a memorable market day.",
+  "Argue for and against cash transfers as a way to reduce poverty.",
+  "Describe how you would explain Lagos traffic to a visitor.",
+  "Talk about a song that everyone in your family knows.",
+  "Discuss whether children should learn their mother tongue first.",
+  "Debate who should pay for a wedding, and why.",
+  "Tell us about the last time you queued for something.",
+  "Discuss what makes a neighbourhood feel safe.",
+  "Argue whether football or music does more for the country.",
+  "Describe a meal you would cook for someone homesick.",
 ];
 
 const ANNOTATION_STATUSES: AnnotationStatus[] = [
@@ -219,6 +240,15 @@ export type AdminSession = {
   durationSec: number;
   duration: string;
   hasAudio: boolean;
+  /**
+   * The annotator working on it, or null when nobody has picked it up.
+   *
+   * The admin page used to derive this by matching session topics against
+   * annotation topics. Both draw from the same topic list, so every session
+   * looked claimed and the queue was permanently empty. Unclaimed is a
+   * property of the session, not a coincidence of strings.
+   */
+  claimedBy: string | null;
   createdAt: number;
   createdLabel: string;
 };
@@ -246,6 +276,11 @@ function buildSessions(count: number): AdminSession[] {
       durationSec,
       duration: hasAudio ? formatDuration(durationSec) : ", ",
       hasAudio,
+      // Roughly one uploaded session in six is still sitting in the queue.
+      claimedBy:
+        hasAudio && random() > 0.17
+          ? pick(random, NIGERIAN_NAMES.slice(0, 8))
+          : null,
       createdAt: created.getTime(),
       createdLabel: relativeDays(created),
     };
@@ -466,12 +501,14 @@ export function annotatorBreakdown(rows: AdminAnnotation[]): SunburstNode {
   }
 
   const children = [...byAnnotator.entries()]
-    .map(([name, statuses]) => ({
+    .map(([name, statuses], index) => ({
       name,
+      color: PERSON_COLORS[index % PERSON_COLORS.length],
       children: [...statuses.entries()]
         .map(([status, count]) => ({
           name: ANNOTATION_STATUS_LABELS[status],
           value: count,
+          color: ANNOTATION_STATUS_COLORS[status],
         }))
         .sort((a, b) => b.value - a.value),
     }))
