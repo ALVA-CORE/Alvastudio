@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import Play from "@solar-icons/react/video/Play";
-import Pause from "@solar-icons/react/video/Pause";
 import Rewind from "@solar-icons/react/video/RewindBackCircle";
 import {
   ACTIVITY_GROUP_COLORS,
@@ -11,6 +9,7 @@ import {
   activityStateAt,
   type ActivityEvent,
 } from "@/data/admin/activity";
+import { BeamPlayButton } from "@/components/shared/BeamPlayButton";
 import { cn } from "@/lib/utils";
 
 /** Steps per second while playing. Slow enough to read, fast enough to sit through. */
@@ -104,19 +103,14 @@ export function ActivityReplay({ events }: { events: ActivityEvent[] }) {
       </dl>
 
       <div className="rounded-xl bg-alva-surface p-3">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
+        <div className="flex items-center gap-2 overflow-visible">
+          {/* Same face as the clip player's. Two transports in one panel that
+              look different read as two different kinds of thing. */}
+          <BeamPlayButton
+            playing={playing}
             onClick={() => setPlaying((value) => !value)}
-            aria-label={playing ? "Pause replay" : "Play replay"}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-alva-accent text-alva-bg transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alva-accent"
-          >
-            {playing ? (
-              <Pause size={16} weight="Bold" />
-            ) : (
-              <Play size={16} weight="Bold" />
-            )}
-          </button>
+            label={playing ? "Pause replay" : "Play replay"}
+          />
 
           <button
             type="button"
@@ -125,9 +119,9 @@ export function ActivityReplay({ events }: { events: ActivityEvent[] }) {
               setIndex(0);
             }}
             aria-label="Back to the start"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-alva-card text-foreground transition-colors hover:text-alva-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alva-accent"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alva-accent"
           >
-            <Rewind size={16} weight="Outline" />
+            <Rewind size={18} weight="Outline" />
           </button>
 
           <input
