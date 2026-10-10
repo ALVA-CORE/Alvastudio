@@ -18,20 +18,41 @@ export type WalletEntry = {
   at: number;
 };
 
+/**
+ * Where identity verification has got to.
+ *
+ * A verified NIN is the only route to being paid: without one there is no
+ * payout destination to collect and no eligibility for a run. So this gates
+ * the wallet rather than sitting beside it. See docs/integration-status.md §3.
+ */
+export type IdentityState = "unverified" | "pending" | "verified";
+
 export type PayoutAccount = {
   bank: string;
   accountNumber: string;
   accountName: string;
 };
 
+/**
+ * Money, in the buckets the API reports it in.
+ *
+ * `GET /wallet` splits a contributor's money four ways, not two, and the split
+ * is the point: a figure you cannot withdraw shown as one balance reads as a
+ * broken button. See docs/integration-status.md §3.
+ */
 export type Wallet = {
-  /** Kobo. What could be withdrawn right now. */
+  /** Kobo. Matured, above the minimum, a run would send this now. */
   balanceKobo: number;
-  /** Kobo. Approved but not yet released — recordings still inside the hold. */
+  /** Kobo. Earned, still inside the review hold window. */
   pendingKobo: number;
-  /** Kobo, lifetime. */
+  /** Kobo. Claimed by a run, not yet settled. */
+  inFlightKobo: number;
+  /** Kobo. Settled and gone out. */
+  paidKobo: number;
+  /** Kobo. The sum of all four. */
   lifetimeKobo: number;
-  /** Null until a bank is linked, which is the card's empty state. */
+  identity: IdentityState;
+  /** Null until a bank is linked. */
   payoutAccount: PayoutAccount | null;
   entries: WalletEntry[];
 };
@@ -62,7 +83,10 @@ function at(dayOffset: number, hour: number, minute: number) {
 export const MOCK_WALLET: Wallet = {
   balanceKobo: 102_010_00,
   pendingKobo: 18_450_00,
+  inFlightKobo: 25_000_00,
+  paidKobo: 340_860_00,
   lifetimeKobo: 486_320_00,
+  identity: "verified",
   payoutAccount: {
     bank: "Guaranty Trust Bank",
     accountNumber: "0123456789",
@@ -83,7 +107,10 @@ export const MOCK_WALLET: Wallet = {
 export const EMPTY_WALLET: Wallet = {
   balanceKobo: 0,
   pendingKobo: 0,
+  inFlightKobo: 0,
+  paidKobo: 0,
   lifetimeKobo: 0,
+  identity: "unverified",
   payoutAccount: null,
   entries: [],
 };

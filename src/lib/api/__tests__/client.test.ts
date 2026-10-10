@@ -135,7 +135,7 @@ describe("apiFetch", () => {
 
     await expect(apiFetch("/auth/me")).rejects.toMatchObject({
       status: 500,
-      message: "The server had a problem. Try again shortly.",
+      message: "Something went wrong on our side. Try again shortly.",
     });
   });
 

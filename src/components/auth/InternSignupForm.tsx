@@ -16,7 +16,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
-import { ApiError } from "@/lib/api/client";
+import { signInErrorMessage } from "@/lib/api/signInError";
+import { alvaToast } from "@/lib/alva-toast";
 import { normalizePhoneDigits } from "@/lib/participant-validation";
 import {
   QUOTA_ALERT_OPTIONS,
@@ -67,15 +68,16 @@ export function InternSignupForm() {
     } catch (error) {
       // Most often "email already registered", which the API returns as a 4xx
       // with a usable message.
-      setFormError(
-        error instanceof ApiError
-          ? error.message
-          : "Could not reach the server. Check your connection and try again."
-      );
+      setFormError(signInErrorMessage(error));
       return;
     }
 
-    navigate("/intern/dashboard");
+    /* Back to sign-in, not into the dashboard. The account is created but
+     * unapproved, and every intern route answers 403 until an admin approves
+     * it, so a redirect would hand a new intern a wall of permission errors as
+     * their first impression. */
+    alvaToast.success("Account created, an admin needs to approve it");
+    navigate("/login");
   };
 
   return (

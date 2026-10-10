@@ -32,7 +32,7 @@ const FIELD = {
   /** Only shows with `interactive`, which is off. Kept so the prop is set. */
   hoverColor: "#8D9A92",
 
-  /** The card itself, behind the shapes. The house accent. */
+  /** The card itself, behind the shapes. Overridden per card by the stack. */
   background: "#25F07D",
 
   /**
@@ -72,7 +72,14 @@ const FIELD = {
  * opens the wallet. And it is not interactive: a global pointermove listener
  * per card buys nothing on a phone, where there is no hover.
  */
-export function CardBackdrop({ className }: { className?: string }) {
+export function CardBackdrop({
+  /** The card's own colour. Each bucket in the stack carries its own. */
+  background = FIELD.background,
+  className,
+}: {
+  background?: string;
+  className?: string;
+}) {
   const [failed, setFailed] = useState(false);
 
   /* Loud in dev, silent in production. The fallback is the same colour as the
@@ -89,22 +96,28 @@ export function CardBackdrop({ className }: { className?: string }) {
     setFailed(true);
   };
 
-  if (failed) {
-    return <span aria-hidden className={cn(alvaAccentTexture(""), className)} />;
-  }
+  /* The flat fallback is the same colour as the real thing, so a card with no
+   * WebGPU looks plain rather than broken. */
+  const flat = (
+    <span
+      aria-hidden
+      className={cn(alvaAccentTexture("block h-full w-full"), className)}
+      style={{ backgroundColor: background }}
+    />
+  );
+
+  if (failed) return flat;
 
   return (
     <span aria-hidden className={cn("block", className)}>
-      <Suspense
-        fallback={<span className={cn(alvaAccentTexture(""), "block h-full w-full")} />}
-      >
+      <Suspense fallback={flat}>
         <ShapeWaves
           shapes="mixed"
           cellSize={FIELD.cellSize}
           dotSize={FIELD.dotSize}
           color={FIELD.color}
           hoverColor={FIELD.hoverColor}
-          backgroundColor={FIELD.background}
+          backgroundColor={background}
           speed={FIELD.speed}
           scale={FIELD.scale}
           contrast={FIELD.contrast}

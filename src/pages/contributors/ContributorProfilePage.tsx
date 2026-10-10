@@ -18,6 +18,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGate";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
+import { IdentityProfileRow } from "@/components/contributors/wallet/IdentityProfileRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -141,6 +142,10 @@ export default function ContributorProfilePage() {
             />
           </dl>
         </ProfileActionRow>
+
+        {/* Second door to the wallet's verification sheet, for anyone coming
+            back to see whether their NIN cleared. */}
+        <IdentityProfileRow />
 
         <ProfileActionRow
           icon={<ShieldCheck size={20} weight="Outline" />}

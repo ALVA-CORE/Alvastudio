@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 type ProfileActionRowProps = {
   icon: ReactNode;
   title: string;
+  /** Right-aligned state, for a row whose value is worth seeing at a glance. */
+  value?: ReactNode;
   sheetTitle: string;
   sheetDescription?: string;
   children: ReactNode;
@@ -24,6 +26,7 @@ type ProfileActionRowProps = {
 export function ProfileActionRow({
   icon,
   title,
+  value,
   sheetTitle,
   sheetDescription,
   children,
@@ -45,6 +48,8 @@ export function ProfileActionRow({
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">{title}</p>
             </div>
+
+            {value ? <div className="shrink-0">{value}</div> : null}
 
             <AltArrowRight
               size={18}
