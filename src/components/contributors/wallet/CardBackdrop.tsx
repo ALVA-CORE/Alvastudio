@@ -12,6 +12,56 @@ import { cn } from "@/lib/utils";
  */
 const ShapeWaves = lazy(() => import("@/components/ui/backgrounds/ShapeWaves"));
 
+/**
+ * Derives the shape colour from the card's own.
+ *
+ * Same hue, pulled most of the way to grey and down to a fixed lightness, so
+ * every card gets a field that belongs to it. Done in JS rather than CSS
+ * because the renderer wants a hex string, not a custom property.
+ */
+function shapeColor(hex: string, lightness: number, saturation: number) {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+
+  let hue = 0;
+  if (delta !== 0) {
+    if (max === r) hue = ((g - b) / delta) % 6;
+    else if (max === g) hue = (b - r) / delta + 2;
+    else hue = (r - g) / delta + 4;
+  }
+  hue = (hue * 60 + 360) % 360;
+
+  // Back to RGB at the target lightness and saturation.
+  const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = lightness - c / 2;
+  const [rp, gp, bp] =
+    hue < 60
+      ? [c, x, 0]
+      : hue < 120
+        ? [x, c, 0]
+        : hue < 180
+          ? [0, c, x]
+          : hue < 240
+            ? [0, x, c]
+            : hue < 300
+              ? [x, 0, c]
+              : [c, 0, x];
+
+  const channel = (value: number) =>
+    Math.round((value + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+
+  return `#${channel(rp)}${channel(gp)}${channel(bp)}`;
+}
+
 /* ---------------------------------------------------------------------------
  * Field tuning
  *
@@ -20,17 +70,20 @@ const ShapeWaves = lazy(() => import("@/components/ui/backgrounds/ShapeWaves"));
  * ------------------------------------------------------------------------- */
 const FIELD = {
   /**
-   * How heavy the pattern reads. `ShapeWaves` has no opacity control: the
-   * shapes are drawn opaque, so weight is the gap between this and
-   * `background`. Darker here = heavier pattern. Lighter = fainter.
+   * How heavy the pattern reads, as a shade of the card's own colour.
    *
-   * Keep it mid. The card's own text is near-black, and a shape colour near
-   * black puts the field at the same end of the range as the balance.
+   * `ShapeWaves` has no opacity control: the shapes are drawn opaque, so
+   * weight is the gap between the shape colour and the background. One fixed
+   * grey worked on the accent card and looked like dirt on the amber one, so
+   * the shade is derived from whatever colour the card is.
+   *
+   * Lower `shapeLightness` = heavier pattern. Higher `shapeSaturation` = more
+   * of the card's own hue in it. Keep lightness mid: the card's text is
+   * near-black, and shapes near black put the field at the same end of the
+   * range as the balance.
    */
-  color: "#67796E",
-
-  /** Only shows with `interactive`, which is off. Kept so the prop is set. */
-  hoverColor: "#8D9A92",
+  shapeLightness: 0.36,
+  shapeSaturation: 0.16,
 
   /** The card itself, behind the shapes. Overridden per card by the stack. */
   background: "#25F07D",
@@ -81,6 +134,7 @@ export function CardBackdrop({
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
+  const shape = shapeColor(background, FIELD.shapeLightness, FIELD.shapeSaturation);
 
   /* Loud in dev, silent in production. The fallback is the same colour as the
    * real thing, which is the point, but it also means a broken renderer looks
@@ -115,8 +169,8 @@ export function CardBackdrop({
           shapes="mixed"
           cellSize={FIELD.cellSize}
           dotSize={FIELD.dotSize}
-          color={FIELD.color}
-          hoverColor={FIELD.hoverColor}
+          color={shape}
+          hoverColor={shape}
           backgroundColor={background}
           speed={FIELD.speed}
           scale={FIELD.scale}

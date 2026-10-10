@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,15 +39,6 @@ const TAIL = "pb-5";
 const FLAP_BOX = "h-[8.25rem]";
 
 /**
- * When, on the way back in, the cards drop behind the flap.
- *
- * Just past the top of the lift, so the drawn card rises clear of the leather
- * and then slides down behind it. Dropping at the start meant it never cleared
- * the pocket, which is the half of the move that makes it a pocket.
- */
-const TUCK_HANDOFF_MS = 200;
-
-/**
  * A card tucked into a wallet.
  *
  * Three layers sharing one bottom edge, stacked back to front: the back panel,
@@ -61,28 +52,12 @@ export function WalletShell({
   card,
   /** Sits on the flap, over the card's lower half. */
   flapContent,
-  /** True while a card is drawn, so the cards outrank the leather. */
-  pulled = false,
   className,
 }: {
   card: ReactNode;
   flapContent?: ReactNode;
-  pulled?: boolean;
   className?: string;
 }) {
-  /* The cards have to outrank the flap for the whole move, including the way
-   * back in, or the drawn one clips through the leather half way down. */
-  const [above, setAbove] = useState(false);
-
-  useEffect(() => {
-    if (pulled) {
-      setAbove(true);
-      return;
-    }
-    const timer = window.setTimeout(() => setAbove(false), TUCK_HANDOFF_MS);
-    return () => window.clearTimeout(timer);
-  }, [pulled]);
-
   return (
     <div className={cn("relative w-full", className)}>
       {/* 1 · Back panel */}
@@ -91,13 +66,11 @@ export function WalletShell({
         className="absolute inset-0 z-10 rounded-2xl bg-alva-card"
       />
 
-      {/* 2 · Cards. In the flow, so they set the height of the whole pocket. */}
-      <div
-        className={cn("relative px-[4.5%] pt-3", TAIL)}
-        style={{ zIndex: above ? 50 : 20 }}
-      >
-        {card}
-      </div>
+      {/* 2 · Cards. In the flow, so they set the height of the whole pocket.
+          No z-index here on purpose: `position: relative` with `z-index: auto`
+          creates no stacking context, so each card can rank itself against the
+          flap. Setting one here lifted all four whenever any one was drawn. */}
+      <div className={cn("relative px-[4.5%] pt-3", TAIL)}>{card}</div>
 
       {/* 3 · Flap, over the card's lower half */}
       <div

@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
  * buttons. Raise it to push them further down the flap, lower it to tuck them
  * under the dip.
  * ------------------------------------------------------------------------- */
-const ICON_TOP = "pt-9";
+const ICON_TOP = "pt-7";
 export function WalletFace({
   wallet,
   onLinkAccount,
@@ -68,7 +68,6 @@ export function WalletFace({
     <div className={cn("w-full", className)}>
       <IdentityGate state={wallet.identity} onStart={() => setVerifyOpen(true)}>
       <WalletShell
-        pulled={pulled}
         card={
           <CardStack
             pulled={pulled}

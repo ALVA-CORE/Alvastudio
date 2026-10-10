@@ -20,11 +20,24 @@ export type StackCard = {
  * Giving the pocket headroom for them made the whole tile taller and the
  * wallet stopped looking like a wallet with cards in it.
  * ------------------------------------------------------------------------- */
-export const PEEK_REM = 0.85;
-const INSET_REM = 0.6;
+/* Short on purpose. At 0.85 the back card cleared the top of the tile and ran
+ * under the fixed header, where it could not be tapped at all. */
+export const PEEK_REM = 0.6;
+const INSET_REM = 0.55;
 
 /** How far the front card rises out of the pocket when it is tapped. */
 const PULL_REM = 2.6;
+
+/**
+ * Where the cards sit in the wallet's stacking order.
+ *
+ * The shell lays out three bands: back panel at 10, flap at 30, the buttons on
+ * it at 40. Resting cards go between the panel and the flap so the leather
+ * still covers their lower half; a drawn one goes above everything, because
+ * clearing the flap is the whole point of drawing it.
+ */
+const RESTING_Z = 20;
+const DRAWN_Z = 50;
 
 /** Card proportions, so the group can reserve the right height. */
 const ASPECT = "aspect-[320/201]";
@@ -110,7 +123,11 @@ export function CardStack({
               top: `${-depth * PEEK_REM - (isFront && pulled ? PULL_REM : 0)}rem`,
               left: `${depth * INSET_REM}rem`,
               right: `${depth * INSET_REM}rem`,
-              zIndex: cards.length - depth,
+              /* The shell's card slot deliberately sets no z-index of its
+                 own, so these compete with the flap directly rather than
+                 being trapped in one stacking context that drags the whole
+                 stack over the leather whenever any card is drawn. */
+              zIndex: isFront && pulled ? DRAWN_Z : RESTING_Z - depth,
             }}
             transition={spring}
             className="absolute rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alva-accent"
@@ -120,6 +137,10 @@ export function CardStack({
               caption={isFront ? card.caption : undefined}
               kobo={card.kobo}
               tone={card.id}
+              /* One renderer, on the only card anyone is reading. Four WebGPU
+                 contexts for three cards showing a 7mm strip is three
+                 renderers nobody asked for. */
+              field={isFront}
             />
           </motion.button>
         );

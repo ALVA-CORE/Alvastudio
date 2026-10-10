@@ -31,12 +31,15 @@ export function WalletCard({
   caption,
   kobo,
   tone,
+  /** Only the card in front carries the live field. See the note in the stack. */
+  field = false,
   className,
 }: {
   label: string;
   caption?: string;
   kobo: number;
   tone: CardTone;
+  field?: boolean;
   className?: string;
 }) {
   const palette = TONE[tone];
@@ -51,7 +54,9 @@ export function WalletCard({
         className
       )}
     >
-      <CardBackdrop background={palette.hex} className="absolute inset-0" />
+      {field ? (
+        <CardBackdrop background={palette.hex} className="absolute inset-0" />
+      ) : null}
 
       <span className="relative z-[1] flex h-full flex-col text-alva-bg">
         <span className="flex items-start justify-between gap-3">
