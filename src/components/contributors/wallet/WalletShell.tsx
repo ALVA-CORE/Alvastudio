@@ -1,5 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,9 +15,6 @@ import { cn } from "@/lib/utils";
  * something in it.
  */
 const FLAP_PATH = "M0 0H74C110 0 128 22 160 22C192 22 210 0 246 0H320V160H0Z";
-
-/** One curve for both halves of the pull, so out and in feel like one move. */
-const EASE = [0.32, 0.72, 0, 1] as const;
 
 /**
  * How far the pocket reaches, and how much of it is flap.
@@ -42,19 +38,6 @@ const TAIL = "pb-5";
  */
 const FLAP_BOX = "h-[8.25rem]";
 
-/** How long the card takes to come out, and to go back in. */
-const PULL_MS = 420;
-const TUCK_MS = 460;
-
-/**
- * When, on the way in, the card drops behind the flap.
- *
- * Just past the top of its lift, so it rises clear of the leather and then
- * slides down behind it. Dropping at the start meant it never cleared the
- * pocket, which is the half of the move that makes it a pocket.
- */
-const TUCK_HANDOFF_MS = 200;
-
 /**
  * A card tucked into a wallet.
  *
@@ -69,35 +52,12 @@ export function WalletShell({
   card,
   /** Sits on the flap, over the card's lower half. */
   flapContent,
-  /** Pulls the card out of the pocket and leaves it resting on the flap. */
-  pulled = false,
   className,
 }: {
   card: ReactNode;
   flapContent?: ReactNode;
-  pulled?: boolean;
   className?: string;
 }) {
-  const reduced = useReducedMotion() ?? false;
-
-  /* A drawn card is in front of the whole pocket, the three actions on the
-   * leather included, which is why this goes above their z-40 rather than
-   * level with it. */
-  const [above, setAbove] = useState(false);
-
-  useEffect(() => {
-    if (pulled) {
-      setAbove(true);
-      return;
-    }
-    if (reduced) {
-      setAbove(false);
-      return;
-    }
-    const timer = window.setTimeout(() => setAbove(false), TUCK_HANDOFF_MS);
-    return () => window.clearTimeout(timer);
-  }, [pulled, reduced]);
-
   return (
     <div className={cn("relative w-full", className)}>
       {/* 1 · Back panel */}
@@ -106,44 +66,11 @@ export function WalletShell({
         className="absolute inset-0 z-10 rounded-2xl bg-alva-card"
       />
 
-      {/* 2 · Card. In the flow, so it sets the height of the whole pocket. */}
-      <motion.div
-        className={cn("relative px-[4.5%] pt-3", TAIL)}
-        style={{ zIndex: above ? 50 : 20 }}
-        animate={pulled ? "out" : "in"}
-        variants={
-          reduced
-            ? { in: { y: 0, scale: 1 }, out: { y: 0, scale: 1 } }
-            : {
-                /* Out: up clear of the dip, then down onto the leather. It
-                   lands a little proud of where it started, so it reads as
-                   sitting on the pocket rather than back inside it. */
-                out: {
-                  y: [0, -30, -14],
-                  scale: [1, 1.04, 1.025],
-                  transition: {
-                    duration: PULL_MS / 1000,
-                    times: [0, 0.55, 1],
-                    ease: EASE,
-                  },
-                },
-                /* In: the same move run backwards. It lifts clear of the flap
-                   first and only then drops down behind it, so it goes into
-                   the pocket instead of vanishing under it. */
-                in: {
-                  y: [-14, -32, 0],
-                  scale: [1.025, 1.045, 1],
-                  transition: {
-                    duration: TUCK_MS / 1000,
-                    times: [0, 0.4, 1],
-                    ease: EASE,
-                  },
-                },
-              }
-        }
-      >
-        {card}
-      </motion.div>
+      {/* 2 · Cards. In the flow, so they set the height of the whole pocket.
+          No z-index here on purpose: `position: relative` with `z-index: auto`
+          creates no stacking context, so each card can rank itself against the
+          flap. Setting one here lifted all four whenever any one was drawn. */}
+      <div className={cn("relative px-[4.5%] pt-3", TAIL)}>{card}</div>
 
       {/* 3 · Flap, over the card's lower half */}
       <div
