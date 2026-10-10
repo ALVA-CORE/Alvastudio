@@ -31,6 +31,7 @@ import {
   ROLE_LABELS,
   STATUS_LABEL,
   accountStatus,
+  canEditProfile,
   canResetPassword,
   activityNoun,
   activitySummary,
@@ -325,15 +326,20 @@ export function UserDetailPanel({
                   }}
                 />
               ) : null}
-              <PanelAction
-                icon={<Pen size={15} weight="Outline" />}
-                label="Edit"
-                onClick={() => {
-                  setTab("profile");
-                  setDraft(value);
-                  setEditing(true);
-                }}
-              />
+              {/* A contributor's and an intern's profile is theirs: they
+                  filled it in at signup and it carries their consent record.
+                  Deactivating and deleting stay available for every role. */}
+              {canEditProfile(user) ? (
+                <PanelAction
+                  icon={<Pen size={15} weight="Outline" />}
+                  label="Edit"
+                  onClick={() => {
+                    setTab("profile");
+                    setDraft(value);
+                    setEditing(true);
+                  }}
+                />
+              ) : null}
               {/* An application is approved or it is deleted. Deactivating one
                   would park it in a third state nobody is waiting on. */}
               {status === "pending" ? (

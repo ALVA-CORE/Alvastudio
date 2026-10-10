@@ -100,6 +100,28 @@ export function canResetPassword(user: AdminUser) {
   return user.role === "annotator" || user.role === "admin";
 }
 
+/**
+ * Whose details an admin may change.
+ *
+ * Staff accounts only. A contributor's and an intern's profile is theirs: they
+ * filled it in at signup, it carries their consent record, and an admin
+ * editing it silently changes what a person agreed to. Annotators and admins
+ * are accounts this screen created in the first place, so this screen owns
+ * them.
+ *
+ * Deactivating and deleting are not edits and stay available for every role.
+ */
+export function canEditProfile(user: AdminUser) {
+  return user.role === "annotator" || user.role === "admin";
+}
+
+/** Plain text, no pill. The colour is the status. */
+export const STATUS_TINT: Record<AccountStatus, string> = {
+  active: "text-alva-accent",
+  pending: "text-amber-300",
+  deactivated: "text-red-400",
+};
+
 export const ROLE_LABELS: Record<AdminUserRole, string> = {
   contributor: "Contributor",
   intern: "Intern",

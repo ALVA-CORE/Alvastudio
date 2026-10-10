@@ -4,7 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { UserDetailPanel } from "../UserDetailPanel";
 import { ADMIN_USERS, activitySummary, userActivity } from "@/data/admin/users";
 
-const user = ADMIN_USERS.find((row) => row.isActive && row.output > 0) ?? ADMIN_USERS[0];
+/* An annotator, because editing is staff-only: a contributor's and an intern's
+ * profile is theirs and carries their consent record. */
+const user =
+  ADMIN_USERS.find(
+    (row) => row.role === "annotator" && row.isActive && row.output > 0
+  ) ?? ADMIN_USERS[0];
 
 function renderPanel(overrides: Partial<Parameters<typeof UserDetailPanel>[0]> = {}) {
   const props = {
@@ -196,5 +201,20 @@ describe("intern approval", () => {
     cleanup();
     renderPanel({ user: { ...user, role: "contributor" as const } });
     expect(screen.queryByRole("button", { name: /Reset password/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("who can be edited", () => {
+  it.each(["contributor", "intern"] as const)(
+    "does not offer to edit a %s",
+    (role) => {
+      renderPanel({ user: { ...user, role } });
+      expect(screen.queryByRole("button", { name: /Edit/ })).not.toBeInTheDocument();
+    }
+  );
+
+  it.each(["annotator", "admin"] as const)("offers to edit an %s", (role) => {
+    renderPanel({ user: { ...user, role } });
+    expect(screen.getByRole("button", { name: /Edit/ })).toBeInTheDocument();
   });
 });

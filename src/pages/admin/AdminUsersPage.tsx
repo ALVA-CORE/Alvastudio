@@ -10,7 +10,6 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
-import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { CreateUserDialog, type NewUserDraft } from "@/components/admin/users/CreateUserDialog";
 import { UserDetailPanel } from "@/components/admin/users/UserDetailPanel";
@@ -19,6 +18,7 @@ import {
   EMPTY_USER_METRICS,
   ROLE_LABELS,
   STATUS_LABEL,
+  STATUS_TINT,
   accountStatus,
   userMetrics,
   type AccountStatus,
@@ -27,6 +27,7 @@ import {
 } from "@/data/admin/users";
 import { alvaToast } from "@/lib/alva-toast";
 import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { cn } from "@/lib/utils";
 
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | AccountStatus;
@@ -161,20 +162,17 @@ export default function AdminUsersPage() {
       key: "isActive",
       header: "Status",
       sortValue: (row: AdminUser) => accountStatus(row),
+      /* Plain text, like the role column beside it. A row of filled pills
+         down a table reads as a row of buttons, and the colour already says
+         everything the background was saying twice. */
       render: (row: AdminUser) => {
         const status = accountStatus(row);
         return (
-          <AdminStatusPill
-            tone={
-              status === "active"
-                ? "good"
-                : status === "pending"
-                  ? "pending"
-                  : "neutral"
-            }
+          <span
+            className={cn("whitespace-nowrap text-xs font-medium", STATUS_TINT[status])}
           >
             {STATUS_LABEL[status]}
-          </AdminStatusPill>
+          </span>
         );
       },
     },
