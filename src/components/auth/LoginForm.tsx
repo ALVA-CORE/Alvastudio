@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
-import { ApiError } from "@/lib/api/client";
+import { signInErrorMessage } from "@/lib/api/signInError";
 import { loginSchema, type LoginValues } from "@/lib/validations/auth";
 
 export function LoginForm() {
@@ -33,15 +33,9 @@ export function LoginForm() {
     try {
       await login(values.email, values.password);
     } catch (error) {
-      // Only this form knows that a 401 here means bad credentials rather than
-      // an expired session, so it supplies that wording itself.
-      setFormError(
-        error instanceof ApiError && error.status === 401
-          ? "Your email or password is incorrect."
-          : error instanceof ApiError
-            ? error.message
-            : "Something went wrong. Please try again."
-      );
+      // Sign-in has its own vocabulary: a 401 here is a wrong password rather
+      // than an expired session, and two of the 403s are not refusals at all.
+      setFormError(signInErrorMessage(error));
       return;
     }
 

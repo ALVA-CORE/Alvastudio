@@ -63,6 +63,31 @@ export class ApiError extends Error {
     return this.status === 401 || this.status === 403;
   }
 
+  /**
+   * The account exists and the password was right, but it cannot be used yet.
+   *
+   * Two 403s mean this: an intern waiting on admin approval, and a suspended
+   * account. Neither is a permissions problem, and neither should clear the
+   * session or send anyone to a password reset.
+   *
+   * Matched on the message because that is what the API gives us to match on;
+   * the backend confirmed the wording is deliberate and stable for exactly
+   * this purpose. If it ever changes, these fall back to the generic 403
+   * message rather than breaking.
+   */
+  get isPendingApproval(): boolean {
+    return this.status === 403 && /awaiting admin approval/i.test(this.message);
+  }
+
+  get isAccountSuspended(): boolean {
+    return this.status === 403 && /inactive account/i.test(this.message);
+  }
+
+  /** The device has no connection at all. */
+  get isOffline(): boolean {
+    return this.status === 0 && this.offline;
+  }
+
   /** The optional ML stack is not installed — an expected state, not an outage. */
   get isUnavailable(): boolean {
     return this.status === 503;
@@ -79,6 +104,9 @@ export class ApiError extends Error {
 
   /** @internal set by the request layer when the body was not JSON. */
   unreachable = false;
+
+  /** @internal set when the browser itself reports no connection. */
+  offline = false;
 }
 
 /**
@@ -118,10 +146,85 @@ function defaultMessage(status: number): string {
   if (status === 401) return "Your session has expired. Please sign in again.";
   if (status === 403) return "You do not have access to that.";
   if (status === 404) return "Not found.";
+  if (status === 408) return "That took too long. Please try again.";
+  if (status === 413) return "That file is too large.";
   if (status === 415) return "That file type is not supported.";
+  if (status === 429) return "Too many tries. Wait a moment and try again.";
   if (status === 503) return "That feature is not available on this server yet.";
-  if (status >= 500) return "The server had a problem. Try again shortly.";
+  if (status >= 500) return "Something went wrong on our side. Try again shortly.";
   return "Something went wrong.";
+}
+
+/* ------------------------------------------------------------------ *
+ * Network failures
+ * ------------------------------------------------------------------ */
+
+/** How long a request may hang before it is treated as unreachable. */
+const TIMEOUT_MS = 20000;
+
+/**
+ * The request was still open after {@link TIMEOUT_MS}.
+ *
+ * Its own message because it is its own situation: something answered, or is
+ * about to, and trying again often works. "You're offline" would be a lie and
+ * "can't reach" implies nothing is there.
+ */
+function timeoutError(method: string, path: string): ApiError {
+  if (import.meta.env.DEV) {
+    console.warn(`[alva] ${method} ${path} timed out after ${TIMEOUT_MS}ms.`);
+  }
+
+  const error = new ApiError(
+    0,
+    "That is taking longer than it should. Please try again."
+  );
+  error.unreachable = true;
+  return error;
+}
+
+/**
+ * Turns a `fetch` rejection into something a person can act on.
+ *
+ * `fetch` rejects with the same opaque `TypeError` for every network-level
+ * failure, by design: a blocked CORS preflight, a DNS miss, a dead server, a
+ * TLS error and a dropped Wi-Fi connection are indistinguishable from inside
+ * the page. We spent a day on that once, when a missing CORS origin told every
+ * user they were offline while they were plainly online, which sent them to
+ * reset their router instead of telling us.
+ *
+ * So there are exactly two messages, and they split on the one thing the
+ * browser will actually tell us: whether it has a connection.
+ *
+ *  - No connection  → the person can fix it, so name it.
+ *  - Connection, no answer → the person cannot fix it, so do not imply they
+ *    can. "Can't reach Alvastudio" covers a CORS block, an outage and a
+ *    firewall equally, and all three mean "wait, or tell someone".
+ *
+ * The developer-facing detail goes to the console, where it belongs.
+ */
+function networkError(method: string, path: string, cause: unknown): ApiError {
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+
+  if (import.meta.env.DEV) {
+    console.warn(
+      `[alva] ${method} ${path} never completed. ` +
+        (offline
+          ? "The browser reports no connection."
+          : "The browser is online, so this is most likely a blocked CORS " +
+            "origin, a wrong VITE_API_BASE_URL, or the API being down."),
+      cause
+    );
+  }
+
+  const error = new ApiError(
+    0,
+    offline
+      ? "You're offline. Check your connection and try again."
+      : "Can't reach Alvastudio right now. Please try again in a moment."
+  );
+  error.unreachable = true;
+  error.offline = offline;
+  return error;
 }
 
 /* ------------------------------------------------------------------ *
@@ -159,25 +262,37 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   // Only for JSON: setting it on FormData would override the boundary.
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
+  /* A request that never answers is worse than one that fails: the button
+   * spins forever and nobody knows whether to wait. Caller aborts are kept
+   * separate so a cancellation is never reported as an outage. */
+  const timeout = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    timeout.abort();
+  }, TIMEOUT_MS);
+  const onCallerAbort = () => timeout.abort();
+  signal?.addEventListener("abort", onCallerAbort);
+
   let response: Response;
   try {
     response = await fetch(url.toString(), {
       method,
       headers,
       body: form ?? (body !== undefined ? JSON.stringify(body) : undefined),
-      signal,
+      signal: timeout.signal,
     });
   } catch (cause) {
-    // fetch only rejects for network-level failures; let an abort through
-    // untouched so callers can tell a cancellation from an outage.
-    if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
-
-    /* Said the way someone without a terminal would say it. The developer
-     * detail — which base URL, which proxy — belongs in the console, not in
-     * front of a contributor who just lost signal. */
-    const error = new ApiError(0, "You're offline");
-    error.unreachable = true;
-    throw error;
+    // A cancelled request is a navigation, not a failure, so a caller's own
+    // abort goes through untouched.
+    if (!timedOut && cause instanceof DOMException && cause.name === "AbortError") {
+      throw cause;
+    }
+    if (timedOut) throw timeoutError(method, path);
+    throw networkError(method, path, cause);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onCallerAbort);
   }
 
   if (!response.ok) {
@@ -211,7 +326,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
       const error = new ApiError(
         response.status,
-        "Can't reach Alvastudio"
+        "Can't reach Alvastudio right now. Please try again in a moment."
       );
       error.unreachable = true;
       throw error;

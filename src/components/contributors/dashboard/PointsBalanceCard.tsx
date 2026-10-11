@@ -5,11 +5,10 @@ import { WalletFace } from "@/components/contributors/wallet/WalletFace";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaAccentTexture } from "@/lib/alva-texture";
 import {
-  EMPTY_WALLET,
-  MOCK_WALLET,
-  type PayoutAccount,
-  type Wallet,
-} from "@/data/contributors/wallet";
+  setIdentityState,
+  setPayoutAccount,
+  useWalletFace,
+} from "@/data/contributors/walletStore";
 import { cn } from "@/lib/utils";
 
 type PointsBalanceCardProps = {
@@ -50,9 +49,8 @@ export function PointsBalanceCard({
   const [face, setFace] = useState<"points" | "wallet">("points");
   const reduced = useReducedMotion() ?? false;
 
-  /* Local until the wallet endpoints exist — linking a bank has to stick for
-   * the length of a session or the empty state cannot be walked through. */
-  const [wallet, setWallet] = useState<Wallet>(isEmpty ? EMPTY_WALLET : MOCK_WALLET);
+  /* Shared, so verifying identity here is still verified on the profile. */
+  const wallet = useWalletFace(isEmpty);
   const isWallet = face === "wallet";
 
   const formattedPoints = new Intl.NumberFormat("en-NG").format(points);
@@ -87,9 +85,8 @@ export function PointsBalanceCard({
             <WalletFace
               wallet={wallet}
               onShowPoints={() => setFace("points")}
-              onLinkAccount={(account) =>
-                setWallet((prev) => ({ ...prev, payoutAccount: account }))
-              }
+              onLinkAccount={setPayoutAccount}
+              onVerifyIdentity={(identity) => setIdentityState(identity, isEmpty)}
             />
           </motion.div>
         ) : (

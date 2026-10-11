@@ -1,19 +1,23 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useReducedMotion } from "framer-motion";
+import { useState, type ReactNode } from "react";
 import CashOut from "@solar-icons/react/money/CashOut";
+import CardSend from "@solar-icons/react/money/CardSend";
+import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import ClipboardList from "@solar-icons/react/notes/ClipboardList";
 import CupStar from "@solar-icons/react/ui/CupStar";
-import { BalanceCard } from "@/components/contributors/wallet/BalanceCard";
+import { CardStack } from "@/components/contributors/wallet/CardStack";
 import { WalletShell } from "@/components/contributors/wallet/WalletShell";
 import { LinkBankSheet } from "@/components/contributors/wallet/LinkBankSheet";
+import { VerifyIdentitySheet } from "@/components/contributors/wallet/VerifyIdentitySheet";
 import { WalletHistorySheet } from "@/components/contributors/dashboard/WalletHistorySheet";
 import { alvaToast } from "@/lib/alva-toast";
 import { alvaDarkTexture } from "@/lib/alva-texture";
 import {
   formatWalletNaira,
+  type IdentityState,
   type PayoutAccount,
   type Wallet,
 } from "@/data/contributors/wallet";
+import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,98 +27,111 @@ import { cn } from "@/lib/utils";
  * buttons floating below it is a picture of a wallet next to some buttons;
  * putting them on the leather makes the whole thing one object.
  *
- * There is no "Payout" button. It used to sit beside "Withdraw" and nobody
- * could say what the difference was, since one moved money and the other
- * changed where money goes, and both read as "get paid". The bank lives on the
- * card now, which is where a person looks for it: tap the card to link one,
- * tap it again to change it. The tap pulls the card up out of the pocket and
- * rests it on the flap before the sheet opens, so the sheet reads as the back
- * of the card you just drew rather than a panel that appeared.
- *
- * Closing the sheet leaves the card out. Putting it away by itself took back a
- * move the person made, and a drawn card is a perfectly good resting state:
- * the whole of it is readable, and tapping it again tucks it in.
+ * "Payout" is back beside "Withdraw", and the two are different things:
+ * Withdraw moves money, Payout decides where money lands. It lived on the card
+ * for a while, but a card you tap to open a form cannot also be a card you
+ * shuffle, and the stack is worth more than the shortcut.
  */
 
-/** Long enough for the card to clear the dip, short enough not to be a wait. */
-const PULL_MS = 320;
+/* ---------------------------------------------------------------------------
+ * Flap tuning
+ *
+ * `ICON_TOP` is the gap between the top of the leather and the row of
+ * buttons. Raise it to push them further down the flap, lower it to tuck them
+ * under the dip.
+ * ------------------------------------------------------------------------- */
+const ICON_TOP = "pt-7";
 export function WalletFace({
   wallet,
   onLinkAccount,
+  onVerifyIdentity,
   onShowPoints,
   className,
 }: {
   wallet: Wallet;
   onLinkAccount: (account: PayoutAccount) => void;
+  onVerifyIdentity: (state: IdentityState) => void;
   /** Turns the card back over. Lives here so all three verbs sit together. */
   onShowPoints: () => void;
   className?: string;
 }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const [pulled, setPulled] = useState(false);
 
-  const reduced = useReducedMotion() ?? false;
-  const pullTimer = useRef<number | null>(null);
-
-  useEffect(
-    () => () => {
-      if (pullTimer.current !== null) window.clearTimeout(pullTimer.current);
-    },
-    []
-  );
-
-  /* Tapping the card toggles it: out of the pocket and showing its back, or
-   * away again. Reduced motion skips straight to the sheet, since the pull is
-   * the whole point of the delay. */
-  const toggleCard = () => {
-    if (pulled) {
-      setPulled(false);
-      return;
-    }
-    if (reduced) {
-      setLinkOpen(true);
-      return;
-    }
-    setPulled(true);
-    pullTimer.current = window.setTimeout(() => setLinkOpen(true), PULL_MS);
-  };
-
+  const verified = wallet.identity === "verified";
   const linked = Boolean(wallet.payoutAccount);
-  const canWithdraw = linked && wallet.balanceKobo > 0;
+  const canWithdraw = verified && linked && wallet.balanceKobo > 0;
 
   return (
     <div className={cn("w-full", className)}>
+      <IdentityGate state={wallet.identity} onStart={() => setVerifyOpen(true)}>
       <WalletShell
-        pulled={pulled}
         card={
-          <BalanceCard
-            balanceKobo={wallet.balanceKobo}
-            account={wallet.payoutAccount}
-            onClick={toggleCard}
+          <CardStack
+            pulled={pulled}
+            onPulledChange={setPulled}
+            cards={[
+              {
+                id: "available",
+                label: "Available",
+                caption: linked
+                  ? `Paid into ${wallet.payoutAccount?.bank}`
+                  : "No bank linked yet",
+                kobo: wallet.balanceKobo,
+              },
+              {
+                id: "held",
+                label: "On hold",
+                caption: "Clears once review is done",
+                kobo: wallet.pendingKobo,
+              },
+              {
+                id: "sending",
+                label: "On the way",
+                caption: "Sent, waiting to settle",
+                kobo: wallet.inFlightKobo,
+              },
+              {
+                id: "paid",
+                label: "Paid out",
+                caption: "Everything sent to your bank",
+                kobo: wallet.paidKobo,
+              },
+            ]}
           />
         }
         flapContent={
           /* Spread across the full width of the leather rather than spaced by
              a fixed gap, which ran the three labels into each other on a
              narrow phone. */
-          <div className="flex w-full items-start justify-around px-4 pt-6">
+          <div className={cn("flex w-full items-start justify-around px-3", ICON_TOP)}>
             <WalletAction
               label="Withdraw"
               icon={<CashOut size={18} weight="Outline" />}
               disabled={!canWithdraw}
               hint={
-                !linked
-                  ? "Link a bank first"
-                  : wallet.balanceKobo === 0
-                    ? "Nothing to withdraw yet"
-                    : undefined
+                !verified
+                  ? "Verify your identity first"
+                  : !linked
+                    ? "Link a bank first"
+                    : wallet.balanceKobo === 0
+                      ? "Nothing to withdraw yet"
+                      : undefined
               }
               onClick={() =>
                 alvaToast.success(
                   `${formatWalletNaira(wallet.balanceKobo)} on the way`
                 )
               }
+            />
+            <WalletAction
+              label="Payout"
+              icon={<CardSend size={18} weight="Outline" />}
+              disabled={!verified}
+              hint={verified ? undefined : "Verify your identity first"}
+              onClick={() => setLinkOpen(true)}
             />
             <WalletAction
               label="History"
@@ -129,6 +146,7 @@ export function WalletFace({
           </div>
         }
       />
+      </IdentityGate>
 
       <LinkBankSheet
         open={linkOpen}
@@ -144,6 +162,17 @@ export function WalletFace({
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         wallet={wallet}
+      />
+
+      <VerifyIdentitySheet
+        open={verifyOpen}
+        onOpenChange={setVerifyOpen}
+        state={wallet.identity}
+        onSubmit={() => {
+          onVerifyIdentity("pending");
+          setVerifyOpen(false);
+          alvaToast.success("NIN submitted, we'll let you know");
+        }}
       />
     </div>
   );
@@ -192,5 +221,71 @@ function WalletAction({
       </span>
       <span className="truncate text-[11px] text-muted-foreground">{label}</span>
     </button>
+  );
+}
+
+/**
+ * Blurs the wallet until identity is verified.
+ *
+ * The figures stay on screen rather than being replaced: they are the
+ * contributor's own earnings, and hiding them to make a point punishes someone
+ * for a step nobody has asked them to take yet. Blurred, they read as "yours,
+ * not reachable", which is exactly the state.
+ *
+ * It wraps the whole wallet, not the cards alone. Blurring only the cards left
+ * the flap and its four buttons sharp on top of the message, which looked like
+ * a rendering fault rather than a locked state.
+ *
+ * No panel behind the text either. The blur is heavy enough that nothing
+ * underneath competes, and a card floating over a blurred card is one surface
+ * too many.
+ */
+function IdentityGate({
+  state,
+  onStart,
+  children,
+}: {
+  state: IdentityState;
+  onStart: () => void;
+  children: ReactNode;
+}) {
+  if (state === "verified") return <>{children}</>;
+
+  const pending = state === "pending";
+
+  return (
+    <div className="relative">
+      <div aria-hidden className="pointer-events-none select-none blur-[14px]">
+        {children}
+      </div>
+
+      <div className="absolute inset-0 z-50 flex flex-col items-center justify-center px-8 text-center">
+        <span className="flex size-11 items-center justify-center rounded-full bg-alva-bg/70">
+          <ShieldCheck
+            size={22}
+            weight="BoldDuotone"
+            className={pending ? "text-amber-300" : "text-alva-accent"}
+          />
+        </span>
+
+        <p className="mt-3 text-sm font-semibold text-foreground">
+          {pending ? "We're checking your NIN" : "Verify your identity"}
+        </p>
+        <p className="mt-1 max-w-[17rem] text-xs text-muted-foreground">
+          {pending
+            ? "Your earnings keep adding up while we check."
+            : "We need your NIN before any of this can be paid out."}
+        </p>
+
+        <TextureButton
+          variant="alva"
+          size="sm"
+          className="mt-3.5 w-auto"
+          onClick={onStart}
+        >
+          {pending ? "Check status" : "Verify now"}
+        </TextureButton>
+      </div>
+    </div>
   );
 }

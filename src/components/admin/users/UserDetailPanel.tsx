@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { UserActivityHeatmap } from "@/components/admin/users/UserActivityHeatmap";
+import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
@@ -30,6 +31,7 @@ import {
   ROLE_LABELS,
   STATUS_LABEL,
   accountStatus,
+  canEditProfile,
   canResetPassword,
   activityNoun,
   activitySummary,
@@ -42,6 +44,18 @@ import {
   type RoleStat,
 } from "@/data/admin/users";
 import { cn } from "@/lib/utils";
+
+/**
+ * Stands in for the token `POST /users/{id}/password-reset` returns.
+ *
+ * Shaped like the real one — opaque, long enough not to be guessed, single
+ * use — so the handover dialog can be designed before the call is wired.
+ */
+function mockResetToken(userId: string) {
+  let hash = 0;
+  for (const char of userId) hash = (hash * 31 + char.charCodeAt(0)) % 1e9;
+  return `prt_${hash.toString(36)}${Math.random().toString(36).slice(2, 14)}`;
+}
 
 /** Names the work, not the person — "Output" told an admin nothing. */
 const ROLE_WORK_TITLE: Record<AdminUserRole, string> = {
@@ -164,6 +178,10 @@ export function UserDetailPanel({
   const [isEditing, setEditing] = useState(false);
   const [draft, setDraft] = useState<UserDraft | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  /* Null while the token is being generated, so the dialog can open at once
+   * rather than after a round trip. */
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const activity = useMemo(() => (user ? userActivity(user) : []), [user]);
@@ -298,18 +316,30 @@ export function UserDetailPanel({
                 <PanelAction
                   icon={<KeyMinimalistic size={15} weight="Outline" />}
                   label="Reset password"
-                  onClick={() => alvaToast.success(`Reset link sent to ${user.email}`)}
+                  onClick={() => {
+                    setResetToken(null);
+                    setResetOpen(true);
+                    /* Stands in for `POST /users/{id}/password-reset`, which
+                     * returns a single-use token rather than mailing anything.
+                     * Nothing is sent, so nothing may claim it was. */
+                    setResetToken(mockResetToken(user.id));
+                  }}
                 />
               ) : null}
-              <PanelAction
-                icon={<Pen size={15} weight="Outline" />}
-                label="Edit"
-                onClick={() => {
-                  setTab("profile");
-                  setDraft(value);
-                  setEditing(true);
-                }}
-              />
+              {/* A contributor's and an intern's profile is theirs: they
+                  filled it in at signup and it carries their consent record.
+                  Deactivating and deleting stay available for every role. */}
+              {canEditProfile(user) ? (
+                <PanelAction
+                  icon={<Pen size={15} weight="Outline" />}
+                  label="Edit"
+                  onClick={() => {
+                    setTab("profile");
+                    setDraft(value);
+                    setEditing(true);
+                  }}
+                />
+              ) : null}
               {/* An application is approved or it is deleted. Deactivating one
                   would park it in a third state nobody is waiting on. */}
               {status === "pending" ? (
@@ -495,6 +525,13 @@ export function UserDetailPanel({
           />
         ) : null}
       </DetailPanel>
+
+      <PasswordResetDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        fullName={user.fullName}
+        token={resetToken}
+      />
 
       <ConfirmDialog
         open={confirmDeactivate}

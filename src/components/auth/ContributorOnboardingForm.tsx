@@ -32,7 +32,7 @@ import {
   GENDER_OPTIONS,
 } from "@/data/interns/participants";
 import { useAuth } from "@/lib/auth/context";
-import { ApiError } from "@/lib/api/client";
+import { signInErrorMessage } from "@/lib/api/signInError";
 import {
   detectMicrophoneLabel,
   detectRecordingEnvironment,
@@ -147,11 +147,7 @@ export function ContributorOnboardingForm() {
         contributorProfile,
       });
     } catch (error) {
-      setFormError(
-        error instanceof ApiError
-          ? error.message
-          : "Could not reach the server. Check your connection and try again."
-      );
+      setFormError(signInErrorMessage(error));
       return;
     } finally {
       setSubmitting(false);
