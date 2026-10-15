@@ -11,7 +11,6 @@ import {
   AnnotationProvider,
   useAutosaveControls,
 } from "@/lib/annotation/context";
-import { saveTranscript } from "@/data/annotators/transcripts";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import type { TranscriptDoc } from "@/lib/annotation/types";
 import { useSessionTranscript } from "@/hooks/useSessionTranscript";
@@ -29,19 +28,31 @@ import { useIsMobile } from "@/hooks/use-mobile";
  * exist above it. Keeping it separate means the provider is mounted exactly
  * once per session rather than being remounted to pass a callback down.
  */
-function WorkspaceBody({ session }: { session: AnnotatorSession }) {
+function WorkspaceBody({
+  session,
+  onSubmit,
+}: {
+  session: AnnotatorSession;
+  onSubmit: () => Promise<void>;
+}) {
   const { flush } = useAutosaveControls();
   const handleFlush = useCallback(() => void flush(), [flush]);
 
-  return <AnnotationWorkspace session={session} onFlushSave={handleFlush} />;
+  return (
+    <AnnotationWorkspace
+      session={session}
+      onFlushSave={handleFlush}
+      onSubmit={onSubmit}
+    />
+  );
 }
 
 export default function AnnotatorWorkspacePage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const isMobile = useIsMobile();
-  const { resource, reload } = useSessionTranscript(sessionId);
+  const { resource, reload, save, submit } = useSessionTranscript(sessionId);
 
-  const handleSave = useCallback((doc: TranscriptDoc) => saveTranscript(doc), []);
+  const handleSave = useCallback((doc: TranscriptDoc) => save(doc), [save]);
 
   // Annotation is desktop work — the gate explains why rather than shipping a
   // waveform editor that cannot be used with a thumb.
@@ -83,7 +94,7 @@ export default function AnnotatorWorkspacePage() {
       duration={resource.session.durationSec}
       onSave={handleSave}
     >
-      <WorkspaceBody session={resource.session} />
+      <WorkspaceBody session={resource.session} onSubmit={submit} />
     </AnnotationProvider>
   );
 }

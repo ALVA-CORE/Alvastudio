@@ -10,8 +10,10 @@ here already exists.
 | 5 | A way to assign an unclaimed session | A button that errors today | **High** |
 | 1 | `GET /points/leaderboard` | Contributor podium | **High** |
 | 2 | `permissions` on the user model, or a decision to drop it | Create and edit user | **High** |
+| 7 | An all-contributors earnings summary | Admin payments, the last unwired page | **High** |
 | 6 | Fields missing from list rows | 5 admin columns and charts | Medium |
 | 3 | Annotation activity events, 4 endpoints | Playback tab | Medium |
+| 8 | Four confirmations about the workspace | Annotator workspace correctness | Medium |
 | 4 | Scoring definitions, not endpoints | 3 chart figures | Medium |
 
 ---
@@ -183,6 +185,60 @@ real on the admin surface.
 `by_status` come back empty**, so two cards that should have numbers draw their
 empty state. Same endpoint, same clips. If that is expected while durations are
 still being measured, say so and we will label it; if not, it looks like a bug.
+
+## 7. An all-contributors earnings summary
+
+Admin payments is the one admin page still on mock data, and this is the only
+reason. `GET /payments/earnings` returns **one** contributor's ledger, and
+`GET /payments/earnings/{contributor_id}` is the same thing addressed directly.
+Nothing returns every contributor at once.
+
+`GET /payouts/preview` comes closest, but it is a different question. It
+answers "who would the next run pay", as `{user_id, email, amount}`, which is
+not "what has each contributor earned, and how much of it have they been
+paid". The payments page needs the second.
+
+**Proposed:**
+
+```
+GET /payments/earnings/summary?limit=&offset=&envelope=true
+→ [{ contributor_id,
+      full_name,
+      recordings,          // clips they have had approved
+      minutes,             // measured, not reported
+      earned_kobo,         // lifetime
+      paid_kobo,
+      payout_status,       // pending | in_flight | paid
+      last_activity_at }]
+```
+
+`full_name` matters as much as the figures: with only a `contributor_id` we
+would fetch `/users` on every load purely to turn ids into names, which is
+what we already do on three other admin screens.
+
+Everything else that page needs is live: `GET /payments/rates` and
+`PUT /payments/rates/{unit_type}` for the rates card, `GET /payouts/preview`,
+`GET`/`POST /payouts/runs` for running one. We have left the page on mock
+rather than wiring half of it, because live rates feeding a mock earnings table
+would show figures that do not follow from each other.
+
+## 8. Four confirmations about the annotation workspace
+
+The workspace is wired and saving. None of these blocks it, but each is an
+assumption we had to make from the OpenAPI document alone, and each one is
+quietly load-bearing.
+
+| Question | What we assumed | Why it matters |
+| --- | --- | --- |
+| **How are tokens split?** | Whitespace. We join a segment's tokens with one space to render it, and split on whitespace to send it back. | `tokenization_convention_id` on the document implies it may not always be whitespace. If it is ever anything else, every text edit we send is mis-tokenised. |
+| **Is a whole-array splice acceptable?** | Yes. On a text edit we send one `PUT /tokens` with `start_token: 0`, `replace_count: <all>`, and the rebuilt array. | Several targeted splices would each shift the indices after them, which is wrong the moment two edits overlap. One splice has no ordering hazard, but it rewrites rows that did not change. If that is expensive at your end, say so. |
+| **Do token timings survive a splice?** | No, so we carry them ourselves. A token whose text is unchanged keeps its `start_sec`/`end_sec`; a moved or new one is sent with nulls. | If the server re-aligns after a splice, we should stop sending timings at all and let it. If it does not, we are the only thing preserving the aligner's work. |
+| **Does `expected_version` move after every write?** | Yes. We take the `version` from each response and pass it to the next call in the same save. | A save does up to three writes. If version only advances on some of them, our second call will 409 on a save that was perfectly valid. |
+
+Two smaller things from the same surface:
+
+- **`GET /annotations` carries no `tag_count`.** The annotator's session list shows a dash in that column. The full document has the spans, but that is one request per row.
+- **A session has no state of its own.** We take the commonest `state` among its participants for the admin focus-groups column, which is right in practice but is a derivation rather than a fact.
 
 ---
 

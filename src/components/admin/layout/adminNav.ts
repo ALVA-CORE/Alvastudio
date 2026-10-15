@@ -126,7 +126,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     title: "Payments and rates",
     blurb: "What contributors have earned and what has been paid out.",
     status: "blocked",
-    blockedBy: "Not wired to /payouts yet",
+    blockedBy: "An all-contributors earnings endpoint. /payments/earnings is one contributor at a time.",
     Icon: Wallet,
   },
   {
@@ -135,8 +135,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Audio QC",
     title: "Audio QC tools",
     blurb: "Run analysis, transcription and quality scoring over submitted audio.",
-    status: "blocked",
-    blockedBy: "The ML stack is not installed, so these return 503",
+    status: "ready",
     Icon: Soundwave,
   },
   {

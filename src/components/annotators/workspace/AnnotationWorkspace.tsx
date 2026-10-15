@@ -6,7 +6,6 @@ import { TimelineDock } from "./timeline/TimelineDock";
 import { SessionMetaSidebar, type WorkspacePassStats } from "./SessionMetaSidebar";
 import { useWorkspaceHotkeys } from "./useWorkspaceHotkeys";
 import { CompleteSessionDialog } from "./CompleteSessionDialog";
-import { markSessionComplete } from "@/data/annotators/sessions";
 import {
   useAnnotation,
   useAnnotationActions,
@@ -31,9 +30,11 @@ type AnnotationWorkspaceProps = {
   session: AnnotatorSession;
   /** Flushes the pending autosave. Wired to ⌘S and the header's Retry. */
   onFlushSave?: () => void;
+  /** Hands the finished annotation to a reviewer. */
+  onSubmit?: () => Promise<void>;
 };
 
-export function AnnotationWorkspace({ session, onFlushSave }: AnnotationWorkspaceProps) {
+export function AnnotationWorkspace({ session, onFlushSave, onSubmit }: AnnotationWorkspaceProps) {
   const navigate = useNavigate();
   const store = useAnnotationStore();
   const { setCurrentTime, setPlaying } = useAnnotationActions();
@@ -73,14 +74,14 @@ export function AnnotationWorkspace({ session, onFlushSave }: AnnotationWorkspac
     setSubmitting(true);
     try {
       await onFlushSave?.();
-      await markSessionComplete(session.id);
+      await onSubmit?.();
       setComplete(true);
       setConfirmOpen(false);
       navigate("/annotator/sessions");
     } finally {
       setSubmitting(false);
     }
-  }, [navigate, onFlushSave, session.id]);
+  }, [navigate, onFlushSave, onSubmit]);
 
   /* Read imperatively: subscribing to isPlaying here would re-render the whole
    * workspace shell every time playback toggles. */

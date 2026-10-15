@@ -11,12 +11,21 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { alvaToast } from "@/lib/alva-toast";
-import { fakeAnalyse, type QcResult } from "@/data/admin/audioQc";
+import { toQcResult, type QcResult } from "@/data/admin/audioQc";
+import { scoreAudio } from "@/lib/api/audio";
+import { ApiError } from "@/lib/api/client";
+import { reportApiError } from "@/lib/api/reportApiError";
 import { useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { cn } from "@/lib/utils";
 
-function scoreTone(value: number) {
+function scoreTone(value: number | null) {
+  if (value === null) return "neutral" as const;
   return value >= 0.75 ? "good" : value >= 0.5 ? "pending" : "bad";
+}
+
+/** A ratio as a percentage, or a dash when the scorer did not report one. */
+function percent(value: number | null) {
+  return value === null ? ", " : `${Math.round(value * 100)}%`;
 }
 
 /**
@@ -38,6 +47,7 @@ export default function AdminAudioPage() {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [isRunning, setRunning] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   const result = results[selected] ?? null;
 
@@ -52,21 +62,34 @@ export default function AdminAudioPage() {
   const runBatch = async (files: File[]) => {
     setRunning(true);
     setResults([]);
+    setUnavailable(false);
     setProgress({ done: 0, total: files.length });
 
     const scored: QcResult[] = [];
     for (const [index, file] of files.entries()) {
-      // Stand-in for the round trip, so the loading state is visible at all.
-      await new Promise((resolve) => setTimeout(resolve, 420));
-      scored.push(fakeAnalyse(file));
+      try {
+        scored.push(toQcResult(file.name, await scoreAudio(file)));
+      } catch (cause) {
+        /* 503 is the ML stack not being installed, which is a normal
+         * deployment state rather than a failure. Stop the batch and say so
+         * once, instead of nineteen identical toasts. */
+        if (cause instanceof ApiError && cause.isUnavailable) {
+          setUnavailable(true);
+          break;
+        }
+        const message = reportApiError(cause, `Could not score ${file.name}.`);
+        if (message) alvaToast.error(message);
+      }
       setResults([...scored]);
       setProgress({ done: index + 1, total: files.length });
     }
 
     setRunning(false);
-    alvaToast.success(
-      files.length === 1 ? "Analysis complete" : `${files.length} clips scored`
-    );
+    if (scored.length > 0) {
+      alvaToast.success(
+        scored.length === 1 ? "Analysis complete" : `${scored.length} clips scored`
+      );
+    }
   };
 
   const handleFiles = (files: FileList | null) => {
@@ -90,6 +113,19 @@ export default function AdminAudioPage() {
         <AdminPageSkeleton metrics={false} charts={2} chartColumns={2} />
       ) : (
         <>
+      {/* Not an error. The ML stack is optional, and a bench that says
+          "something went wrong" when it is simply not installed sends
+          somebody looking for a fault that is not there. */}
+      {unavailable ? (
+        <div
+          role="status"
+          className="mt-3 rounded-xl bg-amber-500/10 px-4 py-3 text-xs text-amber-300"
+        >
+          The scoring tools are not installed on this server, so nothing can be
+          analysed here yet. Everything else keeps working.
+        </div>
+      ) : null}
+
       <div className="mt-3 grid gap-2 lg:grid-cols-2">
         <AlvaChartCard title="Run clips" subtitle="Analysis, transcription and scoring">
           <div
@@ -175,35 +211,54 @@ export default function AdminAudioPage() {
                 <p className="min-w-0 truncate text-sm text-foreground" title={result.filename}>
                   {result.filename}
                 </p>
-                <AdminStatusPill tone={scoreTone(result.qualityScore)}>
-                  Quality {Math.round(result.qualityScore * 100)}
+                <AdminStatusPill tone={result.accepted ? "good" : "bad"}>
+                  {result.accepted ? "Accepted" : "Rejected"}
                 </AdminStatusPill>
               </div>
 
               <dl>
+                <PanelRow
+                  label="Quality score"
+                  value={percent(result.qualityScore)}
+                />
                 <PanelRow label="Duration" value={`${result.durationSec}s`} />
-                <PanelRow label="Sample rate" value={`${result.sampleRate / 1000} kHz`} />
-                <PanelRow label="Signal-to-noise" value={`${result.snrDb} dB`} />
+                {/* Trimming is what the scorer judges, so the gap between the
+                    two is how much of the clip was silence at the ends. */}
+                <PanelRow label="After trim" value={`${result.trimmedSec}s`} />
                 <PanelRow
-                  label="Silence"
-                  value={`${Math.round(result.silenceRatio * 100)}%`}
+                  label="Signal-to-noise"
+                  value={result.snrDb === null ? ", " : `${result.snrDb} dB`}
                 />
-                <PanelRow
-                  label="Clipping"
-                  value={`${Math.round(result.clippingRatio * 100)}%`}
-                />
+                <PanelRow label="Silence" value={percent(result.silenceRatio)} />
                 <PanelRow
                   label="Prompt relevance"
-                  value={`${Math.round(result.relevance * 100)}%`}
+                  value={percent(result.relevance)}
                 />
               </dl>
+
+              {/* The reason is the point of the bench: a rejection with no
+                  reason cannot move a threshold. */}
+              {result.reasons.length > 0 ? (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Why
+                  </p>
+                  <ul className="mt-1.5 space-y-1">
+                    {result.reasons.map((reason) => (
+                      <li key={reason} className="text-sm text-red-400">
+                        {reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Transcript
                 </p>
                 <p className="mt-1.5 text-sm leading-relaxed text-foreground">
-                  {result.transcript}
+                  {result.transcript ?? "Nothing transcribed."}
                 </p>
               </div>
             </div>
