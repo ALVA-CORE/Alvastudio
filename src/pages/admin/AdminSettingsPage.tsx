@@ -12,10 +12,18 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { ADMIN_NAV_ITEMS } from "@/components/admin/layout/adminNav";
 import { useAuth } from "@/lib/auth/context";
 
+/**
+ * What each area is running on, from the admin's point of view.
+ *
+ * "Partly" is the honest word for a page whose tables are live but whose
+ * charts are waiting on a field the API does not send yet. Calling that
+ * "ready" would mean an admin reading an empty chart had no way to tell
+ * whether it was broken or simply not built.
+ */
 const STATUS_TEXT = {
-  ready: "API ready",
-  partial: "API partly ready",
-  blocked: "Blocked on backend",
+  ready: "Live",
+  partial: "Live, some charts waiting on the API",
+  blocked: "Not wired yet",
 } as const;
 
 /**
@@ -87,7 +95,14 @@ export default function AdminSettingsPage() {
                 <ProfileInfoBlock
                   key={item.id}
                   label={item.title}
-                  value={STATUS_TEXT[item.status]}
+                  /* What it is waiting on, when it is waiting on something.
+                     "Partly ready" with no reason is a status nobody can act
+                     on. */
+                  value={
+                    item.blockedBy
+                      ? `${STATUS_TEXT[item.status]} — ${item.blockedBy}`
+                      : STATUS_TEXT[item.status]
+                  }
                 />
               ))}
             </dl>

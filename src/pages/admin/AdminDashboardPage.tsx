@@ -17,13 +17,14 @@ import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
 import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
-import { CORPUS, CORPUS_FLOW, EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
-import { ADMIN_SESSIONS } from "@/data/admin/oversight";
+import { EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
 import { BANK_ITEMS } from "@/data/admin/prompts";
 import { EARNINGS } from "@/data/admin/payments";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
-import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { useAdminOverview, cumulative } from "@/hooks/useAdminOverview";
+import { useCorpus } from "@/hooks/useCorpus";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,52 +36,67 @@ import { cn } from "@/lib/utils";
  * unpaid contributor are all invisible everywhere else in the product.
  */
 export default function AdminDashboardPage() {
-  const isLoading = useSimulatedLoading();
   const navigate = useNavigate();
   const { forceEmpty } = useDevUiState();
   const [range, setRange] = useState<DashboardTimeRange>("12m");
 
-  const corpus = forceEmpty ? EMPTY_CORPUS : CORPUS;
+  const overview = useAdminOverview();
+  const { data: corpusData, isLoading: loadingCorpus } = useCorpus();
 
-  /* Each of these is a real backlog somewhere else in the product. They are
-   * counted here rather than fetched as a "needs attention" feed, because the
-   * counts are derivable and a feed would be one more thing to keep in sync. */
+  const isLoading = overview.isLoading || loadingCorpus;
+  const corpus = forceEmpty || !corpusData ? EMPTY_CORPUS : corpusData;
+  const growth = useMemo(
+    () => (forceEmpty ? [] : cumulative(overview.data?.daily_activity ?? [])),
+    [forceEmpty, overview.data]
+  );
+
+  /**
+   * The three backlogs the API counts for us.
+   *
+   * Each carries an age as well as a count, which is the difference between
+   * "three stuck" and "three stuck for a month" — only the second is an
+   * emergency. Nothing counts as stuck until it has waited three days.
+   */
   const attention = useMemo(() => {
-    if (forceEmpty) return [];
+    const stats = overview.data;
+    if (forceEmpty || !stats) return [];
 
-    const noAudio = ADMIN_SESSIONS.filter((session) => !session.hasAudio).length;
-    const unusedPrompts = BANK_ITEMS.filter(
-      (item) => item.isActive && item.usedByCount === 0
-    ).length;
-    const unpaid = EARNINGS.filter((row) => row.status !== "paid").length;
+    const age = (days: number | null) =>
+      days === null ? "" : days === 1 ? " · 1 day waiting" : ` · ${days} days waiting`;
 
     return [
       {
-        id: "no-audio",
-        count: noAudio,
-        title: "focus group sessions have no audio",
-        detail: "They never reach the annotation queue, so the work is invisible.",
-        to: "/admin/focus-groups",
+        id: "unreviewed",
+        count: stats.stuck_unreviewed_recordings.count,
+        title: "recordings await a verdict",
+        detail: `Nobody has decided on them${age(
+          stats.stuck_unreviewed_recordings.oldest_age_days
+        )}.`,
+        to: "/admin/reviews",
         tone: "bad" as const,
       },
       {
-        id: "unused",
-        count: unusedPrompts,
-        title: "active prompts have never been recorded",
-        detail: "Either nobody is reaching them, or they are not worth keeping.",
-        to: "/admin/prompts",
+        id: "unclaimed",
+        count: stats.stuck_unclaimed_sessions.count,
+        title: "sessions unclaimed",
+        detail: `Recorded and uploaded, and no annotator has picked them up${age(
+          stats.stuck_unclaimed_sessions.oldest_age_days
+        )}.`,
+        to: "/admin/annotations",
         tone: "warn" as const,
       },
       {
-        id: "unpaid",
-        count: unpaid,
-        title: "contributors are owed money",
-        detail: "Run a payment to clear the backlog.",
-        to: "/admin/payments",
+        id: "rework",
+        count: stats.stuck_annotations_in_rework.count,
+        title: "annotations in rework",
+        detail: `Sent back and not returned${age(
+          stats.stuck_annotations_in_rework.oldest_age_days
+        )}.`,
+        to: "/admin/annotations",
         tone: "warn" as const,
       },
     ].filter((item) => item.count > 0);
-  }, [forceEmpty]);
+  }, [forceEmpty, overview.data]);
 
   const approvalRate =
     corpus.totalHours > 0
@@ -93,6 +109,22 @@ export default function AdminDashboardPage() {
         id="overview"
         actions={<DashboardTimeFilter value={range} onChange={setRange} />}
       />
+
+      {overview.error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {overview.error}
+          <button
+            type="button"
+            onClick={overview.reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <AdminPageSkeleton charts={4} chartColumns={2} table={false} />
@@ -131,7 +163,9 @@ export default function AdminDashboardPage() {
       <div className="mt-2 grid gap-2 lg:grid-cols-6">
         <AlvaChartCard
           title="Corpus growth"
-          subtitle="Cumulative hours collected"
+          /* Clips, not hours. `daily_activity` counts recordings and there is
+             no hours-over-time series, so the label says what is plotted. */
+          subtitle="Recordings collected, running total"
           className="h-[25rem] lg:col-span-4"
           emptyMessage={
             forceEmpty
@@ -142,7 +176,7 @@ export default function AdminDashboardPage() {
               : undefined
           }
         >
-          <CorpusGrowthChart data={corpus.growth} window={range} />
+          <CorpusGrowthChart data={growth} window={range} />
         </AlvaChartCard>
 
         {/* Not a chart — a worklist. Each row is a link to the page that can
@@ -176,11 +210,16 @@ export default function AdminDashboardPage() {
                     )}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm text-foreground">
+                    {/* One line. These wrap to two at narrow widths and the
+                        count stops being the first thing read. */}
+                    <span className="block truncate text-sm text-foreground">
                       <span className="font-semibold tabular-nums">{item.count}</span>{" "}
                       {item.title}
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span
+                      className="mt-0.5 block truncate text-xs text-muted-foreground"
+                      title={item.detail}
+                    >
                       {item.detail}
                     </span>
                   </span>
@@ -196,26 +235,29 @@ export default function AdminDashboardPage() {
         </section>
       </div>
 
+      {/* Empty rather than removed, and empty rather than seeded.
+          `/corpus/summary` gives hours by type and hours by status but not the
+          join between them, and a flow drawn from marginals invents its own
+          links. See docs/endpoints-needed.md §5. */}
       <AlvaChartCard
         title="Where the hours go"
         subtitle="Collection type → review stage → outcome"
         className="mt-2 min-h-[14rem]"
-        emptyMessage={
-          forceEmpty
-            ? { title: "Nothing collected", description: "No flow to trace yet." }
-            : undefined
-        }
+        emptyMessage={{ title: "Waiting on the API", description: "Type and status come back as separate totals, not the split between them." }}
       >
-        <CorpusFlowChart data={forceEmpty ? EMPTY_CORPUS_FLOW : CORPUS_FLOW} />
+        <CorpusFlowChart data={EMPTY_CORPUS_FLOW} />
       </AlvaChartCard>
 
-      {/* Collection type is already the sankey's left column, so it is not
-          repeated here — this row is the two questions the flow cannot answer. */}
       <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
           title="Approval rate"
           subtitle="Share of decided hours kept"
           className="min-h-[14rem]"
+          emptyMessage={
+            corpus.totalHours === 0
+              ? { title: "Nothing decided", description: "No verdicts yet." }
+              : undefined
+          }
         >
           <ApprovalGauge value={approvalRate} label="approved" />
         </AlvaChartCard>
@@ -223,6 +265,11 @@ export default function AdminDashboardPage() {
           title="By variety"
           subtitle="Hours of each language"
           className="min-h-[14rem]"
+          emptyMessage={
+            corpus.byVariety.length === 0
+              ? { title: "No audio yet", description: "Nothing to split." }
+              : undefined
+          }
         >
           <SharePie slices={corpus.byVariety} centerLabel="total" />
         </AlvaChartCard>
@@ -230,6 +277,13 @@ export default function AdminDashboardPage() {
           title="Review funnel"
           subtitle="Hours narrowing from submitted to approved"
           className="min-h-[14rem]"
+          /* It had none, so an empty corpus drew an empty funnel with no
+             word about why. */
+          emptyMessage={
+            corpus.byStatus.length === 0
+              ? { title: "Nothing submitted", description: "No funnel to draw." }
+              : undefined
+          }
         >
           <CorpusFunnel slices={corpus.byStatus} />
         </AlvaChartCard>

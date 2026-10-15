@@ -1,4 +1,3 @@
-import { useState } from "react";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import MapPointWave from "@solar-icons/react/map/MapPointWave";
@@ -7,31 +6,26 @@ import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
-import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { TextureButton } from "@/components/ui/texture-button";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { VarietyRings } from "@/components/admin/shared/VarietyRings";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { CoverageMap } from "@/components/admin/shared/CoverageMap";
-import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
-import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
 import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
+import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
+import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import {
-  CORPUS,
-  CORPUS_FLOW,
   EMPTY_CORPUS,
-  EMPTY_CORPUS_FLOW,
-  growthToCsv,
-  underCoveredStates,
-  CORPUS_DEMOGRAPHICS,
   EMPTY_CORPUS_DEMOGRAPHICS,
+  EMPTY_CORPUS_FLOW,
+  underCoveredStates,
 } from "@/data/admin/corpus";
 import { formatHours } from "@/data/admin/shared";
-import type { DashboardTimeRange } from "@/data/internDashboard";
 import { downloadCsv } from "@/lib/download-csv";
-import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useCorpus } from "@/hooks/useCorpus";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
 
 /**
  * The corpus, sliced every way the project is judged on.
@@ -41,10 +35,9 @@ import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
  * the dataset is balanced, not who made it.
  */
 export default function AdminCorpusPage() {
-  const isLoading = useSimulatedLoading();
+  const { data, coverage, raw, isLoading, error, reload } = useCorpus();
   const { forceEmpty } = useDevUiState();
-  const [range, setRange] = useState<DashboardTimeRange>("12m");
-  const corpus = forceEmpty ? EMPTY_CORPUS : CORPUS;
+  const corpus = forceEmpty || !data ? EMPTY_CORPUS : data;
 
   const gaps = underCoveredStates(corpus);
   const approvalRate =
@@ -58,12 +51,23 @@ export default function AdminCorpusPage() {
         id="corpus"
         actions={
           <div className="flex items-center gap-2">
-            <DashboardTimeFilter value={range} onChange={setRange} />
+            {/* Coverage, not growth. The API has no hours-over-time series,
+                and this is the table an admin actually takes away. */}
             <TextureButton
               variant="minimal"
               size="sm"
               className="w-auto"
-              onClick={() => downloadCsv("corpus-growth.csv", growthToCsv(corpus.growth))}
+              onClick={() =>
+                downloadCsv(
+                  "corpus-coverage.csv",
+                  [
+                    "state,speakers,hours",
+                    ...(coverage?.states ?? []).map(
+                      (row) => `${row.state},${row.speakers},${row.hours}`
+                    ),
+                  ].join("\n")
+                )
+              }
             >
               <Upload size={15} weight="Outline" />
               Export
@@ -72,8 +76,24 @@ export default function AdminCorpusPage() {
         }
       />
 
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       {isLoading ? (
-        <AdminPageSkeleton charts={6} chartColumns={3} table={false} />
+        <AdminPageSkeleton charts={4} chartColumns={3} table={false} />
       ) : (
         <>
 
@@ -97,6 +117,18 @@ export default function AdminCorpusPage() {
         <MetricCard
           title="Contributors"
           value={String(corpus.contributors)}
+          /* Hours are measured server side by decoding each upload. These are
+             the rows still falling back to what the browser claimed, which is
+             worth knowing whenever the total goes in front of anyone. */
+          trend={
+            raw && raw.unmeasured_rows > 0
+              ? {
+                  label: `${raw.unmeasured_rows} rows unmeasured`,
+                  positive: false,
+                  neutral: true,
+                }
+              : undefined
+          }
           icon={UsersGroupRounded}
         />
         <MetricCard
@@ -111,33 +143,31 @@ export default function AdminCorpusPage() {
         />
       </div>
 
+      {/* Both of these are drawn empty rather than removed, and empty rather
+          than seeded. `/corpus/summary` is a snapshot with no time axis, and
+          it gives the marginals by type and by status but not the join
+          between them — a sankey drawn from marginals invents its own links.
+          Leaving the frames up keeps the gap visible; filling them with
+          invented numbers would hide it. See docs/endpoints-needed.md §5. */}
       <AlvaChartCard
         title="Corpus growth"
         subtitle="Cumulative hours collected"
         className="mt-2 h-[25rem]"
-        emptyMessage={
-          forceEmpty
-            ? { title: "No audio yet", description: "Nothing has been collected." }
-            : undefined
-        }
+        emptyMessage={{ title: "Waiting on the API", description: "No hours-over-time series yet. See docs/endpoints-needed.md." }}
       >
-        <CorpusGrowthChart data={corpus.growth} window={range} />
+        <CorpusGrowthChart data={[]} />
       </AlvaChartCard>
 
       <AlvaChartCard
         title="Where the hours go"
         subtitle="Collection type → review stage → outcome"
         className="mt-2 min-h-[14rem]"
-        emptyMessage={
-          forceEmpty
-            ? { title: "Nothing collected", description: "No flow to trace yet." }
-            : undefined
-        }
+        emptyMessage={{ title: "Waiting on the API", description: "Type and status come back as separate totals, not the split between them." }}
       >
-        <CorpusFlowChart data={forceEmpty ? EMPTY_CORPUS_FLOW : CORPUS_FLOW} />
+        <CorpusFlowChart data={EMPTY_CORPUS_FLOW} />
       </AlvaChartCard>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-3">
+      <div className="mt-2 grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
         <AlvaChartCard
           title="By variety"
           subtitle="Which language was spoken"
@@ -172,16 +202,51 @@ export default function AdminCorpusPage() {
           <CoverageMap slices={corpus.byState} />
         </AlvaChartCard>
 
-        {/* Age and gender are a cross-tab, so they are one pyramid rather
-            than two lists — the skew is the whole point. */}
+        {/* Corpus-wide demographics have no endpoint. `/dashboard/intern`
+            carries a by-gender and by-age split, but that is one intern's own
+            sessions rather than the dataset, and the question here is whether
+            the dataset is balanced. */}
         <AlvaChartCard
           title="Speaker demographics"
           subtitle="Hours by age bracket and gender"
           className="min-h-[19rem]"
+          emptyMessage={{ title: "Waiting on the API", description: "No corpus-wide gender or age split yet." }}
         >
-          <DemographicHoursChart
-            data={forceEmpty ? EMPTY_CORPUS_DEMOGRAPHICS : CORPUS_DEMOGRAPHICS}
-          />
+          <DemographicHoursChart data={EMPTY_CORPUS_DEMOGRAPHICS} />
+        </AlvaChartCard>
+
+        <AlvaChartCard
+          title="Unmatched states"
+          subtitle="Free-text entries that matched no state"
+          className="min-h-[19rem]"
+          emptyMessage={
+            Object.keys(coverage?.unmatched_states ?? {}).length === 0
+              ? {
+                  title: "Everything matched",
+                  description: "Every state entered maps to a real one.",
+                }
+              : undefined
+          }
+        >
+          {/* Typos land in `unknown` and would otherwise disappear. Shown so
+              they can be corrected at source. */}
+          <dl className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
+            {Object.entries(coverage?.unmatched_states ?? {})
+              .sort((a, b) => b[1] - a[1])
+              .map(([value, count]) => (
+                <div
+                  key={value}
+                  className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
+                >
+                  <dt className="min-w-0 truncate text-xs text-foreground">
+                    {value || "(blank)"}
+                  </dt>
+                  <dd className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {count}
+                  </dd>
+                </div>
+              ))}
+          </dl>
         </AlvaChartCard>
       </div>
         </>

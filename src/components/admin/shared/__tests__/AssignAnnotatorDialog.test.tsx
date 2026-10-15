@@ -1,10 +1,37 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AssignAnnotatorDialog } from "../AssignAnnotatorDialog";
 import { ADMIN_USERS } from "@/data/admin/users";
 
+const listUsers = vi.fn();
+
+vi.mock("@/lib/api/users", () => ({
+  listUsers: (...args: unknown[]) => listUsers(...args),
+}));
+
+import { AssignAnnotatorDialog } from "../AssignAnnotatorDialog";
+
 const SUBJECT = "Discuss what makes a voice sound trustworthy.";
+
+const ANNOTATORS = ADMIN_USERS.filter((user) => user.role === "annotator");
+
+beforeEach(() => {
+  listUsers.mockReset().mockResolvedValue({
+    items: ANNOTATORS.map((user) => ({
+      id: user.id,
+      email: user.email,
+      full_name: user.fullName,
+      phone: user.phone,
+      role: user.role,
+      is_active: user.isActive,
+      intern_approved: true,
+      created_at: new Date(user.createdAt).toISOString(),
+    })),
+    total: ANNOTATORS.length,
+    limit: 200,
+    offset: 0,
+  });
+});
 
 function renderDialog() {
   const onAssign = vi.fn();
@@ -19,38 +46,46 @@ function renderDialog() {
   return { onAssign };
 }
 
+async function rows() {
+  const dialog = await screen.findByRole("dialog");
+  const names = new Set(ANNOTATORS.map((user) => user.fullName));
+  return within(dialog)
+    .getAllByRole("button")
+    .filter((button) =>
+      [...names].some((name) => button.textContent?.includes(name))
+    );
+}
+
 describe("AssignAnnotatorDialog", () => {
-  it("lists only active annotators", () => {
+  it("asks the API for annotators only", async () => {
     renderDialog();
-    const dialog = screen.getByRole("dialog");
-
-    const eligible = ADMIN_USERS.filter(
-      (user) => user.role === "annotator" && user.isActive
+    await waitFor(() =>
+      expect(listUsers).toHaveBeenCalledWith({ role: "annotator", limit: 200 })
     );
-    for (const user of eligible) {
-      expect(within(dialog).getByText(user.fullName)).toBeInTheDocument();
+  });
+
+  it("lists the active ones and drops the rest", async () => {
+    renderDialog();
+    const dialog = await screen.findByRole("dialog");
+
+    for (const user of ANNOTATORS.filter((u) => u.isActive)) {
+      await waitFor(() =>
+        expect(within(dialog).getByText(user.fullName)).toBeInTheDocument()
+      );
     }
-
-    const ineligible = ADMIN_USERS.filter(
-      (user) => user.role !== "annotator" || !user.isActive
-    );
-    for (const user of ineligible) {
+    for (const user of ANNOTATORS.filter((u) => !u.isActive)) {
       expect(within(dialog).queryByText(user.email)).not.toBeInTheDocument();
     }
   });
 
-  /* Lightest load first, so the default pick is the one that starts soonest. */
-  it("orders by open workload", () => {
+  /* Nothing at the API reports what someone is already holding, so the badge
+   * is absent rather than showing a zero that would read as "free". */
+  it("shows no workload badge when the API cannot report one", async () => {
     renderDialog();
-    const buttons = within(screen.getByRole("dialog")).getAllByRole("button");
-    const rows = buttons.filter((button) => /free|\d+ open/.test(button.textContent ?? ""));
-
-    const loads = rows.map((row) =>
-      row.textContent?.includes("free")
-        ? 0
-        : Number(row.textContent?.match(/(\d+) open/)?.[1] ?? 0)
-    );
-    expect(loads).toEqual([...loads].sort((a, b) => a - b));
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => expect(within(dialog).getAllByRole("button").length).toBeGreaterThan(1));
+    expect(within(dialog).queryByText("free")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/\d+ open/)).not.toBeInTheDocument();
   });
 
   it("cannot assign until somebody is picked", async () => {
@@ -59,10 +94,12 @@ describe("AssignAnnotatorDialog", () => {
     const assign = screen.getByRole("button", { name: "Assign" });
     expect(assign).toBeDisabled();
 
-    const rows = within(screen.getByRole("dialog"))
-      .getAllByRole("button")
-      .filter((button) => /free|\d+ open/.test(button.textContent ?? ""));
-    await userEvent.click(rows[0]);
+    const people = await waitFor(async () => {
+      const found = await rows();
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    await userEvent.click(people[0]);
 
     expect(assign).toBeEnabled();
     await userEvent.click(assign);

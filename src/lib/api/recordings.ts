@@ -66,6 +66,39 @@ export const listRecordings = (
   } = {}
 ) => apiFetch<ApiRecording[]>("/recordings", { query });
 
+export type ApiPage<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+/**
+ * The same list, with the row count in the body.
+ *
+ * The bare call returns an array and puts the total in `X-Total-Count`, which
+ * `apiFetch` does not surface. Screens that show "12 of 340" need the number,
+ * so they ask for the envelope.
+ */
+export const listRecordingsPage = (
+  query: {
+    status?: ApiRecordingStatus;
+    session_type?: ApiSessionType;
+    limit?: number;
+    offset?: number;
+  } = {}
+) =>
+  apiFetch<ApiPage<ApiRecording>>("/recordings", {
+    query: { ...query, envelope: true },
+  });
+
+/** Moves a recording to another reviewer, or back to the queue with `null`. */
+export const assignReviewer = (recordingId: string, reviewerId: string | null) =>
+  apiFetch<ApiRecording>(`/recordings/${recordingId}/assignee`, {
+    method: "PATCH",
+    body: { reviewer_id: reviewerId },
+  });
+
 export const getRecording = (id: string) => apiFetch<ApiRecording>(`/recordings/${id}`);
 
 /**

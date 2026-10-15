@@ -11,6 +11,7 @@ here already exists.
 | 2 | `permissions` on the user model, or a decision to drop it | Create and edit user | **High** |
 | 3 | Annotation activity events, 4 endpoints | Playback tab | Medium |
 | 4 | Scoring definitions, not endpoints | 3 chart figures | Medium |
+| 5 | Three small corpus fields | 3 admin charts | Low |
 
 ---
 
@@ -134,6 +135,21 @@ Tell us where we are wrong and we will take yours.
 Two things we would want settled with them, since they go in front of the
 person being scored: the window (we assumed 90 days) and the floor below which
 no figure is shown at all (we assumed 10).
+
+## 5. Three small corpus fields
+
+Each one removed a chart from an admin page rather than letting it draw from
+seeded data. None is urgent.
+
+| Ask | Why | Where it was |
+| --- | --- | --- |
+| Hours over time on `/corpus/summary`, e.g. `daily_hours: [{date, hours}]` | The summary is a snapshot with no time axis. `/dashboard/admin` has `daily_activity`, but that counts recordings, and an hours curve drawn from clip counts is a different measurement wearing the same label. | Corpus growth chart, admin overview and corpus |
+| The join between session type and status, e.g. `by_type_status: {prompt_read: {approved: 120, …}}` | `by_session_type` and `by_status` are marginals. A sankey drawn from marginals invents its own links. | "Where the hours go" flow, admin overview and corpus |
+| Corpus-wide demographics, e.g. `by_gender` and `by_age_bracket` in hours on `/corpus/summary` | `/dashboard/intern` has both, but scoped to one intern's sessions. The question on the corpus page is whether the dataset is balanced. | Speaker demographics pyramid, admin corpus |
+
+One more, smaller: **`language_variety` on `RecordingOut`.** It lives on the
+contributor's profile and `/recordings` does not join it, so the variety column
+on admin reviews is currently hardcoded.
 
 ---
 
