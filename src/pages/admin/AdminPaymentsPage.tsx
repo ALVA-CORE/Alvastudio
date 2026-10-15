@@ -9,6 +9,9 @@ import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { RateRings } from "@/components/admin/payments/RateRings";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useRates } from "@/hooks/useRates";
+import { reportApiError } from "@/lib/api/reportApiError";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -55,7 +58,12 @@ const STATUS_TONE: Record<PayoutStatus, PillTone> = {
  */
 export default function AdminPaymentsPage() {
   const isLoading = useSimulatedLoading();
-  const [rates, setRates] = useState<Rate[]>(RATES);
+  const {
+    rates,
+    isLoading: loadingRates,
+    error: ratesError,
+    save: saveRate,
+  } = useRates();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [earnings, setEarnings] = useState<Earning[]>(EARNINGS);
   const [detail, setDetail] = useState<Earning | null>(null);
@@ -69,28 +77,24 @@ export default function AdminPaymentsPage() {
     [rows, status]
   );
 
-  const commitEdit = (rate: Rate, amount: string) => {
+  const commitEdit = async (rate: Rate, amount: string) => {
     const naira = Number(amount);
     if (!Number.isFinite(naira) || naira < 0) {
       alvaToast.error("That is not an amount");
       return;
     }
 
-    setRates((prev) =>
-      prev.map((row) =>
-        row.unit === rate.unit
-          ? {
-              ...row,
-              amountKobo: Math.round(naira * 100),
-              updatedLabel: "Just now",
-              updatedAt: Date.now(),
-            }
-          : row
-      )
-    );
-    alvaToast.success(`${RATE_UNIT_LABELS[rate.unit]} rate updated`);
+    try {
+      await saveRate(rate.unit, naira);
+      alvaToast.success(`${RATE_UNIT_LABELS[rate.unit]} rate updated`);
+    } catch (cause) {
+      const message = reportApiError(cause, "Could not change that rate.");
+      if (message) alvaToast.error(message);
+    }
   };
 
+  /* Still local: the earnings table has no all-contributors endpoint, so
+   * advancing a row moves the seeded copy. See docs/endpoints-needed.md §7. */
   const advance = (row: Earning) => {
     setEarnings((prev) =>
       prev.map((entry) =>

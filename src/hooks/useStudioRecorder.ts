@@ -2,6 +2,35 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type RecorderPhase = "idle" | "recording" | "recorded" | "playing";
 
+/**
+ * What to record in, best first.
+ *
+ * `new MediaRecorder(stream)` with no type gives whatever the browser prefers,
+ * which is webm/Opus on Chrome and **mp4/AAC on iOS Safari**. We were then
+ * labelling every blob `audio/webm` regardless, so on an iPhone the file was
+ * mp4 wearing a webm label: Safari refused to play it back, and the upload
+ * told the API the wrong format. Asking for a type we can name, and keeping
+ * whatever the recorder actually gave us, fixes both.
+ */
+const PREFERRED_TYPES = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/mp4",
+  "audio/mpeg",
+];
+
+function pickMimeType(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  return PREFERRED_TYPES.find((type) => MediaRecorder.isTypeSupported?.(type));
+}
+
+/** `audio/webm;codecs=opus` → `webm`. The API reads the extension. */
+function extensionFor(mimeType: string): string {
+  const base = mimeType.split(";")[0];
+  if (base === "audio/mpeg") return "mp3";
+  return base.split("/")[1] ?? "webm";
+}
+
 export function useStudioRecorder() {
   const [phase, setPhase] = useState<RecorderPhase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -14,6 +43,8 @@ export function useStudioRecorder() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const blobRef = useRef<Blob | null>(null);
+  /** What the recorder actually produced. Drives playback and the upload. */
+  const mimeTypeRef = useRef<string>("audio/webm");
   /** Wall-clock length of the take, for the recording's `duration_seconds`. */
   const startedAtRef = useRef<number>(0);
   const durationRef = useRef<number>(0);
@@ -39,14 +70,23 @@ export function useStudioRecorder() {
       streamRef.current = stream;
       setStream(stream);
 
-      const recorder = new MediaRecorder(stream);
+      const mimeType = pickMimeType();
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined
+      );
       chunksRef.current = [];
       startedAtRef.current = Date.now();
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
-        blobRef.current = new Blob(chunksRef.current, { type: "audio/webm" });
+        /* The recorder's own type, not an assumption. `recorder.mimeType` is
+         * what it actually produced, which on Safari is not what we asked
+         * for. */
+        const type = recorder.mimeType || mimeType || "audio/webm";
+        mimeTypeRef.current = type;
+        blobRef.current = new Blob(chunksRef.current, { type });
         durationRef.current = (Date.now() - startedAtRef.current) / 1000;
         setHasBlob(Boolean(blobRef.current.size));
         cleanupStream();
@@ -134,6 +174,8 @@ export function useStudioRecorder() {
     stream,
     /** The recorded audio, for upload. Null until a take is finished. */
     getBlob: () => blobRef.current,
+    /** Filename with the real extension, so the API sees the real format. */
+    getFilename: () => `recording.${extensionFor(mimeTypeRef.current)}`,
     /** Seconds of wall-clock recording, measured rather than decoded. */
     getDuration: () => durationRef.current,
     startRecording,

@@ -50,7 +50,7 @@ export function BankItemSheet({
     if (!open) return;
     setDraft(
       item
-        ? { text: item.text, variety: item.variety, category: item.category }
+        ? { text: item.text, variety: item.variety }
         : EMPTY_BANK_DRAFT
     );
     setError(null);

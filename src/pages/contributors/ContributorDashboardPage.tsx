@@ -52,7 +52,7 @@ export default function ContributorDashboardPage() {
             currentUserId={live?.contributor_id ?? "1"}
             rank={forceEmpty ? null : (live?.rank ?? null)}
             rankedOf={live?.ranked_contributors ?? 0}
-            className="mt-5"
+            className="mt-1"
             isEmpty={forceEmpty}
           />
 

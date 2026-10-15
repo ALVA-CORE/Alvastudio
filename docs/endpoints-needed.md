@@ -13,6 +13,8 @@ here already exists.
 | 7 | An all-contributors earnings summary | Admin payments, the last unwired page | **High** |
 | 6 | Fields missing from list rows | 5 admin columns and charts | Medium |
 | 3 | Annotation activity events, 4 endpoints | Playback tab | Medium |
+| 9 | Review allocation across interns | Interns sharing the review load | **High** |
+| 10 | A home for focus group topics | Admin prompts, third tab | Medium |
 | 8 | Four confirmations about the workspace | Annotator workspace correctness | Medium |
 | 4 | Scoring definitions, not endpoints | 3 chart figures | Medium |
 
@@ -240,6 +242,71 @@ Two smaller things from the same surface:
 - **`GET /annotations` carries no `tag_count`.** The annotator's session list shows a dash in that column. The full document has the spans, but that is one request per row.
 - **A session has no state of its own.** We take the commonest `state` among its participants for the admin focus-groups column, which is right in practice but is a derivation rather than a fact.
 
+## 9. Even review allocation across interns
+
+**Interns do not claim work, they are given it.** Claiming is the annotator
+model, and it is right there: an annotator takes the next session when they are
+free. Interns are different — a contributor's clip should land on a named
+intern's desk the moment it is submitted, without anybody racing for it.
+
+| | |
+| --- | --- |
+| Trigger | A recording reaching `submitted` |
+| Rule | Spread evenly across interns who are active and approved |
+| Shape | 1,000 clips, 10 active interns, 100 each |
+| Field | `assigned_reviewer_id` on the recording, which already exists |
+
+Two cases worth deciding with it:
+
+| Case | What we would expect |
+| --- | --- |
+| An intern is deactivated or unapproved | Their unreviewed clips go back into the pool and are shared out again. Reviewed ones stay with them, since the verdict is theirs. |
+| A new intern is approved mid-run | They start taking a share of what arrives next. Whether the existing backlog is re-levelled is your call — we would not, since moving a clip somebody has started reading is worse than an uneven count. |
+
+`POST /reviews/assign-next` can stay for the case where an intern clears their
+own queue and wants more. `PATCH /recordings/{id}/assignee` already covers an
+admin moving one by hand.
+
+**What we show today:** the intern review queue reads `GET /reviews/queue`,
+which is unassigned work. Once allocation is automatic we would read what is
+assigned to the caller instead, so a filter or a separate route for "mine"
+would help.
+
+## 10. A home for focus group topics
+
+Prompts and stimuli each have a bank. Focus group topics have none: the topic
+is free text typed on the session at record time, so there is nothing to
+curate, reuse or retire, and no way to see which topics have been covered.
+
+The admin prompts page now has three tabs, and the third stores topics in the
+**prompts bank with `category="focus_group_topic"`**. That works today because
+`category` is free text, and it is reversible, but it means a focus group topic
+is a prompt as far as the API is concerned — so it would be handed to a
+contributor by `/prompts/next` if anything still used that route.
+
+**What we are asking for**, in preference order:
+
+```
+GET    /focus-group-topics?is_active=&limit=&offset=&envelope=true
+POST   /focus-group-topics        { text, language_variety, is_active }
+PATCH  /focus-group-topics/{id}   { text, language_variety, is_active }
+DELETE /focus-group-topics/{id}   → retires it, like /prompts does
+```
+
+Same shape as `/prompts`, including `used_by_count` so an admin can see which
+topics have actually been run. That gives the third tab view, create, edit and
+retire, which is all it needs.
+
+| Alternative | What it means for us |
+| --- | --- |
+| Keep them in `/prompts` but exclude `category="focus_group_topic"` from `/prompts/next` and from anything a contributor sees | Smaller change at your end. We would want that exclusion written down rather than assumed, because today a topic would be handed to a contributor to read aloud. |
+| Topics are genuinely ad-hoc and not worth curating | We remove the tab |
+
+**Also worth knowing:** `category` is free text, and the whole seeded bank
+comes back tagged `placeholder`. We show what an item *is* from which bank it
+came out of rather than printing that raw, because "placeholder" is a note to
+whoever seeded it, not a category.
+
 ---
 
 ## On our side, not asks
@@ -252,3 +319,5 @@ Two smaller things from the same surface:
 | Four money buckets | Four cards, not one balance |
 | `kind` is a free string | Substring match, generic fallback. An enum would let us stop guessing. |
 | `X-Total-Count` header | Not reachable from our client, so we pass `?envelope=true` |
+| `/prompts/next` hands out each contributor's next **unread** item | The studio no longer uses it. A prompt is not used up by being read: twelve prompts in the bank should be twelve every contributor can record, not twelve recordings shared between everybody. We read the whole active bank and page it locally. |
+| iOS Safari records mp4/AAC, not webm | We were labelling every blob `audio/webm`, so on an iPhone playback failed and the upload named the wrong format. We now take the type from `MediaRecorder.mimeType` and send a matching extension. Worth knowing if you see mp4 arriving where webm used to. |

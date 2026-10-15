@@ -2,23 +2,25 @@ import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { FieldBeam } from "@/components/shared/FieldBeam";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import {
-  BANK_CATEGORIES,
-  type BankCategory,
   type BankKind,
 } from "@/data/admin/prompts";
 import { VARIETIES, type Variety } from "@/data/admin/shared";
 import { cn } from "@/lib/utils";
 
+/**
+ * What an admin can actually change: the words and the variety.
+ *
+ * Not the category — that is which bank the item lives in, and moving it means
+ * a delete and a create, which loses the id every recording points at.
+ */
 export type BankDraft = {
   text: string;
   variety: Variety;
-  category: BankCategory;
 };
 
 export const EMPTY_BANK_DRAFT: BankDraft = {
   text: "",
   variety: "Nigerian Pidgin",
-  category: "Everyday life",
 };
 
 /** Roughly two spoken sentences — past this a prompt stops being readable aloud. */
@@ -108,19 +110,13 @@ export function BankItemForm({
           />
         </div>
 
-        <div className="min-w-0">
-          <span className="block text-xs text-muted-foreground">Category</span>
-          <AlvaSelect
-            aria-label="Category"
-            className="mt-1.5"
-            value={draft.category}
-            onValueChange={(value) => onChange({ category: value as BankCategory })}
-            options={BANK_CATEGORIES.map((category) => ({
-              value: category,
-              label: category,
-            }))}
-          />
-        </div>
+        {/* No category picker.
+            Prompts and stimuli are separate endpoints, so what an item is was
+            decided by the tab it was created from. Offering it as a field let
+            somebody set "Stimuli" on a prompt and then wonder why it stayed in
+            the Prompts tab — changing it for real would mean deleting from one
+            bank and creating in the other, which loses the id every recording
+            points at. */}
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { useApiResource } from "@/hooks/useApiResource";
-import { nextPrompt, nextStimulus } from "@/lib/api/catalog";
+import { listPrompts, listStimuli } from "@/lib/api/catalog";
 import { submitPromptRead, submitStimulus } from "@/lib/api/recordings";
 import { ApiError } from "@/lib/api/client";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
@@ -43,26 +43,39 @@ export default function ContributorStudioPage() {
 
   const [isSaving, setSaving] = useState(false);
 
-  /* One card at a time, straight from the bank.
+  /* The whole active bank, not one card.
    *
-   * `/prompts/next` and `/stimuli/next` hand out the contributor's next UNREAD
-   * item, so the studio no longer paginates a local array — advancing means
-   * asking for the next one. A 404 ("No unread prompts available") is the queue
-   * running dry, not an error, which is what `notFoundAsEmpty` encodes. */
-  const fetchNext = useCallback(
-    () => (mode === "stimuli" ? nextStimulus() : nextPrompt()),
+   * `/prompts/next` hands out the contributor's next UNREAD item and stops
+   * once they have worked through the bank. That is the wrong model here: a
+   * prompt is not consumed by being read, and twelve prompts in the bank
+   * should be twelve prompts every contributor can record, not twelve
+   * recordings shared between everybody. So the studio reads the bank and
+   * pages through it locally. */
+  const fetchBank = useCallback(
+    () =>
+      mode === "stimuli"
+        ? listStimuli({ is_active: true, limit: 200 })
+        : listPrompts({ is_active: true, limit: 200 }),
     [mode]
   );
 
   const {
-    data: card,
+    data: bank,
     isLoading: loadingCard,
     error: cardError,
     reload: loadNextCard,
-  } = useApiResource(fetchNext, [mode], { notFoundAsEmpty: true });
+  } = useApiResource(fetchBank, [mode]);
 
-  const items = card ? [{ id: card.id, prompt: card.text }] : [];
+  const items = (bank ?? []).map((entry) => ({ id: entry.id, prompt: entry.text }));
   const total = items.length;
+
+  /* Which card is on top. Paging is local now, so swiping does not refetch. */
+  const [index, setIndex] = useState(0);
+  const card = total > 0 ? items[((index % total) + total) % total] : null;
+
+  /* A fresh bank, or a switch between prompts and stimuli, starts at the top
+   * rather than wherever the previous one had been left. */
+  useEffect(() => setIndex(0), [mode, total]);
 
   useEffect(() => {
     if (recorder.error) {
@@ -134,7 +147,9 @@ export default function ContributorStudioPage() {
     try {
       const meta = {
         durationSeconds: recorder.getDuration(),
-        filename: `take-${card.id}.webm`,
+        /* The real extension, from what the recorder produced. An mp4
+         * sent as .webm is a 415 or a mis-decode at the other end. */
+        filename: recorder.getFilename(),
       };
 
       if (mode === "stimuli") {
@@ -145,8 +160,9 @@ export default function ContributorStudioPage() {
 
       alvaToast.success("Clip sent for review", <Diskette size={14} weight="Bold" />);
       recorder.discardRecording();
-      // The card is consumed; ask the bank for the next unread one.
-      loadNextCard();
+      /* Move on, but keep the prompt in the bank. A prompt is not used up by
+         being read, and the same one is recordable by everybody else. */
+      setIndex((value) => value + 1);
     } catch (cause) {
       alvaToast.error(
         cause instanceof ApiError ? cause.message : "Could not upload the clip."
@@ -168,7 +184,7 @@ export default function ContributorStudioPage() {
           />
           <StudioProgress
             className="min-w-0 flex-1"
-            current={total ? 1 : 0}
+            current={total ? index + 1 : 0}
             total={total}
             label={loadingCard ? "Loading…" : total ? "Next up" : "Queue empty"}
           />
@@ -191,9 +207,9 @@ export default function ContributorStudioPage() {
           <StudioPromptStack
             className="mt-8"
             items={items}
-            current={0}
-            onNext={loadNextCard}
-            onPrevious={loadNextCard}
+            current={index}
+            onNext={() => setIndex((value) => value + 1)}
+            onPrevious={() => setIndex((value) => value - 1)}
           />
         )}
 

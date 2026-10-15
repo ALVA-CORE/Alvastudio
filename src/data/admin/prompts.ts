@@ -2,29 +2,58 @@ import { VARIETIES, daysAgo, pick, relativeDays, seeded, type Variety } from "./
 
 export type BankKind = "prompt" | "stimulus";
 
-export type BankCategory =
-  | "Everyday life"
-  | "Work and money"
-  | "Travel and transport"
-  | "Food and market"
-  | "Family and community"
-  | "News and opinion";
+/**
+ * What a bank item is.
+ *
+ * Three kinds, and nothing else. The old list — "Everyday life", "Work and
+ * money" and so on — was a topic taxonomy nobody had agreed, so it is gone.
+ *
+ * It is **derived, not chosen**. Prompts and stimuli are separate endpoints,
+ * so an item's kind is decided by which one it was written to; offering it as
+ * a field let somebody set "Stimuli" on a prompt and then wonder why it stayed
+ * in the Prompts tab. Changing it would mean deleting from one bank and
+ * creating in the other, which loses the id every recording points at.
+ *
+ * Focus group topics have no endpoint at all, so they live in the prompts bank
+ * under this category until one exists. See docs/endpoints-needed.md §10.
+ */
+export type BankCategory = "prompt" | "stimulus" | "focus_group_topic";
 
 export const BANK_CATEGORIES: BankCategory[] = [
-  "Everyday life",
-  "Work and money",
-  "Travel and transport",
-  "Food and market",
-  "Family and community",
-  "News and opinion",
+  "prompt",
+  "stimulus",
+  "focus_group_topic",
 ];
+
+export const BANK_CATEGORY_LABELS: Record<BankCategory, string> = {
+  prompt: "Prompt",
+  stimulus: "Stimuli",
+  focus_group_topic: "Focus group topic",
+};
+
+/**
+ * What an item is, from what the API gave us.
+ *
+ * `category` is free text server side, so most rows carry something that is
+ * not one of ours — the whole seeded bank is tagged `placeholder`. Those are
+ * read as whatever bank they came from rather than shown raw, because
+ * "placeholder" is not a category, it is a note to whoever seeded it.
+ */
+export function bankCategory(item: {
+  kind: BankKind;
+  category: string;
+}): BankCategory {
+  if (item.category === "focus_group_topic") return "focus_group_topic";
+  return item.kind === "stimulus" ? "stimulus" : "prompt";
+}
 
 export type BankItem = {
   id: string;
   kind: BankKind;
   text: string;
   variety: Variety;
-  category: BankCategory;
+  /** Free text, straight from the API. Read it through `bankCategory`. */
+  category: string;
   isActive: boolean;
   /** How many recordings exist against it. Zero means nobody has taken it up. */
   usedByCount: number;
@@ -72,7 +101,7 @@ function buildBank(): BankItem[] {
       kind,
       text,
       variety: pick(random, VARIETIES),
-      category: pick(random, BANK_CATEGORIES),
+      category: kind === "prompt" ? "prompt" : "stimulus",
       // A few retired items, so the active filter is worth having.
       isActive: random() > 0.15,
       // Roughly a fifth have never been recorded — the thing to spot.

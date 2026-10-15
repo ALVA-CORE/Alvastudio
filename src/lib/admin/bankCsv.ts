@@ -3,7 +3,7 @@ import { VARIETIES, type Variety } from "@/data/admin/shared";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 
 export const BANK_CSV_TEMPLATE = [
-  "text,variety,category",
+  "text,variety",
   '"Tell us about a market day you still remember.",Nigerian English,Everyday life',
   '"Wetin you go tell person wey just land Naija?",Nigerian Pidgin,Travel and transport',
 ].join("\n");
@@ -47,7 +47,6 @@ export function parseBankCsv(input: string): BankCsvResult {
     rows.push({
       text,
       variety: matchVariety(cells[1]),
-      category: matchCategory(cells[2]),
     });
   }
 
@@ -96,11 +95,3 @@ function matchVariety(value: string | undefined): Variety {
   );
 }
 
-function matchCategory(value: string | undefined): BankCategory {
-  const needle = (value ?? "").trim().toLowerCase();
-  if (!needle) return "Everyday life";
-  return (
-    BANK_CATEGORIES.find((category) => category.toLowerCase() === needle) ??
-    "Everyday life"
-  );
-}

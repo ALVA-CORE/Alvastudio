@@ -34,6 +34,13 @@ export function FixedBlurHeader({
           {children}
         </div>
       </div>
+
+      {/* Clears the fade.
+          The blur sheet reaches 2rem past the header so it dissolves into the
+          page rather than ending on a line. Without this, the first card
+          starts inside that fade and reads as dimmed, which looks like a
+          loading state that never finished. */}
+      <div aria-hidden className="h-8" />
     </header>
   );
 }
