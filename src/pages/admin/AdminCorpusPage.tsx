@@ -172,6 +172,10 @@ export default function AdminCorpusPage() {
           title="By variety"
           subtitle="Which language was spoken"
           className="min-h-[15rem]"
+        
+          emptyMessage={
+            corpus.byVariety.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
+          }
         >
           {/* Two slices of one whole — a donut reads that faster than two
               separate tracks, because the parts sit against each other. */}
@@ -181,6 +185,10 @@ export default function AdminCorpusPage() {
           title="By collection type"
           subtitle="How the audio was captured"
           className="min-h-[15rem]"
+        
+          emptyMessage={
+            corpus.byType.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
+          }
         >
           <VarietyRings slices={corpus.byType} centerLabel="total" />
         </AlvaChartCard>
@@ -188,6 +196,10 @@ export default function AdminCorpusPage() {
           title="Review funnel"
           subtitle="Hours narrowing from submitted to approved"
           className="min-h-[15rem]"
+        
+          emptyMessage={
+            corpus.byStatus.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
+          }
         >
           <CorpusFunnel slices={corpus.byStatus} />
         </AlvaChartCard>
