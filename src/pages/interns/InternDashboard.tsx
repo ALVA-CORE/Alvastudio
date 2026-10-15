@@ -6,7 +6,7 @@ import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { InternDashboardCharts } from "@/components/interns/dashboard/InternDashboardCharts";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
-import { InternNotificationsMenu } from "@/components/interns/notifications/InternNotificationsMenu";
+import { NotificationsMenu } from "@/components/shared/NotificationsMenu";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaChartCardSkeleton } from "@/components/shared/states/AlvaChartCardSkeleton";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
@@ -57,7 +57,7 @@ export default function InternDashboard() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <InternNotificationsMenu />
+          <NotificationsMenu />
           <DashboardTimeFilter value={timeRange} onChange={setTimeRange} />
         </div>
       </header>

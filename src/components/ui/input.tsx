@@ -10,9 +10,13 @@ import { cn } from "@/lib/utils"
  * auth screens use. That was the one place it appeared before, which made the
  * first screen a new user sees behave unlike every screen after it.
  *
- * `wrapperClassName` exists because the beam adds a wrapping element: a caller
- * that needs the FIELD to carry a layout class — a width, a grid span — has to
- * put it on the wrapper instead.
+ * `wrapperClassName` exists because the beam adds a wrapping element, and
+ * layout classes have to go on it rather than on `className`.
+ *
+ * `className` lands on the `<input>`, which sits INSIDE the beam's box. A
+ * margin there pushes the field down within the beam and leaves a bright gap
+ * along the top edge — the beam is drawn around the wrapper, which is still
+ * where it was. Spacing, width, grid span: all `wrapperClassName`.
  */
 const Input = React.forwardRef<
   HTMLInputElement,

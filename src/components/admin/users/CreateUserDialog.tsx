@@ -106,7 +106,8 @@ export function CreateUserDialog({
               id="new-name"
               value={draft.fullName}
               onChange={(event) => patch({ fullName: event.target.value })}
-              className={cn(alvaFieldClass(), "mt-1.5")}
+              wrapperClassName="mt-1.5"
+              className={alvaFieldClass()}
               placeholder="Chioma Okafor"
             />
           </div>
@@ -120,7 +121,8 @@ export function CreateUserDialog({
               type="email"
               value={draft.email}
               onChange={(event) => patch({ email: event.target.value })}
-              className={cn(alvaFieldClass(), "mt-1.5")}
+              wrapperClassName="mt-1.5"
+              className={alvaFieldClass()}
               placeholder="name@alvacoreai.com"
             />
           </div>
@@ -134,7 +136,8 @@ export function CreateUserDialog({
                 id="new-phone"
                 value={draft.phone}
                 onChange={(event) => patch({ phone: event.target.value })}
-                className={cn(alvaFieldClass(), "mt-1.5")}
+                wrapperClassName="mt-1.5"
+              className={alvaFieldClass()}
                 placeholder="08012345678"
               />
             </div>

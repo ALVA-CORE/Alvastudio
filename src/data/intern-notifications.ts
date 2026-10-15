@@ -7,6 +7,8 @@ export type InternNotificationCategory =
   | "announcement";
 
 export type InternNotification = {
+  /** False until the person has seen it. Drives the unread dot. */
+  read?: boolean;
   id: string;
   category: InternNotificationCategory;
   title: string;
