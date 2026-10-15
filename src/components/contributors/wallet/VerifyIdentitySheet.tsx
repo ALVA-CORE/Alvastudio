@@ -55,7 +55,9 @@ export function VerifyIdentitySheet({
     setSubmitting(false);
   }, [open]);
 
+  // Submit disabled until consent is checked, regardless of nin digits
   const complete = nin.length === NIN_LENGTH && consent;
+  const submitDisabled = !consent || nin.length !== NIN_LENGTH;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -71,7 +73,7 @@ export function VerifyIdentitySheet({
           <p className="text-sm text-muted-foreground">
             {state === "pending"
               ? "This usually takes a few minutes. You can close this and carry on recording."
-              : "We need your National Identity Number before we can pay you. It is checked once, and never shown to anyone else."}
+              : null}
           </p>
         </SheetHeader>
 
@@ -114,14 +116,13 @@ export function VerifyIdentitySheet({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Dial <span className="text-foreground">*346#</span> on the phone
-              your NIN is registered to if you do not have it written down.
+              Don’t know your NIN? Dial <span className="text-foreground">*346#</span>
             </p>
 
             {/* The API requires this and will not accept a submission without
                 it. It is a real attestation, so the person ticks it rather
                 than us sending `true` on their behalf. */}
-            <label className="flex cursor-pointer items-start gap-2.5">
+            <label className="flex cursor-pointer items-start gap-1.5">
               <AuthCheckbox
                 checked={consent}
                 onCheckedChange={(value) => setConsent(value === true)}
@@ -136,7 +137,7 @@ export function VerifyIdentitySheet({
               variant="alva"
               size="lg"
               className={cn("mt-1")}
-              disabled={!complete}
+              disabled={submitDisabled}
               loading={submitting}
               onClick={() => {
                 setSubmitting(true);
