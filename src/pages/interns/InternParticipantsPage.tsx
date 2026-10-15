@@ -15,6 +15,7 @@ import {
 } from "@/data/interns/participants";
 import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useInternParticipants } from "@/hooks/useFocusGroups";
+import { NO_VALUE } from "@/lib/no-value";
 
 export default function InternParticipantsPage() {
   const { rows: sourceRows, sessions, isLoading, error, reload } =
@@ -37,7 +38,7 @@ export default function InternParticipantsPage() {
       total: String(rows.length),
       thisWeek: String(rows.filter((row) => row.loggedAt >= weekAgo).length),
       sessions: String(sessions.length),
-      quotaFill: ", ",
+      quotaFill: NO_VALUE,
     };
   }, [isEmpty, rows, sessions.length]);
 

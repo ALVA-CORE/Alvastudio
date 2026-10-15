@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { NO_VALUE } from "@/lib/no-value";
 
 type NotificationDetailSheetProps = {
   notification: ContributorNotification | null;
@@ -48,7 +49,7 @@ export function NotificationDetailSheet({
           value:
             TRI_STATE_OPTIONS.find(
               (option) => option.value === notification.answers?.[question.id]
-            )?.label ?? ", ",
+            )?.label ?? NO_VALUE,
         }))
       : [];
 

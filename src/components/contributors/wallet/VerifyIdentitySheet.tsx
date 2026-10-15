@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { FieldBeam } from "@/components/shared/FieldBeam";
+import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import type { IdentityState } from "@/data/contributors/wallet";
@@ -41,18 +42,20 @@ export function VerifyIdentitySheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   state: IdentityState;
-  onSubmit: (nin: string) => void;
+  onSubmit: (nin: string, consent: boolean) => void;
 }) {
   const [nin, setNin] = useState("");
+  const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setNin("");
+    setConsent(false);
     setSubmitting(false);
   }, [open]);
 
-  const complete = nin.length === NIN_LENGTH;
+  const complete = nin.length === NIN_LENGTH && consent;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -115,6 +118,20 @@ export function VerifyIdentitySheet({
               your NIN is registered to if you do not have it written down.
             </p>
 
+            {/* The API requires this and will not accept a submission without
+                it. It is a real attestation, so the person ticks it rather
+                than us sending `true` on their behalf. */}
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <AuthCheckbox
+                checked={consent}
+                onCheckedChange={(value) => setConsent(value === true)}
+              />
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                I agree that Alvastudio can check this number against the
+                national identity database to confirm who I am.
+              </span>
+            </label>
+
             <TextureButton
               variant="alva"
               size="lg"
@@ -123,7 +140,7 @@ export function VerifyIdentitySheet({
               loading={submitting}
               onClick={() => {
                 setSubmitting(true);
-                onSubmit(nin);
+                onSubmit(nin, consent);
               }}
             >
               Submit for checking

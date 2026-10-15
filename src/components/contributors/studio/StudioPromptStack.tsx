@@ -22,8 +22,15 @@ type StudioPromptStackProps = {
 
 const MAX_VISIBLE = 4;
 const CARD_OFFSET = 20;
-/** Enough for the controls to sit where the eye expects on a short prompt. */
-const MIN_CARD_REM = 12;
+/**
+ * One height for every card in the stack.
+ *
+ * Briefly this sized to the text, which broke the stack: the cards behind are
+ * positioned by offset from the top, so they only read as a stack when they
+ * are the same height as the card in front. Different heights left them
+ * sticking out at the bottom in a heap.
+ */
+const CARD_HEIGHT = "h-[18.5rem]";
 const SCALE_FACTOR = 0.04;
 
 export function StudioPromptStack({
@@ -50,18 +57,12 @@ export function StudioPromptStack({
           without creating a scroll container, so the border beam still blooms
           outside the card. */}
       <div
-        className="relative w-full overflow-x-clip"
-        style={{ minHeight: `${MIN_CARD_REM}rem` }}
+        className={cn(
+          "relative w-full overflow-x-clip",
+          CARD_HEIGHT
+        )}
+        style={{ paddingBottom: (stack.length - 1) * CARD_OFFSET }}
       >
-        {/* Sets the height: the top card's own text, plus room for the backs
-            to peek below it. */}
-        <div
-          aria-hidden
-          className="invisible px-7 pb-8 pt-16 text-center text-xl font-semibold leading-snug"
-          style={{ paddingBottom: 32 + stack.length * CARD_OFFSET }}
-        >
-          {stack[0]?.prompt}
-        </div>
 
         {stack
           .slice()
@@ -76,13 +77,7 @@ export function StudioPromptStack({
                 className="absolute inset-x-0"
                 style={{ transformOrigin: "top center" }}
                 animate={{
-                  /* Measured from the top of the box, so a back card at the
-                     same offset would sit under the middle of the top card.
-                     They are pushed to its bottom edge instead. */
-                  top:
-                    index === 0
-                      ? 0
-                      : `calc(100% - ${(stack.length - index) * CARD_OFFSET}px)`,
+                  top: index * CARD_OFFSET,
                   scale: 1 - index * SCALE_FACTOR,
                   zIndex: stack.length - index,
                 }}
@@ -109,12 +104,10 @@ export function StudioPromptStack({
                     </BorderBeam>
                   </div>
                 ) : (
-                  /* The cards behind are edges, not cards. They used to render
-                     their own text at their own length, which showed through
-                     under the top card and made the stack look broken. They
-                     are a fixed sliver now, which is all that is visible of
-                     them anyway. */
-                  <PromptBack depth={index} />
+                  /* No text on the cards behind. Only their bottom edge shows,
+                     and rendering their own prompt at their own length made it
+                     bleed through under the top card. */
+                  <PromptFace depth={index} />
                 )}
               </motion.div>
             );
@@ -144,28 +137,13 @@ export function StudioPromptStack({
   );
 }
 
-/** A card behind the top one. Just its lit edge. */
-function PromptBack({ depth }: { depth: number }) {
-  return (
-    <div
-      aria-hidden
-      className="h-16 w-full rounded-[28px] shadow-[0_12px_28px_rgba(0,0,0,0.22)]"
-      style={{
-        backgroundColor: `hsl(var(--alva-accent) / ${Math.max(
-          0.22,
-          0.6 - depth * 0.18
-        )})`,
-      }}
-    />
-  );
-}
-
 function PromptFace({
   prompt,
   active,
   depth = 0,
 }: {
-  prompt: string;
+  /** Omitted for the cards behind, which show nothing but their edge. */
+  prompt?: string;
   active?: boolean;
   depth?: number;
 }) {
@@ -174,7 +152,8 @@ function PromptFace({
   return (
     <div
       className={cn(
-        "flex w-full flex-col items-center justify-center rounded-[28px] px-7 py-8 text-center shadow-[0_12px_28px_rgba(0,0,0,0.22)]",
+        "flex w-full flex-col items-center justify-center rounded-[28px] px-7 text-center shadow-[0_12px_28px_rgba(0,0,0,0.22)]",
+        CARD_HEIGHT,
         active
           ? cn(alvaAccentTextureClass, "shadow-[0_20px_40px_rgba(0,0,0,0.35)]")
           : "border border-alva-accent/25"
@@ -185,28 +164,32 @@ function PromptFace({
           : undefined
       }
     >
-      <div
-        className={cn(
-          "mb-5 inline-flex items-center gap-1.5 text-xs",
-          active ? "text-alva-bg/75" : "text-alva-bg/70"
-        )}
-      >
-        Click
-        <Microphone3
-          size={14}
-          weight="BoldDuotone"
-          className={active ? "text-alva-bg" : "text-alva-bg/90"}
-        />
-        and read the sentence aloud
-      </div>
-      <p
-        className={cn(
-          "text-balance text-xl font-semibold leading-snug",
-          active ? "text-alva-bg" : "text-alva-bg/85"
-        )}
-      >
-        {prompt}
-      </p>
+      {prompt ? (
+        <>
+          <div
+            className={cn(
+              "mb-5 inline-flex items-center gap-1.5 text-xs",
+              active ? "text-alva-bg/75" : "text-alva-bg/70"
+            )}
+          >
+            Click
+            <Microphone3
+              size={14}
+              weight="BoldDuotone"
+              className={active ? "text-alva-bg" : "text-alva-bg/90"}
+            />
+            and read the sentence aloud
+          </div>
+          <p
+            className={cn(
+              "text-balance text-xl font-semibold leading-snug",
+              active ? "text-alva-bg" : "text-alva-bg/85"
+            )}
+          >
+            {prompt}
+          </p>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -84,10 +84,22 @@ export const setPayoutDestination = (body: {
     body,
   });
 
-export const submitNin = (nin: string) =>
+/**
+ * Submits a NIN for verification.
+ *
+ * `consent` is required and must be true: the contributor is attesting to a
+ * government database check, and the provider rejects the call without it. It
+ * is a parameter rather than a constant here on purpose — hardcoding `true`
+ * would mean attesting on somebody's behalf, which is the one thing a consent
+ * flag must not do. The sheet collects it.
+ *
+ * The number is fingerprinted for duplicate detection and never stored in the
+ * clear, so nothing comes back but the new state.
+ */
+export const submitNin = (nin: string, consent: boolean) =>
   apiFetch<{ identity_status: ApiIdentityStatus }>("/wallet/identity/nin", {
     method: "POST",
-    body: { nin },
+    body: { nin, consent },
   });
 
 /**

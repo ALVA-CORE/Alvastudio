@@ -4,6 +4,7 @@ import { listUsers } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { formatDuration, relativeDays, type Variety } from "@/data/admin/shared";
 import type { AdminSession } from "@/data/admin/oversight";
+import { NO_VALUE } from "@/lib/no-value";
 
 const VARIETY: Record<string, Variety> = {
   nigerian_english: "Nigerian English",
@@ -103,7 +104,7 @@ function toAdminSession(
     participants: api.participant_count,
     turns: api.turn_count,
     durationSec,
-    duration: api.has_audio ? formatDuration(durationSec) : ", ",
+    duration: api.has_audio ? formatDuration(durationSec) : NO_VALUE,
     hasAudio: api.has_audio,
     /* Who is annotating it lives on the annotation, not the session. The
      * annotations screen reads that; this one does not show it. */

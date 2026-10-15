@@ -10,6 +10,7 @@ import { listUsers } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import type { AdminAnnotation, AnnotationStatus } from "@/data/admin/oversight";
+import { NO_VALUE } from "@/lib/no-value";
 
 /**
  * The admin annotations screen, and the sessions nobody has claimed.
@@ -138,7 +139,7 @@ function toAdminAnnotation(
     segments: 0,
     tags: 0,
     durationSec,
-    duration: durationSec > 0 ? formatDuration(durationSec) : ", ",
+    duration: durationSec > 0 ? formatDuration(durationSec) : NO_VALUE,
     claimedAt: claimed.getTime(),
     claimedLabel: relativeDays(claimed),
   };

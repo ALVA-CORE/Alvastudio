@@ -75,8 +75,8 @@ export function IdentityProfileRow({ hideDivider = false }: { hideDivider?: bool
         open={open}
         onOpenChange={setOpen}
         state={wallet.identity}
-        onSubmit={async (nin) => {
-          await submitNin(nin);
+        onSubmit={async (nin, consent) => {
+          await submitNin(nin, consent);
           reload();
           setOpen(false);
           alvaToast.success("NIN submitted, we'll let you know");

@@ -17,6 +17,7 @@ import {
   type Earning,
   type PayoutStatus,
 } from "@/data/admin/payments";
+import { NO_VALUE } from "@/lib/no-value";
 
 const STATUS_TONE: Record<PayoutStatus, PillTone> = {
   paid: "good",
@@ -105,11 +106,11 @@ export function EarningDetailPanel({
         <DetailGroup title="Rates applied">
           <DetailField
             label={RATE_UNIT_LABELS.prompt_read}
-            value={perRecording ? formatNaira(perRecording.amountKobo) : ", "}
+            value={perRecording ? formatNaira(perRecording.amountKobo) : NO_VALUE}
           />
           <DetailField
             label={RATE_UNIT_LABELS.focus_group_minute}
-            value={perMinute ? formatNaira(perMinute.amountKobo) : ", "}
+            value={perMinute ? formatNaira(perMinute.amountKobo) : NO_VALUE}
           />
         </DetailGroup>
 

@@ -1,3 +1,4 @@
+import { NO_VALUE } from "@/lib/no-value";
 /**
  * Seeded figures for the contributor dashboard.
  *
@@ -77,6 +78,6 @@ export const QUALITY_INSIGHTS: Insight[] = [
 
 export const EMPTY_QUALITY_INSIGHTS: Insight[] = [
   { label: "Acceptance rate", value: "0%" },
-  { label: "Avg review time", value: ", " },
+  { label: "Avg review time", value: NO_VALUE },
   { label: "This week", value: "0 clips" },
 ];

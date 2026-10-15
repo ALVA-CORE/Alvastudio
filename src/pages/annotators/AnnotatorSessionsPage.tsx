@@ -22,6 +22,7 @@ import {
 import { useAnnotatorSessions } from "@/hooks/useAnnotatorSessions";
 import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { NO_VALUE } from "@/lib/no-value";
 
 type LanguageFilter = AnnotatorSession["language"] | "all";
 
@@ -67,7 +68,7 @@ export default function AnnotatorSessionsPage() {
         hoursPendingTrend: "",
         avgSession: rows.length
           ? `${Math.round(totalSeconds / rows.length / 60)}m`
-          : ", ",
+          : NO_VALUE,
         avgSessionTrend: "",
         speakersCovered: String(
           rows.reduce((sum, row) => sum + row.participants, 0)
@@ -150,7 +151,7 @@ export default function AnnotatorSessionsPage() {
       sortValue: (row: AnnotatorSession) => row.tagCount,
       render: (row: AnnotatorSession) => (
         <span className="tabular-nums text-muted-foreground">
-          {row.tagCount === 0 ? ", " : row.tagCount}
+          {row.tagCount === 0 ? NO_VALUE : row.tagCount}
         </span>
       ),
     },

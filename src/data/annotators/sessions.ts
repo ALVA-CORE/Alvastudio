@@ -1,4 +1,5 @@
 import { FOCUS_GROUP_PROMPTS } from "@/data/prompts";
+import { NO_VALUE } from "@/lib/no-value";
 
 /**
  * Focus-group sessions queued for annotation. Annotators work whole sessions
@@ -110,29 +111,6 @@ function buildSessions(): AnnotatorSession[] {
 
 export const ANNOTATOR_SESSIONS: AnnotatorSession[] = buildSessions();
 
-/**
- * Hands a session back as finished.
- *
- * Mutates the in-memory row, the same shape `saveTranscript` uses for the
- * transcript cache — so a session marked done stays done while the app is open
- * and resets on reload. Replace with the API call when the backend lands; the
- * signature is already the one a mutation would take.
- */
-export function markSessionComplete(id: string): Promise<AnnotatorSession | null> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const session = ANNOTATOR_SESSIONS.find((entry) => entry.id === id);
-      if (!session) {
-        resolve(null);
-        return;
-      }
-
-      session.status = "completed";
-      resolve(session);
-    }, 380);
-  });
-}
-
 export function getAnnotatorSessions() {
   return ANNOTATOR_SESSIONS;
 }
@@ -166,7 +144,7 @@ export const EMPTY_SESSION_METRICS: AnnotatorSessionMetrics = {
   queuedTrend: "0",
   hoursPending: "0h",
   hoursPendingTrend: "0h",
-  avgSession: ", ",
+  avgSession: NO_VALUE,
   avgSessionTrend: "0m",
   speakersCovered: "0",
   speakersTrend: "0",

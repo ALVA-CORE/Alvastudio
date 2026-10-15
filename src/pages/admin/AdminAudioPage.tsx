@@ -17,6 +17,7 @@ import { ApiError } from "@/lib/api/client";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { cn } from "@/lib/utils";
+import { NO_VALUE } from "@/lib/no-value";
 
 function scoreTone(value: number | null) {
   if (value === null) return "neutral" as const;
@@ -25,7 +26,7 @@ function scoreTone(value: number | null) {
 
 /** A ratio as a percentage, or a dash when the scorer did not report one. */
 function percent(value: number | null) {
-  return value === null ? ", " : `${Math.round(value * 100)}%`;
+  return value === null ? NO_VALUE : `${Math.round(value * 100)}%`;
 }
 
 /**
@@ -227,7 +228,7 @@ export default function AdminAudioPage() {
                 <PanelRow label="After trim" value={`${result.trimmedSec}s`} />
                 <PanelRow
                   label="Signal-to-noise"
-                  value={result.snrDb === null ? ", " : `${result.snrDb} dB`}
+                  value={result.snrDb === null ? NO_VALUE : `${result.snrDb} dB`}
                 />
                 <PanelRow label="Silence" value={percent(result.silenceRatio)} />
                 <PanelRow

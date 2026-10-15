@@ -14,6 +14,7 @@ import {
 import { sessionAudit, type AdminSession } from "@/data/admin/oversight";
 import { alvaToast } from "@/lib/alva-toast";
 import { round1 } from "@/data/admin/shared";
+import { NO_VALUE } from "@/lib/no-value";
 
 const TABS = [
   { id: "detail", label: "Session" },
@@ -123,7 +124,7 @@ export function SessionDetailPanel({
             <DetailField label="Speakers" value={String(session.participants)} />
             <DetailField
               label="Speaker turns"
-              value={session.turns > 0 ? String(session.turns) : ", "}
+              value={session.turns > 0 ? String(session.turns) : NO_VALUE}
             />
             <DetailField label="Length" value={session.duration} />
             <DetailField
@@ -131,7 +132,7 @@ export function SessionDetailPanel({
               value={
                 session.durationSec > 0
                   ? `${round1(session.durationSec / 3600)}h`
-                  : ", "
+                  : NO_VALUE
               }
             />
           </DetailGroup>

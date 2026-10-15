@@ -185,9 +185,16 @@ describe("PointsBalanceCard", () => {
       within(sheet).getByLabelText("National Identity Number"),
       "12345678901"
     );
-    await userEvent.click(
-      within(sheet).getByRole("button", { name: /Submit for checking/ })
-    );
+
+    /* The API requires a consent attestation and rejects the submission
+     * without it, so the button stays disabled until it is ticked. */
+    const submit = within(sheet).getByRole("button", {
+      name: /Submit for checking/,
+    });
+    expect(submit).toBeDisabled();
+
+    await userEvent.click(within(sheet).getByRole("checkbox"));
+    await userEvent.click(submit);
 
     expect(await screen.findByText("We're checking your NIN")).toBeInTheDocument();
   });

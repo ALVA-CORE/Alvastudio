@@ -17,6 +17,7 @@ here already exists.
 | 10 | A home for focus group topics | Admin prompts, third tab | Medium |
 | 8 | Four confirmations about the workspace | Annotator workspace correctness | Medium |
 | 4 | Scoring definitions, not endpoints | 3 chart figures | Medium |
+| 11 | `StatusBreakdown` overlap and window, documented | Contributor quality card | Low |
 
 ---
 
@@ -309,6 +310,17 @@ whoever seeded it, not a category.
 
 ---
 
+## 11. Two things the UI needed and could not get
+
+Small, but each one is a visible blank today.
+
+| Ask | Why |
+| --- | --- |
+| `submitted` and the overlap rule on `StatusBreakdown`, documented | `not_approved` appears to be the umbrella that `rejected` sits inside. Plotting both straight gave a contributor five clips reading as 140%. We now subtract one from the other, which is a guess we would rather have confirmed. |
+| A window on `status_breakdown`, or confirmation it is lifetime | The contributor's quality card said "Last 30 days" over figures that are every clip they have ever submitted. We relabelled it "All time". If a window is coming, we would rather read it than assume. |
+
+---
+
 ## On our side, not asks
 
 | Item | Our handling |
@@ -319,5 +331,6 @@ whoever seeded it, not a category.
 | Four money buckets | Four cards, not one balance |
 | `kind` is a free string | Substring match, generic fallback. An enum would let us stop guessing. |
 | `X-Total-Count` header | Not reachable from our client, so we pass `?envelope=true` |
+| `POST /wallet/identity/nin` requires `consent: true` | It is an attestation to a government database check, so the sheet collects it with a checkbox rather than us sending `true` on somebody's behalf. Submitting without it was a 422 "Field required". |
 | `/prompts/next` hands out each contributor's next **unread** item | The studio no longer uses it. A prompt is not used up by being read: twelve prompts in the bank should be twelve every contributor can record, not twelve recordings shared between everybody. We read the whole active bank and page it locally. |
 | iOS Safari records mp4/AAC, not webm | We were labelling every blob `audio/webm`, so on an iPhone playback failed and the upload named the wrong format. We now take the type from `MediaRecorder.mimeType` and send a matching extension. Worth knowing if you see mp4 arriving where webm used to. |

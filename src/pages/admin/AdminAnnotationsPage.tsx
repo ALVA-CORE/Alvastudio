@@ -25,6 +25,7 @@ import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useAdminAnnotations } from "@/hooks/useAdminAnnotations";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { NO_VALUE } from "@/lib/no-value";
 
 type StatusFilter = AnnotationStatus | "all";
 
@@ -248,7 +249,7 @@ export default function AdminAnnotationsPage() {
                   <span className="text-xs tabular-nums text-muted-foreground">
                     {session.duration_seconds
                       ? formatDuration(Math.round(session.duration_seconds))
-                      : ", "}{" "}
+                      : NO_VALUE}{" "}
                     · {relativeDays(new Date(session.created_at))}
                   </span>
                   {/* An unclaimed session has no annotation yet, and there is

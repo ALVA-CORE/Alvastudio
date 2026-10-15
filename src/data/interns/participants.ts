@@ -1,3 +1,4 @@
+import { NO_VALUE } from "@/lib/no-value";
 export type AgeBracket = "18-24" | "25-34" | "35-44" | "45-54" | "55+";
 
 export type SessionLanguage = "english" | "pidgin" | "mixed";
@@ -117,7 +118,7 @@ export const EMPTY_PARTICIPANT_METRICS = {
   thisWeekTrend: "",
   sessions: "0",
   sessionsTrend: "",
-  quotaFill: ", ",
+  quotaFill: NO_VALUE,
   quotaTrend: "",
   periodLabel: "",
 };
