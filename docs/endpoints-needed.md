@@ -7,11 +7,12 @@ here already exists.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
+| 5 | A way to assign an unclaimed session | A button that errors today | **High** |
 | 1 | `GET /points/leaderboard` | Contributor podium | **High** |
 | 2 | `permissions` on the user model, or a decision to drop it | Create and edit user | **High** |
+| 6 | Fields missing from list rows | 5 admin columns and charts | Medium |
 | 3 | Annotation activity events, 4 endpoints | Playback tab | Medium |
 | 4 | Scoring definitions, not endpoints | 3 chart figures | Medium |
-| 5 | Three small corpus fields | 3 admin charts | Low |
 
 ---
 
@@ -136,20 +137,52 @@ Two things we would want settled with them, since they go in front of the
 person being scored: the window (we assumed 90 days) and the floor below which
 no figure is shown at all (we assumed 10).
 
-## 5. Three small corpus fields
+## 5. Assigning an unclaimed session
 
-Each one removed a chart from an admin page rather than letting it draw from
-seeded data. None is urgent.
+**This one is blocking a button that currently errors.**
 
-| Ask | Why | Where it was |
-| --- | --- | --- |
-| Hours over time on `/corpus/summary`, e.g. `daily_hours: [{date, hours}]` | The summary is a snapshot with no time axis. `/dashboard/admin` has `daily_activity`, but that counts recordings, and an hours curve drawn from clip counts is a different measurement wearing the same label. | Corpus growth chart, admin overview and corpus |
-| The join between session type and status, e.g. `by_type_status: {prompt_read: {approved: 120, …}}` | `by_session_type` and `by_status` are marginals. A sankey drawn from marginals invents its own links. | "Where the hours go" flow, admin overview and corpus |
-| Corpus-wide demographics, e.g. `by_gender` and `by_age_bracket` in hours on `/corpus/summary` | `/dashboard/intern` has both, but scoped to one intern's sessions. The question on the corpus page is whether the dataset is balanced. | Speaker demographics pyramid, admin corpus |
+An admin can see sessions nobody has picked up, and cannot hand one to
+anybody. There is no annotation to reassign until an annotator claims it,
+`POST /annotations` does not exist, and `claim-next` claims for the caller
+rather than for somebody else. Pressing Assign patched a session id as if it
+were an annotation id and came back **"annotation not found"**, so the button
+is disabled with that reason until this exists.
 
-One more, smaller: **`language_variety` on `RecordingOut`.** It lives on the
-contributor's profile and `/recordings` does not join it, so the variety column
-on admin reviews is currently hardcoded.
+| Option | Shape |
+| --- | --- |
+| Let an admin create the annotation | `POST /annotations` → `{session_id, annotator_id}`, returns the document |
+| Or assign on the session | `PATCH /focus-groups/{id}/assignee` → `{annotator_id}`, creating the annotation as a side effect |
+
+Either works for us. The second is closer to how it reads on screen: the thing
+being handed out is a session, not an annotation that does not exist yet.
+
+Related, smaller: **nothing reports what a person is already holding.** The
+assign picker used to offer the lightest-loaded annotator first. Counting that
+now means fetching every annotation and tallying by assignee, which an assign
+dialog should not do, so the list is alphabetical and shows no load. An
+`open_count` on `GET /users?role=annotator` would bring it back.
+
+## 6. Fields missing from list rows
+
+Each of these turned a column or a chart into a blank, a zero or a hardcoded
+value. None is urgent on its own; together they are most of what is still not
+real on the admin surface.
+
+| Field | On | Why we need it | Where it shows |
+| --- | --- | --- | --- |
+| `language_variety` | `RecordingOut` | It lives on the contributor's profile and `/recordings` does not join it | Admin reviews, Variety column, currently hardcoded |
+| `segments` and `tags` counts | `AnnotationSummary` | They are only on the full document, which is one request per row | Admin annotations table, shows 0. The panel fetches the document and shows the real figures. |
+| `contributor_name`, `reviewer_name` | `RecordingOut` | `ReviewOut` already resolves both. We fetch `/users` and join client side, which works but is a request we would not need. | Admin reviews |
+| `topic` and `duration_seconds` | `AnnotationSummary` | Same join, against `/focus-groups` | Admin annotations |
+| Hours over time | `/corpus/summary`, e.g. `daily_hours: [{date, hours}]` | The summary is a snapshot with no time axis. `/dashboard/admin` has `daily_activity`, but that counts recordings, and an hours curve drawn from clip counts is a different measurement wearing the same label. | Corpus growth, overview and corpus |
+| Type-by-status join | `/corpus/summary`, e.g. `by_type_status` | `by_session_type` and `by_status` are marginals. A sankey drawn from marginals invents its own links. | "Where the hours go", overview and corpus |
+| Corpus-wide demographics | `/corpus/summary`, `by_gender` and `by_age_bracket` in hours | `/dashboard/intern` has both but scoped to one intern's sessions. The question on the corpus page is whether the dataset is balanced. | Speaker demographics, corpus |
+
+**One thing to check at your end rather than an ask.** On the live data
+`by_language_variety` comes back populated while **`by_session_type` and
+`by_status` come back empty**, so two cards that should have numbers draw their
+empty state. Same endpoint, same clips. If that is expected while durations are
+still being measured, say so and we will label it; if not, it looks like a bug.
 
 ---
 

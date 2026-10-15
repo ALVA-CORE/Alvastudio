@@ -251,10 +251,18 @@ export default function AdminAnnotationsPage() {
                       : ", "}{" "}
                     · {relativeDays(new Date(session.created_at))}
                   </span>
+                  {/* An unclaimed session has no annotation yet, and there is
+                      no endpoint that makes one: `POST /annotations` does not
+                      exist, and `claim-next` claims for the caller rather than
+                      for somebody else. Pressing this asked the API to patch
+                      an annotation id that was really a session id, which came
+                      back "annotation not found". Disabled with the reason
+                      rather than left to fail. See docs/endpoints-needed.md. */}
                   <button
                     type="button"
-                    onClick={() => setAssigning({ id: session.id, topic: session.topic })}
-                    className="rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-alva-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                    disabled
+                    title="An annotator has to claim this first. There is no endpoint to hand out an unclaimed session yet."
+                    className="cursor-not-allowed rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-muted-foreground opacity-50"
                   >
                     Assign
                   </button>
