@@ -1,7 +1,5 @@
-import { useMemo } from "react";
 import { AssignPicker } from "@/components/admin/shared/AssignPicker";
-import { ADMIN_USERS } from "@/data/admin/users";
-import { ADMIN_ANNOTATIONS } from "@/data/admin/oversight";
+import { useAssignableStaff } from "@/hooks/useAssignableStaff";
 
 /**
  * Hands a recorded session to a named annotator.
@@ -22,22 +20,7 @@ export function AssignAnnotatorDialog({
   subject: string | null;
   onAssign: (annotator: { id: string; name: string }) => void;
 }) {
-  const people = useMemo(() => {
-    const load = new Map<string, number>();
-    for (const annotation of ADMIN_ANNOTATIONS) {
-      if (annotation.status === "approved") continue;
-      load.set(annotation.annotator, (load.get(annotation.annotator) ?? 0) + 1);
-    }
-
-    return ADMIN_USERS.filter(
-      (user) => user.role === "annotator" && user.isActive
-    ).map((user) => ({
-      id: user.id,
-      name: user.fullName,
-      detail: user.email,
-      load: load.get(user.fullName) ?? 0,
-    }));
-  }, []);
+  const { people, isLoading } = useAssignableStaff(["annotator"], open);
 
   return (
     <AssignPicker
@@ -46,7 +29,11 @@ export function AssignAnnotatorDialog({
       title="Assign to"
       subject={subject}
       people={people}
-      emptyMessage="No active annotators. Create one from the Users page first."
+      emptyMessage={
+        isLoading
+          ? "Loading annotators…"
+          : "No active annotators. Create one from the Users page first."
+      }
       onAssign={onAssign}
     />
   );

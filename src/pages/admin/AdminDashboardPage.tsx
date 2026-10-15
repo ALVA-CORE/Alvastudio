@@ -15,8 +15,9 @@ import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
+import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
-import { EMPTY_CORPUS } from "@/data/admin/corpus";
+import { EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
 import { BANK_ITEMS } from "@/data/admin/prompts";
 import { EARNINGS } from "@/data/admin/payments";
 import { formatHours } from "@/data/admin/shared";
@@ -67,7 +68,7 @@ export default function AdminDashboardPage() {
       {
         id: "unreviewed",
         count: stats.stuck_unreviewed_recordings.count,
-        title: "recordings are waiting on a verdict",
+        title: "recordings await a verdict",
         detail: `Nobody has decided on them${age(
           stats.stuck_unreviewed_recordings.oldest_age_days
         )}.`,
@@ -77,7 +78,7 @@ export default function AdminDashboardPage() {
       {
         id: "unclaimed",
         count: stats.stuck_unclaimed_sessions.count,
-        title: "focus group sessions are unclaimed",
+        title: "sessions unclaimed",
         detail: `Recorded and uploaded, and no annotator has picked them up${age(
           stats.stuck_unclaimed_sessions.oldest_age_days
         )}.`,
@@ -87,7 +88,7 @@ export default function AdminDashboardPage() {
       {
         id: "rework",
         count: stats.stuck_annotations_in_rework.count,
-        title: "annotations are sitting in rework",
+        title: "annotations in rework",
         detail: `Sent back and not returned${age(
           stats.stuck_annotations_in_rework.oldest_age_days
         )}.`,
@@ -209,11 +210,16 @@ export default function AdminDashboardPage() {
                     )}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm text-foreground">
+                    {/* One line. These wrap to two at narrow widths and the
+                        count stops being the first thing read. */}
+                    <span className="block truncate text-sm text-foreground">
                       <span className="font-semibold tabular-nums">{item.count}</span>{" "}
                       {item.title}
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span
+                      className="mt-0.5 block truncate text-xs text-muted-foreground"
+                      title={item.detail}
+                    >
                       {item.detail}
                     </span>
                   </span>
@@ -229,14 +235,29 @@ export default function AdminDashboardPage() {
         </section>
       </div>
 
-      {/* The sankey stood here. `/corpus/summary` gives hours by type and
-          hours by status but not the join between them, and a flow diagram
-          drawn from marginals invents its own links. Listed as an ask. */}
+      {/* Empty rather than removed, and empty rather than seeded.
+          `/corpus/summary` gives hours by type and hours by status but not the
+          join between them, and a flow drawn from marginals invents its own
+          links. See docs/endpoints-needed.md §5. */}
+      <AlvaChartCard
+        title="Where the hours go"
+        subtitle="Collection type → review stage → outcome"
+        className="mt-2 min-h-[14rem]"
+        emptyMessage={{ title: "Waiting on the API", description: "Type and status come back as separate totals, not the split between them." }}
+      >
+        <CorpusFlowChart data={EMPTY_CORPUS_FLOW} />
+      </AlvaChartCard>
+
       <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
           title="Approval rate"
           subtitle="Share of decided hours kept"
           className="min-h-[14rem]"
+          emptyMessage={
+            corpus.totalHours === 0
+              ? { title: "Nothing decided", description: "No verdicts yet." }
+              : undefined
+          }
         >
           <ApprovalGauge value={approvalRate} label="approved" />
         </AlvaChartCard>
@@ -244,6 +265,11 @@ export default function AdminDashboardPage() {
           title="By variety"
           subtitle="Hours of each language"
           className="min-h-[14rem]"
+          emptyMessage={
+            corpus.byVariety.length === 0
+              ? { title: "No audio yet", description: "Nothing to split." }
+              : undefined
+          }
         >
           <SharePie slices={corpus.byVariety} centerLabel="total" />
         </AlvaChartCard>
@@ -251,6 +277,13 @@ export default function AdminDashboardPage() {
           title="Review funnel"
           subtitle="Hours narrowing from submitted to approved"
           className="min-h-[14rem]"
+          /* It had none, so an empty corpus drew an empty funnel with no
+             word about why. */
+          emptyMessage={
+            corpus.byStatus.length === 0
+              ? { title: "Nothing submitted", description: "No funnel to draw." }
+              : undefined
+          }
         >
           <CorpusFunnel slices={corpus.byStatus} />
         </AlvaChartCard>

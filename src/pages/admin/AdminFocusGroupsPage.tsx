@@ -14,9 +14,10 @@ import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { SessionDetailPanel } from "@/components/admin/sessions/SessionDetailPanel";
 import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
 import { alvaToast } from "@/lib/alva-toast";
-import { ADMIN_SESSIONS, type AdminSession } from "@/data/admin/oversight";
+import type { AdminSession } from "@/data/admin/oversight";
 import { STATES, round1 } from "@/data/admin/shared";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useAdminSessions } from "@/hooks/useAdminSessions";
 
 type Tab = "all" | "no-audio";
 type StateFilter = string | "all";
@@ -30,12 +31,12 @@ type StateFilter = string | "all";
  * the first thing an admin sees, not something they have to sort for.
  */
 export default function AdminFocusGroupsPage() {
-  const isLoading = useSimulatedLoading();
+  const { rows: live, isLoading, error, reload } = useAdminSessions();
   const [tab, setTab] = useState<Tab>("all");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [detail, setDetail] = useState<AdminSession | null>(null);
   const [assigning, setAssigning] = useState<AdminSession | null>(null);
-  const rows = useDevRows(ADMIN_SESSIONS);
+  const rows = useDevRows(live);
 
   const missingAudio = useMemo(() => rows.filter((row) => !row.hasAudio), [rows]);
 
@@ -162,6 +163,22 @@ export default function AdminFocusGroupsPage() {
   return (
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="focus-groups" />
+
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <AdminPageSkeleton charts={0} chartColumns={3} table={true} />

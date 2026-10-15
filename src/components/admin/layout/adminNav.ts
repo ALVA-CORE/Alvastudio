@@ -57,8 +57,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Home",
     title: "Overview",
     blurb: "Where the corpus stands and what needs attention today.",
-    status: "blocked",
-    blockedBy: "GET /dashboard/admin, corpus totals and a growth series",
+    status: "partial",
+    blockedBy: "An hours-over-time series, and the join between session type and status",
     Icon: HomeSmile,
   },
   {
@@ -77,8 +77,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Users",
     title: "User management",
     blurb: "Create staff accounts, change roles, deactivate people who have left.",
-    status: "blocked",
-    blockedBy: "GET /users, POST /users, PATCH /users/{id}",
+    status: "ready",
     Icon: UsersGroupRounded,
   },
   {
@@ -87,8 +86,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Corpus",
     title: "Corpus overview",
     blurb: "Hours collected, coverage by variety and state, and growth over time.",
-    status: "blocked",
-    blockedBy: "GET /dashboard/admin",
+    status: "partial",
+    blockedBy: "The same two, plus corpus-wide gender and age in hours",
     Icon: ChartSquare,
   },
   {
@@ -98,7 +97,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     title: "Review oversight",
     blurb: "Queue depth, rejection reasons and how fast reviewers are clearing work.",
     status: "partial",
-    blockedBy: "Per-reviewer throughput stats; reassign or reopen a review",
+    blockedBy: "language_variety on a recording",
     Icon: ClipboardCheck,
   },
   {
@@ -108,7 +107,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     title: "Annotation oversight",
     blurb: "Which sessions are claimed, by whom, and what is sitting unclaimed.",
     status: "partial",
-    blockedBy: "Per-annotator throughput stats",
+    blockedBy: "Segment and tag counts on the list, not just the document",
     Icon: DocumentText,
   },
   {
@@ -126,8 +125,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Payments",
     title: "Payments and rates",
     blurb: "What contributors have earned and what has been paid out.",
-    status: "partial",
-    blockedBy: "All-contributor earnings, and a CSV export",
+    status: "blocked",
+    blockedBy: "Not wired to /payouts yet",
     Icon: Wallet,
   },
   {
@@ -136,7 +135,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Audio QC",
     title: "Audio QC tools",
     blurb: "Run analysis, transcription and quality scoring over submitted audio.",
-    status: "ready",
+    status: "blocked",
+    blockedBy: "The ML stack is not installed, so these return 503",
     Icon: Soundwave,
   },
   {

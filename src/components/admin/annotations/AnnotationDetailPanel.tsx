@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DocumentText from "@solar-icons/react/notes/DocumentText";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import Restart from "@solar-icons/react/arrows/Restart";
@@ -21,6 +21,7 @@ import {
   type AnnotationStatus,
 } from "@/data/admin/oversight";
 import { annotationActivity } from "@/data/admin/activity";
+import { getAnnotation } from "@/lib/api/annotations";
 import { round1 } from "@/data/admin/shared";
 
 const STATUS_TONE: Record<AnnotationStatus, PillTone> = {
@@ -65,6 +66,50 @@ export function AnnotationDetailPanel({
   const [tab, setTab] = useState("detail");
   const [confirm, setConfirm] = useState<"approve" | "rework" | null>(null);
 
+  /**
+   * Segment and tag counts, fetched when the panel opens.
+   *
+   * `GET /annotations` returns ids and status and nothing else, so the table
+   * does not claim to know these. The full document does carry them, and one
+   * request for the row somebody is actually reading is a fair trade; one per
+   * row to fill a column was not.
+   */
+  const [counts, setCounts] = useState<{ segments: number; tags: number } | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!open || !annotation) return;
+
+    let cancelled = false;
+    setCounts(null);
+
+    getAnnotation(annotation.id)
+      .then((document) => {
+        if (cancelled) return;
+        setCounts({
+          segments: document.segments?.length ?? 0,
+          /* "Tags" is every mark an annotator put on a segment, not one
+           * field: a language span, a disfluency, an untranscribable stretch
+           * and a non-speech event are all tags in the workspace. */
+          tags: (document.segments ?? []).reduce(
+            (total, segment) =>
+              total +
+              segment.language_spans.length +
+              segment.disfluencies.length +
+              segment.untranscribable_spans.length +
+              segment.non_speech_events.length,
+            0
+          ),
+        });
+      })
+      .catch(() => setCounts(null));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, annotation]);
+
   const audit = useMemo(
     () => (annotation ? annotationAudit(annotation) : []),
     [annotation]
@@ -79,7 +124,7 @@ export function AnnotationDetailPanel({
             id: annotation.id,
             annotator: annotation.annotator,
             durationSec: annotation.durationSec,
-            segments: annotation.segments,
+            segments: counts?.segments ?? annotation.segments,
           })
         : [],
     [annotation]
@@ -167,16 +212,29 @@ export function AnnotationDetailPanel({
             </DetailGroup>
 
             <DetailGroup title="Work done">
-              <DetailField label="Segments" value={String(annotation.segments)} />
-              <DetailField label="Tags applied" value={String(annotation.tags)} />
+              <DetailField
+                label="Segments"
+                value={counts ? String(counts.segments) : "…"}
+              />
+              <DetailField
+                label="Tags applied"
+                value={counts ? String(counts.tags) : "…"}
+              />
               <DetailField
                 label="Tags per segment"
-                value={String(round1(annotation.tags / Math.max(annotation.segments, 1)))}
+                value={
+                  counts
+                    ? String(round1(counts.tags / Math.max(counts.segments, 1)))
+                    : "…"
+                }
               />
               <DetailField
                 label="Segments per minute"
                 value={String(
-                  round1(annotation.segments / Math.max(annotation.durationSec / 60, 1))
+                  round1(
+                    (counts?.segments ?? 0) /
+                      Math.max(annotation.durationSec / 60, 1)
+                  )
                 )}
               />
             </DetailGroup>

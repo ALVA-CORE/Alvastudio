@@ -12,8 +12,16 @@ export type AssignablePerson = {
   id: string;
   name: string;
   detail?: string;
-  /** Open items they already hold. Drives the ordering. */
-  load: number;
+  /**
+   * Open items they already hold.
+   *
+   * Optional, because nothing at the API reports it: counting what someone is
+   * holding means fetching every recording or annotation and tallying by
+   * assignee, which is not a request an assign dialog should make. When it is
+   * absent the list is alphabetical and no load is shown, rather than showing
+   * a zero that would read as "free". See docs/endpoints-needed.md.
+   */
+  load?: number;
 };
 
 /**
@@ -58,7 +66,12 @@ export function AssignPicker({
 
   if (!subject) return null;
 
-  const ordered = [...people].sort((a, b) => a.load - b.load);
+  /* Lightest first when we know the load, alphabetical when we do not. */
+  const ordered = [...people].sort((a, b) =>
+    a.load === undefined || b.load === undefined
+      ? a.name.localeCompare(b.name)
+      : a.load - b.load
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,6 +117,7 @@ export function AssignPicker({
                           </span>
                         ) : null}
                       </span>
+                      {person.load === undefined ? null : (
                       <span
                         className={cn(
                           "shrink-0 whitespace-nowrap text-xs tabular-nums",
@@ -112,6 +126,7 @@ export function AssignPicker({
                       >
                         {person.load === 0 ? "free" : `${person.load} open`}
                       </span>
+                      )}
                     </button>
                   </li>
                 );

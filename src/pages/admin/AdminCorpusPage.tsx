@@ -12,8 +12,16 @@ import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { VarietyRings } from "@/components/admin/shared/VarietyRings";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { CoverageMap } from "@/components/admin/shared/CoverageMap";
+import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
+import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
+import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
-import { EMPTY_CORPUS, underCoveredStates } from "@/data/admin/corpus";
+import {
+  EMPTY_CORPUS,
+  EMPTY_CORPUS_DEMOGRAPHICS,
+  EMPTY_CORPUS_FLOW,
+  underCoveredStates,
+} from "@/data/admin/corpus";
 import { formatHours } from "@/data/admin/shared";
 import { downloadCsv } from "@/lib/download-csv";
 import { useCorpus } from "@/hooks/useCorpus";
@@ -135,14 +143,31 @@ export default function AdminCorpusPage() {
         />
       </div>
 
-      {/* Two cards stood here: a cumulative hours curve and a sankey from
-          collection type through review to outcome. Neither has a source.
-          `/corpus/summary` is a snapshot with no time axis, and it gives the
-          marginals by type and by status but not the join between them — a
-          sankey drawn from marginals invents its own links. Both are in
-          docs/endpoints-needed.md rather than drawn from seeded data. */}
+      {/* Both of these are drawn empty rather than removed, and empty rather
+          than seeded. `/corpus/summary` is a snapshot with no time axis, and
+          it gives the marginals by type and by status but not the join
+          between them — a sankey drawn from marginals invents its own links.
+          Leaving the frames up keeps the gap visible; filling them with
+          invented numbers would hide it. See docs/endpoints-needed.md §5. */}
+      <AlvaChartCard
+        title="Corpus growth"
+        subtitle="Cumulative hours collected"
+        className="mt-2 h-[25rem]"
+        emptyMessage={{ title: "Waiting on the API", description: "No hours-over-time series yet. See docs/endpoints-needed.md." }}
+      >
+        <CorpusGrowthChart data={[]} />
+      </AlvaChartCard>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-3">
+      <AlvaChartCard
+        title="Where the hours go"
+        subtitle="Collection type → review stage → outcome"
+        className="mt-2 min-h-[14rem]"
+        emptyMessage={{ title: "Waiting on the API", description: "Type and status come back as separate totals, not the split between them." }}
+      >
+        <CorpusFlowChart data={EMPTY_CORPUS_FLOW} />
+      </AlvaChartCard>
+
+      <div className="mt-2 grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
         <AlvaChartCard
           title="By variety"
           subtitle="Which language was spoken"
@@ -179,8 +204,17 @@ export default function AdminCorpusPage() {
 
         {/* Corpus-wide demographics have no endpoint. `/dashboard/intern`
             carries a by-gender and by-age split, but that is one intern's own
-            sessions rather than the dataset, and the whole question here is
-            whether the dataset is balanced. Listed as an ask. */}
+            sessions rather than the dataset, and the question here is whether
+            the dataset is balanced. */}
+        <AlvaChartCard
+          title="Speaker demographics"
+          subtitle="Hours by age bracket and gender"
+          className="min-h-[19rem]"
+          emptyMessage={{ title: "Waiting on the API", description: "No corpus-wide gender or age split yet." }}
+        >
+          <DemographicHoursChart data={EMPTY_CORPUS_DEMOGRAPHICS} />
+        </AlvaChartCard>
+
         <AlvaChartCard
           title="Unmatched states"
           subtitle="Free-text entries that matched no state"
