@@ -10,9 +10,14 @@ here already exists.
 | 5 | A way to assign an unclaimed session | A button that errors today | **High** |
 | 1 | `GET /points/leaderboard` | Contributor podium | **High** |
 | 2 | `permissions` on the user model, or a decision to drop it | Create and edit user | **High** |
+| 7 | An all-contributors earnings summary | Admin payments, the last unwired page | **High** |
 | 6 | Fields missing from list rows | 5 admin columns and charts | Medium |
 | 3 | Annotation activity events, 4 endpoints | Playback tab | Medium |
+| 9 | Review allocation across interns | Interns sharing the review load | **High** |
+| 10 | A home for focus group topics | Admin prompts, third tab | Medium |
+| 8 | Four confirmations about the workspace | Annotator workspace correctness | Medium |
 | 4 | Scoring definitions, not endpoints | 3 chart figures | Medium |
+| 11 | `StatusBreakdown` overlap and window, documented | Contributor quality card | Low |
 
 ---
 
@@ -184,6 +189,136 @@ real on the admin surface.
 empty state. Same endpoint, same clips. If that is expected while durations are
 still being measured, say so and we will label it; if not, it looks like a bug.
 
+## 7. An all-contributors earnings summary
+
+Admin payments is the one admin page still on mock data, and this is the only
+reason. `GET /payments/earnings` returns **one** contributor's ledger, and
+`GET /payments/earnings/{contributor_id}` is the same thing addressed directly.
+Nothing returns every contributor at once.
+
+`GET /payouts/preview` comes closest, but it is a different question. It
+answers "who would the next run pay", as `{user_id, email, amount}`, which is
+not "what has each contributor earned, and how much of it have they been
+paid". The payments page needs the second.
+
+**Proposed:**
+
+```
+GET /payments/earnings/summary?limit=&offset=&envelope=true
+→ [{ contributor_id,
+      full_name,
+      recordings,          // clips they have had approved
+      minutes,             // measured, not reported
+      earned_kobo,         // lifetime
+      paid_kobo,
+      payout_status,       // pending | in_flight | paid
+      last_activity_at }]
+```
+
+`full_name` matters as much as the figures: with only a `contributor_id` we
+would fetch `/users` on every load purely to turn ids into names, which is
+what we already do on three other admin screens.
+
+Everything else that page needs is live: `GET /payments/rates` and
+`PUT /payments/rates/{unit_type}` for the rates card, `GET /payouts/preview`,
+`GET`/`POST /payouts/runs` for running one. We have left the page on mock
+rather than wiring half of it, because live rates feeding a mock earnings table
+would show figures that do not follow from each other.
+
+## 8. Four confirmations about the annotation workspace
+
+The workspace is wired and saving. None of these blocks it, but each is an
+assumption we had to make from the OpenAPI document alone, and each one is
+quietly load-bearing.
+
+| Question | What we assumed | Why it matters |
+| --- | --- | --- |
+| **How are tokens split?** | Whitespace. We join a segment's tokens with one space to render it, and split on whitespace to send it back. | `tokenization_convention_id` on the document implies it may not always be whitespace. If it is ever anything else, every text edit we send is mis-tokenised. |
+| **Is a whole-array splice acceptable?** | Yes. On a text edit we send one `PUT /tokens` with `start_token: 0`, `replace_count: <all>`, and the rebuilt array. | Several targeted splices would each shift the indices after them, which is wrong the moment two edits overlap. One splice has no ordering hazard, but it rewrites rows that did not change. If that is expensive at your end, say so. |
+| **Do token timings survive a splice?** | No, so we carry them ourselves. A token whose text is unchanged keeps its `start_sec`/`end_sec`; a moved or new one is sent with nulls. | If the server re-aligns after a splice, we should stop sending timings at all and let it. If it does not, we are the only thing preserving the aligner's work. |
+| **Does `expected_version` move after every write?** | Yes. We take the `version` from each response and pass it to the next call in the same save. | A save does up to three writes. If version only advances on some of them, our second call will 409 on a save that was perfectly valid. |
+
+Two smaller things from the same surface:
+
+- **`GET /annotations` carries no `tag_count`.** The annotator's session list shows a dash in that column. The full document has the spans, but that is one request per row.
+- **A session has no state of its own.** We take the commonest `state` among its participants for the admin focus-groups column, which is right in practice but is a derivation rather than a fact.
+
+## 9. Even review allocation across interns
+
+**Interns do not claim work, they are given it.** Claiming is the annotator
+model, and it is right there: an annotator takes the next session when they are
+free. Interns are different — a contributor's clip should land on a named
+intern's desk the moment it is submitted, without anybody racing for it.
+
+| | |
+| --- | --- |
+| Trigger | A recording reaching `submitted` |
+| Rule | Spread evenly across interns who are active and approved |
+| Shape | 1,000 clips, 10 active interns, 100 each |
+| Field | `assigned_reviewer_id` on the recording, which already exists |
+
+Two cases worth deciding with it:
+
+| Case | What we would expect |
+| --- | --- |
+| An intern is deactivated or unapproved | Their unreviewed clips go back into the pool and are shared out again. Reviewed ones stay with them, since the verdict is theirs. |
+| A new intern is approved mid-run | They start taking a share of what arrives next. Whether the existing backlog is re-levelled is your call — we would not, since moving a clip somebody has started reading is worse than an uneven count. |
+
+`POST /reviews/assign-next` can stay for the case where an intern clears their
+own queue and wants more. `PATCH /recordings/{id}/assignee` already covers an
+admin moving one by hand.
+
+**What we show today:** the intern review queue reads `GET /reviews/queue`,
+which is unassigned work. Once allocation is automatic we would read what is
+assigned to the caller instead, so a filter or a separate route for "mine"
+would help.
+
+## 10. A home for focus group topics
+
+Prompts and stimuli each have a bank. Focus group topics have none: the topic
+is free text typed on the session at record time, so there is nothing to
+curate, reuse or retire, and no way to see which topics have been covered.
+
+The admin prompts page now has three tabs, and the third stores topics in the
+**prompts bank with `category="focus_group_topic"`**. That works today because
+`category` is free text, and it is reversible, but it means a focus group topic
+is a prompt as far as the API is concerned — so it would be handed to a
+contributor by `/prompts/next` if anything still used that route.
+
+**What we are asking for**, in preference order:
+
+```
+GET    /focus-group-topics?is_active=&limit=&offset=&envelope=true
+POST   /focus-group-topics        { text, language_variety, is_active }
+PATCH  /focus-group-topics/{id}   { text, language_variety, is_active }
+DELETE /focus-group-topics/{id}   → retires it, like /prompts does
+```
+
+Same shape as `/prompts`, including `used_by_count` so an admin can see which
+topics have actually been run. That gives the third tab view, create, edit and
+retire, which is all it needs.
+
+| Alternative | What it means for us |
+| --- | --- |
+| Keep them in `/prompts` but exclude `category="focus_group_topic"` from `/prompts/next` and from anything a contributor sees | Smaller change at your end. We would want that exclusion written down rather than assumed, because today a topic would be handed to a contributor to read aloud. |
+| Topics are genuinely ad-hoc and not worth curating | We remove the tab |
+
+**Also worth knowing:** `category` is free text, and the whole seeded bank
+comes back tagged `placeholder`. We show what an item *is* from which bank it
+came out of rather than printing that raw, because "placeholder" is a note to
+whoever seeded it, not a category.
+
+---
+
+## 11. Two things the UI needed and could not get
+
+Small, but each one is a visible blank today.
+
+| Ask | Why |
+| --- | --- |
+| `submitted` and the overlap rule on `StatusBreakdown`, documented | `not_approved` appears to be the umbrella that `rejected` sits inside. Plotting both straight gave a contributor five clips reading as 140%. We now subtract one from the other, which is a guess we would rather have confirmed. |
+| A window on `status_breakdown`, or confirmation it is lifetime | The contributor's quality card said "Last 30 days" over figures that are every clip they have ever submitted. We relabelled it "All time". If a window is coming, we would rather read it than assume. |
+
 ---
 
 ## On our side, not asks
@@ -196,3 +331,6 @@ still being measured, say so and we will label it; if not, it looks like a bug.
 | Four money buckets | Four cards, not one balance |
 | `kind` is a free string | Substring match, generic fallback. An enum would let us stop guessing. |
 | `X-Total-Count` header | Not reachable from our client, so we pass `?envelope=true` |
+| `POST /wallet/identity/nin` requires `consent: true` | It is an attestation to a government database check, so the sheet collects it with a checkbox rather than us sending `true` on somebody's behalf. Submitting without it was a 422 "Field required". |
+| `/prompts/next` hands out each contributor's next **unread** item | The studio no longer uses it. A prompt is not used up by being read: twelve prompts in the bank should be twelve every contributor can record, not twelve recordings shared between everybody. We read the whole active bank and page it locally. |
+| iOS Safari records mp4/AAC, not webm | We were labelling every blob `audio/webm`, so on an iPhone playback failed and the upload named the wrong format. We now take the type from `MediaRecorder.mimeType` and send a matching extension. Worth knowing if you see mp4 arriving where webm used to. |

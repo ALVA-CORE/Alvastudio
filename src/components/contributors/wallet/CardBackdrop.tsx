@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react";
+import { FallbackBoundary } from "@/components/shared/FallbackBoundary";
 import { alvaAccentTexture } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
@@ -164,7 +165,12 @@ export function CardBackdrop({
 
   return (
     <span aria-hidden className={cn("block", className)}>
-      <Suspense fallback={flat}>
+      {/* The boundary catches what `onError` cannot: a chunk that fails to
+          download throws during render, before the component exists to report
+          anything. Without it the whole dashboard went blank over a card
+          background. */}
+      <FallbackBoundary fallback={flat} label="the wallet card field">
+        <Suspense fallback={flat}>
         <ShapeWaves
           shapes="mixed"
           cellSize={FIELD.cellSize}
@@ -183,7 +189,8 @@ export function CardBackdrop({
           introDuration={1.3}
           onError={handleError}
         />
-      </Suspense>
+        </Suspense>
+      </FallbackBoundary>
     </span>
   );
 }

@@ -22,6 +22,15 @@ type StudioPromptStackProps = {
 
 const MAX_VISIBLE = 4;
 const CARD_OFFSET = 20;
+/**
+ * One height for every card in the stack.
+ *
+ * Briefly this sized to the text, which broke the stack: the cards behind are
+ * positioned by offset from the top, so they only read as a stack when they
+ * are the same height as the card in front. Different heights left them
+ * sticking out at the bottom in a heap.
+ */
+const CARD_HEIGHT = "h-[18.5rem]";
 const SCALE_FACTOR = 0.04;
 
 export function StudioPromptStack({
@@ -38,7 +47,23 @@ export function StudioPromptStack({
 
   return (
     <div className={cn("relative w-full", className)}>
-      <div className="relative h-[18.5rem] w-full">
+      {/* Height follows the top card instead of a fixed 18.5rem. A short
+          prompt used to sit in a card two thirds empty, which read as
+          something failing to load. The spacer carries the same text at the
+          same size, so the box is exactly as tall as the words need plus the
+          peek of the cards behind. */}
+      {/* `overflow-x-clip`, not hidden: the top card drags past its own edge
+          and was pushing the page sideways on a phone. `clip` stops that
+          without creating a scroll container, so the border beam still blooms
+          outside the card. */}
+      <div
+        className={cn(
+          "relative w-full overflow-x-clip",
+          CARD_HEIGHT
+        )}
+        style={{ paddingBottom: (stack.length - 1) * CARD_OFFSET }}
+      >
+
         {stack
           .slice()
           .reverse()
@@ -79,7 +104,10 @@ export function StudioPromptStack({
                     </BorderBeam>
                   </div>
                 ) : (
-                  <PromptFace prompt={card.prompt} depth={index} />
+                  /* No text on the cards behind. Only their bottom edge shows,
+                     and rendering their own prompt at their own length made it
+                     bleed through under the top card. */
+                  <PromptFace depth={index} />
                 )}
               </motion.div>
             );
@@ -114,7 +142,8 @@ function PromptFace({
   active,
   depth = 0,
 }: {
-  prompt: string;
+  /** Omitted for the cards behind, which show nothing but their edge. */
+  prompt?: string;
   active?: boolean;
   depth?: number;
 }) {
@@ -123,7 +152,8 @@ function PromptFace({
   return (
     <div
       className={cn(
-        "flex h-[18.5rem] w-full flex-col items-center justify-center rounded-[28px] px-6 text-center shadow-[0_12px_28px_rgba(0,0,0,0.22)]",
+        "flex w-full flex-col items-center justify-center rounded-[28px] px-7 text-center shadow-[0_12px_28px_rgba(0,0,0,0.22)]",
+        CARD_HEIGHT,
         active
           ? cn(alvaAccentTextureClass, "shadow-[0_20px_40px_rgba(0,0,0,0.35)]")
           : "border border-alva-accent/25"
@@ -134,28 +164,32 @@ function PromptFace({
           : undefined
       }
     >
-      <div
-        className={cn(
-          "mb-5 inline-flex items-center gap-1.5 text-xs",
-          active ? "text-alva-bg/75" : "text-alva-bg/70"
-        )}
-      >
-        Click
-        <Microphone3
-          size={14}
-          weight="BoldDuotone"
-          className={active ? "text-alva-bg" : "text-alva-bg/90"}
-        />
-        and read the sentence aloud
-      </div>
-      <p
-        className={cn(
-          "text-balance text-xl font-semibold leading-snug",
-          active ? "text-alva-bg" : "text-alva-bg/85"
-        )}
-      >
-        {prompt}
-      </p>
+      {prompt ? (
+        <>
+          <div
+            className={cn(
+              "mb-5 inline-flex items-center gap-1.5 text-xs",
+              active ? "text-alva-bg/75" : "text-alva-bg/70"
+            )}
+          >
+            Click
+            <Microphone3
+              size={14}
+              weight="BoldDuotone"
+              className={active ? "text-alva-bg" : "text-alva-bg/90"}
+            />
+            and read the sentence aloud
+          </div>
+          <p
+            className={cn(
+              "text-balance text-xl font-semibold leading-snug",
+              active ? "text-alva-bg" : "text-alva-bg/85"
+            )}
+          >
+            {prompt}
+          </p>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -113,19 +113,6 @@ export function underCoveredStates(snapshot: CorpusSnapshot, targetHours = 40) {
   });
 }
 
-export const GROWTH_CSV_HEADER = "date,cumulative_hours";
-
-export function growthToCsv(points: GrowthPoint[]) {
-  return [
-    GROWTH_CSV_HEADER,
-    ...points.map((point) => `${isoDay(point.date)},${point.hours}`),
-  ].join("\n");
-}
-
-/* ------------------------------------------------------------------ *
- * Corpus pipeline
- * ------------------------------------------------------------------ */
-
 export type SankeyFlow = {
   nodes: { name: string; category?: "source" | "landing" | "outcome" }[];
   links: { source: number; target: number; value: number }[];
@@ -174,24 +161,16 @@ export const EMPTY_CORPUS_FLOW: SankeyFlow = {
 
 
 /**
- * Age and gender as one series rather than two.
+ * The age brackets, with nothing in them.
  *
- * They are a cross-tab, not two independent breakdowns, and the pyramid the
- * intern dashboard already uses shows the skew in a way two separate lists
- * cannot: male hours run left of the age gutter, female right.
+ * The populated version is gone: no endpoint reports hours split by speaker
+ * demographics, so the chart draws its empty state. The brackets stay because
+ * an empty pyramid still has to have axes. See docs/endpoints-needed.md §6.
  */
-export const CORPUS_DEMOGRAPHICS: DemographicHoursPoint[] = [
-  { ageBracket: "18–24", male: 61.4, female: 74.8, undisclosed: 6.4 },
-  { ageBracket: "25–34", male: 82.1, female: 92.6, undisclosed: 3.6 },
-  { ageBracket: "35–44", male: 43.9, female: 47.9, undisclosed: 2.9 },
-  { ageBracket: "45–54", male: 22.7, female: 23.6, undisclosed: 1.9 },
-  { ageBracket: "55+", male: 9.3, female: 12.9, undisclosed: 0.4 },
-];
-
-export const EMPTY_CORPUS_DEMOGRAPHICS: DemographicHoursPoint[] =
-  CORPUS_DEMOGRAPHICS.map((point) => ({
-    ...point,
-    male: 0,
-    female: 0,
-    undisclosed: 0,
-  }));
+export const EMPTY_CORPUS_DEMOGRAPHICS: DemographicHoursPoint[] = [
+  "18-24",
+  "25-34",
+  "35-44",
+  "45-54",
+  "55+",
+].map((ageBracket) => ({ ageBracket, male: 0, female: 0, undisclosed: 0 }));

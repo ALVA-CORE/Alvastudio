@@ -4,16 +4,15 @@ import { LeaderboardPodium } from "@/components/contributors/dashboard/Leaderboa
 import { WalletFace } from "@/components/contributors/wallet/WalletFace";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaAccentTexture } from "@/lib/alva-texture";
-import {
-  setIdentityState,
-  setPayoutAccount,
-  useWalletFace,
-} from "@/data/contributors/walletStore";
+import { useWallet } from "@/data/contributors/walletStore";
 import { cn } from "@/lib/utils";
 
 type PointsBalanceCardProps = {
   points: number;
   currentUserId?: string;
+  /** Null until they have enough recordings to be ranked. */
+  rank?: number | null;
+  rankedOf?: number;
   className?: string;
   isEmpty?: boolean;
 };
@@ -40,17 +39,25 @@ type PointsBalanceCardProps = {
  * was to where it will be, and with both faces in the flow "where it will be"
  * was the bottom of the page.
  */
+/** 1st, 2nd, 3rd, 4th. English, not a library. */
+function ordinal(value: number) {
+  const rest = value % 100;
+  if (rest >= 11 && rest <= 13) return `${value}th`;
+  return `${value}${["th", "st", "nd", "rd"][value % 10] ?? "th"}`;
+}
+
 export function PointsBalanceCard({
   points,
   currentUserId,
+  rank = null,
+  rankedOf = 0,
   className,
   isEmpty = false,
 }: PointsBalanceCardProps) {
   const [face, setFace] = useState<"points" | "wallet">("points");
   const reduced = useReducedMotion() ?? false;
 
-  /* Shared, so verifying identity here is still verified on the profile. */
-  const wallet = useWalletFace(isEmpty);
+  const { wallet, reload: reloadWallet } = useWallet();
   const isWallet = face === "wallet";
 
   const formattedPoints = new Intl.NumberFormat("en-NG").format(points);
@@ -85,8 +92,7 @@ export function PointsBalanceCard({
             <WalletFace
               wallet={wallet}
               onShowPoints={() => setFace("points")}
-              onLinkAccount={setPayoutAccount}
-              onVerifyIdentity={(identity) => setIdentityState(identity, isEmpty)}
+              onRefresh={reloadWallet}
             />
           </motion.div>
         ) : (
@@ -102,7 +108,13 @@ export function PointsBalanceCard({
           >
             <div className="relative z-[1] flex items-end justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs text-alva-bg/70">Points balance</p>
+                {/* Rank is the thing people actually look for, and it means
+                  nothing without the field size: "4th" could be of five. */}
+              <p className="text-xs text-alva-bg/70">
+                {rank && rankedOf > 0
+                  ? `${ordinal(rank)} of ${rankedOf}`
+                  : "Points balance"}
+              </p>
                 <p className="mt-0.5 text-3xl font-semibold tracking-tight text-alva-bg">
                   {formattedPoints}
                   <span className="ml-1.5 text-lg font-medium text-alva-bg/75">

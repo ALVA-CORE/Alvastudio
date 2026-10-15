@@ -14,7 +14,12 @@ const App = () => (
       <AppThemeProvider>
         <TooltipProvider>
           <AlvaToaster />
-          <BrowserRouter>
+          <BrowserRouter
+      /* Opt in now rather than being surprised by v7. Both are behaviour we
+         already rely on: transitions around navigation, and splat routes
+         resolving relative to the route rather than the match. */
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
             <AppRoutes />
           </BrowserRouter>
         </TooltipProvider>

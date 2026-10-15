@@ -1,5 +1,6 @@
 import type { HeatmapColumn } from "@/components/charts/heatmap";
 import { NIGERIAN_NAMES, daysAgo, relativeDays, round1, seeded } from "./shared";
+import { NO_VALUE } from "@/lib/no-value";
 
 export type AdminUserRole = "contributor" | "intern" | "annotator" | "admin";
 
@@ -133,7 +134,7 @@ const OUTPUT_LABEL: Record<AdminUserRole, string> = {
   contributor: "recordings",
   intern: "sessions",
   annotator: "annotations",
-  admin: ", ",
+  admin: NO_VALUE,
 };
 
 /* Weighted: a speech corpus is mostly contributors, with a thin staff layer. */
@@ -211,14 +212,6 @@ export const EMPTY_USER_METRICS = {
   joinedThisWeek: "0",
   pending: "0",
 };
-
-/** Mirrors the ids the mock table uses, so a picked row can be found again. */
-export function findUser(id: string) {
-  return ADMIN_USERS.find((row) => row.id === id) ?? null;
-}
-/* ------------------------------------------------------------------ *
- * Detail panel data
- * ------------------------------------------------------------------ */
 
 export type AuditEvent = {
   id: string;

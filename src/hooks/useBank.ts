@@ -26,12 +26,12 @@ const FROM_VARIETY: Record<Variety, ApiLanguageVariety> = {
 };
 
 /**
- * `category` is free text at the API and a fixed list in our forms.
+ * `category` is free text at the API.
  *
- * Anything that does not match one of ours is kept and shown as written rather
- * than coerced into the nearest option: the seeded bank is tagged
- * `placeholder`, and silently relabelling it "Everyday life" would hide which
- * items are still development data.
+ * It is kept verbatim — the seeded bank is tagged `placeholder` — and read
+ * through `bankCategory`, which decides what an item IS from which bank it
+ * came out of. The raw value is only consulted for focus group topics, which
+ * have no bank of their own.
  */
 function toBankItem(api: ApiPrompt, kind: BankKind): BankItem {
   const created = new Date(api.created_at);
@@ -41,7 +41,7 @@ function toBankItem(api: ApiPrompt, kind: BankKind): BankItem {
     kind,
     text: api.text,
     variety: TO_VARIETY[api.language_variety] ?? "Nigerian English",
-    category: (api.category ?? "Everyday life") as BankCategory,
+    category: api.category ?? "",
     isActive: api.is_active,
     usedByCount: api.used_by_count,
     createdAt: created.getTime(),
@@ -92,22 +92,33 @@ export function useBank() {
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 
-  const create = useCallback(async (kind: BankKind, draft: BankDraft) => {
+  /**
+   * `category` carries the tab, not a choice.
+   *
+   * It is the only way to tell a focus group topic from a prompt, since both
+   * live in the prompts bank. Everything else gets the kind it was written to,
+   * which is what the table reads back.
+   */
+  const create = useCallback(
+    async (kind: BankKind, draft: BankDraft, category: string = kind) => {
     const api = await createBankItem(kind, {
       text: draft.text,
       language_variety: FROM_VARIETY[draft.variety],
-      category: draft.category,
+      category,
       is_active: true,
     });
     setItems((prev) => [toBankItem(api, kind), ...prev]);
-  }, []);
+    },
+    []
+  );
 
   const save = useCallback(
     async (kind: BankKind, id: string, draft: BankDraft) => {
+      /* Text and variety only. Moving an item between banks is a delete and
+       * a create, which loses the id every recording points at. */
       const api = await updateBankItem(kind, id, {
         text: draft.text,
         language_variety: FROM_VARIETY[draft.variety],
-        category: draft.category,
       });
       setItems((prev) =>
         prev.map((item) => (item.id === id ? toBankItem(api, kind) : item))

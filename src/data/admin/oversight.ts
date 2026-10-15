@@ -274,7 +274,7 @@ function buildSessions(count: number): AdminSession[] {
       participants,
       turns: hasAudio ? Math.floor(random() * 90) + participants * 4 : 0,
       durationSec,
-      duration: hasAudio ? formatDuration(durationSec) : ", ",
+      duration: hasAudio ? formatDuration(durationSec) : NO_VALUE,
       hasAudio,
       // Roughly one uploaded session in six is still sitting in the queue.
       claimedBy:
@@ -295,6 +295,7 @@ export const ADMIN_SESSIONS: AdminSession[] = buildSessions(42);
  * ------------------------------------------------------------------ */
 
 import type { AuditEntry } from "@/components/admin/shared/detail";
+import { NO_VALUE } from "@/lib/no-value";
 
 export type RubricAnswer = "yes" | "partial" | "no";
 

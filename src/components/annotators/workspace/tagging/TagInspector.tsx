@@ -25,6 +25,7 @@ import {
 import { ScrollableTabStrip } from "@/components/annotators/workspace/tagging/ScrollableTabStrip";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { cn } from "@/lib/utils";
+import { NO_VALUE } from "@/lib/no-value";
 
 /**
  * Everything tagged on this clip, grouped by family.
@@ -429,7 +430,7 @@ export const TagInspector = memo(function TagInspector() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs text-foreground">
-                        {surfaceOf(span.startToken, span.endToken) || ", "}
+                        {surfaceOf(span.startToken, span.endToken) || NO_VALUE}
                       </p>
                       <p className="truncate text-[10px] text-muted-foreground">
                         {tagLabel(span.kind, span.value)}

@@ -13,13 +13,14 @@ import {
 import { reportApiError } from "@/lib/api/reportApiError";
 import { relativeDays } from "@/data/admin/shared";
 import type { AdminUser, AdminUserRole } from "@/data/admin/users";
+import { NO_VALUE } from "@/lib/no-value";
 
 /** Role-appropriate noun for the panel's headline figure. */
 const OUTPUT_LABEL: Record<AdminUserRole, string> = {
   contributor: "recordings",
   intern: "sessions",
   annotator: "annotations",
-  admin: ", ",
+  admin: NO_VALUE,
 };
 
 /**

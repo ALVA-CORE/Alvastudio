@@ -5,6 +5,7 @@ import {
   type QualitySegment,
 } from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
+import { NO_VALUE } from "@/lib/no-value";
 
 type QualityProgressBarProps = {
   className?: string;
@@ -17,6 +18,8 @@ type QualityProgressBarProps = {
   breakdown?: {
     approved: number;
     in_review: number;
+    submitted: number;
+    /** The umbrella: a rejected clip is a not-approved one too. */
     not_approved: number;
     rejected: number;
     total: number;
@@ -37,14 +40,24 @@ export function QualityProgressBar({
   approved,
   total,
 }: QualityProgressBarProps) {
-  /* Real proportions when the dashboard supplied them. Percentages are derived
-   * from the counts rather than sent, so they always sum to the whole. */
+  /**
+   * Four slices of one whole, from counts that overlap.
+   *
+   * `not_approved` is the umbrella: a rejected clip is also a not-approved
+   * one. Plotting both straight gave five clips reading as 140% — 20%
+   * approved, 60% re-record and 60% rejected, the last two being the same
+   * three clips counted twice. Re-record is what is left of `not_approved`
+   * once the rejections come out of it.
+   *
+   * `submitted` and `in_review` are both "waiting on somebody" from where a
+   * contributor sits, so they are one slice rather than two.
+   */
   const segments: QualitySegment[] =
     breakdown && breakdown.total > 0
       ? [
           { key: "approved", label: "Approved", value: pct(breakdown.approved, breakdown.total), color: "hsl(var(--alva-accent))" },
-          { key: "pending", label: "In review", value: pct(breakdown.in_review, breakdown.total), color: "hsl(0 0% 42%)" },
-          { key: "rework", label: "Re-record", value: pct(breakdown.not_approved, breakdown.total), color: "hsl(38 92% 50%)" },
+          { key: "pending", label: "In review", value: pct(breakdown.in_review + breakdown.submitted, breakdown.total), color: "hsl(0 0% 42%)" },
+          { key: "rework", label: "Re-record", value: pct(Math.max(0, breakdown.not_approved - breakdown.rejected), breakdown.total), color: "hsl(38 92% 50%)" },
           { key: "rejected", label: "Rejected", value: pct(breakdown.rejected, breakdown.total), color: "hsl(0 72% 51%)" },
         ]
       : QUALITY_SEGMENTS;
@@ -59,8 +72,10 @@ export function QualityProgressBar({
     : liveRate
       ? [
           { label: "Acceptance rate", value: liveRate },
-          // No review-time or weekly figure on the endpoint yet.
-          { label: "Avg review time", value: ", " },
+          /* No review-time figure anywhere. It is a scoring definition
+             nobody has agreed yet, not a field somebody forgot. See
+             docs/endpoints-needed.md §4. */
+          { label: "Avg review time", value: NO_VALUE },
           { label: "Total clips", value: String(total) },
         ]
       : QUALITY_INSIGHTS;
@@ -76,7 +91,10 @@ export function QualityProgressBar({
               : "How your submissions are grading out"}
           </p>
         </div>
-        <span className="shrink-0 text-xs text-muted-foreground">Last 30 days</span>
+        {/* The breakdown is every clip this contributor has ever submitted.
+            It said "Last 30 days", which was a window the endpoint does not
+            apply and the figures never honoured. */}
+        <span className="shrink-0 text-xs text-muted-foreground">All time</span>
       </div>
 
       <div className="flex h-10 w-full overflow-hidden rounded-md bg-alva-surface">

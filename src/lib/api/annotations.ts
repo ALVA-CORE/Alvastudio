@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchBlobUrl } from "./client";
 import type { ApiLanguageVariety } from "./enums";
 
 /**
@@ -310,3 +310,13 @@ export function toApiLanguage(code: string): ApiAnnotationLanguage {
 export function fromApiLanguage(code: string): string {
   return FROM_API_LANGUAGE[code] ?? "und";
 }
+
+/**
+ * The clip, as a blob URL.
+ *
+ * The audio route is authenticated, so an `<audio src>` pointed straight at it
+ * would send no token and 401. Callers must `URL.revokeObjectURL` when the
+ * player unmounts.
+ */
+export const annotationAudioUrl = (id: string) =>
+  apiFetchBlobUrl(`/annotations/${id}/audio`);

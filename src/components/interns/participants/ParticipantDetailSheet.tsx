@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import { PanelDivider, PanelSection } from "@/components/shared/PanelPrimitives";
+import { NO_VALUE } from "@/lib/no-value";
 
 type ParticipantDetailSheetProps = {
   participant: ParticipantRecord | null;
@@ -73,10 +74,10 @@ export function ParticipantDetailSheet({
           <PanelDivider className="-mx-6 my-0" />
 
           <DetailSection title="Demographics">
-            <ProfileInfoBlock label="Age bracket" value={participant.ageBracket || ", "} />
-            <ProfileInfoBlock label="Gender" value={formatGenderLabel(participant.gender) || ", "} />
-            <ProfileInfoBlock label="State" value={participant.state || ", "} />
-            <ProfileInfoBlock label="Native language" value={participant.nativeLanguage || ", "} />
+            <ProfileInfoBlock label="Age bracket" value={participant.ageBracket || NO_VALUE} />
+            <ProfileInfoBlock label="Gender" value={formatGenderLabel(participant.gender) || NO_VALUE} />
+            <ProfileInfoBlock label="State" value={participant.state || NO_VALUE} />
+            <ProfileInfoBlock label="Native language" value={participant.nativeLanguage || NO_VALUE} />
           </DetailSection>
 
           <PanelDivider className="-mx-6 my-0" />
@@ -85,11 +86,11 @@ export function ParticipantDetailSheet({
             <ProfileInfoBlock label="Focus group session" value={participant.focusGroupSession} />
             <ProfileInfoBlock
               label="Language used"
-              value={formatSessionLanguageLabel(participant.sessionLanguage) || ", "}
+              value={formatSessionLanguageLabel(participant.sessionLanguage) || NO_VALUE}
             />
             <ProfileInfoBlock
               label="Consent"
-              value={formatConsentLabel(participant.consent) || ", "}
+              value={formatConsentLabel(participant.consent) || NO_VALUE}
             />
             <ProfileInfoBlock label="Logged at" value={loggedAt} />
           </DetailSection>
@@ -97,7 +98,7 @@ export function ParticipantDetailSheet({
           <PanelDivider className="-mx-6 my-0" />
 
           <DetailSection title="Domain">
-            <ProfileInfoBlock label="Occupation / sector" value={participant.occupation || ", "} />
+            <ProfileInfoBlock label="Occupation / sector" value={participant.occupation || NO_VALUE} />
           </DetailSection>
         </div>
       </SheetContent>

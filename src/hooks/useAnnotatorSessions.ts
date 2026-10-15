@@ -3,6 +3,7 @@ import * as annotations from "@/lib/api/annotations";
 import type { ApiAnnotationStatus } from "@/lib/api/annotations";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { AnnotationStatus, AnnotatorSession } from "@/data/annotators/sessions";
+import { NO_VALUE } from "@/lib/no-value";
 
 /**
  * The annotator's session list.
@@ -29,7 +30,7 @@ function sessionCode(sessionId: string): string {
 
 function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return ", ";
+  if (!Number.isFinite(then)) return NO_VALUE;
 
   const hours = Math.floor((Date.now() - then) / 36e5);
   if (hours < 1) return "Just now";

@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { cn } from "@/lib/utils";
+import { NO_VALUE } from "@/lib/no-value";
 
 /** A titled group of facts, two to a row. */
 export function DetailGroup({
@@ -52,7 +53,7 @@ export function DetailField({
         )}
         title={typeof value === "string" ? value : undefined}
       >
-        {value || ", "}
+        {value || NO_VALUE}
       </dd>
     </div>
   );

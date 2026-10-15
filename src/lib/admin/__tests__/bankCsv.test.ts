@@ -20,12 +20,13 @@ describe("parseBankCsv", () => {
     expect(rows[0].text).toBe('She said "no" twice.');
   });
 
-  it("falls back when variety and category are missing or loose", () => {
+  /* A third column is ignored rather than rejected: the CSV used to carry a
+   * category, and an old file should still import. */
+  it("falls back when variety is missing or loose, and ignores extra columns", () => {
     const { rows } = parseBankCsv("Just the text\nAnother one,pidgin,nonsense");
     expect(rows[0].variety).toBe("Nigerian Pidgin");
-    expect(rows[0].category).toBe("Everyday life");
     expect(rows[1].variety).toBe("Nigerian Pidgin");
-    expect(rows[1].category).toBe("Everyday life");
+    expect(rows).toHaveLength(2);
   });
 
   it("matches a variety case-insensitively", () => {

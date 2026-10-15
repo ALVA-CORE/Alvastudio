@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { annotatorDashboard, type ApiDailyActivity } from "@/lib/api/dashboard";
 import { useApiResource } from "@/hooks/useApiResource";
 import type { HeatmapColumn } from "@/components/charts/heatmap";
+import { NO_VALUE } from "@/lib/no-value";
 
 /**
  * `daily_activity` → the calendar shape the activity chart reads.
@@ -50,7 +51,7 @@ export function toHeatmapColumns(daily: ApiDailyActivity[]): HeatmapColumn[] {
 
 /** Whole-number metric, or an em dash when there is genuinely nothing. */
 function count(value: number | undefined) {
-  return value == null ? ", " : value.toLocaleString();
+  return value == null ? NO_VALUE : value.toLocaleString();
 }
 
 export function useAnnotatorDashboard() {
@@ -64,7 +65,7 @@ export function useAnnotatorDashboard() {
   const metrics = useMemo(
     () => ({
       clipsAnnotated: count(data?.segments_created),
-      hoursAnnotated: data ? `${data.hours_annotated.toFixed(1)}h` : ", ",
+      hoursAnnotated: data ? `${data.hours_annotated.toFixed(1)}h` : NO_VALUE,
       tagsApplied: count(data?.tags_applied),
       sessionsAnnotated: count(data?.sessions_annotated),
       queueAvailable: count(data?.queue_available),

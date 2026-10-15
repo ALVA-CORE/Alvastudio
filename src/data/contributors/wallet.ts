@@ -25,7 +25,7 @@ export type WalletEntry = {
  * payout destination to collect and no eligibility for a run. So this gates
  * the wallet rather than sitting beside it. See docs/integration-status.md §3.
  */
-export type IdentityState = "unverified" | "pending" | "verified";
+export type IdentityState = "unverified" | "pending" | "verified" | "failed";
 
 export type PayoutAccount = {
   bank: string;
@@ -52,6 +52,8 @@ export type Wallet = {
   /** Kobo. The sum of all four. */
   lifetimeKobo: number;
   identity: IdentityState;
+  /** Why it failed, or what to do next. Straight from the API. */
+  identityDetail?: string | null;
   /** Null until a bank is linked. */
   payoutAccount: PayoutAccount | null;
   entries: WalletEntry[];
@@ -130,30 +132,4 @@ export function formatEntryDate(ms: number) {
     minute: "2-digit",
   });
   return `${day} · ${time}`;
-}
-
-
-const SAMPLE_NAMES = [
-  "Chioma Okafor",
-  "Tunde Adeyemi",
-  "Amaka Nwosu",
-  "Ibrahim Bello",
-  "Blessing Uche",
-];
-
-/**
- * Stands in for the bank's name-enquiry lookup.
- *
- * The real one is a call to the payment provider with the bank code and
- * account number. Deterministic from the digits so the same number always
- * returns the same name — a verification step that gives a different answer
- * each time is not a verification step.
- */
-export function resolveAccountName(bank: string, accountNumber: string): string {
-  const digits = accountNumber.replace(/\D/g, "");
-  let hash = 0;
-  for (const char of `${bank}:${digits}`) {
-    hash = (hash * 31 + char.charCodeAt(0)) % 100000;
-  }
-  return SAMPLE_NAMES[hash % SAMPLE_NAMES.length];
 }

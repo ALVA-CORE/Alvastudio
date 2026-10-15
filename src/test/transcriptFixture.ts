@@ -1,3 +1,11 @@
+/**
+ * A transcript document, built from a seeded session.
+ *
+ * This used to be `src/data/annotators/transcripts.ts`, standing in for the
+ * API while the workspace was being designed. The workspace reads
+ * `GET /annotations/{id}` now, so the generator is no longer app data — it is
+ * what the workspace mount tests render, and nothing else.
+ */
 import {
   MAX_CHARS_PER_LINE,
   MAX_LINES_PER_SEGMENT,
@@ -242,63 +250,3 @@ export function buildTranscript(session: AnnotatorSession): TranscriptDoc {
 }
 
 /** A session whose ASR pass has not produced anything — drives the empty state. */
-export function buildEmptyTranscript(session: AnnotatorSession): TranscriptDoc {
-  return {
-    sessionId: session.id,
-    speakers: buildSpeakers(session),
-    segments: [],
-    ...emptyAnnotationState(),
-  };
-}
-
-const transcriptCache = new Map<string, TranscriptDoc>();
-
-/**
- * Simulates the transcript fetch, including latency and the two failure modes
- * the UI has to handle. Sessions ending in `9` return an empty transcript so
- * the empty state is reachable without editing code.
- */
-export function getTranscript(
-  session: AnnotatorSession,
-  { signal }: { signal?: AbortSignal } = {}
-): Promise<TranscriptDoc> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      if (signal?.aborted) {
-        reject(new DOMException("Aborted", "AbortError"));
-        return;
-      }
-
-      const cached = transcriptCache.get(session.id);
-      if (cached) {
-        resolve(cached);
-        return;
-      }
-
-      const doc = session.id.endsWith("9")
-        ? buildEmptyTranscript(session)
-        : buildTranscript(session);
-
-      transcriptCache.set(session.id, doc);
-      resolve(doc);
-    }, 620);
-
-    signal?.addEventListener("abort", () => {
-      clearTimeout(timer);
-      reject(new DOMException("Aborted", "AbortError"));
-    });
-  });
-}
-
-/** Mock persistence. Resolves after a beat so `saving` is actually visible. */
-export function saveTranscript(doc: TranscriptDoc): Promise<void> {
-  return new Promise((resolve) => {
-    transcriptCache.set(doc.sessionId, doc);
-    setTimeout(resolve, 420);
-  });
-}
-
-/** Test seam — drops memoised transcripts between suites. */
-export function __clearTranscriptCache() {
-  transcriptCache.clear();
-}

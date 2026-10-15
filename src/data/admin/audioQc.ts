@@ -1,43 +1,53 @@
 import { round1 } from "@/data/admin/shared";
 
 /**
- * Stands in for `/audio/analyze` + `/audio/transcribe` + `/audio/quality-score`.
+ * One scored clip, as the bench shows it.
  *
- * Those three are behind an optional ML stack that returns 503 when it is not
- * installed, so the QC bench needs something to show while it is not. Results
- * are derived from the filename, so the same clip reads the same twice: a
- * scoring bench that gives a different answer each run is not a bench.
+ * `POST /audio/quality-score` fills this. Fields it does not return are null
+ * rather than invented: the bench exists to set thresholds, and a threshold
+ * set against a made-up number is worse than no threshold.
  */
 
 export type QcResult = {
   filename: string;
+  accepted: boolean;
   durationSec: number;
-  sampleRate: number;
-  snrDb: number;
-  silenceRatio: number;
-  clippingRatio: number;
-  qualityScore: number;
-  transcript: string;
-  relevance: number;
+  trimmedSec: number;
+  snrDb: number | null;
+  silenceRatio: number | null;
+  qualityScore: number | null;
+  transcript: string | null;
+  /** How close the transcript came to the prompt, when one was given. */
+  relevance: number | null;
+  /** Why it was turned down. Empty when it was accepted. */
+  reasons: string[];
 };
 
-export function fakeAnalyse(file: File): QcResult {
-  let hash = 0;
-  for (let i = 0; i < file.name.length; i += 1) {
-    hash = (hash * 31 + file.name.charCodeAt(i)) % 100000;
+export function toQcResult(
+  filename: string,
+  api: {
+    accepted: boolean;
+    quality_score: number | null;
+    snr_db: number | null;
+    duration_seconds: number;
+    trimmed_duration_seconds: number;
+    silence_ratio: number | null;
+    transcript: string | null;
+    embedding_score: number | null;
+    reasons: string[];
   }
-  const unit = (offset: number) => ((hash + offset * 7919) % 1000) / 1000;
-
+): QcResult {
   return {
-    filename: file.name,
-    durationSec: round1(6 + unit(1) * 40),
-    sampleRate: unit(2) > 0.5 ? 48000 : 16000,
-    snrDb: round1(8 + unit(3) * 26),
-    silenceRatio: round1(unit(4) * 0.4),
-    clippingRatio: round1(unit(5) * 0.06),
-    qualityScore: round1(0.45 + unit(6) * 0.5),
-    transcript:
-      "The traffic for Lagos island go always choke by seven a.m., especially when rain fall.",
-    relevance: round1(0.5 + unit(7) * 0.5),
+    filename,
+    accepted: api.accepted,
+    durationSec: round1(api.duration_seconds),
+    trimmedSec: round1(api.trimmed_duration_seconds),
+    snrDb: api.snr_db === null ? null : round1(api.snr_db),
+    silenceRatio: api.silence_ratio,
+    qualityScore: api.quality_score,
+    transcript: api.transcript,
+    relevance: api.embedding_score,
+    reasons: api.reasons,
   };
 }
+

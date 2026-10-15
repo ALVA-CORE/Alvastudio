@@ -28,6 +28,7 @@ import {
 import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useAdminReviews } from "@/hooks/useAdminReviews";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { NO_VALUE } from "@/lib/no-value";
 
 type StatusFilter = RecordingStatus | "all";
 
@@ -133,7 +134,7 @@ export default function AdminReviewsPage() {
       sortValue: (row: AdminRecording) => row.reviewer,
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">
-          {row.reviewer || ", "}
+          {row.reviewer || NO_VALUE}
         </span>
       ),
     },

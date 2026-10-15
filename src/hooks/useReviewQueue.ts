@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import * as reviewsApi from "@/lib/api/reviews";
 import { listRecordings, type ApiRecording } from "@/lib/api/recordings";
+import { listUsers } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
+import { NO_VALUE } from "@/lib/no-value";
 
 /**
  * The intern review queue.
@@ -17,7 +19,7 @@ import type { ReviewQueueItem } from "@/data/reviewQueue";
 
 function relative(iso: string): string {
   const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return ", ";
+  if (!Number.isFinite(then)) return NO_VALUE;
   const hours = Math.floor((Date.now() - then) / 36e5);
   if (hours < 1) return "Just now";
   if (hours < 24) return `${hours}h ago`;
@@ -35,18 +37,27 @@ const MODE: Record<string, ReviewQueueItem["mode"]> = {
   stimuli_narration: "Stimuli",
 };
 
-export function toQueueItem(recording: ApiRecording): ReviewQueueItem {
+export function toQueueItem(
+  recording: ApiRecording,
+  names: Map<string, string> = new Map()
+): ReviewQueueItem {
   return {
     id: recording.id,
-    contributor: recording.contributor_id.slice(0, 8),
+    /* A name when we can resolve one. The id's first eight characters are a
+     * last resort, not an identifier anybody reads. */
+    contributor:
+      names.get(recording.contributor_id) ?? recording.contributor_id.slice(0, 8),
     mode: MODE[recording.session_type] ?? "Prompt reader",
     duration: duration(recording.duration_seconds),
     durationSec: Math.round(recording.duration_seconds ?? 0),
     submittedAt: relative(recording.created_at),
     prompt: recording.prompt_text ?? recording.stimulus_text ?? "",
     audioSrc: `/recordings/${recording.id}/audio`,
-    device: recording.device_mic ?? ", ",
-    language: ", ",
+    device: recording.device_mic ?? NO_VALUE,
+    /* `RecordingOut` carries no language variety — it lives on the
+     * contributor's profile and this endpoint does not join it. See
+     * docs/endpoints-needed.md §6. */
+    language: NO_VALUE,
     status: recording.status === "submitted" || recording.status === "in_review"
       ? "pending"
       : "completed",
@@ -67,12 +78,19 @@ export function useReviewQueue() {
     Promise.all([
       reviewsApi.reviewQueue(100),
       listRecordings({ limit: 100 }),
+      /* Names, not ids. `RecordingOut` carries `contributor_id` and nothing
+       * else, so one list turns every row's id into somebody's name. Failing
+       * here costs the names, not the queue. */
+      listUsers({ role: "contributor", limit: 200 }).catch(() => null),
     ])
-      .then(([queue, all]) => {
+      .then(([queue, all, people]) => {
         if (cancelled) return;
+        const names = new Map<string, string>(
+          (people?.items ?? []).map((user) => [user.id, user.full_name])
+        );
         const seen = new Set(queue.map((r) => r.id));
         const merged = [...queue, ...all.filter((r) => !seen.has(r.id))];
-        setItems(merged.map(toQueueItem));
+        setItems(merged.map((row) => toQueueItem(row, names)));
         setError(null);
       })
       .catch((cause: unknown) => {
