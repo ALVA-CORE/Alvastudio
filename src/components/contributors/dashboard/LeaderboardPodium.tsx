@@ -55,13 +55,15 @@ function PodiumSlot({
             {entry.name.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
+        {/* First name only. A podium is three faces at a glance, and a full
+            name truncates to a surname fragment at this width. */}
         <p
           className={cn(
             "mt-2 max-w-[88px] truncate text-center text-xs font-medium",
             embedded ? "text-alva-bg" : "text-foreground"
           )}
         >
-          {entry.name}
+          {entry.name.trim().split(/\s+/)[0]}
         </p>
         <span
           className={cn(

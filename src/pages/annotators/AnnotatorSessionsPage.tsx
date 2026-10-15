@@ -198,10 +198,6 @@ export default function AnnotatorSessionsPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Sessions</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Focus group recordings queued for annotation — multi-speaker
-            conversational audio.
-          </p>
         </div>
 
         {/* The backend hands work out by claim, not assignment, so taking the

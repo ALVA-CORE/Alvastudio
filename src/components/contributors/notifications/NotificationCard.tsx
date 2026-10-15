@@ -33,6 +33,15 @@ export function NotificationCard({ notification, onClick, className }: Notificat
       {notification.status ? (
         <NotificationStatusTag status={notification.status} />
       ) : null}
+
+      {/* A dot, after the status tag. The row is already the thing being
+          read, so unread needs a mark rather than a second label. */}
+      {notification.read ? null : (
+        <span
+          aria-label="Unread"
+          className="size-2 shrink-0 rounded-full bg-alva-accent"
+        />
+      )}
     </button>
   );
 }

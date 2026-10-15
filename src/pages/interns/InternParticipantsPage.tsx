@@ -63,9 +63,6 @@ export default function InternParticipantsPage() {
     <DesktopPageShell className="py-4">
       <header>
         <h1 className="text-2xl font-semibold text-foreground">Participants</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Session participants logged before focus group recording.
-        </p>
       </header>
 
       {error ? (

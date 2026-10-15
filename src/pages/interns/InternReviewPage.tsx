@@ -113,9 +113,6 @@ export default function InternReviewPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl text-foreground">Review</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Contributor clips — prompt reader and stimuli submissions
-            </p>
           </div>
 
           {/* The queue hands work out by claim: assign-next moves the next

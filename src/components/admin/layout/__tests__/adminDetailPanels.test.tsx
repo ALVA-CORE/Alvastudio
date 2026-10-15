@@ -1,5 +1,5 @@
 import type React from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -9,6 +9,34 @@ import AdminFocusGroupsPage from "@/pages/admin/AdminFocusGroupsPage";
 import AdminPaymentsPage from "@/pages/admin/AdminPaymentsPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminPromptsPage from "@/pages/admin/AdminPromptsPage";
+
+/* The users screen reads from `GET /users` now. Nothing here is testing the
+ * network, so the module is stubbed with the same seeded rows. */
+vi.mock("@/lib/api/users", async () => {
+  const { seededApiUsers } = await import("@/test/apiUserFixtures");
+  const items = seededApiUsers();
+  return {
+    listUsers: vi.fn(async () => ({
+      items,
+      total: items.length,
+      limit: 200,
+      offset: 0,
+    })),
+    createUser: vi.fn(async () => items[0]),
+    updateUser: vi.fn(async () => items[0]),
+    deleteUser: vi.fn(async () => undefined),
+    approveIntern: vi.fn(async () => items[0]),
+    issuePasswordReset: vi.fn(async () => ({
+      token: "prt_test",
+      expires_at: new Date().toISOString(),
+      user_id: items[0].id,
+      email: items[0].email,
+    })),
+    previewUserDeletion: vi.fn(async () => ({})),
+    throwawayPassword: () => "Tmp!test",
+  };
+});
+
 
 /**
  * Every table row opens something.

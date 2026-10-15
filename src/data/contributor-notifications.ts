@@ -15,6 +15,8 @@ export type NotificationCategory =
 export type NotificationStatus = "accepted" | "rejected" | "pending";
 
 export type ContributorNotification = {
+  /** False until the person has seen it. Drives the unread dot. */
+  read?: boolean;
   id: string;
   category: NotificationCategory;
   title: string;

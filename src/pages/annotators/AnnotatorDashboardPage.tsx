@@ -7,6 +7,7 @@ import { AnnotatorBentoSkeleton } from "@/components/annotators/dashboard/Annota
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
+import { NotificationsMenu } from "@/components/shared/NotificationsMenu";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
 import {
@@ -51,11 +52,14 @@ export default function AnnotatorDashboardPage() {
           <h1 className="mt-1 text-2xl font-semibold text-foreground">
             How far, {firstName}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Focus group annotation — segments, speakers and corpus throughput.
-          </p>
         </div>
-        <DashboardTimeFilter value={timeRange} onChange={setTimeRange} />
+        <div className="flex items-center gap-2">
+          <DashboardTimeFilter value={timeRange} onChange={setTimeRange} />
+          {/* Same bell as the intern dashboard, same endpoint behind it.
+              Annotators get told when work is sent back, and until now there
+              was nowhere for that to arrive. */}
+          <NotificationsMenu />
+        </div>
       </header>
 
       {error ? (

@@ -23,12 +23,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   filterNotifications,
-  loadContributorNotifications,
   sortNotifications,
   type ContributorNotification,
   type NotificationSort,
 } from "@/data/contributor-notifications";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import {
+  toContributorNotification,
+  withRecordingDetail,
+} from "@/data/notifications";
+import { getRecording } from "@/lib/api/recordings";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const SORT_LABELS: Record<NotificationSort, string> = {
   newest: "Newest first",
@@ -42,9 +47,13 @@ export default function ContributorNotificationsPage() {
   const [sort, setSort] = useState<NotificationSort>("newest");
   const [selected, setSelected] = useState<ContributorNotification | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const isLoading = useSimulatedLoading();
 
-  const notifications = useDevRows(useMemo(() => loadContributorNotifications(), []));
+  const { items, unread, isLoading, error, reload, markOneRead, markAllRead } =
+    useNotifications();
+
+  const notifications = useDevRows(
+    useMemo(() => items.map(toContributorNotification), [items])
+  );
 
   const visibleNotifications = useMemo(() => {
     const filtered = filterNotifications(notifications, query);
@@ -54,9 +63,32 @@ export default function ContributorNotificationsPage() {
   const isNullState = notifications.length === 0;
   const isNoResults = !isNullState && visibleNotifications.length === 0 && query.trim().length > 0;
 
+  /* Opening one is the only thing that counts as reading it. Landing on the
+   * page is not: a list of twelve unread is the reason someone came. */
   const handleOpen = (notification: ContributorNotification) => {
     setSelected(notification);
     setSheetOpen(true);
+    if (!notification.read) void markOneRead(notification.id);
+
+    /* The notification carries a verdict but not what it was a verdict on, so
+     * the clip is fetched on open rather than for every row in the list. The
+     * sheet renders every one of these fields conditionally, so a failure
+     * here leaves it readable rather than broken. */
+    const recordingId = items.find((item) => item.key === notification.id)
+      ?.recording_id;
+    if (!recordingId) return;
+
+    getRecording(recordingId)
+      .then((recording) =>
+        setSelected((current) =>
+          current && current.id === notification.id
+            ? withRecordingDetail(current, recording)
+            : current
+        )
+      )
+      .catch(() => {
+        /* Nothing to say. The verdict is already on screen. */
+      });
   };
 
   return (
@@ -120,6 +152,41 @@ export default function ContributorNotificationsPage() {
           </DropdownMenu>
         </div>
       </div>
+
+      {error ? (
+        <div className="mt-3 px-4">
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
+            {error}
+            <button
+              type="button"
+              onClick={reload}
+              className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Only offered when there is something to clear, so it is never a
+          button that does nothing. */}
+      {unread > 0 ? (
+        <div className="mt-3 flex items-center justify-between gap-3 px-4">
+          <p className="text-xs text-muted-foreground">
+            {unread} unread
+          </p>
+          <button
+            type="button"
+            onClick={() => void markAllRead()}
+            className="rounded-full px-2 py-1 text-xs font-medium text-alva-accent transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Mark all read
+          </button>
+        </div>
+      ) : null}
 
       <div className="mt-4 px-4">
         <AlvaSurfaceCard className="px-4 py-1">
