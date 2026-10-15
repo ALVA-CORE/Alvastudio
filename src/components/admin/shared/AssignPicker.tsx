@@ -41,9 +41,16 @@ export function AssignPicker({
   subject: string | null;
   people: AssignablePerson[];
   emptyMessage: string;
-  onAssign: (name: string) => void;
+  /**
+   * The whole person, not just their name.
+   *
+   * Assignment is a `PATCH` keyed on an id, and names are not unique enough to
+   * look one back up by. The callers that only want the name take it off the
+   * object.
+   */
+  onAssign: (person: AssignablePerson) => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<AssignablePerson | null>(null);
 
   useEffect(() => {
     if (!open) setSelected(null);
@@ -76,12 +83,12 @@ export function AssignPicker({
           ) : (
             <ul className="space-y-0.5">
               {ordered.map((person) => {
-                const isSelected = selected === person.name;
+                const isSelected = selected?.id === person.id;
                 return (
                   <li key={person.id}>
                     <button
                       type="button"
-                      onClick={() => setSelected(person.name)}
+                      onClick={() => setSelected(person)}
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent",
                         isSelected ? "bg-alva-surface" : "hover:bg-alva-surface/60"

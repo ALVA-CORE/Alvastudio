@@ -21,7 +21,7 @@ export function ReassignReviewerDialog({
   subject: string | null;
   /** The current reviewer — reassigning to them is a no-op. */
   exclude?: string;
-  onAssign: (reviewer: string) => void;
+  onAssign: (reviewer: { id: string; name: string }) => void;
 }) {
   const people = useMemo(() => {
     const load = new Map<string, number>();

@@ -16,14 +16,15 @@ import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotator
 import { AnnotationDetailPanel } from "@/components/admin/annotations/AnnotationDetailPanel";
 import { alvaToast } from "@/lib/alva-toast";
 import {
-  ADMIN_ANNOTATIONS,
   ANNOTATION_STATUS_LABELS,
-  ADMIN_SESSIONS,
   annotatorBreakdown,
   type AdminAnnotation,
   type AnnotationStatus,
 } from "@/data/admin/oversight";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useAdminAnnotations } from "@/hooks/useAdminAnnotations";
+import { formatDuration, relativeDays } from "@/data/admin/shared";
+import { reportApiError } from "@/lib/api/reportApiError";
 
 type StatusFilter = AnnotationStatus | "all";
 
@@ -49,14 +50,22 @@ const STATUSES: StatusFilter[] = [
  * long it has been waiting.
  */
 export default function AdminAnnotationsPage() {
-  const isLoading = useSimulatedLoading();
+  const {
+    rows: live,
+    unclaimed: unclaimedLive,
+    isLoading,
+    error,
+    reload,
+    assign,
+    setVerdict,
+  } = useAdminAnnotations();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [assigning, setAssigning] = useState<{ id: string; topic: string } | null>(null);
-  /* Sessions handed out from here, so the list reflects the action taken. */
+  /* Sessions handed out from here, so the list reflects the action taken
+   * without refetching the whole screen. */
   const [assigned, setAssigned] = useState<Record<string, string>>({});
-  const [annotations, setAnnotations] = useState<AdminAnnotation[]>(ADMIN_ANNOTATIONS);
   const [detail, setDetail] = useState<AdminAnnotation | null>(null);
-  const rows = useDevRows(annotations);
+  const rows = useDevRows(live);
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
@@ -65,15 +74,9 @@ export default function AdminAnnotationsPage() {
 
   const breakdown = useMemo(() => annotatorBreakdown(rows), [rows]);
 
-  /* Sessions with audio that nobody has claimed. Those without audio are the
-   * focus-group page's problem, not this one's. */
   const unclaimed = useMemo(
-    () =>
-      ADMIN_SESSIONS.filter(
-        (session) =>
-          session.hasAudio && !session.claimedBy && !assigned[session.id]
-      ),
-    [assigned]
+    () => unclaimedLive.filter((session) => !assigned[session.id]),
+    [unclaimedLive, assigned]
   );
 
   const approved = rows.filter((row) => row.status === "approved").length;
@@ -157,6 +160,22 @@ export default function AdminAnnotationsPage() {
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="annotations" />
 
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       {isLoading ? (
         <AdminPageSkeleton charts={2} chartColumns={2} table={true} />
       ) : (
@@ -227,7 +246,10 @@ export default function AdminAnnotationsPage() {
                 </dt>
                 <dd className="flex shrink-0 items-center gap-2">
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {session.duration} · {session.createdLabel}
+                    {session.duration_seconds
+                      ? formatDuration(Math.round(session.duration_seconds))
+                      : ", "}{" "}
+                    · {relativeDays(new Date(session.created_at))}
                   </span>
                   <button
                     type="button"
@@ -286,23 +308,25 @@ export default function AdminAnnotationsPage() {
         open={detail !== null}
         onOpenChange={(next) => !next && setDetail(null)}
         annotation={detail}
-        onApprove={(annotation) => {
-          setAnnotations((prev) =>
-            prev.map((row) =>
-              row.id === annotation.id ? { ...row, status: "approved" } : row
-            )
-          );
-          setDetail(null);
-          alvaToast.success(`${annotation.code} approved`);
+        onApprove={async (annotation) => {
+          try {
+            await setVerdict(annotation.id, "approved");
+            setDetail(null);
+            alvaToast.success(`${annotation.code} approved`);
+          } catch (cause) {
+            const message = reportApiError(cause, "Could not approve that one.");
+            if (message) alvaToast.error(message);
+          }
         }}
-        onSendBack={(annotation) => {
-          setAnnotations((prev) =>
-            prev.map((row) =>
-              row.id === annotation.id ? { ...row, status: "needs_rework" } : row
-            )
-          );
-          setDetail(null);
-          alvaToast.show(`${annotation.code} sent back`, { variant: "default" });
+        onSendBack={async (annotation) => {
+          try {
+            await setVerdict(annotation.id, "needs_rework");
+            setDetail(null);
+            alvaToast.show(`${annotation.code} sent back`, { variant: "default" });
+          } catch (cause) {
+            const message = reportApiError(cause, "Could not send that one back.");
+            if (message) alvaToast.error(message);
+          }
         }}
         onReassign={(annotation) =>
           setAssigning({ id: annotation.id, topic: annotation.topic })
@@ -313,13 +337,16 @@ export default function AdminAnnotationsPage() {
         open={assigning !== null}
         onOpenChange={(next) => !next && setAssigning(null)}
         subject={assigning?.topic ?? null}
-        onAssign={(annotator) => {
+        onAssign={async (annotator) => {
           if (!assigning) return;
-          setAssigned((prev) => ({ ...prev, [assigning.id]: annotator }));
-          setAnnotations((prev) =>
-            prev.map((row) => (row.id === assigning.id ? { ...row, annotator } : row))
-          );
-          alvaToast.success(`Assigned to ${annotator}`);
+          try {
+            await assign(assigning.id, annotator);
+            setAssigned((prev) => ({ ...prev, [assigning.id]: annotator.name }));
+            alvaToast.success(`Assigned to ${annotator.name}`);
+          } catch (cause) {
+            const message = reportApiError(cause, "Could not assign that session.");
+            if (message) alvaToast.error(message);
+          }
           setAssigning(null);
         }}
       />

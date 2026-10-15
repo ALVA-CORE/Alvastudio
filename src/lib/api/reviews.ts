@@ -57,3 +57,24 @@ export const submitReview = (payload: {
 
 export const reviewsForRecording = (recordingId: string) =>
   apiFetch<ApiReview[]>(`/reviews/recording/${recordingId}`);
+
+/**
+ * Every verdict on the platform, for the admin oversight screen.
+ *
+ * Richer than `ApiReview`: the list resolves the two names and the prompt text
+ * server side, which is the difference between one request and one request per
+ * row.
+ */
+export type ApiReviewRow = ApiReview & {
+  reviewer_name: string | null;
+  contributor_name: string | null;
+  prompt_text: string | null;
+};
+
+export const listReviews = (
+  query: { verdict?: ApiVerdict; reviewer_id?: string; limit?: number; offset?: number } = {}
+) =>
+  apiFetch<{ items: ApiReviewRow[]; total: number; limit: number; offset: number }>(
+    "/reviews",
+    { query: { ...query, envelope: true } }
+  );

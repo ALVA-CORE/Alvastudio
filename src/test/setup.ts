@@ -267,3 +267,17 @@ Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
   writable: true,
   value: vi.fn((type: string) => (type === "2d" ? canvasContextStub : null)),
 });
+
+/**
+ * jsdom implements neither of these.
+ *
+ * Any screen that plays protected audio fetches it with the bearer token and
+ * hands the player a blob URL, so a component test that opens one throws
+ * before it renders without these.
+ */
+if (typeof URL.createObjectURL !== "function") {
+  URL.createObjectURL = () => "blob:test";
+}
+if (typeof URL.revokeObjectURL !== "function") {
+  URL.revokeObjectURL = () => {};
+}

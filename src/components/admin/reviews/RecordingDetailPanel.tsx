@@ -4,8 +4,8 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
-import { ActivityReplay } from "@/components/admin/shared/ActivityReplay";
 import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
+import { recordingAudioUrl } from "@/lib/api/recordings";
 import {
   AuditTimeline,
   DetailField,
@@ -14,7 +14,6 @@ import {
   DetailProse,
   PanelAction,
 } from "@/components/admin/shared/detail";
-import { annotationActivity } from "@/data/admin/activity";
 import {
   RECORDING_STATUS_LABELS,
   RUBRIC_LABELS,
@@ -34,19 +33,15 @@ const STATUS_TONE: Record<RecordingStatus, PillTone> = {
 };
 
 /**
- * Activity is a focus-group tab.
+ * No Activity tab here.
  *
- * Only focus groups go to an annotator, so only they have a build history to
- * replay. On a prompt read the tab would open on an empty log every time.
+ * `GET /recordings` is prompt reads and stimuli only — a focus group is a
+ * separate resource with its own audio, and nothing on this page is ever one.
+ * Annotation playback therefore lives on the Annotations panel, which is the
+ * only screen whose rows actually have a build history.
  */
-const BASE_TABS = [
+const TABS = [
   { id: "detail", label: "Clip" },
-  { id: "audit", label: "History" },
-];
-
-const FOCUS_GROUP_TABS = [
-  { id: "detail", label: "Clip" },
-  { id: "activity", label: "Activity" },
   { id: "audit", label: "History" },
 ];
 
@@ -74,6 +69,37 @@ export function RecordingDetailPanel({
 }) {
   const [tab, setTab] = useState("detail");
   const [confirmReopen, setConfirmReopen] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  /**
+   * The audio route is authenticated, so an `<audio src>` pointed at it would
+   * send no token and 401. Fetch it with the header, hand the player a blob
+   * URL, and revoke it when the panel closes or moves to another clip —
+   * otherwise every clip an admin opens leaks until the tab is closed.
+   */
+  useEffect(() => {
+    if (!open || !recording) return;
+
+    let url: string | null = null;
+    let cancelled = false;
+
+    recordingAudioUrl(recording.id)
+      .then((blobUrl) => {
+        if (cancelled) {
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+        url = blobUrl;
+        setAudioUrl(blobUrl);
+      })
+      .catch(() => setAudioUrl(null));
+
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+      setAudioUrl(null);
+    };
+  }, [open, recording]);
 
   const rubric = useMemo(
     () => (recording ? recordingRubric(recording) : []),
@@ -81,33 +107,10 @@ export function RecordingDetailPanel({
   );
   const audit = useMemo(() => (recording ? recordingAudit(recording) : []), [recording]);
 
-  /* How the session this clip belongs to was annotated. Keyed off the clip id
-   * for now; once `GET /annotations/{id}/events` exists it is the annotation
-   * covering this recording that is fetched. */
-  const activity = useMemo(
-    () =>
-      recording
-        ? annotationActivity({
-            id: recording.id,
-            annotator: recording.reviewer,
-            durationSec: recording.durationSec,
-            segments: Math.max(8, Math.round(recording.durationSec / 18)),
-          })
-        : [],
-    [recording]
-  );
-
-  /* Opening a prompt read while parked on Activity would leave the panel on a
-   * tab that is no longer in the row of tabs. */
-  useEffect(() => {
-    if (recording && recording.mode !== "Focus group") setTab("detail");
-  }, [recording]);
-
   if (!recording) return null;
 
   const isDecided =
     recording.status !== "submitted" && recording.status !== "in_review";
-  const isFocusGroup = recording.mode === "Focus group";
 
   return (
     <>
@@ -118,7 +121,7 @@ export function RecordingDetailPanel({
           onOpenChange(next);
         }}
         title={`Recording ${recording.code}`}
-        tabs={isFocusGroup ? FOCUS_GROUP_TABS : BASE_TABS}
+        tabs={TABS}
         activeTab={tab}
         onTabChange={setTab}
         header={
@@ -160,14 +163,11 @@ export function RecordingDetailPanel({
         {tab === "detail" ? (
           <>
             <DetailGroup title="Clip" first>
-              {/* On a focus group the player lives on the Activity tab, next
-                  to the replay it is being matched against. Two players in one
-                  panel is two places to pause. */}
-              {isFocusGroup ? null : (
+              {audioUrl ? (
                 <div className="col-span-2">
-                  <ClipPlayer src={recording.audioUrl} />
+                  <ClipPlayer src={audioUrl} />
                 </div>
-              )}
+              ) : null}
               <DetailProse label="Prompt">{recording.prompt}</DetailProse>
               <DetailField label="Contributor" value={recording.contributor} />
               <DetailField label="Type" value={recording.mode} />
@@ -181,10 +181,6 @@ export function RecordingDetailPanel({
               />
             </DetailGroup>
 
-            {/* No rubric on a focus group. The four questions are about one
-                person reading one prompt; nobody answers them about a
-                forty-minute conversation, so the card was four blanks. */}
-            {isFocusGroup ? null : (
             <DetailGroup title="Reviewer answers">
               <div className="col-span-2">
                 <dl className="space-y-0">
@@ -209,7 +205,6 @@ export function RecordingDetailPanel({
                 </dl>
               </div>
             </DetailGroup>
-            )}
 
             {recording.rejectionReason ? (
               <DetailGroup title="Outcome">
@@ -222,11 +217,6 @@ export function RecordingDetailPanel({
               </DetailGroup>
             ) : null}
           </>
-        ) : tab === "activity" ? (
-          <div className="space-y-4">
-            <ClipPlayer src={recording.audioUrl} />
-            <ActivityReplay events={activity} />
-          </div>
         ) : (
           <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
         )}

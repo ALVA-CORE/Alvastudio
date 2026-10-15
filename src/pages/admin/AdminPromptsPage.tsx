@@ -27,14 +27,15 @@ import { CreateBankItemDialog } from "@/components/admin/prompts/CreateBankItemD
 import { ImportBankCsvDialog } from "@/components/admin/prompts/ImportBankCsvDialog";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 import {
-  BANK_ITEMS,
   EMPTY_BANK_METRICS,
   bankMetrics,
   type BankItem,
   type BankKind,
 } from "@/data/admin/prompts";
 import { alvaToast } from "@/lib/alva-toast";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useBank } from "@/hooks/useBank";
+import { reportApiError } from "@/lib/api/reportApiError";
 
 type ActiveFilter = "all" | "active" | "retired";
 
@@ -47,14 +48,14 @@ type ActiveFilter = "all" | "active" | "retired";
  * either unreachable or not worth keeping, and nothing else surfaces that.
  */
 export default function AdminPromptsPage() {
-  const isLoading = useSimulatedLoading();
+  const { items, isLoading, error, reload, create, save, retire, importCsv } =
+    useBank();
   const [kind, setKind] = useState<BankKind>("prompt");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<BankItem | null>(null);
-  const [items, setItems] = useState<BankItem[]>(BANK_ITEMS);
 
   const rows = useDevRows(items);
 
@@ -78,35 +79,39 @@ export default function AdminPromptsPage() {
   const isEmpty = rows.length === 0;
   const metrics = isEmpty ? EMPTY_BANK_METRICS : bankMetrics(forKind);
 
-  const handleSave = (draft: BankDraft) => {
+  const report = (cause: unknown, fallback: string) => {
+    const message = reportApiError(cause, fallback);
+    if (message) alvaToast.error(message);
+  };
+
+  const handleSave = async (draft: BankDraft) => {
     if (!editing) return;
-    setItems((prev) =>
-      prev.map((item) => (item.id === editing.id ? { ...item, ...draft } : item))
-    );
-    alvaToast.success("Saved");
+    try {
+      await save(kind, editing.id, draft);
+      alvaToast.success("Saved");
+    } catch (cause) {
+      report(cause, "Could not save that item.");
+    }
   };
 
-  const handleCreate = (draft: BankDraft) => {
-    const created: BankItem = {
-      id: `${kind === "prompt" ? "p" : "s"}-${crypto.randomUUID().slice(0, 6)}`,
-      kind,
-      ...draft,
-      isActive: true,
-      usedByCount: 0,
-      createdAt: Date.now(),
-      createdLabel: "Just now",
-    };
-    setItems((prev) => [created, ...prev]);
-    alvaToast.success(`${kind === "prompt" ? "Prompt" : "Stimulus"} added`);
+  const handleCreate = async (draft: BankDraft) => {
+    try {
+      await create(kind, draft);
+      alvaToast.success(`${kind === "prompt" ? "Prompt" : "Stimulus"} added`);
+    } catch (cause) {
+      report(cause, "Could not add that item.");
+    }
   };
 
-  const handleRetire = (item: BankItem) => {
-    setItems((prev) =>
-      prev.map((row) => (row.id === item.id ? { ...row, isActive: false } : row))
-    );
-    alvaToast.show("Retired, existing recordings keep working", {
-      variant: "default",
-    });
+  const handleRetire = async (item: BankItem) => {
+    try {
+      await retire(kind, item.id);
+      alvaToast.show("Retired, existing recordings keep working", {
+        variant: "default",
+      });
+    } catch (cause) {
+      report(cause, "Could not retire that item.");
+    }
   };
 
   const columns = [
@@ -224,6 +229,22 @@ export default function AdminPromptsPage() {
         }
       />
 
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       {isLoading ? (
         <AdminPageSkeleton charts={0} chartColumns={3} table={true} />
       ) : (
@@ -307,20 +328,20 @@ export default function AdminPromptsPage() {
         open={importOpen}
         onOpenChange={setImportOpen}
         kind={kind}
-        onImport={(drafts) => {
-          setItems((prev) => [
-            ...drafts.map((draft) => ({
-              id: `${kind === "prompt" ? "p" : "s"}-${crypto.randomUUID().slice(0, 6)}`,
-              kind,
-              ...draft,
-              isActive: true,
-              usedByCount: 0,
-              createdAt: Date.now(),
-              createdLabel: "Just now",
-            })),
-            ...prev,
-          ]);
-          alvaToast.success(`${drafts.length} added`);
+        onImport={async (file) => {
+          try {
+            const result = await importCsv(kind, file);
+            /* The server reports all three outcomes. Saying only how many
+               landed hides the rows that silently did not. */
+            const skipped = result.skipped + result.failed;
+            alvaToast.success(
+              skipped > 0
+                ? `${result.added} added, ${skipped} skipped`
+                : `${result.added} added`
+            );
+          } catch (cause) {
+            report(cause, "Could not import that file.");
+          }
         }}
       />
 

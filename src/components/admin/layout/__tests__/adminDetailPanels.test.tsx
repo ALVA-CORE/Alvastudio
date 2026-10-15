@@ -12,6 +12,126 @@ import AdminPromptsPage from "@/pages/admin/AdminPromptsPage";
 
 /* The users screen reads from `GET /users` now. Nothing here is testing the
  * network, so the module is stubbed with the same seeded rows. */
+/* The reviews screen reads from `GET /recordings`, `/reviews` and `/users`.
+ * None of these tests are testing the network. */
+vi.mock("@/lib/api/recordings", async () => {
+  const { seededApiRecordings } = await import("@/test/apiUserFixtures");
+  const items = seededApiRecordings();
+  return {
+    listRecordingsPage: vi.fn(async () => ({
+      items,
+      total: items.length,
+      limit: 200,
+      offset: 0,
+    })),
+    listRecordings: vi.fn(async () => items),
+    getRecording: vi.fn(async () => items[0]),
+    assignReviewer: vi.fn(async () => items[0]),
+    recordingAudioUrl: vi.fn(async () => "blob:test"),
+    submitPromptRead: vi.fn(),
+    submitStimulus: vi.fn(),
+  };
+});
+
+vi.mock("@/lib/api/reviews", () => ({
+  listReviews: vi.fn(async () => ({ items: [], total: 0, limit: 200, offset: 0 })),
+  reviewQueue: vi.fn(async () => []),
+  assignNext: vi.fn(),
+  submitReview: vi.fn(),
+  reviewsForRecording: vi.fn(async () => []),
+}));
+
+/* The annotations screen reads from `GET /annotations` and `/focus-groups`. */
+vi.mock("@/lib/api/annotations", async () => {
+  const { seededApiAnnotations } = await import("@/test/apiUserFixtures");
+  const items = seededApiAnnotations();
+  return {
+    listAllAnnotations: vi.fn(async () => ({
+      items,
+      total: items.length,
+      limit: 200,
+      offset: 0,
+    })),
+    assignAnnotator: vi.fn(async () => items[0]),
+    reviewAnnotation: vi.fn(async () => items[0]),
+    listQueue: vi.fn(async () => []),
+    listMine: vi.fn(async () => items),
+    getAnnotation: vi.fn(async () => items[0]),
+    claimNext: vi.fn(),
+  };
+});
+
+vi.mock("@/lib/api/focusGroups", async () => {
+  const { seededApiSessions } = await import("@/test/apiUserFixtures");
+  const sessions = seededApiSessions();
+  return {
+    listSessions: vi.fn(async () => sessions),
+    getSession: vi.fn(async () => sessions[0]),
+    createSession: vi.fn(),
+    deleteSession: vi.fn(),
+    addParticipant: vi.fn(),
+  };
+});
+
+/* The overview, corpus and prompts screens read from these. */
+vi.mock("@/lib/api/adminDashboard", () => ({
+  adminDashboard: vi.fn(async () => ({
+    users_by_role: { contributor: 11, intern: 4, annotator: 4, admin: 1 },
+    total_recordings: 180,
+    total_focus_group_sessions: 42,
+    total_annotations: 36,
+    recording_status: { approved: 120, rejected: 20, in_review: 40, total: 180 },
+    annotation_status: { approved: 20, submitted: 10, needs_rework: 6 },
+    stuck_unreviewed_recordings: { count: 7, oldest_at: null, oldest_age_days: 12 },
+    stuck_unclaimed_sessions: { count: 3, oldest_at: null, oldest_age_days: 5 },
+    stuck_annotations_in_rework: { count: 2, oldest_at: null, oldest_age_days: 9 },
+    activity_window_days: 365,
+    daily_activity: [{ date: "2026-10-01", count: 4 }],
+    recordings_in_window: 180,
+  })),
+}));
+
+vi.mock("@/lib/api/corpus", () => ({
+  corpusSummary: vi.fn(async () => ({
+    total_hours: 412.5,
+    recording_hours: 300,
+    focus_group_hours: 112.5,
+    clips: 180,
+    focus_group_sessions: 42,
+    contributors: 214,
+    focus_group_participants: 160,
+    by_session_type: { prompt_read: 200, stimuli_narration: 100 },
+    by_language_variety: { nigerian_pidgin: 268.9, nigerian_english: 143.6 },
+    by_status: { approved: 351.2, in_review: 40, rejected: 21.3 },
+    approved_hours: 351.2,
+    unmeasured_rows: 3,
+  })),
+  corpusCoverage: vi.fn(async () => ({
+    states: [{ state: "Lagos", speakers: 50, hours: 80 }],
+    unmatched_states: {},
+  })),
+}));
+
+vi.mock("@/lib/api/catalog", async () => {
+  const { seededApiBank } = await import("@/test/apiUserFixtures");
+  const items = seededApiBank();
+  const page = { items, total: items.length, limit: 200, offset: 0 };
+  return {
+    listPromptsPage: vi.fn(async () => page),
+    listStimuliPage: vi.fn(async () => page),
+    createBankItem: vi.fn(async () => items[0]),
+    updateBankItem: vi.fn(async () => items[0]),
+    deleteBankItem: vi.fn(async () => ({ ...items[0], is_active: false })),
+    importBank: vi.fn(async () => ({ added: 1, skipped: 0, failed: 0 })),
+    listPrompts: vi.fn(async () => items),
+    listStimuli: vi.fn(async () => items),
+    nextPrompt: vi.fn(),
+    nextStimulus: vi.fn(),
+    getPrompt: vi.fn(),
+    getStimulus: vi.fn(),
+  };
+});
+
 vi.mock("@/lib/api/users", async () => {
   const { seededApiUsers } = await import("@/test/apiUserFixtures");
   const items = seededApiUsers();
@@ -99,7 +219,7 @@ describe("review panel", () => {
   }
 
   it("plays the clip, with skip and speed", async () => {
-    await openFirstRow((text) => !text.includes("Focus group"));
+    await openFirstRow(() => true);
 
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back 10 seconds" })).toBeInTheDocument();
@@ -111,26 +231,12 @@ describe("review panel", () => {
     expect(await screen.findByRole("button", { name: "1.5×" })).toBeInTheDocument();
   });
 
-  /* The four rubric questions are about one person reading one prompt. Nobody
-   * answers them about a forty-minute conversation. */
-  it("drops the rubric for a focus group clip", async () => {
-    await openFirstRow((text) => text.includes("Focus group"));
-    expect(screen.queryByText("Reviewer answers")).not.toBeInTheDocument();
-  });
-
-  it("hides the activity tab on a prompt read", async () => {
-    await openFirstRow((text) => !text.includes("Focus group"));
+  /* `GET /recordings` is prompt reads and stimuli only. A focus group is a
+   * separate resource, so annotation playback lives on the Annotations panel
+   * and this one carries no Activity tab at all. */
+  it("carries no activity tab", async () => {
+    await openFirstRow(() => true);
     expect(screen.queryByRole("button", { name: "Activity" })).not.toBeInTheDocument();
   });
 
-  /* Only focus groups reach an annotator, so only they have a build history. */
-  it("replays the annotation activity on a focus group", async () => {
-    await openFirstRow((text) => text.includes("Focus group"));
-
-    await userEvent.click(screen.getByRole("button", { name: "Activity" }));
-    expect(
-      await screen.findByRole("slider", { name: "Scrub the annotation history" })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Segments")).toBeInTheDocument();
-  });
 });

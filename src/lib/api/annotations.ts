@@ -122,6 +122,58 @@ export function getAnnotation(id: string) {
   return apiFetch<ApiAnnotationDocument>(`/annotations/${id}`);
 }
 
+/**
+ * Every annotation on the platform, for the admin oversight screen.
+ *
+ * Same path as `listMine` — annotators see their own, reviewers and admins see
+ * all — with the envelope on so the screen can show a total.
+ */
+export function listAllAnnotations(
+  params: { status?: ApiAnnotationStatus; limit?: number; offset?: number } = {}
+) {
+  return apiFetch<{
+    items: ApiAnnotationSummary[];
+    total: number;
+    limit: number;
+    offset: number;
+  }>("/annotations", { query: { ...params, envelope: true } });
+}
+
+/**
+ * Moves an annotation to another annotator, or back to the queue with `null`.
+ *
+ * Two rows change: the annotation's annotator and the session's assigned
+ * annotator. The endpoint does both in one transaction, so reassignment is not
+ * the single-field edit it looks like from here.
+ */
+export function assignAnnotator(annotationId: string, annotatorId: string | null) {
+  return apiFetch<ApiAnnotationDocument>(`/annotations/${annotationId}/assignee`, {
+    method: "PATCH",
+    body: { annotator_id: annotatorId },
+  });
+}
+
+/**
+ * An admin's verdict on a finished annotation.
+ *
+ * Separate from `updateAnnotation`, which edits content. This changes who the
+ * work belongs to next: approved and it is done, `needs_rework` and it goes
+ * back to the annotator.
+ */
+export function reviewAnnotation(
+  id: string,
+  body: {
+    status: ApiAnnotationStatus;
+    review_notes?: string | null;
+    is_gold?: boolean;
+  }
+) {
+  return apiFetch<ApiAnnotationDocument>(`/annotations/${id}/review`, {
+    method: "POST",
+    body,
+  });
+}
+
 /* ------------------------------------------------------------------ *
  * Writes
  * ------------------------------------------------------------------ */

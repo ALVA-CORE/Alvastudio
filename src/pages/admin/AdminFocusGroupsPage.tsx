@@ -252,7 +252,7 @@ export default function AdminFocusGroupsPage() {
         onOpenChange={(next) => !next && setAssigning(null)}
         subject={assigning ? `${assigning.code} · ${assigning.topic}` : null}
         onAssign={(annotator) => {
-          alvaToast.success(`${assigning?.code} assigned to ${annotator}`);
+          alvaToast.success(`${assigning?.code} assigned to ${annotator.name}`);
           setAssigning(null);
         }}
       />

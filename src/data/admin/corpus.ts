@@ -131,46 +131,6 @@ export type SankeyFlow = {
   links: { source: number; target: number; value: number }[];
 };
 
-/**
- * Where audio comes from and how it resolves, in hours.
- *
- * This is the view the annotator dashboard correctly refused: an annotator
- * cannot change intake volume or another reviewer's scoring, so it was a
- * pipeline dashboard wearing a personal one's clothes. On the admin surface it
- * is exactly the right question — the whole job is moving hours from left to
- * right, and the diagram shows where they stop.
- */
-export const CORPUS_FLOW: SankeyFlow = {
-  nodes: [
-    { name: "Prompt read", category: "source" },
-    { name: "Focus group", category: "source" },
-    { name: "Stimuli", category: "source" },
-    { name: "In review", category: "landing" },
-    { name: "Annotating", category: "landing" },
-    { name: "Approved", category: "outcome" },
-    { name: "Flagged", category: "outcome" },
-    { name: "Rejected", category: "outcome" },
-  ],
-  links: [
-    // Prompt reads and stimuli go to review; focus groups go to annotation.
-    { source: 0, target: 3, value: 243 },
-    { source: 2, target: 3, value: 74 },
-    { source: 1, target: 4, value: 168 },
-
-    { source: 3, target: 5, value: 241 },
-    { source: 3, target: 6, value: 45 },
-    { source: 3, target: 7, value: 31 },
-
-    { source: 4, target: 5, value: 110 },
-    { source: 4, target: 6, value: 38 },
-    { source: 4, target: 7, value: 20 },
-  ],
-};
-
-export const EMPTY_CORPUS_FLOW: SankeyFlow = {
-  nodes: CORPUS_FLOW.nodes,
-  links: CORPUS_FLOW.links.map((link) => ({ ...link, value: 0 })),
-};
 
 /**
  * Age and gender as one series rather than two.

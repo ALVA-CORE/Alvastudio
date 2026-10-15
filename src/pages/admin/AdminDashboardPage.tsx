@@ -15,15 +15,15 @@ import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
-import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
-import { CORPUS, CORPUS_FLOW, EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
-import { ADMIN_SESSIONS } from "@/data/admin/oversight";
+import { EMPTY_CORPUS } from "@/data/admin/corpus";
 import { BANK_ITEMS } from "@/data/admin/prompts";
 import { EARNINGS } from "@/data/admin/payments";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
-import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { useAdminOverview, cumulative } from "@/hooks/useAdminOverview";
+import { useCorpus } from "@/hooks/useCorpus";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,52 +35,67 @@ import { cn } from "@/lib/utils";
  * unpaid contributor are all invisible everywhere else in the product.
  */
 export default function AdminDashboardPage() {
-  const isLoading = useSimulatedLoading();
   const navigate = useNavigate();
   const { forceEmpty } = useDevUiState();
   const [range, setRange] = useState<DashboardTimeRange>("12m");
 
-  const corpus = forceEmpty ? EMPTY_CORPUS : CORPUS;
+  const overview = useAdminOverview();
+  const { data: corpusData, isLoading: loadingCorpus } = useCorpus();
 
-  /* Each of these is a real backlog somewhere else in the product. They are
-   * counted here rather than fetched as a "needs attention" feed, because the
-   * counts are derivable and a feed would be one more thing to keep in sync. */
+  const isLoading = overview.isLoading || loadingCorpus;
+  const corpus = forceEmpty || !corpusData ? EMPTY_CORPUS : corpusData;
+  const growth = useMemo(
+    () => (forceEmpty ? [] : cumulative(overview.data?.daily_activity ?? [])),
+    [forceEmpty, overview.data]
+  );
+
+  /**
+   * The three backlogs the API counts for us.
+   *
+   * Each carries an age as well as a count, which is the difference between
+   * "three stuck" and "three stuck for a month" — only the second is an
+   * emergency. Nothing counts as stuck until it has waited three days.
+   */
   const attention = useMemo(() => {
-    if (forceEmpty) return [];
+    const stats = overview.data;
+    if (forceEmpty || !stats) return [];
 
-    const noAudio = ADMIN_SESSIONS.filter((session) => !session.hasAudio).length;
-    const unusedPrompts = BANK_ITEMS.filter(
-      (item) => item.isActive && item.usedByCount === 0
-    ).length;
-    const unpaid = EARNINGS.filter((row) => row.status !== "paid").length;
+    const age = (days: number | null) =>
+      days === null ? "" : days === 1 ? " · 1 day waiting" : ` · ${days} days waiting`;
 
     return [
       {
-        id: "no-audio",
-        count: noAudio,
-        title: "focus group sessions have no audio",
-        detail: "They never reach the annotation queue, so the work is invisible.",
-        to: "/admin/focus-groups",
+        id: "unreviewed",
+        count: stats.stuck_unreviewed_recordings.count,
+        title: "recordings are waiting on a verdict",
+        detail: `Nobody has decided on them${age(
+          stats.stuck_unreviewed_recordings.oldest_age_days
+        )}.`,
+        to: "/admin/reviews",
         tone: "bad" as const,
       },
       {
-        id: "unused",
-        count: unusedPrompts,
-        title: "active prompts have never been recorded",
-        detail: "Either nobody is reaching them, or they are not worth keeping.",
-        to: "/admin/prompts",
+        id: "unclaimed",
+        count: stats.stuck_unclaimed_sessions.count,
+        title: "focus group sessions are unclaimed",
+        detail: `Recorded and uploaded, and no annotator has picked them up${age(
+          stats.stuck_unclaimed_sessions.oldest_age_days
+        )}.`,
+        to: "/admin/annotations",
         tone: "warn" as const,
       },
       {
-        id: "unpaid",
-        count: unpaid,
-        title: "contributors are owed money",
-        detail: "Run a payment to clear the backlog.",
-        to: "/admin/payments",
+        id: "rework",
+        count: stats.stuck_annotations_in_rework.count,
+        title: "annotations are sitting in rework",
+        detail: `Sent back and not returned${age(
+          stats.stuck_annotations_in_rework.oldest_age_days
+        )}.`,
+        to: "/admin/annotations",
         tone: "warn" as const,
       },
     ].filter((item) => item.count > 0);
-  }, [forceEmpty]);
+  }, [forceEmpty, overview.data]);
 
   const approvalRate =
     corpus.totalHours > 0
@@ -93,6 +108,22 @@ export default function AdminDashboardPage() {
         id="overview"
         actions={<DashboardTimeFilter value={range} onChange={setRange} />}
       />
+
+      {overview.error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {overview.error}
+          <button
+            type="button"
+            onClick={overview.reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <AdminPageSkeleton charts={4} chartColumns={2} table={false} />
@@ -131,7 +162,9 @@ export default function AdminDashboardPage() {
       <div className="mt-2 grid gap-2 lg:grid-cols-6">
         <AlvaChartCard
           title="Corpus growth"
-          subtitle="Cumulative hours collected"
+          /* Clips, not hours. `daily_activity` counts recordings and there is
+             no hours-over-time series, so the label says what is plotted. */
+          subtitle="Recordings collected, running total"
           className="h-[25rem] lg:col-span-4"
           emptyMessage={
             forceEmpty
@@ -142,7 +175,7 @@ export default function AdminDashboardPage() {
               : undefined
           }
         >
-          <CorpusGrowthChart data={corpus.growth} window={range} />
+          <CorpusGrowthChart data={growth} window={range} />
         </AlvaChartCard>
 
         {/* Not a chart — a worklist. Each row is a link to the page that can
@@ -196,21 +229,9 @@ export default function AdminDashboardPage() {
         </section>
       </div>
 
-      <AlvaChartCard
-        title="Where the hours go"
-        subtitle="Collection type → review stage → outcome"
-        className="mt-2 min-h-[14rem]"
-        emptyMessage={
-          forceEmpty
-            ? { title: "Nothing collected", description: "No flow to trace yet." }
-            : undefined
-        }
-      >
-        <CorpusFlowChart data={forceEmpty ? EMPTY_CORPUS_FLOW : CORPUS_FLOW} />
-      </AlvaChartCard>
-
-      {/* Collection type is already the sankey's left column, so it is not
-          repeated here — this row is the two questions the flow cannot answer. */}
+      {/* The sankey stood here. `/corpus/summary` gives hours by type and
+          hours by status but not the join between them, and a flow diagram
+          drawn from marginals invents its own links. Listed as an ask. */}
       <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
           title="Approval rate"

@@ -20,7 +20,7 @@ export function AssignAnnotatorDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subject: string | null;
-  onAssign: (annotatorName: string) => void;
+  onAssign: (annotator: { id: string; name: string }) => void;
 }) {
   const people = useMemo(() => {
     const load = new Map<string, number>();

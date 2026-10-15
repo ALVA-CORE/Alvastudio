@@ -19,14 +19,15 @@ import { alvaToast } from "@/lib/alva-toast";
 import { StatusRings } from "@/components/admin/shared/StatusRings";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
-  ADMIN_RECORDINGS,
   RECORDING_STATUS_LABELS,
   rejectionBreakdown,
   reviewerFlow,
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { useAdminReviews } from "@/hooks/useAdminReviews";
+import { reportApiError } from "@/lib/api/reportApiError";
 
 type StatusFilter = RecordingStatus | "all";
 
@@ -61,12 +62,11 @@ const REJECTION_PALETTE = [
  * completely different fixes.
  */
 export default function AdminReviewsPage() {
-  const isLoading = useSimulatedLoading();
+  const { rows: live, isLoading, error, reload, reassign } = useAdminReviews();
   const [status, setStatus] = useState<StatusFilter>("all");
-  const [recordings, setRecordings] = useState<AdminRecording[]>(ADMIN_RECORDINGS);
   const [detail, setDetail] = useState<AdminRecording | null>(null);
   const [reassigning, setReassigning] = useState<AdminRecording | null>(null);
-  const rows = useDevRows(recordings);
+  const rows = useDevRows(live);
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
@@ -162,6 +162,22 @@ export default function AdminReviewsPage() {
   return (
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="reviews" />
+
+      {error ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {error}
+          <button
+            type="button"
+            onClick={reload}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <AdminPageSkeleton charts={3} chartColumns={3} table={true} />
@@ -322,16 +338,18 @@ export default function AdminReviewsPage() {
         open={detail !== null}
         onOpenChange={(next) => !next && setDetail(null)}
         recording={detail}
-        onReopen={(recording) => {
-          setRecordings((prev) =>
-            prev.map((row) =>
-              row.id === recording.id
-                ? { ...row, status: "submitted", reviewer: "", rejectionReason: undefined }
-                : row
-            )
-          );
-          setDetail(null);
-          alvaToast.success(`${recording.code} back in the queue`);
+        /* Reopening is `assignee: null` — the endpoint that returns a clip to
+           the queue is the same one that moves it between reviewers, because
+           "unassigned and waiting" is what the queue is. */
+        onReopen={async (recording) => {
+          try {
+            await reassign(recording.id, null, "");
+            setDetail(null);
+            alvaToast.success(`${recording.code} back in the queue`);
+          } catch (cause) {
+            const message = reportApiError(cause, "Could not reopen that clip.");
+            if (message) alvaToast.error(message);
+          }
         }}
         onReassign={(row: AdminRecording) => setReassigning(row)}
       />
@@ -341,14 +359,15 @@ export default function AdminReviewsPage() {
         onOpenChange={(next) => !next && setReassigning(null)}
         subject={reassigning ? `${reassigning.code} · ${reassigning.contributor}` : null}
         exclude={reassigning?.reviewer}
-        onAssign={(reviewer) => {
+        onAssign={async (reviewer) => {
           if (!reassigning) return;
-          setRecordings((prev) =>
-            prev.map((row) =>
-              row.id === reassigning.id ? { ...row, reviewer, status: "in_review" } : row
-            )
-          );
-          alvaToast.success(`Reassigned to ${reviewer}`);
+          try {
+            await reassign(reassigning.id, reviewer.id, reviewer.name);
+            alvaToast.success(`Reassigned to ${reviewer.name}`);
+          } catch (cause) {
+            const message = reportApiError(cause, "Could not reassign that clip.");
+            if (message) alvaToast.error(message);
+          }
           setReassigning(null);
         }}
       />

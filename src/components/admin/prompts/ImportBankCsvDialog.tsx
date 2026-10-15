@@ -33,24 +33,39 @@ export function ImportBankCsvDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   kind: BankKind;
-  onImport: (drafts: BankDraft[]) => void;
+  /**
+   * Handed the file, not the parsed rows.
+   *
+   * `POST /{bank}/import` takes the CSV and does its own validation, including
+   * duplicate detection against the existing bank, which a client parse cannot
+   * see. The preview above is still worth having — it catches a wrong file
+   * before it is sent — but the server's answer is the one that counts.
+   */
+  onImport: (file: File) => Promise<void> | void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [raw, setRaw] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [sending, setSending] = useState(false);
 
   const noun = kind === "prompt" ? "prompts" : "stimuli";
   const parsed = useMemo(() => parseBankCsv(raw), [raw]);
 
-  const readFile = async (file: File | undefined) => {
-    if (!file) return;
-    setRaw(await file.text());
+  const readFile = async (picked: File | undefined) => {
+    if (!picked) return;
+    setFile(picked);
+    setRaw(await picked.text());
   };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) setRaw("");
+        if (!next) {
+          setRaw("");
+          setFile(null);
+          setSending(false);
+        }
         onOpenChange(next);
       }}
     >
@@ -154,9 +169,12 @@ export function ImportBankCsvDialog({
             variant="alva"
             size="sm"
             className="w-auto"
-            disabled={parsed.rows.length === 0}
-            onClick={() => {
-              onImport(parsed.rows);
+            disabled={parsed.rows.length === 0 || !file}
+            loading={sending}
+            onClick={async () => {
+              if (!file) return;
+              setSending(true);
+              await onImport(file);
               onOpenChange(false);
             }}
           >
