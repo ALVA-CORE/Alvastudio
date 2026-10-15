@@ -1,69 +1,132 @@
-import { useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  getPayoutDestination,
+  getWallet,
+  listEarnings,
+  setPayoutDestination,
+  submitNin,
+  withdraw,
+  type ApiIdentityStatus,
+  type ApiLedgerEntry,
+} from "@/lib/api/wallet";
+import { reportApiError } from "@/lib/api/reportApiError";
 import {
   EMPTY_WALLET,
-  MOCK_WALLET,
   type IdentityState,
-  type PayoutAccount,
   type Wallet,
+  type WalletEntry,
+  type WalletEntryKind,
 } from "@/data/contributors/wallet";
 
 /**
- * One wallet, shared by every screen that shows it.
+ * The contributor's wallet, read from the API.
  *
- * The dashboard and the profile both read identity state, and holding it in
- * each component's `useState` meant verifying from one left the other still
- * asking. That is a bug a reviewer would find in ten seconds and not worth
- * shipping a demo with.
- *
- * Module state behind `useSyncExternalStore` rather than a context, because
- * the shape it is standing in for is a fetch: when `GET /wallet` is wired this
- * file becomes the cache and nothing above it changes.
+ * Three calls: the wallet itself, where money would land, and the ledger.
+ * They are separate endpoints because they are separately authorised — the
+ * destination is only collectable once identity passes — and joining them here
+ * keeps the screens reading one object.
  */
 
 /**
- * `emptyIdentity` is tracked apart from the seeded wallet's, because the dev
- * empty-state switch is a different simulated account: it has to start
- * unverified so the gate can be looked at, and verifying from there has to
- * stick for the same reason verifying from the real one does.
+ * Six identity states collapse to three on screen.
+ *
+ * `link_created` and `submitted` are both "we are checking", because from the
+ * contributor's side they are the same wait. `failed` is kept apart from
+ * `not_started` on purpose: telling somebody whose NIN was rejected to "verify
+ * your identity" sends them round the same loop with no idea it already went
+ * wrong once.
  */
-let current: Wallet = MOCK_WALLET;
-let emptyIdentity: IdentityState = "unverified";
-const listeners = new Set<() => void>();
+const IDENTITY: Record<ApiIdentityStatus, IdentityState> = {
+  not_started: "unverified",
+  link_created: "pending",
+  submitted: "pending",
+  passed: "verified",
+  failed: "failed",
+  unavailable: "unverified",
+};
 
-function emit() {
-  for (const listener of listeners) listener();
+const KIND: Record<string, WalletEntryKind> = {
+  prompt_read: "earned",
+  stimuli_narration: "earned",
+  focus_group_minute: "earned",
+  annotation_minute: "earned",
+  review: "earned",
+};
+
+function toEntry(api: ApiLedgerEntry): WalletEntry {
+  const naira = Number(api.amount);
+  return {
+    id: api.id,
+    kind: api.payout_status === "paid" ? "withdrawal" : (KIND[api.unit_type] ?? "earned"),
+    label: api.notes ?? api.unit_type.replace(/_/g, " "),
+    /* Money is kobo everywhere in this client. The decimals are JSON strings
+     * precisely so nobody floats them, so they are parsed once, here. */
+    amountKobo: Math.round((Number.isFinite(naira) ? naira : 0) * 100),
+    at: new Date(api.created_at).getTime(),
+  };
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
+export function useWallet() {
+  const [wallet, setWallet] = useState<Wallet>(EMPTY_WALLET);
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    Promise.all([
+      getWallet(),
+      /* Both are expected to fail before identity passes: there is no
+       * destination to collect and no ledger to read. Neither is an error the
+       * contributor should see. */
+      getPayoutDestination().catch(() => null),
+      listEarnings({ limit: 50 }).catch(() => null),
+    ])
+      .then(([status, destination, earnings]) => {
+        if (cancelled) return;
+
+        setWallet({
+          balanceKobo: status.earnings.payable_kobo,
+          pendingKobo: status.earnings.held_kobo,
+          inFlightKobo: status.earnings.in_flight_kobo,
+          paidKobo: status.earnings.paid_kobo,
+          lifetimeKobo: status.earnings.lifetime_kobo,
+          identity: IDENTITY[status.wallet?.identity_status ?? "not_started"],
+          identityDetail:
+            status.wallet?.identity_failure_reason ?? status.next_action_detail,
+          payoutAccount:
+            destination && destination.account_number
+              ? {
+                  bank: destination.bank_name ?? destination.bank_code,
+                  accountNumber: destination.account_number,
+                  accountName: destination.account_name ?? "",
+                }
+              : null,
+          entries: (earnings?.entries ?? []).map(toEntry),
+        });
+        setError(null);
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setError(reportApiError(cause, "Could not load your wallet."));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
+
+  const reload = useCallback(() => setAttempt((value) => value + 1), []);
+
+  return { wallet, isLoading, error, reload };
 }
 
-export function useWallet(): Wallet {
-  return useSyncExternalStore(subscribe, () => current);
+export async function linkPayoutAccount(bankCode: string, accountNumber: string) {
+  return setPayoutDestination({ bank_code: bankCode, account_number: accountNumber });
 }
 
-export function setPayoutAccount(account: PayoutAccount) {
-  current = { ...current, payoutAccount: account };
-  emit();
-}
-
-export function setIdentityState(identity: IdentityState, isEmpty = false) {
-  if (isEmpty) emptyIdentity = identity;
-  else current = { ...current, identity };
-  emit();
-}
-
-/** Dev-only empty-state switch, driven by `useDevUiState`. */
-export function useWalletFace(isEmpty: boolean): Wallet {
-  const wallet = useWallet();
-  const empty = useSyncExternalStore(subscribe, () => emptyIdentity);
-  return isEmpty ? { ...EMPTY_WALLET, identity: empty } : wallet;
-}
-
-/** Test seam — module state outlives a render. */
-export function __resetWallet() {
-  current = MOCK_WALLET;
-  emptyIdentity = "unverified";
-  emit();
-}
+export { submitNin, withdraw };

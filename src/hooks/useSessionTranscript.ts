@@ -23,6 +23,8 @@ import type { TranscriptDoc } from "@/lib/annotation/types";
 
 export type TranscriptResource =
   | { status: "loading"; session: AnnotatorSession | null; doc: null; error: null }
+  /** The session exists, this annotator has simply not claimed it. */
+  | { status: "unclaimed"; session: null; doc: null; error: null; topic?: string }
   | { status: "not-found"; session: null; doc: null; error: null }
   | { status: "error"; session: AnnotatorSession; doc: null; error: Error }
   | { status: "ready"; session: AnnotatorSession; doc: TranscriptDoc; error: null };
@@ -70,10 +72,14 @@ export function useSessionTranscript(sessionId: string | undefined) {
       const mine = await annotations.listMine({ limit: 200 });
       const match = mine.find((entry) => entry.session_id === sessionId);
 
-      /* No annotation means this annotator has not claimed the session. The
-       * route is reachable from a link, so that is a real state rather than a
-       * bad id, and "not found" is what it looks like from here. */
-      if (!match) return null;
+      /* No annotation means this annotator has not claimed the session yet.
+       * The session is real and one button away, so the workspace offers the
+       * claim rather than calling it "not found". */
+      if (!match) {
+        const queue = await annotations.listQueue({ limit: 100 });
+        const waiting = queue.find((row) => row.session_id === sessionId);
+        return { unclaimed: true as const, topic: waiting?.topic };
+      }
 
       /* The audio route is authenticated, so the player gets a blob URL
        * rather than the path: an `<audio src>` pointed at the API would send
@@ -112,8 +118,14 @@ export function useSessionTranscript(sessionId: string | undefined) {
     })()
       .then((result) => {
         if (cancelled) return;
-        if (!result) {
-          setResource({ status: "not-found", session: null, doc: null, error: null });
+        if ("unclaimed" in result) {
+          setResource({
+            status: result.topic ? "unclaimed" : "not-found",
+            session: null,
+            doc: null,
+            error: null,
+            topic: result.topic,
+          });
           return;
         }
         setResource({ status: "ready", ...result, error: null });
@@ -159,11 +171,17 @@ export function useSessionTranscript(sessionId: string | undefined) {
     baseline.current = await saveAnnotation(id, doc, base);
   }, []);
 
+  /** Takes the next session in the queue. Resolves with its session id. */
+  const claim = useCallback(async () => {
+    const claimed = await annotations.claimNext();
+    return claimed.session_id;
+  }, []);
+
   const submit = useCallback(async () => {
     const id = annotationId.current;
     if (!id) return;
     await annotations.submitAnnotation(id);
   }, []);
 
-  return { resource, reload, save, submit };
+  return { resource, reload, save, submit, claim };
 }

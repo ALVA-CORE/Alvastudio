@@ -8,6 +8,7 @@ import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
+import { RateRings } from "@/components/admin/payments/RateRings";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -55,8 +56,6 @@ const STATUS_TONE: Record<PayoutStatus, PillTone> = {
 export default function AdminPaymentsPage() {
   const isLoading = useSimulatedLoading();
   const [rates, setRates] = useState<Rate[]>(RATES);
-  const [editingUnit, setEditingUnit] = useState<string | null>(null);
-  const [draftAmount, setDraftAmount] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [earnings, setEarnings] = useState<Earning[]>(EARNINGS);
   const [detail, setDetail] = useState<Earning | null>(null);
@@ -70,17 +69,8 @@ export default function AdminPaymentsPage() {
     [rows, status]
   );
 
-  /* Bars are relative to the highest rate, so the shape says "this one pays
-   * about half what that one does" without reading two numbers. */
-  const maxRate = Math.max(...rates.map((rate) => rate.amountKobo), 1);
-
-  const startEdit = (rate: Rate) => {
-    setEditingUnit(rate.unit);
-    setDraftAmount((rate.amountKobo / 100).toFixed(2));
-  };
-
-  const commitEdit = (rate: Rate) => {
-    const naira = Number(draftAmount);
+  const commitEdit = (rate: Rate, amount: string) => {
+    const naira = Number(amount);
     if (!Number.isFinite(naira) || naira < 0) {
       alvaToast.error("That is not an amount");
       return;
@@ -98,7 +88,6 @@ export default function AdminPaymentsPage() {
           : row
       )
     );
-    setEditingUnit(null);
     alvaToast.success(`${RATE_UNIT_LABELS[rate.unit]} rate updated`);
   };
 
@@ -231,70 +220,10 @@ export default function AdminPaymentsPage() {
         subtitle="Change a rate and every figure below is calculated from the new one"
         className="mt-2"
       >
-        {/* Bars, not a list of numbers. The question a rate card answers is
-            "is annotation paid fairly against recording", and a column of
-            currency strings makes you do that comparison in your head. */}
-        <ul className="alva-thin-scrollbar max-h-[15rem] space-y-3 overflow-y-auto pr-1">
-          {rates.map((rate) => {
-            const share = rate.amountKobo / maxRate;
-            const isEditing = editingUnit === rate.unit;
-
-            return (
-              <li key={rate.unit}>
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 truncate text-sm text-foreground">
-                    {RATE_UNIT_LABELS[rate.unit]}
-                  </span>
-
-                  {isEditing ? (
-                    <span className="flex shrink-0 items-center gap-2">
-                      <Input
-                        autoFocus
-                        inputMode="decimal"
-                        aria-label={`${RATE_UNIT_LABELS[rate.unit]} rate in naira`}
-                        value={draftAmount}
-                        onChange={(event) => setDraftAmount(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") commitEdit(rate);
-                          if (event.key === "Escape") setEditingUnit(null);
-                        }}
-                        wrapperClassName="w-28"
-                        className="h-9 text-right tabular-nums"
-                      />
-                      <TextureButton
-                        variant="alva"
-                        size="sm"
-                        className="w-auto"
-                        onClick={() => commitEdit(rate)}
-                      >
-                        Save
-                      </TextureButton>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => startEdit(rate)}
-                      title={`Updated ${rate.updatedLabel} by ${rate.updatedBy}`}
-                      className="shrink-0 rounded-full px-2.5 py-1 text-sm tabular-nums text-foreground transition-colors hover:bg-alva-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                    >
-                      {formatNaira(rate.amountKobo)}
-                    </button>
-                  )}
-                </div>
-
-                <div
-                  aria-hidden
-                  className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-alva-surface"
-                >
-                  <div
-                    className="h-full rounded-full bg-alva-accent transition-[width] duration-500 ease-out"
-                    style={{ width: `${Math.max(share * 100, 4)}%` }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <RateRings
+          rates={rates}
+          onSave={commitEdit}
+        />
       </AlvaChartCard>
 
       <div className="mt-2">

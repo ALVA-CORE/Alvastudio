@@ -12,7 +12,6 @@ import { ContributorDashboardSkeleton } from "@/components/contributors/dashboar
 import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { useApiResource } from "@/hooks/useApiResource";
 import { contributorDashboard } from "@/lib/api/dashboard";
-import { MOCK_POINTS } from "@/data/contributors/dashboard";
 
 export default function ContributorDashboardPage() {
   const { user } = useAuth();
@@ -49,8 +48,10 @@ export default function ContributorDashboardPage() {
       ) : (
         <>
           <PointsBalanceCard
-            points={forceEmpty ? 0 : MOCK_POINTS}
+            points={forceEmpty ? 0 : (live?.points ?? 0)}
             currentUserId={live?.contributor_id ?? "1"}
+            rank={forceEmpty ? null : (live?.rank ?? null)}
+            rankedOf={live?.ranked_contributors ?? 0}
             className="mt-5"
             isEmpty={forceEmpty}
           />

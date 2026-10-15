@@ -17,6 +17,15 @@ export type ApiContributorDashboard = {
   hours_contributed: number;
   status_breakdown: ApiStatusBreakdown;
   payment?: { status: string; detail: string } | null;
+  points: number;
+  /** Null until they have enough recordings to be ranked. */
+  rank: number | null;
+  /** How many contributors are ranked at all, for "4th of 212". */
+  ranked_contributors: number;
+  /** 365 zero-filled daily buckets. Counts recordings, not hours. */
+  daily_activity: ApiDailyActivity[];
+  recordings_in_window: number;
+  activity_window_days: number;
 };
 
 export type ApiInternDashboard = {

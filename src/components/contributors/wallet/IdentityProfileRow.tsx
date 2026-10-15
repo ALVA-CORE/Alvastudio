@@ -3,10 +3,7 @@ import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import { Separator } from "@/components/ui/separator";
 import { VerifyIdentitySheet } from "@/components/contributors/wallet/VerifyIdentitySheet";
-import {
-  setIdentityState,
-  useWallet,
-} from "@/data/contributors/walletStore";
+import { submitNin, useWallet } from "@/data/contributors/walletStore";
 import { alvaToast } from "@/lib/alva-toast";
 import type { IdentityState } from "@/data/contributors/wallet";
 import { cn } from "@/lib/utils";
@@ -15,12 +12,14 @@ const LABEL: Record<IdentityState, string> = {
   unverified: "Not verified",
   pending: "Checking",
   verified: "Verified",
+  failed: "Could not verify",
 };
 
 const TINT: Record<IdentityState, string> = {
   unverified: "text-muted-foreground",
   pending: "text-amber-300",
   verified: "text-alva-accent",
+  failed: "text-red-400",
 };
 
 /**
@@ -35,7 +34,7 @@ const TINT: Record<IdentityState, string> = {
  * owns its own sheet and the verification sheet is a form with its own state.
  */
 export function IdentityProfileRow({ hideDivider = false }: { hideDivider?: boolean }) {
-  const wallet = useWallet();
+  const { wallet, reload } = useWallet();
   const [open, setOpen] = useState(false);
 
   return (
@@ -76,8 +75,9 @@ export function IdentityProfileRow({ hideDivider = false }: { hideDivider?: bool
         open={open}
         onOpenChange={setOpen}
         state={wallet.identity}
-        onSubmit={() => {
-          setIdentityState("pending");
+        onSubmit={async (nin) => {
+          await submitNin(nin);
+          reload();
           setOpen(false);
           alvaToast.success("NIN submitted, we'll let you know");
         }}

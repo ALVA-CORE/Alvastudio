@@ -1,7 +1,8 @@
-import { useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useCallback, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { AnnotationWorkspace } from "@/components/annotators/workspace/AnnotationWorkspace";
+import { ClaimSessionDialog } from "@/components/annotators/workspace/ClaimSessionDialog";
 import {
   WorkspaceError,
   WorkspaceNotFound,
@@ -15,6 +16,8 @@ import type { AnnotatorSession } from "@/data/annotators/sessions";
 import type { TranscriptDoc } from "@/lib/annotation/types";
 import { useSessionTranscript } from "@/hooks/useSessionTranscript";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { reportApiError } from "@/lib/api/reportApiError";
+import { alvaToast } from "@/lib/alva-toast";
 
 /**
  * `/annotator/sessions/:sessionId` — the annotation workspace.
@@ -50,7 +53,9 @@ function WorkspaceBody({
 export default function AnnotatorWorkspacePage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const isMobile = useIsMobile();
-  const { resource, reload, save, submit } = useSessionTranscript(sessionId);
+  const navigate = useNavigate();
+  const { resource, reload, save, submit, claim } = useSessionTranscript(sessionId);
+  const [isClaiming, setClaiming] = useState(false);
 
   const handleSave = useCallback((doc: TranscriptDoc) => save(doc), [save]);
 
@@ -58,6 +63,38 @@ export default function AnnotatorWorkspacePage() {
   // waveform editor that cannot be used with a thumb.
   if (isMobile) {
     return <AnnotatorMobileGate />;
+  }
+
+  /* The session is real and unclaimed, so the workspace sits behind a modal
+     offering the claim rather than a dead end saying it does not exist. */
+  if (resource.status === "unclaimed") {
+    return (
+      <div className="flex h-dvh flex-col bg-alva-bg">
+        <WorkspaceSkeleton />
+        <ClaimSessionDialog
+          open
+          topic={resource.topic}
+          isClaiming={isClaiming}
+          onCancel={() => navigate("/annotator/sessions")}
+          onClaim={async () => {
+            setClaiming(true);
+            try {
+              const claimedId = await claim();
+              /* `claim-next` hands out the top of the queue, which may not be
+                 the session that was opened. Going to whatever came back is
+                 the honest move; pretending otherwise would show one session
+                 and load another. */
+              navigate(`/annotator/sessions/${claimedId}`, { replace: true });
+            } catch (cause) {
+              const message = reportApiError(cause, "Could not claim a session.");
+              if (message) alvaToast.error(message);
+            } finally {
+              setClaiming(false);
+            }
+          }}
+        />
+      </div>
+    );
   }
 
   if (resource.status === "not-found") {

@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { AlvaCombobox } from "@/components/shared/AlvaCombobox";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
-import { NIGERIAN_BANKS } from "@/data/contributors/bankBranding";
-import { resolveAccountName, type PayoutAccount } from "@/data/contributors/wallet";
+import { listBanks, type ApiBank } from "@/lib/api/wallet";
+import { linkPayoutAccount } from "@/data/contributors/walletStore";
+import { reportApiError } from "@/lib/api/reportApiError";
+import { alvaToast } from "@/lib/alva-toast";
+import type { PayoutAccount } from "@/data/contributors/wallet";
 import { cn } from "@/lib/utils";
 
 const ACCOUNT_LENGTH = 10;
@@ -31,14 +34,16 @@ export function LinkBankSheet({
   open,
   onOpenChange,
   existing,
-  onLink,
+  onLinked,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existing: PayoutAccount | null;
-  onLink: (account: PayoutAccount) => void;
+  /** Fired once the account is saved. The caller re-reads the wallet. */
+  onLinked: () => void;
 }) {
   const [bank, setBank] = useState("");
+  const [banks, setBanks] = useState<ApiBank[]>([]);
   const [number, setNumber] = useState("");
   const [resolved, setResolved] = useState<string | null>(null);
   const [isResolving, setResolving] = useState(false);
@@ -53,8 +58,28 @@ export function LinkBankSheet({
 
   const complete = bank !== "" && number.length === ACCOUNT_LENGTH;
 
-  /* Resolution fires on its own once both fields are filled — asking someone
-   * to press "verify" before they can press "save" is one button too many. */
+  /* The bank list is the API's, not ours: a code we invented would be
+   * rejected by name enquiry. Fetched when the sheet opens rather than held
+   * on the dashboard. */
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    listBanks()
+      .then((rows) => !cancelled && setBanks(rows))
+      .catch(() => !cancelled && setBanks([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  /**
+   * Name enquiry is the save.
+   *
+   * `POST /wallet/payout-destination` resolves the account name and stores the
+   * destination in one call, so there is no "verify" step to press before
+   * "save" — the name coming back IS the confirmation, and it has already been
+   * written by the time it arrives.
+   */
   useEffect(() => {
     if (!complete) {
       setResolved(null);
@@ -67,8 +92,17 @@ export function LinkBankSheet({
 
     const timer = window.setTimeout(() => {
       if (cancelled) return;
-      setResolved(resolveAccountName(bank, number));
-      setResolving(false);
+      linkPayoutAccount(bank, number)
+        .then((destination) => {
+          if (cancelled) return;
+          setResolved(destination.account_name ?? "");
+        })
+        .catch((cause: unknown) => {
+          if (cancelled) return;
+          const message = reportApiError(cause, "Could not find that account.");
+          if (message) alvaToast.error(message);
+        })
+        .finally(() => !cancelled && setResolving(false));
     }, 650);
 
     return () => {
@@ -78,8 +112,8 @@ export function LinkBankSheet({
   }, [bank, number, complete]);
 
   const options = useMemo(
-    () => NIGERIAN_BANKS.map((name) => ({ value: name, label: name })),
-    []
+    () => banks.map((row) => ({ value: row.code, label: row.name })),
+    [banks]
   );
 
   return (
@@ -175,7 +209,7 @@ export function LinkBankSheet({
           disabled={!resolved}
           onClick={() => {
             if (!resolved) return;
-            onLink({ bank, accountNumber: number, accountName: resolved });
+            onLinked();
             onOpenChange(false);
           }}
         >

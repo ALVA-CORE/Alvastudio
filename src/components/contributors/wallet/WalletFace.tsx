@@ -10,11 +10,12 @@ import { LinkBankSheet } from "@/components/contributors/wallet/LinkBankSheet";
 import { VerifyIdentitySheet } from "@/components/contributors/wallet/VerifyIdentitySheet";
 import { WalletHistorySheet } from "@/components/contributors/dashboard/WalletHistorySheet";
 import { alvaToast } from "@/lib/alva-toast";
+import { reportApiError } from "@/lib/api/reportApiError";
+import { submitNin, withdraw } from "@/data/contributors/walletStore";
 import { alvaDarkTexture } from "@/lib/alva-texture";
 import {
   formatWalletNaira,
   type IdentityState,
-  type PayoutAccount,
   type Wallet,
 } from "@/data/contributors/wallet";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -43,14 +44,13 @@ import { cn } from "@/lib/utils";
 const ICON_TOP = "pt-7";
 export function WalletFace({
   wallet,
-  onLinkAccount,
-  onVerifyIdentity,
+  onRefresh,
   onShowPoints,
   className,
 }: {
   wallet: Wallet;
-  onLinkAccount: (account: PayoutAccount) => void;
-  onVerifyIdentity: (state: IdentityState) => void;
+  /** Re-reads the wallet after anything that changes it. */
+  onRefresh: () => void;
   /** Turns the card back over. Lives here so all three verbs sit together. */
   onShowPoints: () => void;
   className?: string;
@@ -120,11 +120,24 @@ export function WalletFace({
                       ? "Nothing to withdraw yet"
                       : undefined
               }
-              onClick={() =>
-                alvaToast.success(
-                  `${formatWalletNaira(wallet.balanceKobo)} on the way`
-                )
-              }
+              onClick={async () => {
+                try {
+                  await withdraw();
+                  onRefresh();
+                  alvaToast.success(
+                    `${formatWalletNaira(wallet.balanceKobo)} on the way`
+                  );
+                } catch (cause) {
+                  /* 409 twice over: nothing matured above the minimum, or a
+                   * payment is already in flight. The second is "already on
+                   * its way", not an error to retry. */
+                  const message = reportApiError(
+                    cause,
+                    "Could not start that withdrawal."
+                  );
+                  if (message) alvaToast.error(message);
+                }
+              }}
             />
             <WalletAction
               label="Payout"
@@ -152,8 +165,8 @@ export function WalletFace({
         open={linkOpen}
         onOpenChange={setLinkOpen}
         existing={wallet.payoutAccount}
-        onLink={(account) => {
-          onLinkAccount(account);
+        onLinked={() => {
+          onRefresh();
           alvaToast.success("Bank account linked");
         }}
       />
@@ -168,8 +181,9 @@ export function WalletFace({
         open={verifyOpen}
         onOpenChange={setVerifyOpen}
         state={wallet.identity}
-        onSubmit={() => {
-          onVerifyIdentity("pending");
+        onSubmit={async (nin) => {
+          await submitNin(nin);
+          onRefresh();
           setVerifyOpen(false);
           alvaToast.success("NIN submitted, we'll let you know");
         }}
