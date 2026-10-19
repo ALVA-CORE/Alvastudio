@@ -3,6 +3,7 @@ import { annotatorDashboard, type ApiDailyActivity } from "@/lib/api/dashboard";
 import { useApiResource } from "@/hooks/useApiResource";
 import type { HeatmapColumn } from "@/components/charts/heatmap";
 import { NO_VALUE } from "@/lib/no-value";
+import type { DashboardTimeRange } from "@/data/internDashboard";
 
 /**
  * `daily_activity` → the calendar shape the activity chart reads.
@@ -54,12 +55,26 @@ function count(value: number | undefined) {
   return value == null ? NO_VALUE : value.toLocaleString();
 }
 
-export function useAnnotatorDashboard() {
+/** How many days of `daily_activity` each filter shows. */
+const RANGE_DAYS: Record<DashboardTimeRange, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "12m": 365,
+};
+
+export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
   const { data, isLoading, error, reload } = useApiResource(annotatorDashboard, []);
 
+  /* `daily_activity` is the full 365 days in one response, so the filter is a
+   * slice rather than a refetch. The totals beside it have no window at the
+   * API, which is why they do not move with it. */
   const activity = useMemo(
-    () => (data ? toHeatmapColumns(data.daily_activity) : []),
-    [data]
+    () =>
+      data
+        ? toHeatmapColumns(data.daily_activity.slice(-RANGE_DAYS[range]))
+        : [],
+    [data, range]
   );
 
   const metrics = useMemo(

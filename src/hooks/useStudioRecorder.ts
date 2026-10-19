@@ -45,6 +45,8 @@ export function useStudioRecorder() {
   const blobRef = useRef<Blob | null>(null);
   /** What the recorder actually produced. Drives playback and the upload. */
   const mimeTypeRef = useRef<string>("audio/webm");
+  /** The mic the browser actually opened, for `device_mic` on the upload. */
+  const deviceMicRef = useRef<string>("");
   /** Wall-clock length of the take, for the recording's `duration_seconds`. */
   const startedAtRef = useRef<number>(0);
   const durationRef = useRef<number>(0);
@@ -69,6 +71,11 @@ export function useStudioRecorder() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       setStream(stream);
+
+      /* Read while the track is live: the label is cleared when it stops, and
+       * it is empty before permission is granted. Blank on a browser that
+       * withholds it, which the upload then simply omits. */
+      deviceMicRef.current = stream.getAudioTracks()[0]?.label ?? "";
 
       const mimeType = pickMimeType();
       const recorder = new MediaRecorder(
@@ -178,6 +185,14 @@ export function useStudioRecorder() {
     getFilename: () => `recording.${extensionFor(mimeTypeRef.current)}`,
     /** Seconds of wall-clock recording, measured rather than decoded. */
     getDuration: () => durationRef.current,
+    /**
+     * The microphone the take was recorded on, as the browser named it.
+     *
+     * Empty where the browser withholds the label, which is every browser
+     * before permission is granted and some after. The upload leaves
+     * `device_mic` off rather than sending a guess.
+     */
+    getDeviceMic: () => deviceMicRef.current,
     startRecording,
     stopRecording,
     playRecording,

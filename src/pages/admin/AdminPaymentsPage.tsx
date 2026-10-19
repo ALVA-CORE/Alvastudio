@@ -14,6 +14,7 @@ import { RunPaymentDialog } from "@/components/admin/payments/RunPaymentDialog";
 import BillCheck from "@solar-icons/react/money/BillCheck";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -45,6 +46,8 @@ import { relativeDays } from "@/data/admin/shared";
  * reconciliation later, and the money is not lost. It is amber because it is
  * worth coming back to, not because anything is wrong.
  */
+type Tab = "earnings" | "runs";
+
 const RUN_LABEL: Record<string, string> = {
   in_progress: "Sending",
   completed: "Completed",
@@ -84,6 +87,10 @@ export default function AdminPaymentsPage() {
     reload: reloadRates,
   } = useRates();
   const [status, setStatus] = useState<StatusFilter>("all");
+  /* Two tables, one at a time. They answer different questions — what each
+   * contributor is owed, and what has actually gone out — and stacking them
+   * made the second one something nobody scrolled to. */
+  const [tab, setTab] = useState<Tab>("earnings");
   const {
     rows: earnings,
     isLoading: loadingEarnings,
@@ -293,7 +300,34 @@ export default function AdminPaymentsPage() {
         )}
       </AlvaChartCard>
 
-      <div className="mt-2">
+      <Tabs
+        className="mt-3"
+        value={tab}
+        onValueChange={(value) => setTab(value as Tab)}
+      >
+        <TabsList className="h-9 rounded-full bg-alva-surface p-1">
+          <TabsTrigger
+            value="earnings"
+            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+          >
+            Earnings
+          </TabsTrigger>
+          <TabsTrigger
+            value="runs"
+            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+          >
+            <span className="flex items-center gap-2">
+              Payment runs
+              {payouts.runs.length > 0 ? (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-alva-card px-1.5 text-[10px] font-semibold text-muted-foreground">
+                  {payouts.runs.length}
+                </span>
+              ) : null}
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="earnings" className="mt-2">
         <AlvaDataTable
           title="Earnings"
           rows={filtered}
@@ -330,11 +364,11 @@ export default function AdminPaymentsPage() {
             description: "Earnings appear once contributors submit approved work.",
           }}
         />
-      </div>
+        </TabsContent>
 
-      {/* Every run already made. Nothing else on the admin surface shows
-          these, so a failed leg had nowhere to be noticed. */}
-      <div className="mt-2">
+        {/* Every run already made. Nothing else on the admin surface shows
+            these, so a failed leg had nowhere to be noticed. */}
+        <TabsContent value="runs" className="mt-2">
         <AlvaChartCard
           title="Payment runs"
           subtitle="What has gone out, and how it landed"
@@ -374,7 +408,8 @@ export default function AdminPaymentsPage() {
             ))}
           </dl>
         </AlvaChartCard>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       <RunPaymentDialog
         open={runOpen}

@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
+import type { ComponentType } from "react";
 import Play from "@solar-icons/react/video/Play";
 import Stop from "@solar-icons/react/video/Stop";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,15 @@ import type { RecorderPhase } from "@/hooks/useStudioRecorder";
 type SiriBlobProps = {
   phase?: RecorderPhase;
   size?: "nav" | "lg";
+  /**
+   * Replaces the microphone at rest.
+   *
+   * The blob is a treatment, not a meaning: on the annotator rail it marks the
+   * session queue, where a microphone would promise recording. Recording and
+   * playback still show Stop and Play, because those are states this blob
+   * genuinely has.
+   */
+  idleIcon?: ComponentType<{ size?: number; weight?: "BoldDuotone" | "Bold" }>;
   className?: string;
 };
 
@@ -28,7 +38,12 @@ const SIZE = {
   },
 } as const;
 
-export function SiriBlob({ phase = "idle", size = "lg", className }: SiriBlobProps) {
+export function SiriBlob({
+  phase = "idle",
+  size = "lg",
+  idleIcon: IdleIcon = Microphone3,
+  className,
+}: SiriBlobProps) {
   const isRecording = phase === "recording";
   const s = SIZE[size];
 
@@ -91,9 +106,7 @@ export function SiriBlob({ phase = "idle", size = "lg", className }: SiriBlobPro
       />
 
       <div className="relative z-[1] text-alva-bg">
-        {phase === "idle" && (
-          <Microphone3 size={s.icon} weight="BoldDuotone" />
-        )}
+        {phase === "idle" && <IdleIcon size={s.icon} weight="BoldDuotone" />}
         {phase === "recording" && <Stop size={s.icon - 2} weight="Bold" />}
         {(phase === "recorded" || phase === "playing") && (
           <Play size={s.icon - 2} weight="Bold" />

@@ -24,7 +24,8 @@ export default function AnnotatorDashboardPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
-  const { metrics, activity, isLoading, error, reload } = useAnnotatorDashboard();
+  const { metrics, activity, isLoading, error, reload } =
+    useAnnotatorDashboard(timeRange);
   const { forceEmpty } = useDevUiState();
 
   if (isMobile) {

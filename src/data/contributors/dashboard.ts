@@ -25,9 +25,6 @@ export type QualitySegment = {
 
 export type Insight = { label: string; value: string };
 
-/** Second, first, third — the order the podium renders them in. */
-const PODIUM_ORDER = [1, 0, 2];
-
 /** Avatar backgrounds, so the three faces are not all on the same grey. */
 const AVATAR_BG = ["202020", "252525", "1a1a1a"];
 
@@ -38,20 +35,24 @@ const AVATAR_BG = ["202020", "252525", "1a1a1a"];
  * rather than the rank number: three people tied at 1st still need a middle,
  * a left and a right.
  */
+/**
+ * The top three, in rank order.
+ *
+ * Rank order, not display order: the podium puts second on the left itself,
+ * because only it knows how to lay out a board that has one or two people on
+ * it rather than three. The endpoint caps `limit` at 3, so the slice is a
+ * belt-and-braces measure.
+ */
 export function toPodium(
   rows: { contributor_id: string; full_name: string; points: number }[]
 ): LeaderboardEntry[] {
-  const entries = rows.slice(0, 3).map((row, index) => ({
+  return rows.slice(0, 3).map((row, index) => ({
     id: row.contributor_id,
     name: row.full_name,
     points: row.points,
     seed: row.contributor_id,
     avatarBg: AVATAR_BG[index],
   }));
-
-  return PODIUM_ORDER.filter((index) => index < entries.length).map(
-    (index) => entries[index]
-  );
 }
 
 export const RECORDING_MIX = [

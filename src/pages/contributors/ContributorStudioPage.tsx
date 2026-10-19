@@ -172,6 +172,10 @@ export default function ContributorStudioPage() {
         /* The real extension, from what the recorder produced. An mp4
          * sent as .webm is a 415 or a mis-decode at the other end. */
         filename: recorder.getFilename(),
+        /* What the clip was actually recorded on. The profile holds a device
+         * the contributor typed once; this is the mic in front of them for
+         * this take, which is what a reviewer judging audio quality needs. */
+        deviceMic: recorder.getDeviceMic() || undefined,
       };
 
       if (mode === "stimuli") {

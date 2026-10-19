@@ -119,11 +119,26 @@ export function LeaderboardPodium({
   className,
   embedded = false,
 }: LeaderboardPodiumProps) {
-  const [second, first, third] = entries;
+  const [first, second, third] = entries ?? [];
 
-  /* Fewer than three on the board yet. A podium with a gap in it reads as
-     broken, so it waits until there is one. */
+  /* Nobody ranked yet. One or two is fine — an early corpus genuinely has one
+     person on it, and hiding the board until a third arrives was why it
+     vanished rather than showing the one person who was on it. */
   if (!first) return null;
+
+  /* Second on the left, first in the middle, third on the right, with the
+     steps that are not filled simply absent. Height already says who won, so
+     a two-person board reads correctly without a placeholder standing in for
+     somebody who does not exist. */
+  const steps = [
+    second && { entry: second, rank: 2 as const, blockHeight: "h-[64px] sm:h-[76px]" },
+    { entry: first, rank: 1 as const, blockHeight: "h-[96px] sm:h-[112px]" },
+    third && { entry: third, rank: 3 as const, blockHeight: "h-[48px] sm:h-[58px]" },
+  ].filter(Boolean) as {
+    entry: LeaderboardEntry;
+    rank: 1 | 2 | 3;
+    blockHeight: string;
+  }[];
 
   return (
     <div
@@ -147,27 +162,16 @@ export function LeaderboardPodium({
       )}
 
       <div className="relative flex items-end justify-center gap-1.5 px-1 sm:gap-3">
-        <PodiumSlot
-          entry={second}
-          rank={2}
-          blockHeight="h-[64px] sm:h-[76px]"
-          isCurrentUser={second.id === currentUserId}
-          embedded={embedded}
-        />
-        <PodiumSlot
-          entry={first}
-          rank={1}
-          blockHeight="h-[96px] sm:h-[112px]"
-          isCurrentUser={first.id === currentUserId}
-          embedded={embedded}
-        />
-        <PodiumSlot
-          entry={third}
-          rank={3}
-          blockHeight="h-[48px] sm:h-[58px]"
-          isCurrentUser={third.id === currentUserId}
-          embedded={embedded}
-        />
+        {steps.map((step) => (
+          <PodiumSlot
+            key={step.entry.id}
+            entry={step.entry}
+            rank={step.rank}
+            blockHeight={step.blockHeight}
+            isCurrentUser={step.entry.id === currentUserId}
+            embedded={embedded}
+          />
+        ))}
       </div>
     </div>
   );

@@ -49,7 +49,11 @@ export default function ContributorDashboardPage() {
   return (
     <div className="pb-6">
       <FixedBlurHeader contentClassName="pb-4">
-        <HomeHeader firstName={firstName} />
+        <HomeHeader
+          firstName={firstName}
+          fullName={user?.fullName}
+          avatarSeed={user?.email ?? firstName}
+        />
       </FixedBlurHeader>
 
       {isLoading || loadingLive ? (

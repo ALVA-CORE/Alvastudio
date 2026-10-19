@@ -5,7 +5,7 @@ import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import Translation2 from "@solar-icons/react/it/Translation2";
 import UserId from "@solar-icons/react/users/UserId";
 import { useNavigate } from "react-router-dom";
-import { ActivityLogConsent } from "@/components/annotators/profile/ActivityLogConsent";
+import { PrivacyRows } from "@/components/annotators/profile/PrivacyRows";
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
@@ -107,14 +107,15 @@ export default function AnnotatorProfilePage() {
             sheetDescription="How participant audio may be handled during annotation, and what is recorded about your own work."
           >
             <dl>
-              <ProfileInfoBlock label="NDPA training" value="Completed" />
-              <ProfileInfoBlock label="Audio export" value="Disabled" />
-              <ProfileInfoBlock
-                label="Participant identifiers"
-                value="Masked in the workspace"
-              />
-              <ActivityLogConsent />
+              <PrivacyRows />
             </dl>
+
+            {/* Facts about the build, not settings on this account, so they
+                are written as sentences with nothing to toggle beside them. */}
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              Audio cannot be exported from the workspace, and participant
+              names are masked everywhere a session is annotated.
+            </p>
           </ProfileActionRow>
 
           <ProfileActionRow
