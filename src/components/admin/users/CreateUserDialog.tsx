@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -160,8 +159,18 @@ export function CreateUserDialog({
               fixed by the role itself. */}
           {draft.role === "admin" ? (
             <div>
-              <span className="block text-xs text-muted-foreground">Page access</span>
+              <span className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                Page access
+                <span className="text-[11px] text-amber-300">Not enforced yet</span>
+              </span>
+              {/* Disabled, not removed.
+                  Backend confirmed role is the whole authority model: a
+                  permission list enforced on some routes and not others would
+                  imply a boundary the API does not hold. Kept on screen
+                  because the concept may come back, and labelled so nobody
+                  believes it is doing anything. */}
               <AlvaMultiSelect
+                disabled
                 aria-label="Page access"
                 className="mt-1.5"
                 value={draft.permissions}

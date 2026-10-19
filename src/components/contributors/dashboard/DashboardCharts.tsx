@@ -143,12 +143,26 @@ function ChartSlide({
 export function DashboardCharts({
   className,
   isEmpty = false,
+  mix,
+  weekly,
 }: {
   className?: string;
   isEmpty?: boolean;
+  /** From `/dashboard/contributor`. Omit and the seeded shape is drawn. */
+  mix?: { type: string; value: number; fill: string }[];
+  weekly?: { day: string; sessions: number }[];
 }) {
   const [api, setApi] = useState<CarouselApi>();
   const [activeSlide, setActiveSlide] = useState(0);
+
+  /* A contributor with no clips has an empty mix, which is the empty state
+   * rather than a chart of zeroes. The ghost ring keeps the donut's shape
+   * behind the overlay. */
+  const mixEmpty = isEmpty || (mix !== undefined && mix.length === 0);
+  const mixData = mixEmpty ? EMPTY_RECORDING_MIX : (mix ?? RECORDING_MIX);
+  const weeklyData = isEmpty
+    ? EMPTY_WEEKLY_SESSIONS
+    : (weekly?.length ? weekly : WEEKLY_SESSIONS);
 
   const onSelect = useCallback((carouselApi: CarouselApi) => {
     setActiveSlide(carouselApi.selectedScrollSnap());
@@ -175,7 +189,7 @@ export function DashboardCharts({
             <ChartSlide
               title="Recording mix"
               emptyMessage={
-                isEmpty
+                mixEmpty
                   ? {
                       title: "No recordings yet",
                       description: "Your prompt and stimuli split appears after your first clip.",
@@ -188,9 +202,9 @@ export function DashboardCharts({
                 className="mx-auto aspect-[4/3] w-full max-h-[240px]"
               >
                 <PieChart margin={{ top: 10, right: 42, bottom: 10, left: 42 }}>
-                  {!isEmpty && <ChartTooltip content={<ChartTooltipContent hideLabel />} />}
+                  {!mixEmpty && <ChartTooltip content={<ChartTooltipContent hideLabel />} />}
                   <Pie
-                    data={isEmpty ? EMPTY_RECORDING_MIX : RECORDING_MIX}
+                    data={mixData}
                     dataKey="value"
                     nameKey="type"
                     innerRadius={42}
@@ -200,14 +214,14 @@ export function DashboardCharts({
                     strokeWidth={0}
                     labelLine={false}
                     label={
-                      isEmpty
+                      mixEmpty
                         ? false
                         : (props) => (
                             <PieCalloutLabel {...props} status={props.name as string} />
                           )
                     }
                   >
-                    {(isEmpty ? EMPTY_RECORDING_MIX : RECORDING_MIX).map((entry) => (
+                    {mixData.map((entry) => (
                       <Cell key={entry.type} fill={entry.fill} />
                     ))}
                   </Pie>
@@ -256,7 +270,7 @@ export function DashboardCharts({
                 className="aspect-[4/3] w-full max-h-[240px]"
               >
                 <BarChart
-                  data={isEmpty ? EMPTY_WEEKLY_SESSIONS : WEEKLY_SESSIONS}
+                  data={weeklyData}
                   margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid

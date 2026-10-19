@@ -1,34 +1,25 @@
 import { VARIETIES, daysAgo, pick, relativeDays, seeded, type Variety } from "./shared";
 
-export type BankKind = "prompt" | "stimulus";
+export type BankKind = "prompt" | "stimulus" | "topic";
 
 /**
  * What a bank item is.
  *
- * Three kinds, and nothing else. The old list — "Everyday life", "Work and
+ * Three kinds and three endpoints. The old list — "Everyday life", "Work and
  * money" and so on — was a topic taxonomy nobody had agreed, so it is gone.
  *
- * It is **derived, not chosen**. Prompts and stimuli are separate endpoints,
- * so an item's kind is decided by which one it was written to; offering it as
- * a field let somebody set "Stimuli" on a prompt and then wonder why it stayed
- * in the Prompts tab. Changing it would mean deleting from one bank and
- * creating in the other, which loses the id every recording points at.
- *
- * Focus group topics have no endpoint at all, so they live in the prompts bank
- * under this category until one exists. See docs/endpoints-needed.md §10.
+ * It is **derived, not chosen**: an item's kind is decided by which bank it
+ * was written to. Offering it as a field let somebody set "Stimuli" on a
+ * prompt and then wonder why it stayed in the Prompts tab, and changing it for
+ * real means deleting from one bank and creating in the other, which loses the
+ * id every recording points at.
  */
-export type BankCategory = "prompt" | "stimulus" | "focus_group_topic";
-
-export const BANK_CATEGORIES: BankCategory[] = [
-  "prompt",
-  "stimulus",
-  "focus_group_topic",
-];
+export type BankCategory = BankKind;
 
 export const BANK_CATEGORY_LABELS: Record<BankCategory, string> = {
   prompt: "Prompt",
   stimulus: "Stimuli",
-  focus_group_topic: "Focus group topic",
+  topic: "Focus group topic",
 };
 
 /**
@@ -39,12 +30,15 @@ export const BANK_CATEGORY_LABELS: Record<BankCategory, string> = {
  * read as whatever bank they came from rather than shown raw, because
  * "placeholder" is not a category, it is a note to whoever seeded it.
  */
-export function bankCategory(item: {
-  kind: BankKind;
-  category: string;
-}): BankCategory {
-  if (item.category === "focus_group_topic") return "focus_group_topic";
-  return item.kind === "stimulus" ? "stimulus" : "prompt";
+/**
+ * What an item is: the bank it came out of.
+ *
+ * `category` is free text server side and most rows carry something that is
+ * not a category at all — the seeded bank is tagged `placeholder`. The three
+ * banks are the taxonomy, so the kind is the answer.
+ */
+export function bankCategory(item: { kind: BankKind }): BankCategory {
+  return item.kind;
 }
 
 export type BankItem = {

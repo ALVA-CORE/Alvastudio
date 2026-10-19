@@ -32,7 +32,7 @@ describe("CreateUserDialog", () => {
     expect(screen.getByRole("button", { name: "Send invite" })).toBeInTheDocument();
   });
 
-  it("only offers page access for admins", async () => {
+  it("only shows page access for admins", async () => {
     renderDialog();
     expect(screen.queryByText("Page access")).not.toBeInTheDocument();
 
@@ -40,11 +40,18 @@ describe("CreateUserDialog", () => {
     await userEvent.click(screen.getByRole("option", { name: "Admin" }));
 
     expect(screen.getByText("Page access")).toBeInTheDocument();
+  });
 
-    // The options live behind the trigger — a column of checkboxes was what
-    // this replaced.
-    await userEvent.click(screen.getByRole("button", { name: "Page access" }));
-    expect(screen.getByRole("checkbox", { name: "Payments" })).toBeInTheDocument();
+  /* Role is the whole authority model at the API. The picker stays on screen
+   * because the concept may return, but it must not look operable: a control
+   * that sets nothing is worse than no control. */
+  it("does not let anyone set page access, and says why", async () => {
+    renderDialog();
+    await userEvent.click(screen.getByRole("combobox", { name: "Role" }));
+    await userEvent.click(screen.getByRole("option", { name: "Admin" }));
+
+    expect(screen.getByText("Not enforced yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Page access" })).toBeDisabled();
   });
 
   it("refuses an invalid email", async () => {

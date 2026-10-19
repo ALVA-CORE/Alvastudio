@@ -59,10 +59,6 @@ const LANGUAGE: Record<string, AnnotatorSession["language"]> = {
   nigerian_pidgin: "Nigerian Pidgin",
 };
 
-/**
- * `tagCount` is still blank — neither list carries it, and fabricating a
- * number would look like data. The table renders it as "—".
- */
 function toSession(
   sessionId: string,
   topic: string,
@@ -71,7 +67,8 @@ function toSession(
   createdAt: string,
   status: AnnotationStatus,
   annotationId?: string,
-  extras: SessionExtras = {}
+  extras: SessionExtras = {},
+  tagCount = 0
 ): AnnotatorSession & { annotationId?: string } {
   const durationSec = durationSeconds ?? 0;
 
@@ -90,7 +87,7 @@ function toSession(
     recordedAt: relativeTime(createdAt),
     recordedAtTs: new Date(createdAt).getTime() || 0,
     status,
-    tagCount: 0,
+    tagCount,
     audioSrc: `/focus-groups/${sessionId}/audio`,
   };
 }
@@ -116,7 +113,13 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([annotations.listQueue({ limit: 100 }), annotations.listMine({ limit: 100 })])
+    /* `expand=tags` is what fills the Tags column. It is opt-in at the API
+     * because counting tags reads every span on the page, which is a fair
+     * price for one list the annotator actually looks at. */
+    Promise.all([
+      annotations.listQueue({ limit: 100 }),
+      annotations.listMine({ limit: 100, expand: "tags" }),
+    ])
       .then(([queue, mine]) => {
         if (cancelled) return;
 
@@ -160,7 +163,8 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
               languageVariety: row?.language_variety,
               internName: row?.intern_name,
               state: row?.state,
-            }
+            },
+            entry.tag_count ?? 0
           );
         });
 

@@ -46,11 +46,10 @@ function toRate(api: ApiRate): Rate {
 /**
  * What each unit of work pays.
  *
- * Separate from the earnings table below it, which has no all-contributors
- * endpoint and is still seeded. The two are not calculated from each other —
- * a rate change applies to work done after it, not retroactively to figures
- * already in the ledger — so wiring one without the other shows nothing
- * inconsistent.
+ * Separate from the earnings table below it, and deliberately not calculated
+ * from it: a rate change applies to work done after it, never retroactively to
+ * figures already in the ledger. So a rate that has just been edited will not
+ * match the ledger beneath it, and should not.
  */
 export function useRates() {
   const [rates, setRates] = useState<Rate[]>([]);

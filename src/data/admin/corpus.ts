@@ -1,8 +1,13 @@
 import type { DemographicHoursPoint } from "@/data/internDashboard";
-import { STATES, daysAgo, isoDay, round1, seeded } from "./shared";
+import { STATES, daysAgo, round1, seeded } from "./shared";
 
 export type CorpusSlice = { label: string; hours: number };
 export type GrowthPoint = { date: Date; hours: number };
+
+export type SankeyFlow = {
+  nodes: { name: string; category?: "source" | "landing" | "outcome" }[];
+  links: { source: number; target: number; value: number }[];
+};
 
 export type CorpusSnapshot = {
   totalHours: number;
@@ -16,6 +21,8 @@ export type CorpusSnapshot = {
   byAge: CorpusSlice[];
   byGender: CorpusSlice[];
   growth: GrowthPoint[];
+  /** Collection type through to outcome. Empty until there are clips. */
+  flow: SankeyFlow;
 };
 
 /**
@@ -88,6 +95,7 @@ export const CORPUS: CorpusSnapshot = {
     { label: "Prefer not to say", hours: 15.2 },
   ],
   growth: buildGrowth(365, TOTAL_HOURS),
+  flow: { nodes: [], links: [] },
 };
 
 export const EMPTY_CORPUS: CorpusSnapshot = {
@@ -102,7 +110,8 @@ export const EMPTY_CORPUS: CorpusSnapshot = {
   byState: CORPUS.byState.map((slice) => ({ ...slice, hours: 0 })),
   byAge: CORPUS.byAge.map((slice) => ({ ...slice, hours: 0 })),
   byGender: CORPUS.byGender.map((slice) => ({ ...slice, hours: 0 })),
-  growth: CORPUS.growth.map((point) => ({ ...point, hours: 0 })),
+  growth: [],
+  flow: { nodes: [], links: [] },
 };
 
 /** Coverage gaps — states with less than the target share of the corpus. */
@@ -113,10 +122,6 @@ export function underCoveredStates(snapshot: CorpusSnapshot, targetHours = 40) {
   });
 }
 
-export type SankeyFlow = {
-  nodes: { name: string; category?: "source" | "landing" | "outcome" }[];
-  links: { source: number; target: number; value: number }[];
-};
 
 /**
  * Where audio comes from and how it resolves, in hours.
@@ -163,9 +168,9 @@ export const EMPTY_CORPUS_FLOW: SankeyFlow = {
 /**
  * The age brackets, with nothing in them.
  *
- * The populated version is gone: no endpoint reports hours split by speaker
- * demographics, so the chart draws its empty state. The brackets stay because
- * an empty pyramid still has to have axes. See docs/endpoints-needed.md §6.
+ * What the chart falls back to before `demographics` on `/corpus/summary`
+ * arrives, and what it draws when a corpus has no contributor recordings yet.
+ * The brackets stay because an empty pyramid still has to have axes.
  */
 export const EMPTY_CORPUS_DEMOGRAPHICS: DemographicHoursPoint[] = [
   "18-24",

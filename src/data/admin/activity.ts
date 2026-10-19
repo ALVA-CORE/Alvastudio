@@ -12,9 +12,8 @@ import { NIGERIAN_NAMES, pick, seeded } from "./shared";
  * order. Because the workspace already keeps an undo stack, those operations
  * exist on the client already; persisting them is the whole of the feature.
  *
- * This file is seeded sample data. The shape is what we are asking the backend
- * for, so swapping it for `GET /annotations/{id}/events` is a change of
- * source. See docs/integration-status.md.
+ * `fromApiEvents` maps the real log; `annotationActivity` seeds one for the
+ * admin screens that have no annotation behind the row they are showing.
  */
 
 export type ActivityOp =
@@ -297,4 +296,65 @@ export function activityEffort(events: ActivityEvent[]): EffortBar[] {
 export function activitySpanMinutes(events: ActivityEvent[]) {
   if (events.length < 2) return 0;
   return Math.round((events[events.length - 1].at - events[0].at) / 60000);
+}
+
+/** How each op reads in the feed, with what its payload carries. */
+function describe(op: ActivityOp, payload: Record<string, unknown>): string {
+  const segment = payload.segment_id ? String(payload.segment_id).slice(0, 6) : "";
+  const value = (key: string) => (payload[key] == null ? "" : String(payload[key]));
+
+  switch (op) {
+    case "session.claim":
+      return "Picked the session up from the queue";
+    case "segment.create":
+      return `Segment ${segment} added`;
+    case "segment.resize":
+      return `Segment ${segment} adjusted`;
+    case "segment.delete":
+      return `Segment ${segment} removed`;
+    case "speaker.create":
+      return `Added ${value("label") || "a speaker"}`;
+    case "speaker.assign":
+      return `Segment ${segment} speaker set`;
+    case "tag.add":
+      return `${value("tag") || "Tag"} on segment ${segment}`;
+    case "tag.remove":
+      return `${value("tag") || "Tag"} taken off segment ${segment}`;
+    case "text.edit":
+      return `Rewrote segment ${segment}`;
+    case "session.submit":
+      return "Marked the session complete";
+    default:
+      return op;
+  }
+}
+
+/**
+ * The real log, in the shape the replay reads.
+ *
+ * The API holds no transcript text, by design — `text.edit` carries a length
+ * and nothing else — so the feed describes what happened rather than quoting
+ * it. That is the whole point of the retention rules around this data.
+ */
+export function fromApiEvents(
+  events: {
+    id: string;
+    seq: number;
+    at: string;
+    media_time: number | null;
+    op: string;
+    actor_id: string;
+    payload: Record<string, unknown>;
+  }[],
+  actorNames: Map<string, string> = new Map()
+): ActivityEvent[] {
+  return events.map((event) => ({
+    id: event.id,
+    seq: event.seq,
+    at: new Date(event.at).getTime(),
+    mediaTime: event.media_time ?? 0,
+    op: event.op as ActivityOp,
+    actor: actorNames.get(event.actor_id) ?? "",
+    detail: describe(event.op as ActivityOp, event.payload ?? {}),
+  }));
 }

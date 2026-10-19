@@ -91,6 +91,29 @@ vi.mock("@/lib/api/adminDashboard", () => ({
   })),
 }));
 
+/* Resolves on the next tick rather than synchronously, so the page still
+ * renders its skeleton on the first frame the way a real fetch would. */
+vi.mock("@/hooks/useEarnings", async () => {
+  const { useEffect, useState } = await import("react");
+  const { EARNINGS } = await import("@/data/admin/payments");
+  return {
+    useEarnings: () => {
+      const [isLoading, setLoading] = useState(true);
+      /* Resolved on a microtask, not in the effect body: `render()` flushes
+         effects synchronously, so setting it there would mean the skeleton
+         never got a frame. A real fetch settles on a microtask too. */
+      useEffect(() => {
+        let cancelled = false;
+        void Promise.resolve().then(() => !cancelled && setLoading(false));
+        return () => {
+          cancelled = true;
+        };
+      }, []);
+      return { rows: isLoading ? [] : EARNINGS, isLoading, error: null, reload: vi.fn() };
+    },
+  };
+});
+
 vi.mock("@/hooks/useRates", async () => {
   const { RATES } = await import("@/data/admin/payments");
   return {
@@ -118,6 +141,15 @@ vi.mock("@/lib/api/corpus", () => ({
     by_status: { approved: 351.2, in_review: 40, rejected: 21.3 },
     approved_hours: 351.2,
     unmeasured_rows: 3,
+    daily_hours: [{ date: "2026-10-01", hours: 2.5 }],
+    hours_in_window: 412.5,
+    by_type_status: [
+      { session_type: "prompt_read", status: "approved", clips: 120, hours: 200 },
+    ],
+    demographics: {
+      by_gender: [{ value: "female", speakers: 100, hours: 220 }],
+      by_age_bracket: [{ value: "25-34", speakers: 90, hours: 180 }],
+    },
   })),
   corpusCoverage: vi.fn(async () => ({
     states: [{ state: "Lagos", speakers: 50, hours: 80 }],
@@ -132,6 +164,10 @@ vi.mock("@/lib/api/catalog", async () => {
   return {
     listPromptsPage: vi.fn(async () => page),
     listStimuliPage: vi.fn(async () => page),
+    listTopicsPage: vi.fn(async () => ({ items: [], total: 0, limit: 200, offset: 0 })),
+    createTopic: vi.fn(async () => items[0]),
+    updateTopic: vi.fn(async () => items[0]),
+    deleteTopic: vi.fn(async () => ({ ...items[0], is_active: false })),
     createBankItem: vi.fn(async () => items[0]),
     updateBankItem: vi.fn(async () => items[0]),
     deleteBankItem: vi.fn(async () => ({ ...items[0], is_active: false })),

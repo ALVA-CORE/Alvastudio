@@ -34,6 +34,8 @@ type ParticipantIntakeModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   focusGroupSession: string;
+  /** The bank item the topic came from, when it came from one. */
+  focusGroupTopicId?: string;
   /** Receives the created session — its id is what the take uploads against. */
   onComplete?: (session: ApiSession) => void;
 };
@@ -47,6 +49,7 @@ export function ParticipantIntakeModal({
   open,
   onOpenChange,
   focusGroupSession,
+  focusGroupTopicId,
   onComplete,
 }: ParticipantIntakeModalProps) {
   const [step, setStep] = useState(1);
@@ -121,7 +124,11 @@ export function ParticipantIntakeModal({
     setCreating(true);
     setSubmitError(null);
     try {
-      const session = await createSessionWithParticipants(focusGroupSession, drafts);
+      const session = await createSessionWithParticipants(
+        focusGroupSession,
+        drafts,
+        focusGroupTopicId
+      );
       onComplete?.(session);
       onOpenChange(false);
       reset();

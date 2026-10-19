@@ -3,10 +3,6 @@ import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import { SegmentTextEditor } from "@/components/annotators/workspace/SegmentTextEditor";
 import { SpeakerAvatar } from "@/components/annotators/workspace/SpeakerAvatar";
 import {
-  ActiveSegmentText,
-  StaticSegmentText,
-} from "@/components/annotators/workspace/SegmentKaraokeText";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,7 +13,6 @@ import { formatTimecode, segmentDuration } from "@/lib/annotation/segments";
 import {
   speakerDisplayName,
   type AnnotationSpan,
-  type NonSpeechMark,
   type Segment,
   type SegmentId,
   type Speaker,
@@ -71,7 +66,6 @@ export type TranscriptSegmentRowProps = {
   /* Tagging */
   tokens: Token[];
   spans: AnnotationSpan[];
-  nonSpeech: NonSpeechMark[];
   onApplyTag: (kind: SpanKind, value: string, range: { start: number; end: number }) => void;
   onRemoveTag: (spanId: string) => void;
   onAddNonSpeech: (type: string, atToken: number) => void;
@@ -95,7 +89,6 @@ function TranscriptSegmentRowImpl({
   onEndInteraction,
   tokens,
   spans,
-  nonSpeech,
   onApplyTag,
   onRemoveTag,
   onAddNonSpeech,

@@ -58,10 +58,21 @@ export default function AdminAnnotationsPage() {
     error,
     reload,
     assign,
+    assignSession,
     setVerdict,
   } = useAdminAnnotations();
   const [status, setStatus] = useState<StatusFilter>("all");
-  const [assigning, setAssigning] = useState<{ id: string; topic: string } | null>(null);
+  /**
+   * The thing being handed out, and which endpoint hands it out.
+   *
+   * `session` is work nobody has picked up, so there is no annotation yet and
+   * the session itself is assigned. `annotation` is one that exists and is
+   * changing hands. They take different ids on different routes, so the kind
+   * travels with the id rather than being inferred at the call.
+   */
+  const [assigning, setAssigning] = useState<
+    { kind: "session" | "annotation"; id: string; topic: string } | null
+  >(null);
   /* Sessions handed out from here, so the list reflects the action taken
    * without refetching the whole screen. */
   const [assigned, setAssigned] = useState<Record<string, string>>({});
@@ -252,18 +263,19 @@ export default function AdminAnnotationsPage() {
                       : NO_VALUE}{" "}
                     · {relativeDays(new Date(session.created_at))}
                   </span>
-                  {/* An unclaimed session has no annotation yet, and there is
-                      no endpoint that makes one: `POST /annotations` does not
-                      exist, and `claim-next` claims for the caller rather than
-                      for somebody else. Pressing this asked the API to patch
-                      an annotation id that was really a session id, which came
-                      back "annotation not found". Disabled with the reason
-                      rather than left to fail. See docs/endpoints-needed.md. */}
+                  {/* `PATCH /focus-groups/{id}/assignee` opens the annotation
+                      as a side effect, so a session can be handed out before
+                      anybody has claimed it. */}
                   <button
                     type="button"
-                    disabled
-                    title="An annotator has to claim this first. There is no endpoint to hand out an unclaimed session yet."
-                    className="cursor-not-allowed rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-muted-foreground opacity-50"
+                    onClick={() =>
+                      setAssigning({
+                        kind: "session",
+                        id: session.id,
+                        topic: session.topic,
+                      })
+                    }
+                    className="rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-alva-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
                   >
                     Assign
                   </button>
@@ -338,7 +350,11 @@ export default function AdminAnnotationsPage() {
           }
         }}
         onReassign={(annotation) =>
-          setAssigning({ id: annotation.id, topic: annotation.topic })
+          setAssigning({
+            kind: "annotation",
+            id: annotation.id,
+            topic: annotation.topic,
+          })
         }
       />
 
@@ -349,11 +365,15 @@ export default function AdminAnnotationsPage() {
         onAssign={async (annotator) => {
           if (!assigning) return;
           try {
-            await assign(assigning.id, annotator);
-            setAssigned((prev) => ({ ...prev, [assigning.id]: annotator.name }));
+            if (assigning.kind === "session") {
+              await assignSession(assigning.id, annotator);
+              setAssigned((prev) => ({ ...prev, [assigning.id]: annotator.name }));
+            } else {
+              await assign(assigning.id, annotator);
+            }
             alvaToast.success(`Assigned to ${annotator.name}`);
           } catch (cause) {
-            const message = reportApiError(cause, "Could not assign that session.");
+            const message = reportApiError(cause, "Could not assign that one.");
             if (message) alvaToast.error(message);
           }
           setAssigning(null);

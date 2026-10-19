@@ -5,11 +5,13 @@ import Diskette from "@solar-icons/react/devices/Diskette";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
-import { FOCUS_GROUP_PROMPTS } from "@/data/prompts";
+import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { attachSessionAudio } from "@/hooks/useFocusGroups";
+import { useFocusGroupTopics } from "@/hooks/useFocusGroupTopics";
 import { ApiError } from "@/lib/api/client";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
 import { alvaToast } from "@/lib/alva-toast";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ParticipantIntakeModal } from "@/components/interns/participants/ParticipantIntakeModal";
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
@@ -18,7 +20,7 @@ import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriCo
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
 import { TextureButton } from "@/components/ui/texture-button";
 
-function toCards(items: { id: number; text: string }[]): PromptCard[] {
+function toCards(items: { id: string; text: string }[]): PromptCard[] {
   return items.map((item) => ({ id: item.id, prompt: item.text }));
 }
 
@@ -32,10 +34,13 @@ export default function InternRecordPage() {
   const [isSaving, setSaving] = useState(false);
   const recorder = useStudioRecorder();
 
-  const items = useMemo(() => toCards(FOCUS_GROUP_PROMPTS), []);
+  const { topics, isLoading: loadingTopics, error: topicsError } = useFocusGroupTopics();
+
+  const items = useMemo(() => toCards(topics), [topics]);
   const total = items.length;
 
   const goTo = (updater: (prev: number) => number) => {
+    if (total === 0) return;
     setCurrentIndex((prev) => (updater(prev) + total) % total);
     recorder.discardRecording();
   };
@@ -122,17 +127,42 @@ export default function InternRecordPage() {
           <h1 className="text-2xl font-semibold text-foreground">Record focus group</h1>
         </div>
 
-        <StudioProgress current={currentIndex + 1} total={total} label="Session progress" />
-
-        <StudioPromptStack
-          className="mt-8"
-          items={items}
-          current={currentIndex}
-          onNext={() => goTo((prev) => prev + 1)}
-          onPrevious={() => goTo((prev) => prev - 1)}
+        <StudioProgress
+          current={total ? currentIndex + 1 : 0}
+          total={total}
+          label={loadingTopics ? "Loading…" : total ? "Session progress" : "No topics"}
         />
 
-        <StudioSiriControl className="mt-10 h-28" phase={recorder.phase} onPrimary={handlePrimary} />
+        {topicsError ? (
+          <p role="alert" className="mt-8 text-center text-sm text-destructive">
+            {topicsError}
+          </p>
+        ) : !loadingTopics && total === 0 ? (
+          /* The bank is curated by an admin, so an empty one is a message for
+             them rather than something an intern can fix from here. */
+          <AlvaEmptyState
+            className="mt-6"
+            icon={<ClipboardCheck size={20} weight="Outline" />}
+            title="No topics yet"
+            description="An admin adds focus group topics on the prompts page. Nothing can be recorded until there is one."
+          />
+        ) : (
+          <StudioPromptStack
+            className="mt-8"
+            items={items}
+            current={currentIndex}
+            onNext={() => goTo((prev) => prev + 1)}
+            onPrevious={() => goTo((prev) => prev - 1)}
+          />
+        )}
+
+        <StudioSiriControl
+          className="mt-10 h-28"
+          phase={recorder.phase}
+          onPrimary={handlePrimary}
+          disabled={total === 0 && recorder.phase === "idle"}
+          disabledLabel="No topic to record"
+        />
 
         {recorder.error && (
           <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
@@ -176,6 +206,7 @@ export default function InternRecordPage() {
           open={intakeOpen}
           onOpenChange={setIntakeOpen}
           focusGroupSession={items[currentIndex]?.prompt ?? "Focus group session"}
+          focusGroupTopicId={topics[currentIndex]?.id}
           onComplete={(session) => setSessionId(session.id)}
         />
       </DesktopPageShell>

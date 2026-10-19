@@ -11,7 +11,12 @@ import { QualityProgressBar } from "@/components/contributors/dashboard/QualityP
 import { ContributorDashboardSkeleton } from "@/components/contributors/dashboard/ContributorDashboardSkeleton";
 import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { useApiResource } from "@/hooks/useApiResource";
-import { contributorDashboard } from "@/lib/api/dashboard";
+import { contributorDashboard, leaderboard } from "@/lib/api/dashboard";
+import {
+  toPodium,
+  toRecordingMix,
+  toWeeklySessions,
+} from "@/data/contributors/dashboard";
 
 export default function ContributorDashboardPage() {
   const { user } = useAuth();
@@ -26,6 +31,10 @@ export default function ContributorDashboardPage() {
     contributorDashboard,
     []
   );
+
+  /* The top three, for the podium. Separate from the dashboard because it is
+   * everybody's standings rather than this contributor's own figures. */
+  const { data: top } = useApiResource(leaderboard, []);
 
   if (isStaff && !isMobile) {
     return <Navigate to="/intern/dashboard" replace />;
@@ -52,11 +61,21 @@ export default function ContributorDashboardPage() {
             currentUserId={live?.contributor_id ?? "1"}
             rank={forceEmpty ? null : (live?.rank ?? null)}
             rankedOf={live?.ranked_contributors ?? 0}
+            podium={forceEmpty ? [] : toPodium(top ?? [])}
             className="mt-1"
             isEmpty={forceEmpty}
           />
 
-          <DashboardCharts className="px-4" isEmpty={forceEmpty} />
+          <DashboardCharts
+            className="px-4"
+            isEmpty={forceEmpty}
+            mix={
+              live
+                ? toRecordingMix(live.prompts_read, live.total_recordings)
+                : undefined
+            }
+            weekly={live ? toWeeklySessions(live.daily_activity) : undefined}
+          />
 
           <QualityProgressBar
             isEmpty={forceEmpty || (live?.status_breakdown.total ?? 0) === 0}

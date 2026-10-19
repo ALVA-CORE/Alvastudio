@@ -18,8 +18,6 @@ import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart
 import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import { EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
-import { BANK_ITEMS } from "@/data/admin/prompts";
-import { EARNINGS } from "@/data/admin/payments";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
 import { useDevUiState } from "@/hooks/use-dev-ui-state";
@@ -162,10 +160,10 @@ export default function AdminDashboardPage() {
 
       <div className="mt-2 grid gap-2 lg:grid-cols-6">
         <AlvaChartCard
-          title="Corpus growth"
-          /* Clips, not hours. `daily_activity` counts recordings and there is
-             no hours-over-time series, so the label says what is plotted. */
-          subtitle="Recordings collected, running total"
+          title="Recordings collected"
+          /* Clips, not hours. This one plots `daily_activity`; the corpus page
+             plots `daily_hours`. Two different measurements, two labels. */
+          subtitle="Running total over the last year"
           className="h-[25rem] lg:col-span-4"
           emptyMessage={
             forceEmpty
@@ -235,17 +233,22 @@ export default function AdminDashboardPage() {
         </section>
       </div>
 
-      {/* Empty rather than removed, and empty rather than seeded.
-          `/corpus/summary` gives hours by type and hours by status but not the
-          join between them, and a flow drawn from marginals invents its own
-          links. See docs/endpoints-needed.md §5. */}
+      {/* Drawn from `by_type_status`, the real joint — a flow drawn from the
+          two marginals would invent its own links. An empty corpus shows the
+          frame rather than nothing, so the gap stays visible. */}
       <AlvaChartCard
         title="Where the hours go"
         subtitle="Collection type → review stage → outcome"
         className="mt-2 min-h-[14rem]"
-        emptyMessage={{ title: "Waiting on the API", description: "Type and status come back as separate totals, not the split between them." }}
+        emptyMessage={
+          corpus.flow.links.length === 0
+            ? { title: "Nothing collected", description: "No flow to trace yet." }
+            : undefined
+        }
       >
-        <CorpusFlowChart data={EMPTY_CORPUS_FLOW} />
+        <CorpusFlowChart
+          data={corpus.flow.links.length ? corpus.flow : EMPTY_CORPUS_FLOW}
+        />
       </AlvaChartCard>
 
       <div className="mt-2 grid gap-2 lg:grid-cols-3">

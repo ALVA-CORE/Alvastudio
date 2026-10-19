@@ -32,11 +32,31 @@ export type ApiReviewResult = {
   contributor_counts: ApiContributorCounts;
 };
 
-/** FIFO, unassigned, excluding the reviewer's own submissions. */
-export const reviewQueue = (limit = 50) =>
-  apiFetch<ApiRecording[]>("/reviews/queue", { query: { limit } });
+/**
+ * The review queue.
+ *
+ * Two queues, one route. Without `mine` it is the unassigned pool, which is
+ * usually empty now that clips are allocated on submission. With `mine=true`
+ * it is this intern's own desk: clips assigned to them and still awaiting a
+ * verdict, oldest first.
+ *
+ * A clip on somebody's desk is theirs — a verdict from anyone else is a 409,
+ * admins included — so the desk is the one an intern actually works from.
+ */
+export const reviewQueue = (limit = 50, mine = false) =>
+  apiFetch<ApiRecording[]>("/reviews/queue", {
+    query: mine ? { limit, mine: true } : { limit },
+  });
 
-/** Claims the next queued recording: submitted → in_review, locked to caller. */
+/**
+ * Claims from the unassigned pool, never from a colleague.
+ *
+ * The API cannot tell a clip somebody is listening to from one they have not
+ * opened, so taking one could throw away their work. Under allocation the
+ * pool is usually empty, which makes a 404 here normal rather than a fault —
+ * an intern who clears their desk becomes the least loaded and receives new
+ * arrivals anyway.
+ */
 export const assignNext = () =>
   apiFetch<ApiRecording>("/reviews/assign-next", { method: "POST" });
 

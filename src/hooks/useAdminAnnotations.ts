@@ -5,7 +5,11 @@ import {
   reviewAnnotation,
   type ApiAnnotationSummary,
 } from "@/lib/api/annotations";
-import { listSessions, type ApiSessionSummary } from "@/lib/api/focusGroups";
+import {
+  assignSessionAnnotator,
+  listSessions,
+  type ApiSessionSummary,
+} from "@/lib/api/focusGroups";
 import { listUsers } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
@@ -37,7 +41,9 @@ export function useAdminAnnotations() {
     setLoading(true);
 
     Promise.all([
-      listAllAnnotations({ limit: 200 }),
+      /* `expand=tags` because the table has a tag column. It is opt-in at
+       * the API since counting tags reads every span on the page. */
+      listAllAnnotations({ limit: 200, expand: "tags" }),
       listSessions({ limit: 200 }),
       listUsers({ limit: 200 }),
     ])
@@ -105,6 +111,21 @@ export function useAdminAnnotations() {
     []
   );
 
+  /**
+   * Hands out a session nobody has started.
+   *
+   * Different call from `assign`: that one moves an existing annotation
+   * between annotators, this one creates the annotation by giving the session
+   * to somebody. The list is work with no annotation yet, so it has to be
+   * this one.
+   */
+  const assignSession = useCallback(
+    async (sessionId: string, annotator: { id: string; name: string }) => {
+      await assignSessionAnnotator(sessionId, annotator.id);
+    },
+    []
+  );
+
   return {
     rows,
     unclaimed,
@@ -113,6 +134,7 @@ export function useAdminAnnotations() {
     error,
     reload: useCallback(() => setAttempt((value) => value + 1), []),
     assign,
+    assignSession,
     setVerdict,
   };
 }
@@ -125,19 +147,19 @@ function toAdminAnnotation(
 ): AdminAnnotation {
   const session = sessions.get(api.session_id);
   const claimed = new Date(api.created_at);
-  const durationSec = Math.round(session?.duration_seconds ?? 0);
+  const durationSec = Math.round(
+    api.duration_seconds ?? session?.duration_seconds ?? 0
+  );
 
   return {
     id: api.id,
     /* A short handle. The API's id is a UUID, which nobody reads aloud. */
     code: `ANN-${String(index + 1).padStart(4, "0")}`,
-    topic: session?.topic ?? "Session unavailable",
+    topic: api.topic ?? session?.topic ?? "Session unavailable",
     annotator: names.get(api.annotator_id) ?? "Unassigned",
     status: api.status as AnnotationStatus,
-    /* Counts live on the full document, one request per row. The panel reads
-     * them; the table does not pretend to know. */
-    segments: 0,
-    tags: 0,
+    segments: api.segment_count ?? 0,
+    tags: api.tag_count ?? 0,
     durationSec,
     duration: durationSec > 0 ? formatDuration(durationSec) : NO_VALUE,
     claimedAt: claimed.getTime(),

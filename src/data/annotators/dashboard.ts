@@ -155,7 +155,7 @@ function scaleDemographicHours(factor: number): DemographicHoursPoint[] {
 
 /* ------------------------------------------------------------------ *
  * Tag breakdown — variety → tag category → tag. Top-level colours follow
- * the chart palette in docs/alva-design-system.md §4: accent primary,
+ * the chart palette in docs/design/alva-design-system.md §4: accent primary,
  * brand blue secondary, grey tertiary.
  * ------------------------------------------------------------------ */
 function buildTagBreakdown(scale: number): SunburstNode {

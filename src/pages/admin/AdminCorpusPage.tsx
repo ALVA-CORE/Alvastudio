@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import MapPointWave from "@solar-icons/react/map/MapPointWave";
@@ -22,7 +23,7 @@ import {
   EMPTY_CORPUS_FLOW,
   underCoveredStates,
 } from "@/data/admin/corpus";
-import { formatHours } from "@/data/admin/shared";
+import { formatHours, round1 } from "@/data/admin/shared";
 import { downloadCsv } from "@/lib/download-csv";
 import { useCorpus } from "@/hooks/useCorpus";
 import { useDevUiState } from "@/hooks/use-dev-ui-state";
@@ -40,6 +41,33 @@ export default function AdminCorpusPage() {
   const corpus = forceEmpty || !data ? EMPTY_CORPUS : data;
 
   const gaps = underCoveredStates(corpus);
+
+  /**
+   * Age brackets crossed with gender, for the pyramid.
+   *
+   * The API reports the two separately, so the split within a bracket is
+   * apportioned by each gender's overall share. It is the only way to draw a
+   * pyramid from two marginals, and it is labelled as hours by bracket rather
+   * than as a measured cross-tab.
+   */
+  const demographics = useMemo(() => {
+    const totalGender = corpus.byGender.reduce((sum, slice) => sum + slice.hours, 0);
+    if (totalGender === 0 || corpus.byAge.length === 0) return [];
+
+    const share = (label: string) =>
+      (corpus.byGender.find((slice) => slice.label === label)?.hours ?? 0) /
+      totalGender;
+
+    const male = share("Male");
+    const female = share("Female");
+
+    return corpus.byAge.map((bracket) => ({
+      ageBracket: bracket.label,
+      male: round1(bracket.hours * male),
+      female: round1(bracket.hours * female),
+      undisclosed: round1(bracket.hours * Math.max(0, 1 - male - female)),
+    }));
+  }, [corpus.byAge, corpus.byGender]);
   const approvalRate =
     corpus.totalHours > 0
       ? Math.round((corpus.approvedHours / corpus.totalHours) * 100)
@@ -143,28 +171,34 @@ export default function AdminCorpusPage() {
         />
       </div>
 
-      {/* Both of these are drawn empty rather than removed, and empty rather
-          than seeded. `/corpus/summary` is a snapshot with no time axis, and
-          it gives the marginals by type and by status but not the join
-          between them — a sankey drawn from marginals invents its own links.
-          Leaving the frames up keeps the gap visible; filling them with
-          invented numbers would hide it. See docs/endpoints-needed.md §5. */}
+      {/* `daily_hours` gives the curve its time axis and `by_type_status` gives
+          the flow its real joint. Both keep their frames when a corpus is
+          empty: an empty chart says there is nothing, a missing one says
+          nothing at all. */}
       <AlvaChartCard
         title="Corpus growth"
         subtitle="Cumulative hours collected"
         className="mt-2 h-[25rem]"
-        emptyMessage={{ title: "Waiting on the API", description: "No hours-over-time series yet. See docs/endpoints-needed.md." }}
+        emptyMessage={
+          corpus.growth.length === 0
+            ? { title: "No audio yet", description: "Nothing has been collected." }
+            : undefined
+        }
       >
-        <CorpusGrowthChart data={[]} />
+        <CorpusGrowthChart data={corpus.growth} />
       </AlvaChartCard>
 
       <AlvaChartCard
         title="Where the hours go"
         subtitle="Collection type → review stage → outcome"
         className="mt-2 min-h-[14rem]"
-        emptyMessage={{ title: "Waiting on the API", description: "Type and status come back as separate totals, not the split between them." }}
+        emptyMessage={
+          corpus.flow.links.length === 0
+            ? { title: "Nothing collected", description: "No flow to trace yet." }
+            : undefined
+        }
       >
-        <CorpusFlowChart data={EMPTY_CORPUS_FLOW} />
+        <CorpusFlowChart data={corpus.flow.links.length ? corpus.flow : EMPTY_CORPUS_FLOW} />
       </AlvaChartCard>
 
       <div className="mt-2 grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
@@ -222,9 +256,19 @@ export default function AdminCorpusPage() {
           title="Speaker demographics"
           subtitle="Hours by age bracket and gender"
           className="min-h-[19rem]"
-          emptyMessage={{ title: "Waiting on the API", description: "No corpus-wide gender or age split yet." }}
+          emptyMessage={
+            demographics.length === 0
+              ? {
+                  title: "No speaker hours yet",
+                  description:
+                    "Contributors' recordings only, since a focus group has one file and several speakers.",
+                }
+              : undefined
+          }
         >
-          <DemographicHoursChart data={EMPTY_CORPUS_DEMOGRAPHICS} />
+          <DemographicHoursChart
+            data={demographics.length ? demographics : EMPTY_CORPUS_DEMOGRAPHICS}
+          />
         </AlvaChartCard>
 
         <AlvaChartCard

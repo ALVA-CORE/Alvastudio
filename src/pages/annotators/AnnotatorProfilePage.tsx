@@ -5,6 +5,7 @@ import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import Translation2 from "@solar-icons/react/it/Translation2";
 import UserId from "@solar-icons/react/users/UserId";
 import { useNavigate } from "react-router-dom";
+import { ActivityLogConsent } from "@/components/annotators/profile/ActivityLogConsent";
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
@@ -103,7 +104,7 @@ export default function AnnotatorProfilePage() {
             icon={<ShieldCheck size={20} weight="Outline" />}
             title="Handling & privacy"
             sheetTitle="Handling & privacy"
-            sheetDescription="How participant audio may be handled during annotation."
+            sheetDescription="How participant audio may be handled during annotation, and what is recorded about your own work."
           >
             <dl>
               <ProfileInfoBlock label="NDPA training" value="Completed" />
@@ -112,6 +113,7 @@ export default function AnnotatorProfilePage() {
                 label="Participant identifiers"
                 value="Masked in the workspace"
               />
+              <ActivityLogConsent />
             </dl>
           </ProfileActionRow>
 

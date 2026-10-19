@@ -1,10 +1,7 @@
 import MedalStar from "@solar-icons/react/like/MedalStar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { diceBearAvatarUrl } from "@/lib/dicebear";
-import {
-  MOCK_LEADERBOARD,
-  type LeaderboardEntry,
-} from "@/data/contributors/dashboard";
+import type { LeaderboardEntry } from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
 
 type PodiumSlotProps = {
@@ -118,11 +115,15 @@ type LeaderboardPodiumProps = {
 
 export function LeaderboardPodium({
   currentUserId,
-  entries = MOCK_LEADERBOARD,
+  entries,
   className,
   embedded = false,
 }: LeaderboardPodiumProps) {
   const [second, first, third] = entries;
+
+  /* Fewer than three on the board yet. A podium with a gap in it reads as
+     broken, so it waits until there is one. */
+  if (!first) return null;
 
   return (
     <div

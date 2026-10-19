@@ -94,6 +94,17 @@ export type ApiQueueRow = {
 export type ApiAnnotationSummary = {
   id: string;
   session_id: string;
+  /** From the session, so one session reads as one number everywhere. */
+  topic?: string | null;
+  duration_seconds?: number | null;
+  segment_count?: number;
+  /**
+   * Only with `?expand=tags`, null otherwise.
+   *
+   * Opt-in because counting tags reads every span on the page. Same definition
+   * as the annotator dashboard's `tags_applied`, so the two always agree.
+   */
+  tag_count?: number | null;
   task: AnnotationTask;
   status: ApiAnnotationStatus;
   annotator_id: string;
@@ -113,7 +124,13 @@ export function listQueue(params: { limit?: number; offset?: number } = {}) {
 }
 
 export function listMine(
-  params: { status?: ApiAnnotationStatus; limit?: number; offset?: number } = {}
+  params: {
+    status?: ApiAnnotationStatus;
+    limit?: number;
+    offset?: number;
+    /** `tag_count` is null without it: counting tags reads every span on the page. */
+    expand?: "tags";
+  } = {}
 ) {
   return apiFetch<ApiAnnotationSummary[]>("/annotations", { query: params });
 }
@@ -129,7 +146,12 @@ export function getAnnotation(id: string) {
  * all — with the envelope on so the screen can show a total.
  */
 export function listAllAnnotations(
-  params: { status?: ApiAnnotationStatus; limit?: number; offset?: number } = {}
+  params: {
+    status?: ApiAnnotationStatus;
+    limit?: number;
+    offset?: number;
+    expand?: "tags";
+  } = {}
 ) {
   return apiFetch<{
     items: ApiAnnotationSummary[];
@@ -217,21 +239,6 @@ export function spliceTokens(
   return apiFetch<ApiAnnotationDocument>(`/annotations/${id}/tokens`, {
     method: "PUT",
     body: splice,
-  });
-}
-
-/** Convenience: replace the whole transcript in one call. */
-export function setTranscript(
-  id: string,
-  words: string[],
-  currentTokenCount: number,
-  expectedVersion?: number
-) {
-  return spliceTokens(id, {
-    start_token: 0,
-    replace_count: currentTokenCount,
-    tokens: words.map((text) => ({ text })),
-    expected_version: expectedVersion,
   });
 }
 

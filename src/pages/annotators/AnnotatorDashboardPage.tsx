@@ -32,9 +32,8 @@ export default function AnnotatorDashboardPage() {
   }
 
   /* Metrics and the activity series are live. The tag-mix sunburst and the
-   * demographic-reach chart are not — the API exposes no per-tag or per-speaker
-   * breakdown for an annotator, so those two keep their sample shapes. See
-   * docs/backend-gaps.md. */
+   * demographic-reach chart are not: the API exposes no per-tag or per-speaker
+   * breakdown for an annotator, so those two keep their sample shapes. */
   const base = forceEmpty
     ? getEmptyAnnotatorDataset(timeRange)
     : ANNOTATOR_DASHBOARD_DATA[timeRange];

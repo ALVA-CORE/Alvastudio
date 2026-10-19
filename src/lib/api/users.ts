@@ -19,6 +19,13 @@ export type ApiUser = {
   /** Only meaningful for `intern`. False until an admin approves the signup. */
   intern_approved: boolean;
   created_at: string;
+  /**
+   * Annotations still on this person's desk: `draft` plus `needs_rework`.
+   *
+   * Null on responses that return a user without counting it, such as
+   * `/auth/me` — that means "not counted here" rather than zero.
+   */
+  open_count?: number | null;
 };
 
 export type ApiUserPage = {
@@ -43,22 +50,26 @@ export function listUsers(
 }
 
 /**
- * Creates an account.
+ * Creates an account, and the token the person uses to get into it.
  *
- * The API requires a password, and an admin must never choose one: a password
- * an admin knows is a password an admin can sign in with, and nothing in the
- * record would show it happened. So the caller passes a generated throwaway
- * that is never shown to anyone, and the real credential is set by the person
- * themselves from the reset token issued straight after.
+ * No password. An admin must never choose one — a password an admin knows is
+ * a password an admin can sign in with, and nothing in the record would show
+ * it happened. Leaving it out makes the server generate one nobody ever sees
+ * and return a single-use reset token in `password_reset`, which replaces the
+ * throwaway-then-reset round trip we used to do.
  */
+export type ApiUserCreated = ApiUser & {
+  /** Single-use, shown once, for the person to set their own password. */
+  password_reset?: { token: string; expires_at: string } | null;
+};
+
 export function createUser(body: {
   email: string;
-  password: string;
   full_name: string;
   phone?: string | null;
   role: ApiUserRole;
 }) {
-  return apiFetch<ApiUser>("/users", { method: "POST", body });
+  return apiFetch<ApiUserCreated>("/users", { method: "POST", body });
 }
 
 /** Partial. Omitted fields are left alone, which is how deactivate works. */
@@ -130,16 +141,4 @@ export function issuePasswordReset(id: string) {
   return apiFetch<ApiPasswordResetIssued>(`/users/${id}/password-reset`, {
     method: "POST",
   });
-}
-
-/**
- * A throwaway for the create call, never shown to anyone.
- *
- * It exists only to satisfy the required field between creating the account
- * and issuing the reset token the person actually uses.
- */
-export function throwawayPassword() {
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  return `Tmp!${Array.from(bytes, (b) => b.toString(36)).join("").slice(0, 28)}`;
 }

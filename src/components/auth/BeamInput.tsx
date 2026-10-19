@@ -10,7 +10,6 @@ import Eye from "@solar-icons/react/security/Eye";
 import EyeClosed from "@solar-icons/react/security/EyeClosed";
 import { cn } from "@/lib/utils";
 
-const INPUT_HEIGHT = 48;
 /** Rounded, not a pill. Matches the `rounded-xl` on the field itself. */
 const INPUT_RADIUS = 12;
 

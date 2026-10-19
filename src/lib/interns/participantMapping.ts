@@ -39,7 +39,7 @@ export function fromApiSessionVariety(
  * intake form asks *how* it was given, verbal or signed. Both mean consent was
  * obtained, so `consent_given` is the boolean and the method rides in
  * `consent_version`. That field is meant for a document version, so this is a
- * near-miss rather than a fit — noted in docs/backend-gaps.md as a small ask
+ * near-miss rather than a fit.
  * for a proper `consent_method`.
  */
 const CONSENT_METHODS = new Set<string>(["verbal", "signed"]);

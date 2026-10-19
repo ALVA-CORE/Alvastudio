@@ -18,7 +18,7 @@ import {
 } from "./enums";
 import type { ContributorProfileData } from "@/lib/validations/auth";
 
-/** `ProfileOut` — `docs/api.md` §4. Every field is optional/nullable. */
+/** `ProfileOut` — `docs/backend/api.md` §4. Every field is optional/nullable. */
 export type ApiProfile = {
   age_bracket?: ApiAgeBracket | null;
   gender?: ApiGender | null;
@@ -81,7 +81,7 @@ export function recordConsent(payload: {
  *
  * They are kept in the local user record so the profile page can still show
  * them, but they do not survive a fresh login on another device. See
- * `docs/api.md` §14.
+ * `docs/backend/api.md` §14.
  * ------------------------------------------------------------------ */
 
 export function profileToApi(profile: Partial<ContributorProfileData>): ApiProfile {

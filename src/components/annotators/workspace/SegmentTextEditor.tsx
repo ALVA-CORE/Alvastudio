@@ -112,8 +112,8 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
     return (
       <textarea
         ref={innerRef}
-        // eslint-disable-next-line jsx-a11y/no-autofocus -- the row swaps display
-        // text for this editor on an explicit click; without focus the caret is lost.
+        /* The row swaps display text for this editor on an explicit click, so
+           without focus the caret is lost. */
         autoFocus={autoFocus}
         rows={1}
         value={value}

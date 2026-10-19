@@ -1,31 +1,30 @@
 import { useMemo, useState } from "react";
 import Wallet from "@solar-icons/react/money/Wallet";
 import BillList from "@solar-icons/react/money/BillList";
-import BillCheck from "@solar-icons/react/money/BillCheck";
-import ClockSquare from "@solar-icons/react/time/ClockSquare";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { RateRings } from "@/components/admin/payments/RateRings";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useRates } from "@/hooks/useRates";
+import { useEarnings } from "@/hooks/useEarnings";
+import { usePayouts } from "@/hooks/usePayouts";
+import { RunPaymentDialog } from "@/components/admin/payments/RunPaymentDialog";
+import BillCheck from "@solar-icons/react/money/BillCheck";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
-import { Input } from "@/components/ui/input";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
 import {
-  EARNINGS,
   EMPTY_PAYMENT_METRICS,
   PAYOUT_STATUS_LABELS,
-  RATES,
   RATE_UNIT_LABELS,
   earningsToCsv,
   formatNaira,
@@ -34,11 +33,31 @@ import {
   type PayoutStatus,
   type Rate,
 } from "@/data/admin/payments";
-import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { downloadCsv } from "@/lib/download-csv";
 import { alvaToast } from "@/lib/alva-toast";
-import { useDevRows, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
-import { cn } from "@/lib/utils";
+import { useDevRows } from "@/hooks/use-dev-ui-state";
+import { relativeDays } from "@/data/admin/shared";
+
+/**
+ * A run's outcome.
+ *
+ * `partial` is not a failure: a leg reported `unknown` settles by webhook or
+ * reconciliation later, and the money is not lost. It is amber because it is
+ * worth coming back to, not because anything is wrong.
+ */
+const RUN_LABEL: Record<string, string> = {
+  in_progress: "Sending",
+  completed: "Completed",
+  partial: "Partly settled",
+  failed: "Failed",
+};
+
+const RUN_TONE: Record<string, PillTone> = {
+  in_progress: "pending",
+  completed: "good",
+  partial: "pending",
+  failed: "bad",
+};
 
 type StatusFilter = PayoutStatus | "all";
 
@@ -57,15 +76,25 @@ const STATUS_TONE: Record<PayoutStatus, PillTone> = {
  * complaint from someone who was underpaid by a kobo.
  */
 export default function AdminPaymentsPage() {
-  const isLoading = useSimulatedLoading();
   const {
     rates,
     isLoading: loadingRates,
     error: ratesError,
     save: saveRate,
+    reload: reloadRates,
   } = useRates();
   const [status, setStatus] = useState<StatusFilter>("all");
-  const [earnings, setEarnings] = useState<Earning[]>(EARNINGS);
+  const {
+    rows: earnings,
+    isLoading: loadingEarnings,
+    error: earningsError,
+    reload: reloadEarnings,
+  } = useEarnings();
+
+  const isLoading = loadingEarnings;
+
+  const payouts = usePayouts();
+  const [runOpen, setRunOpen] = useState(false);
   const [detail, setDetail] = useState<Earning | null>(null);
 
   const rows = useDevRows(earnings);
@@ -91,25 +120,6 @@ export default function AdminPaymentsPage() {
       const message = reportApiError(cause, "Could not change that rate.");
       if (message) alvaToast.error(message);
     }
-  };
-
-  /* Still local: the earnings table has no all-contributors endpoint, so
-   * advancing a row moves the seeded copy. See docs/endpoints-needed.md §7. */
-  const advance = (row: Earning) => {
-    setEarnings((prev) =>
-      prev.map((entry) =>
-        entry.id !== row.id
-          ? entry
-          : entry.status === "pending"
-            ? { ...entry, status: "processing" }
-            : { ...entry, status: "paid", paidKobo: entry.earnedKobo }
-      )
-    );
-    alvaToast.success(
-      row.status === "pending"
-        ? `${row.contributor} queued for payment`
-        : `${row.contributor} marked as paid`
-    );
   };
 
   const columns = [
@@ -174,20 +184,51 @@ export default function AdminPaymentsPage() {
       <AdminPageHeader
         id="payments"
         actions={
-          <TextureButton
-            variant="minimal"
-            size="sm"
-            className="w-auto"
-            onClick={() => {
-              downloadCsv("alva-earnings.csv", earningsToCsv(filtered));
-              alvaToast.success(`Exported ${filtered.length} rows`);
-            }}
-          >
-            <Upload size={15} weight="Outline" />
-            Export CSV
-          </TextureButton>
+          <div className="flex items-center gap-2">
+            <TextureButton
+              variant="minimal"
+              size="sm"
+              className="w-auto"
+              onClick={() => {
+                downloadCsv("alva-earnings.csv", earningsToCsv(filtered));
+                alvaToast.success(`Exported ${filtered.length} rows`);
+              }}
+            >
+              <Upload size={15} weight="Outline" />
+              Export CSV
+            </TextureButton>
+
+            {/* The only way money moves. A run pays everybody eligible at
+                once, which is why it lives here rather than on a row. */}
+            <TextureButton
+              variant="alva"
+              size="sm"
+              className="w-auto"
+              disabled={(payouts.preview?.recipient_count ?? 0) === 0}
+              onClick={() => setRunOpen(true)}
+            >
+              <BillCheck size={15} weight="Outline" />
+              Run payment
+            </TextureButton>
+          </div>
         }
       />
+
+      {earningsError ? (
+        <div
+          role="alert"
+          className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+        >
+          {earningsError}
+          <button
+            type="button"
+            onClick={reloadEarnings}
+            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <AdminPageSkeleton charts={1} chartColumns={1} table={true} />
@@ -224,10 +265,32 @@ export default function AdminPaymentsPage() {
         subtitle="Change a rate and every figure below is calculated from the new one"
         className="mt-2"
       >
-        <RateRings
-          rates={rates}
-          onSave={commitEdit}
-        />
+        {ratesError ? (
+          /* The rates are the one thing on this page an admin can change, so a
+             failed load needs saying rather than leaving an empty card that
+             looks like nothing has been set. */
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
+          >
+            {ratesError}
+            <button
+              type="button"
+              onClick={reloadRates}
+              className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+            >
+              Retry
+            </button>
+          </div>
+        ) : !loadingRates && rates.length === 0 ? (
+          <AlvaEmptyState
+            icon={<BillList size={20} weight="Outline" />}
+            title="No rates set"
+            description="Nothing is being paid out until a rate exists for at least one unit of work."
+          />
+        ) : (
+          <RateRings rates={rates} onSave={commitEdit} />
+        )}
       </AlvaChartCard>
 
       <div className="mt-2">
@@ -269,14 +332,79 @@ export default function AdminPaymentsPage() {
         />
       </div>
 
+      {/* Every run already made. Nothing else on the admin surface shows
+          these, so a failed leg had nowhere to be noticed. */}
+      <div className="mt-2">
+        <AlvaChartCard
+          title="Payment runs"
+          subtitle="What has gone out, and how it landed"
+          className="min-h-[12rem]"
+          emptyMessage={
+            payouts.runs.length === 0
+              ? { title: "No runs yet", description: "Nothing has been sent." }
+              : undefined
+          }
+        >
+          <dl className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
+            {payouts.runs.map((run) => (
+              <div
+                key={run.id}
+                className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
+              >
+                <dt className="min-w-0">
+                  <span className="block truncate text-xs text-foreground">
+                    {run.reference}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    {relativeDays(new Date(run.created_at))}
+                  </span>
+                </dt>
+                <dd className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {run.succeeded_count}/{run.recipient_count}
+                  </span>
+                  <span className="text-xs tabular-nums text-foreground">
+                    {formatNaira(Math.round(Number(run.total_amount) * 100))}
+                  </span>
+                  <AdminStatusPill tone={RUN_TONE[run.status]}>
+                    {RUN_LABEL[run.status]}
+                  </AdminStatusPill>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </AlvaChartCard>
+      </div>
+
+      <RunPaymentDialog
+        open={runOpen}
+        onOpenChange={setRunOpen}
+        preview={payouts.preview}
+        isRunning={payouts.isRunning}
+        onConfirm={async () => {
+          try {
+            const started = await payouts.run();
+            setRunOpen(false);
+            reloadEarnings();
+            alvaToast.success(
+              `${started.reference} sent to ${started.recipient_count} contributors`
+            );
+          } catch (cause) {
+            const message = reportApiError(cause, "Could not start that run.");
+            if (message) alvaToast.error(message);
+          }
+        }}
+      />
+
       <EarningDetailPanel
         open={detail !== null}
         onOpenChange={(next) => !next && setDetail(null)}
         earning={detail}
-        onAdvance={(row) => {
-          advance(row);
-          setDetail(null);
-        }}
+        rates={rates}
+        /* Reading only. Moving money is a pay run — `POST /payouts/runs` —
+           not a per-row state change, and a button that looked like one was
+           promising something the API does not do per contributor. */
+        onAdvance={undefined}
       />
         </>
       )}

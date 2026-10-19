@@ -53,9 +53,9 @@ export default function AnnotatorSessionsPage() {
 
   const isEmpty = rows.length === 0;
 
-  /* Counts come from the rows themselves. The API has no annotator dashboard
-   * endpoint, so anything it cannot supply is left blank rather than invented —
-   * see docs/backend-gaps.md §1. */
+  /* Counted from the rows on screen rather than fetched. The dashboard
+   * endpoint has its own figures over its own window, and two numbers
+   * disagreeing on one screen is worse than one number computed here. */
   const pendingCount = rows.filter((row) => row.status !== "completed").length;
   const totalSeconds = rows.reduce((sum, row) => sum + row.durationSec, 0);
   const metrics = isEmpty

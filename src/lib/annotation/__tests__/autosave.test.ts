@@ -339,7 +339,7 @@ describe("offline", () => {
   });
 
   it("ignores an online event when it was never parked", async () => {
-    const { controller, save, onStatus } = makeController();
+    const { save, onStatus } = makeController();
 
     window.dispatchEvent(new Event("online"));
 

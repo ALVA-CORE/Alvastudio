@@ -99,10 +99,15 @@ describe("writing it back", () => {
     expect(updateAnnotation).not.toHaveBeenCalled();
   });
 
-  /* One splice over the whole document, not one per segment: splices shift
-   * every index after them, and several in sequence need index arithmetic
-   * that is wrong the moment two edits overlap. */
-  it("rewrites the token array once when text changes", async () => {
+  /**
+   * One splice per save, and only over what moved.
+   *
+   * A splice covering the whole document is silently destructive: every
+   * existing index falls inside the replaced range, so every segment collapses
+   * to the full transcript and every tag lands on the wrong words. Trimming to
+   * the changed span keeps the single-splice ordering guarantee without that.
+   */
+  it("splices only the tokens that moved", async () => {
     const { doc, base } = setup();
     const edited = {
       ...doc,
@@ -113,18 +118,45 @@ describe("writing it back", () => {
 
     expect(spliceTokens).toHaveBeenCalledTimes(1);
     expect(spliceTokens).toHaveBeenCalledWith("a1", {
-      start_token: 0,
-      replace_count: 3,
+      /* "the traffic" is an unchanged prefix and "choke" an unchanged
+         suffix, so the whole edit is one inserted word at index 2. */
+      start_token: 2,
+      replace_count: 0,
       expected_version: 7,
-      tokens: [
-        { text: "the", start_sec: 0, end_sec: 0.2 },
-        { text: "traffic", start_sec: 0.2, end_sec: 0.6 },
-        /* "dey" is new, and "choke" has moved, so neither keeps a timing a
-         * word no longer occupies. */
-        { text: "dey", start_sec: null, end_sec: null },
-        { text: "choke", start_sec: null, end_sec: null },
-      ],
+      tokens: [{ text: "dey", start_sec: null, end_sec: null }],
     });
+  });
+
+  it("leaves the tokens alone when only a speaker changed", async () => {
+    const { doc, base } = setup();
+    await saveAnnotation(
+      "a1",
+      { ...doc, segments: [{ ...doc.segments[0], speakerId: "p2" }] },
+      base
+    );
+    expect(spliceTokens).not.toHaveBeenCalled();
+  });
+
+  /* A splice bumps every surviving segment's version, so the ones read at
+   * load are stale the moment one lands. */
+  it("re-reads segment versions from the document a splice returns", async () => {
+    const { doc, base } = setup();
+    spliceTokens.mockResolvedValueOnce({
+      version: 8,
+      segments: [{ id: "seg1", version: 42 }],
+    });
+
+    await saveAnnotation(
+      "a1",
+      { ...doc, segments: [{ ...doc.segments[0], text: "completely different words" }] },
+      base
+    );
+
+    expect(updateSegment).toHaveBeenCalledWith(
+      "a1",
+      "seg1",
+      expect.objectContaining({ expected_version: 42 })
+    );
   });
 
   it("creates, updates and deletes segments by what moved", async () => {

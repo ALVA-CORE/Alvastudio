@@ -3,14 +3,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { BeamInput } from "@/components/auth/BeamInput";
-import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { TextureButton } from "@/components/ui/texture-button";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 

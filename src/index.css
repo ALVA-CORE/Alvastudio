@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Alva Studio design system — dark mode only. See docs/design-tokens.md */
+/* Alva Studio design system — dark mode only. See docs/design/design-tokens.md */
 
 @layer base {
   :root {
@@ -70,7 +70,7 @@
      * ------------------------------------------------------------- */
 
     /* Categorical series. Accent first, brand blue second, then greys —
-       matching the chart palette in docs/alva-design-system.md §4. */
+       matching the chart palette in docs/design/alva-design-system.md §4. */
     --chart-1: oklch(0.32 0 none);
     --chart-2: oklch(0.41 0 none);
     --chart-3: oklch(0.54 0 none);

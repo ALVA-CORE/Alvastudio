@@ -27,7 +27,7 @@ export default function InternDashboard() {
   const { forceEmpty } = useDevUiState();
   /* Live totals from `/dashboard/intern`. The endpoint returns counts and a
    * demographic breakdown but no time series, so the METRIC CARDS are real and
-   * the charts below still run on seeded data — see docs/backend-gaps.md. */
+   * the charts below still run on seeded data — see docs/backend/endpoints-needed.md. */
   const { data: live, isLoading: loadingLive } = useApiResource(internDashboard, []);
 
   const base = forceEmpty

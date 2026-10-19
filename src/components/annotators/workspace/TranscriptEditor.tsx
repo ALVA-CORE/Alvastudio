@@ -15,7 +15,6 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { useAnnotation, useAnnotationActions, useAnnotationStore } from "@/lib/annotation/context";
 import {
   isSegmentDimmed,
-  selectNonSpeech,
   selectPrimarySegmentId,
   selectSegments,
   selectSpans,
@@ -86,7 +85,6 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
   const segments = useAnnotation(selectSegments);
   const speakers = useAnnotation(selectSpeakers);
   const spans = useAnnotation(selectSpans);
-  const nonSpeech = useAnnotation(selectNonSpeech);
   const selectedSegmentId = useAnnotation(selectPrimarySegmentId);
   const activeSpeakerId = useAnnotation((state) => state.activeSpeakerId);
   const followPlayhead = useAnnotation((state) => state.followPlayhead);
@@ -377,7 +375,6 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
                 onEndInteraction={actions.endInteraction}
                 tokens={tokensForSegment(tokenIndex, segment.id)}
                 spans={spans}
-                nonSpeech={nonSpeech}
                 onApplyTag={handleApplyTag}
                 onRemoveTag={actions.removeSpan}
                 onAddNonSpeech={handleAddNonSpeech}

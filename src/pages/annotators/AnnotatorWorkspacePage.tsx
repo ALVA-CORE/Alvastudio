@@ -10,6 +10,7 @@ import {
 } from "@/components/annotators/workspace/WorkspaceStates";
 import {
   AnnotationProvider,
+  useActivityLog,
   useAutosaveControls,
 } from "@/lib/annotation/context";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
@@ -39,13 +40,23 @@ function WorkspaceBody({
   onSubmit: () => Promise<void>;
 }) {
   const { flush } = useAutosaveControls();
+  const log = useActivityLog();
   const handleFlush = useCallback(() => void flush(), [flush]);
+
+  /* Submitting is not a change to the document, so the diff cannot see it.
+   * Marked before the request rather than after: a submit that fails still
+   * happened as far as a replay of the annotator's actions is concerned. */
+  const handleSubmit = useCallback(async () => {
+    log.mark("session.submit");
+    await log.flush();
+    await onSubmit();
+  }, [log, onSubmit]);
 
   return (
     <AnnotationWorkspace
       session={session}
       onFlushSave={handleFlush}
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
     />
   );
 }
@@ -129,6 +140,7 @@ export default function AnnotatorWorkspacePage() {
       key={resource.session.id}
       doc={resource.doc}
       duration={resource.session.durationSec}
+      annotationId={resource.annotationId}
       onSave={handleSave}
     >
       <WorkspaceBody session={resource.session} onSubmit={submit} />

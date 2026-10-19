@@ -83,7 +83,7 @@ describe("language variety", () => {
 
   it("sends `both` as pidgin, and does NOT round-trip it", () => {
     // The API enum has no "both". This is lossy on purpose and needs a backend
-    // fix rather than a cleverer mapping — see docs/api.md §14.
+    // fix rather than a cleverer mapping — see docs/backend/api.md §14.
     expect(toApiVariety("both")).toBe("nigerian_pidgin");
     expect(fromApiVariety(toApiVariety("both"))).toBe("pidgin");
   });

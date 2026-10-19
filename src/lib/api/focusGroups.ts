@@ -46,6 +46,9 @@ export type ApiSpeakerTurn = {
 export type ApiSessionSummary = {
   id: string;
   intern_id: string;
+  /** Who is annotating it, and their name. Null while nobody holds it. */
+  assigned_annotator_id?: string | null;
+  annotator_name?: string | null;
   topic: string;
   language_variety: ApiLanguageVariety | null;
   duration_seconds: number | null;
@@ -80,12 +83,43 @@ export const listSessions = (
 
 export const getSession = (id: string) => apiFetch<ApiSession>(`/focus-groups/${id}`);
 
+/**
+ * Hands a session to a named annotator, or back to the queue with `null`.
+ *
+ * The thing being handed out is a session, not an annotation — the annotation
+ * does not exist until somebody takes it. This opens it as a side effect,
+ * through the same code `claim-next` uses, so the draft is identical either
+ * way including the speaker segments seeded from the intern's turns.
+ *
+ * 400 if the session has no audio or the user is not an annotator, 409 if the
+ * annotation is already approved.
+ *
+ * Assigning creates work, and a session with work cannot be deleted — so an
+ * admin who assigns by mistake has to unassign before deleting.
+ */
+export const assignSessionAnnotator = (
+  sessionId: string,
+  annotatorId: string | null
+) =>
+  apiFetch<ApiSession>(`/focus-groups/${sessionId}/assignee`, {
+    method: "PATCH",
+    body: { annotator_id: annotatorId },
+  });
+
 /** 409 when the session is already claimed for annotation. */
 export const deleteSession = (id: string) =>
   apiFetch<void>(`/focus-groups/${id}`, { method: "DELETE" });
 
+/**
+ * `topic` and `topic_id` together, not one or the other.
+ *
+ * Sending both keeps the wording the intern saw on the session and the link to
+ * the bank item it came from, so editing a topic later cannot rewrite sessions
+ * already run from it. A retired topic is a 409, an unknown one a 404.
+ */
 export const createSession = (payload: {
   topic: string;
+  topic_id?: string;
   language_variety?: ApiLanguageVariety;
   duration_seconds?: number;
   participants?: ApiParticipantIn[];

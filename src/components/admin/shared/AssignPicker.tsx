@@ -15,11 +15,10 @@ export type AssignablePerson = {
   /**
    * Open items they already hold.
    *
-   * Optional, because nothing at the API reports it: counting what someone is
-   * holding means fetching every recording or annotation and tallying by
-   * assignee, which is not a request an assign dialog should make. When it is
-   * absent the list is alphabetical and no load is shown, rather than showing
-   * a zero that would read as "free". See docs/endpoints-needed.md.
+   * `open_count` on `GET /users`, when the response carries it. It is null on
+   * responses that do not count it, such as `/auth/me`, and an absent load
+   * leaves the list alphabetical rather than showing a zero that would read as
+   * "free".
    */
   load?: number;
 };

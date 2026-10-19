@@ -73,8 +73,7 @@ export function QualityProgressBar({
       ? [
           { label: "Acceptance rate", value: liveRate },
           /* No review-time figure anywhere. It is a scoring definition
-             nobody has agreed yet, not a field somebody forgot. See
-             docs/endpoints-needed.md §4. */
+             still being sequenced, not a field somebody forgot. */
           { label: "Avg review time", value: NO_VALUE },
           { label: "Total clips", value: String(total) },
         ]

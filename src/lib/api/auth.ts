@@ -1,7 +1,7 @@
 import { apiFetch, setToken } from "./client";
 import type { ApiUserRole } from "./enums";
 
-/** `UserOut` — `docs/api.md` §3. */
+/** `UserOut` — `docs/backend/api.md` §3. */
 export type ApiUser = {
   id: string;
   email: string;

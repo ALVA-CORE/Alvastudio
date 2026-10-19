@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   createSession,
-  deleteSession,
   listSessions,
   uploadSessionAudio,
   type ApiSession,
@@ -28,7 +27,8 @@ import type {
  */
 export async function createSessionWithParticipants(
   topic: string,
-  drafts: ParticipantDraft[]
+  drafts: ParticipantDraft[],
+  topicId?: string
 ): Promise<ApiSession> {
   /* Session-level variety: the first participant who stated one. The API has
    * one field for the whole session, so a mixed room cannot be described. */
@@ -36,16 +36,12 @@ export async function createSessionWithParticipants(
 
   const session = await createSession({
     topic,
+    topic_id: topicId,
     language_variety: toApiSessionVariety((stated ?? "") as SessionLanguage | ""),
     participants: drafts.map(draftToApiParticipant),
   });
 
   return session;
-}
-
-/** Removes a session. 409 when an annotator has already claimed it. */
-export async function removeSession(sessionId: string) {
-  return deleteSession(sessionId);
 }
 
 /** Attaches the take. A session is not claimable for annotation until this runs. */

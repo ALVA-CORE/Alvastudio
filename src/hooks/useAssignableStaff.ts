@@ -5,6 +5,8 @@ export type AssignableStaff = {
   id: string;
   name: string;
   detail: string;
+  /** Annotations still on their desk. The picker offers the lightest first. */
+  load?: number;
 };
 
 /**
@@ -14,11 +16,9 @@ export type AssignableStaff = {
  * assign picker is opened rarely and holding a staff list on every admin
  * screen to serve it would be worse than one request at the moment of use.
  *
- * It does not carry a load count. `AssignPicker` orders by load so the
- * lightest-loaded person is offered first, and the only way to count what
- * someone is holding is to fetch every recording or annotation and tally by
- * assignee. That is a request this dialog should not be making, so the number
- * is left out rather than guessed. See docs/endpoints-needed.md.
+ * `open_count` comes back on the user now, so the picker can offer the
+ * lightest-loaded person first again without this dialog fetching every
+ * annotation to tally them.
  */
 export function useAssignableStaff(roles: ApiUserRole[], enabled: boolean) {
   const [people, setPeople] = useState<AssignableStaff[]>([]);
@@ -49,6 +49,7 @@ export function useAssignableStaff(roles: ApiUserRole[], enabled: boolean) {
               id: user.id,
               name: user.full_name,
               detail: user.email,
+              load: user.open_count ?? undefined,
             }))
         );
       })

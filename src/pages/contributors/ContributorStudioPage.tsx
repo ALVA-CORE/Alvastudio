@@ -9,6 +9,7 @@ import Play from "@solar-icons/react/video/Play";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { useApiResource } from "@/hooks/useApiResource";
 import { listPrompts, listStimuli } from "@/lib/api/catalog";
+import { recordingQuota } from "@/lib/api/recordings";
 import { submitPromptRead, submitStimulus } from "@/lib/api/recordings";
 import { ApiError } from "@/lib/api/client";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
@@ -19,14 +20,25 @@ import { alvaToast } from "@/lib/alva-toast";
 import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGate";
 import { StudioModeDropdown, type StudioMode } from "@/components/contributors/studio/StudioModeDropdown";
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
-import { StudioPromptStack, type PromptCard } from "@/components/contributors/studio/StudioPromptStack";
+import { StudioPromptStack } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
 import { TextureButton } from "@/components/ui/texture-button";
 
-function toCards(items: { id: number; text: string }[]): PromptCard[] {
-  return items.map((item) => ({ id: item.id, prompt: item.text }));
+/**
+ * When uploads reopen, in the contributor's own time.
+ *
+ * `available_again_at` is a WAT instant, so a plain local time is right: the
+ * limit resets at midnight in Nigeria and everybody using this is there.
+ */
+function quotaMessage(quota: { available_again_at: string | null } | null) {
+  if (!quota?.available_again_at) return "Daily upload limit reached";
+  const when = new Date(quota.available_again_at);
+  return `Upload limit reached, back at ${when.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  })}`;
 }
 
 const MODE_LABEL: Record<Exclude<StudioMode, "focus">, string> = {
@@ -63,8 +75,13 @@ export default function ContributorStudioPage() {
     data: bank,
     isLoading: loadingCard,
     error: cardError,
-    reload: loadNextCard,
   } = useApiResource(fetchBank, [mode]);
+
+  /* Checked before anybody speaks. A refusal at upload would throw away a
+   * take somebody has just recorded, which is the one failure worth a round
+   * trip to avoid. */
+  const { data: quota, reload: reloadQuota } = useApiResource(recordingQuota, []);
+  const outOfQuota = quota != null && quota.remaining <= 0;
 
   const items = (bank ?? []).map((entry) => ({ id: entry.id, prompt: entry.text }));
   const total = items.length;
@@ -105,6 +122,11 @@ export default function ContributorStudioPage() {
        with "Record a take first", which blamed the wrong thing. */
     if (!card && recorder.phase === "idle") {
       alvaToast.show("Nothing to record right now", { variant: "default" });
+      return;
+    }
+
+    if (outOfQuota && recorder.phase === "idle") {
+      alvaToast.show(quotaMessage(quota), { variant: "default" });
       return;
     }
 
@@ -159,6 +181,7 @@ export default function ContributorStudioPage() {
       }
 
       alvaToast.success("Clip sent for review", <Diskette size={14} weight="Bold" />);
+      reloadQuota();
       recorder.discardRecording();
       /* Move on, but keep the prompt in the bank. A prompt is not used up by
          being read, and the same one is recordable by everybody else. */
@@ -217,8 +240,10 @@ export default function ContributorStudioPage() {
           className="mt-10 h-28"
           phase={recorder.phase}
           onPrimary={handlePrimary}
-          disabled={!card && recorder.phase === "idle"}
-          disabledLabel="Nothing to record right now"
+          disabled={(!card || outOfQuota) && recorder.phase === "idle"}
+          disabledLabel={
+            outOfQuota ? quotaMessage(quota) : "Nothing to record right now"
+          }
         />
 
         {recorder.error && (

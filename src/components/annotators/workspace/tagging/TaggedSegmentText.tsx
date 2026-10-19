@@ -3,7 +3,6 @@ import { tagColor, type SpanKind } from "@/lib/annotation/tags";
 import type { AnnotationSpan, Segment } from "@/lib/annotation/types";
 import type { Token } from "@/lib/annotation/tokens";
 import { useAnnotation } from "@/lib/annotation/context";
-import { cn } from "@/lib/utils";
 
 /**
  * A segment's text, rendered token by token so ranges can be tagged.

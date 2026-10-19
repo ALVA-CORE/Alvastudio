@@ -83,7 +83,7 @@ export function useReviewItem(id: string | undefined) {
       try {
         await submitReview({
           recording_id: id,
-          // The rubric maps 1:1 — see docs/api.md §"Enum crosswalk".
+          // The rubric maps 1:1 — see docs/backend/api.md §"Enum crosswalk".
           q_noise_free: answers.noiseFree as "yes" | "partial" | "no",
           q_clear_audible: answers.audible as "yes" | "partial" | "no",
           q_matches_prompt: answers.matchesPrompt as "yes" | "partial" | "no",

@@ -9,6 +9,11 @@ import {
 import { useStore } from "zustand";
 import { createAnnotationStore, type AnnotationState, type AnnotationStore } from "./store";
 import { createAutosaveController, DEFAULT_AUTOSAVE_DELAY } from "./autosave";
+import {
+  createActivityLogger,
+  INERT_LOGGER,
+  type ActivityLogger,
+} from "./activityLog";
 import type { TranscriptDoc } from "./types";
 
 /**
@@ -34,9 +39,23 @@ export type AutosaveControls = {
 
 const AutosaveControlsContext = createContext<AutosaveControls | null>(null);
 
+/**
+ * The activity recorder, so the workspace can mark what the document cannot
+ * show — a submit is not a change to the transcript.
+ *
+ * Inert unless the provider was given an `annotationId`, which keeps the
+ * read-only completed-session view and every test from writing to the log.
+ */
+const ActivityLogContext = createContext<ActivityLogger>(INERT_LOGGER);
+
 type AnnotationProviderProps = {
   doc: TranscriptDoc;
   duration?: number;
+  /**
+   * Turns on the activity log. Omit it and nothing is recorded — which is the
+   * right default, since a view that cannot be edited has nothing to record.
+   */
+  annotationId?: string;
   /**
    * Persists the document. Omit and autosave is inert — useful in tests and in
    * the read-only completed-session view.
@@ -49,6 +68,7 @@ type AnnotationProviderProps = {
 export function AnnotationProvider({
   doc,
   duration = 0,
+  annotationId,
   onSave,
   autosaveDelay = DEFAULT_AUTOSAVE_DELAY,
   children,
@@ -87,17 +107,47 @@ export function AnnotationProvider({
 
   useEffect(() => () => controller.destroy(), [controller]);
 
+  /**
+   * The activity recorder.
+   *
+   * One per annotation, created up front so `session.claim` and the first
+   * edits land in the same buffer. Nothing reaches the API until the annotator
+   * has agreed to the log; the recorder learns that from the first 403 and
+   * stops, so the workspace never has to ask.
+   */
+  const logger = useMemo<ActivityLogger>(
+    () => (annotationId ? createActivityLogger({ annotationId }) : INERT_LOGGER),
+    [annotationId]
+  );
+
+  /* Flush before tearing down, so the last two seconds of a session are not
+   * the ones missing from its replay. */
+  useEffect(
+    () => () => {
+      void logger.flush().finally(() => logger.destroy());
+    },
+    [logger]
+  );
+
   // Schedule a write whenever the document changes — including undo/redo,
   // which are edits from the persistence layer's point of view.
   useEffect(() => {
     let previous = store.getState().revision;
+    let previousDoc = store.getState().history.present;
 
     return store.subscribe((state) => {
       if (state.revision === previous) return;
       previous = state.revision;
+
+      /* Diffed against the last document we saw rather than the saved one:
+       * the log records what the annotator did, including the edits an
+       * autosave later folds together. */
+      logger.record(previousDoc, state.history.present, state.currentTime);
+      previousDoc = state.history.present;
+
       if (onSaveRef.current) controller.schedule();
     });
-  }, [controller, store]);
+  }, [controller, logger, store]);
 
   // Last-ditch flush so a closing tab does not drop the final keystrokes.
   useEffect(() => {
@@ -117,7 +167,9 @@ export function AnnotationProvider({
   return (
     <AnnotationStoreContext.Provider value={store}>
       <AutosaveControlsContext.Provider value={autosaveControls}>
-        {children}
+        <ActivityLogContext.Provider value={logger}>
+          {children}
+        </ActivityLogContext.Provider>
       </AutosaveControlsContext.Provider>
     </AnnotationStoreContext.Provider>
   );
@@ -130,6 +182,11 @@ export function useAutosaveControls(): AutosaveControls {
 }
 
 const NO_AUTOSAVE: AutosaveControls = { flush: () => Promise.resolve() };
+
+/** The activity recorder. Inert outside a provider, and outside a live annotation. */
+export function useActivityLog(): ActivityLogger {
+  return useContext(ActivityLogContext);
+}
 
 export function useAnnotationStore(): AnnotationStore {
   const store = useContext(AnnotationStoreContext);

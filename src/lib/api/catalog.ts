@@ -103,3 +103,26 @@ export const importBank = (kind: "prompt" | "stimulus", file: File) => {
   form.append("file", file);
   return apiFetch<ImportResult>(`${bank(kind)}/import`, { method: "POST", form });
 };
+
+/* ------------------------------------------------------------------ *
+ * Focus group topics
+ *
+ * A third bank, same shape as the other two. They used to live in `/prompts`
+ * under a category, which meant a topic could be handed to a contributor to
+ * read aloud. Contributors and annotators cannot see this one at all.
+ * ------------------------------------------------------------------ */
+
+export const listTopicsPage = (query: CatalogQuery = {}) =>
+  apiFetch<CatalogPage>("/focus-group-topics", {
+    query: { ...query, envelope: true },
+  });
+
+export const createTopic = (body: CatalogDraft) =>
+  apiFetch<ApiPrompt>("/focus-group-topics", { method: "POST", body });
+
+export const updateTopic = (id: string, body: Partial<CatalogDraft>) =>
+  apiFetch<ApiPrompt>(`/focus-group-topics/${id}`, { method: "PATCH", body });
+
+/** Retires it. `PATCH is_active: true` brings it back. */
+export const deleteTopic = (id: string) =>
+  apiFetch<ApiPrompt>(`/focus-group-topics/${id}`, { method: "DELETE" });

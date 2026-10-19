@@ -25,7 +25,7 @@ export type AdminNavId =
 
 /**
  * How much of an area the live API can actually serve, carried over verbatim
- * from docs/admin-ui-spec.md. It is on the nav item rather than in the page so
+ * from docs/design/admin-ui-spec.md. It is on the nav item rather than in the page so
  * the two cannot drift: when an endpoint lands, this table is the one edit.
  */
 export type AdminAreaStatus = "ready" | "partial" | "blocked";
@@ -57,8 +57,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Home",
     title: "Overview",
     blurb: "Where the corpus stands and what needs attention today.",
-    status: "partial",
-    blockedBy: "An hours-over-time series, and the join between session type and status",
+    status: "ready",
     Icon: HomeSmile,
   },
   {
@@ -86,8 +85,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Corpus",
     title: "Corpus overview",
     blurb: "Hours collected, coverage by variety and state, and growth over time.",
-    status: "partial",
-    blockedBy: "The same two, plus corpus-wide gender and age in hours",
+    status: "ready",
     Icon: ChartSquare,
   },
   {
@@ -96,8 +94,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Reviews",
     title: "Review oversight",
     blurb: "Queue depth, rejection reasons and how fast reviewers are clearing work.",
-    status: "partial",
-    blockedBy: "language_variety on a recording",
+    status: "ready",
     Icon: ClipboardCheck,
   },
   {
@@ -106,8 +103,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Annotations",
     title: "Annotation oversight",
     blurb: "Which sessions are claimed, by whom, and what is sitting unclaimed.",
-    status: "partial",
-    blockedBy: "Segment and tag counts on the list, not just the document",
+    status: "ready",
     Icon: DocumentText,
   },
   {
@@ -125,8 +121,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Payments",
     title: "Payments and rates",
     blurb: "What contributors have earned and what has been paid out.",
-    status: "blocked",
-    blockedBy: "An all-contributors earnings endpoint. /payments/earnings is one contributor at a time.",
+    status: "ready",
     Icon: Wallet,
   },
   {
