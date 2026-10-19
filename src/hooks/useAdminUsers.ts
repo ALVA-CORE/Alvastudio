@@ -6,7 +6,6 @@ import {
   issuePasswordReset,
   listUsers,
   previewUserDeletion,
-  throwawayPassword,
   updateUser,
   type ApiUser,
 } from "@/lib/api/users";
@@ -99,13 +98,11 @@ export function useAdminUsers() {
   }, []);
 
   /**
-   * Creates the account, then issues the token the person actually uses.
+   * Creates the account and returns the token the person uses to get into it.
    *
-   * The API requires a password and an admin must never choose one, so the
-   * create call carries a throwaway that is generated, sent and forgotten. The
-   * credential that matters is set by the person themselves from the reset
-   * token returned here, which is why this resolves with it: the dialog that
-   * called it has to hand it over.
+   * One call. `POST /users` no longer takes a password, so the server makes
+   * one nobody sees and hands back a single-use reset token — which is what
+   * the dialog that called this has to pass on.
    */
   const create = useCallback(
     async (draft: {
@@ -116,14 +113,17 @@ export function useAdminUsers() {
     }) => {
       const api = await createUser({
         email: draft.email,
-        password: throwawayPassword(),
         full_name: draft.fullName,
         phone: draft.phone || null,
         role: draft.role,
       });
 
       setUsers((prev) => [fromApiUser(api), ...prev]);
-      const { token } = await issuePasswordReset(api.id);
+
+      /* The create response carries it. The separate issue call is only a
+       * fallback for a server that has not caught up. */
+      const token =
+        api.password_reset?.token ?? (await issuePasswordReset(api.id)).token;
       return { user: fromApiUser(api), token };
     },
     []

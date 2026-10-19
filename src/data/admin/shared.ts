@@ -1,13 +1,9 @@
 /**
  * Sample data for the admin surface.
  *
- * Every number here is invented. It exists so the screens can be designed and
- * reviewed before the endpoints that would fill them are finished — several do
- * not exist yet (see docs/backend-gaps.md), and the ones that do are near-empty
- * on staging, which shows nothing about how a screen reads when it is full.
- *
- * Each dataset is shaped as the real response will be, so swapping it for a
- * fetch is a change of source rather than a rewrite of the page.
+ * Every admin screen reads from the API now. What is left here is the helpers
+ * those screens share, and the fixtures the tests build rows from, so a test
+ * does not need the network.
  */
 
 /** Deterministic, so a re-render does not reshuffle a table or restart a chart. */
@@ -50,10 +46,6 @@ export function daysAgo(n: number): Date {
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() - n);
   return date;
-}
-
-export function isoDay(date: Date) {
-  return date.toISOString().slice(0, 10);
 }
 
 /** "3d ago" / "Yesterday" / "Just now" — the grammar the other tables use. */

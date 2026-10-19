@@ -3,9 +3,7 @@ import { Link } from "react-router-dom";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import Refresh from "@solar-icons/react/arrows/Refresh";
 import MinimalisticMagnifer from "@solar-icons/react/search/MinimalisticMagnifer";
-import AddCircle from "@solar-icons/react/ui/AddCircle";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
-import Subtitles from "@solar-icons/react/ui/Subtitles";
 import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
 
@@ -156,34 +154,6 @@ export function WorkspaceSkeleton({ className }: { className?: string }) {
         </div>
       </div>
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ *
- * 2. Empty
- * ------------------------------------------------------------------ */
-
-export type WorkspaceEmptyProps = {
-  /** Inserts the first segment at the current playhead and opens it for editing. */
-  onAddSegment: () => void;
-  className?: string;
-};
-
-/** Transcript fetched successfully, but the ASR pass produced no segments. */
-export function WorkspaceEmpty({ onAddSegment, className }: WorkspaceEmptyProps) {
-  return (
-    <WorkspaceStateShell
-      className={className}
-      icon={<Subtitles size={22} weight="Linear" />}
-      title="No segments on this tape yet"
-      description="The automatic pass came back empty for this recording, add the first segment and type the transcript yourself."
-      actions={
-        <button type="button" onClick={onAddSegment} className={pillButtonClass}>
-          <AddCircle size={16} weight="Linear" />
-          Add first segment
-        </button>
-      }
-    />
   );
 }
 

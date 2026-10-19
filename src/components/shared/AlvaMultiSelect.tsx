@@ -34,12 +34,14 @@ export function AlvaMultiSelect({
   placeholder = "None selected",
   summary,
   className,
+  disabled = false,
   "aria-label": ariaLabel,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
   options: MultiSelectOption[];
   placeholder?: string;
+  disabled?: boolean;
   /** Overrides the default "N selected" label. */
   summary?: (selected: string[]) => string;
   className?: string;
@@ -66,10 +68,12 @@ export function AlvaMultiSelect({
       <FieldBeam className={className}>
         <DropdownMenuTrigger
           aria-label={ariaLabel}
+          disabled={disabled}
           className={cn(
             alvaSelectClass(),
             "flex w-full items-center justify-between gap-2 px-3 text-sm",
-            value.length === 0 && "text-muted-foreground"
+            value.length === 0 && "text-muted-foreground",
+            disabled && "cursor-not-allowed opacity-50"
           )}
         >
           <span className="truncate">{label}</span>

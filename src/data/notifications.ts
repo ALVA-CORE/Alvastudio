@@ -10,10 +10,10 @@ import type { InternNotification, InternNotificationCategory } from "@/data/inte
 /**
  * Maps the API's notifications onto the two shapes the screens already speak.
  *
- * `kind` is a free string at the API, with no enum to switch on, so the match
- * is on substrings and everything unrecognised falls through to
- * "announcement". A notification that arrives with a kind we have never seen
- * should still be readable; losing it because its icon is unknown would be the
+ * `kind` is an enum now — `review`, `annotation`, `earning`, `queue` — so the
+ * four known values are matched directly. The substring fallback stays for
+ * anything added later: a notification with a kind we have never seen should
+ * still be readable, and losing it because its icon is unknown would be the
  * worse failure.
  *
  * `key` becomes the id. It is opaque, unique, and the value that has to go
@@ -27,6 +27,7 @@ function has(kind: string, ...needles: string[]) {
 }
 
 function contributorCategory(kind: string): NotificationCategory {
+  if (kind === "earning") return "payout";
   if (has(kind, "approved", "accepted")) return "review-accepted";
   if (has(kind, "rejected", "rework", "not_approved")) return "review-rejected";
   if (has(kind, "recording", "submission", "submitted")) return "submission-received";
@@ -43,6 +44,9 @@ function contributorStatus(kind: string): NotificationStatus | undefined {
 }
 
 function staffCategory(kind: string): InternNotificationCategory {
+  if (kind === "queue") return "review-queue";
+  if (kind === "earning") return "payout-summary";
+  if (kind === "annotation") return "session-submitted";
   if (has(kind, "review", "queue")) return "review-queue";
   if (has(kind, "participant")) return "participant-added";
   if (has(kind, "session", "annotation", "recording")) return "session-submitted";

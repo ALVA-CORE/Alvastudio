@@ -39,8 +39,6 @@ import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useBank } from "@/hooks/useBank";
 import { reportApiError } from "@/lib/api/reportApiError";
 
-type BankTab = BankKind | "focus_group_topic";
-
 type ActiveFilter = "all" | "active" | "retired";
 
 /**
@@ -54,11 +52,10 @@ type ActiveFilter = "all" | "active" | "retired";
 export default function AdminPromptsPage() {
   const { items, isLoading, error, reload, create, save, retire, importCsv } =
     useBank();
-  /* Three tabs, two banks. "Focus group topics" is a view over the prompts
-   * bank rather than a bank of its own, so the tab value is wider than the
-   * kind a write goes to. */
-  const [tab, setTab] = useState<BankTab>("prompt");
-  const kind: BankKind = tab === "stimulus" ? "stimulus" : "prompt";
+  /* Three tabs, three banks. Topics used to be prompts wearing a category;
+   * they have their own endpoint now, so the tab and the kind are the same
+   * thing again. */
+  const [kind, setKind] = useState<BankKind>("prompt");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -71,12 +68,8 @@ export default function AdminPromptsPage() {
    * the prompts bank rather than reading a bank of its own. */
   const forKind = useMemo(
     () =>
-      tab === "focus_group_topic"
-        ? rows.filter((item) => bankCategory(item) === "focus_group_topic")
-        : rows.filter(
-            (item) => item.kind === kind && bankCategory(item) !== "focus_group_topic"
-          ),
-    [rows, kind, tab]
+      rows.filter((item) => item.kind === kind),
+    [rows, kind]
   );
 
   const filtered = useMemo(
@@ -111,13 +104,11 @@ export default function AdminPromptsPage() {
 
   const handleCreate = async (draft: BankDraft) => {
     try {
-      /* The tab decides what it is. A topic goes into the prompts bank with
-         its own category, which is the only thing telling the two apart. */
-      await create(kind, draft, tab);
+      await create(kind, draft);
       alvaToast.success(
-        tab === "focus_group_topic"
+        kind === "topic"
           ? "Topic added"
-          : tab === "stimulus"
+          : kind === "stimulus"
             ? "Stimulus added"
             : "Prompt added"
       );
@@ -301,8 +292,8 @@ export default function AdminPromptsPage() {
 
       <Tabs
         className="mt-3"
-        value={tab}
-        onValueChange={(value) => setTab(value as BankTab)}
+        value={kind}
+        onValueChange={(value) => setKind(value as BankKind)}
       >
         <TabsList className="h-9 rounded-full bg-alva-surface p-1">
           <TabsTrigger
@@ -320,19 +311,19 @@ export default function AdminPromptsPage() {
           {/* No endpoint of its own. Topics live in the prompts bank under
               `category="focus_group_topic"` until one exists. */}
           <TabsTrigger
-            value="focus_group_topic"
+            value="topic"
             className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
           >
             Focus group topics
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value={tab} className="mt-2">
+        <TabsContent value={kind} className="mt-2">
           <AlvaDataTable
             title={
-              tab === "focus_group_topic"
+              kind === "topic"
                 ? "Focus group topics"
-                : tab === "stimulus"
+                : kind === "stimulus"
                   ? "Stimulus bank"
                   : "Prompt bank"
             }

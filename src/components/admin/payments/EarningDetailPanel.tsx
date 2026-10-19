@@ -11,11 +11,11 @@ import {
 } from "@/components/admin/shared/detail";
 import {
   PAYOUT_STATUS_LABELS,
-  RATES,
   RATE_UNIT_LABELS,
   formatNaira,
   type Earning,
   type PayoutStatus,
+  type Rate,
 } from "@/data/admin/payments";
 import { NO_VALUE } from "@/lib/no-value";
 
@@ -38,18 +38,22 @@ export function EarningDetailPanel({
   onOpenChange,
   earning,
   onAdvance,
+  rates = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   earning: Earning | null;
-  onAdvance: (earning: Earning) => void;
+  /** Omitted while there is no per-contributor advance at the API. */
+  onAdvance?: (earning: Earning) => void;
+  /** Live, from `GET /payments/rates`, so the panel and the card above agree. */
+  rates?: Rate[];
 }) {
   const [confirm, setConfirm] = useState(false);
 
   if (!earning) return null;
 
-  const perRecording = RATES.find((rate) => rate.unit === "prompt_read");
-  const perMinute = RATES.find((rate) => rate.unit === "focus_group_minute");
+  const perRecording = rates.find((rate) => rate.unit === "prompt_read");
+  const perMinute = rates.find((rate) => rate.unit === "focus_group_minute");
 
   const nextStep = earning.status === "pending" ? "Queue for payment" : "Mark as paid";
 
@@ -82,14 +86,14 @@ export function EarningDetailPanel({
             <p className="px-1 text-xs text-muted-foreground">
               Settled in full — {formatNaira(earning.paidKobo)}.
             </p>
-          ) : (
+          ) : onAdvance ? (
             <PanelAction
               icon={<BillCheck size={15} weight="Outline" />}
               label={nextStep}
               tone="primary"
               onClick={() => setConfirm(true)}
             />
-          )
+          ) : null
         }
       >
         <DetailGroup title="Work counted" first>
@@ -148,7 +152,7 @@ export function EarningDetailPanel({
         }
         confirmLabel={nextStep}
         onConfirm={() => {
-          onAdvance(earning);
+          onAdvance?.(earning);
           setConfirm(false);
           onOpenChange(false);
         }}

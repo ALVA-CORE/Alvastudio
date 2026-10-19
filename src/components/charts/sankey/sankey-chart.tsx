@@ -155,9 +155,10 @@ const SankeyChartCore = memo(function SankeyChartCore({
     return sankeyGenerator(clonedData);
   }, [data, sankeyGenerator]);
 
+  /* The generator's own parameter type, rather than restating d3-sankey's
+     two-generic link shape here and having it drift. */
   const createPath = useCallback(
-    // biome-ignore lint/suspicious/noExplicitAny: d3-sankey types are complex
-    (link: any) => {
+    (link: Parameters<ReturnType<typeof sankeyLinkHorizontal>>[0]) => {
       try {
         const pathGenerator = sankeyLinkHorizontal();
         return pathGenerator(link) || "";

@@ -1,0 +1,116 @@
+import { useEffect, useState } from "react";
+import { AlvaToggle } from "@/components/shared/AlvaToggle";
+import { PanelRow } from "@/components/shared/PanelPrimitives";
+import { listConsents, recordConsent } from "@/lib/api/onboarding";
+import type { ApiConsent } from "@/lib/api/onboarding";
+import type { ApiConsentType } from "@/lib/api/enums";
+import { reportApiError } from "@/lib/api/reportApiError";
+import { alvaToast } from "@/lib/alva-toast";
+import { NO_VALUE } from "@/lib/no-value";
+
+/**
+ * Consent is append-only: a change of mind is a new record, so the latest one
+ * of a type is the answer and anything before it is history.
+ */
+function latestOf(consents: ApiConsent[], type: ApiConsentType) {
+  return consents
+    .filter((consent) => consent.consent_type === type)
+    .sort((a, b) => a.accepted_at.localeCompare(b.accepted_at))
+    .at(-1);
+}
+
+/**
+ * What the annotator has agreed to, and the one thing they can change.
+ *
+ * Both rows come from `GET /onboarding/consent`. The two statements beside
+ * them on this sheet — that audio cannot be exported, and that participant
+ * identifiers are masked — are facts about how the product is built rather
+ * than settings on this account, which is why they are written as sentences
+ * and have no control next to them.
+ *
+ * The activity log records how an annotation was built so an admin can replay
+ * it, which makes it monitoring data about a person's work. Nothing is
+ * recorded until they turn it on, and turning it off stops it: the API refuses
+ * the writes either way, so this switch is the control rather than a hint to
+ * one.
+ *
+ * It lives here rather than in the workspace on purpose. A consent prompt in
+ * front of the editor is a prompt somebody dismisses to get to work, which is
+ * not consent; here it is theirs to find, read and change whenever they like.
+ *
+ * Off is the default, including while this is loading, because the honest
+ * thing to show about a permission nobody has granted is "off".
+ */
+export function PrivacyRows() {
+  const [consents, setConsents] = useState<ApiConsent[] | null>(null);
+  const [isSaving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    listConsents()
+      .then((rows) => {
+        if (!cancelled) setConsents(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setConsents([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const change = async (next: boolean) => {
+    setSaving(true);
+    try {
+      const saved = await recordConsent({
+        consent_type: "annotation_activity_log",
+        accepted: next,
+      });
+      setConsents((prev) => [...(prev ?? []), saved]);
+      alvaToast.success(next ? "Activity log turned on." : "Activity log turned off.");
+    } catch (cause) {
+      const message = reportApiError(cause, "Could not save that.");
+      if (message) alvaToast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ndpa = consents ? latestOf(consents, "ndpa_data_use") : undefined;
+  const isOn = consents ? latestOf(consents, "annotation_activity_log")?.accepted === true : false;
+
+  return (
+    <>
+      <PanelRow
+        label="Data use agreement"
+        value={
+          consents === null
+            ? NO_VALUE
+            : ndpa?.accepted
+              ? `Accepted, v${ndpa.policy_version}`
+              : "Not accepted"
+        }
+      />
+
+      <PanelRow
+        label="Activity log"
+        value={
+          <AlvaToggle
+            checked={isOn}
+            onCheckedChange={(next) => void change(next)}
+            disabled={consents === null || isSaving}
+            aria-label="Activity log"
+          />
+        }
+      />
+
+      <div className="pt-2 text-xs leading-relaxed text-muted-foreground">
+        {isOn
+          ? "Your edits are recorded so an admin can see how a session was annotated. No transcript text is stored, only which segment changed and how long it became. Records are deleted after 90 days, and only you and an admin can read them."
+          : "Off. Nothing about how you work is recorded. Turning it on stores which segments you create, retime and tag, so an admin can replay a session. No transcript text is kept, and records are deleted after 90 days."}
+      </div>
+    </>
+  );
+}

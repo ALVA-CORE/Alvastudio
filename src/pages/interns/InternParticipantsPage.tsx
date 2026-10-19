@@ -28,7 +28,7 @@ export default function InternParticipantsPage() {
   /* Counted from the rows themselves. There is no participants dashboard
    * endpoint, so anything the API cannot supply is left blank rather than
    * invented — the quota target in particular is not something the backend
-   * knows. See docs/backend-gaps.md. */
+   * knows. */
   const metrics = useMemo(() => {
     if (isEmpty) return EMPTY_PARTICIPANT_METRICS;
 

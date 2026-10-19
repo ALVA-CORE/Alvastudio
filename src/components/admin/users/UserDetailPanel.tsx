@@ -430,8 +430,18 @@ export function UserDetailPanel({
             {value.role === "admin" ? (
               <DetailGroup title="Page access">
                 <div className="col-span-2 min-w-0">
+                  <p className="mb-1.5 text-[11px] text-amber-300">
+                    Not enforced yet, role decides what an admin can open.
+                  </p>
+                  {/* Disabled, not removed.
+                      Backend confirmed role is the whole authority model: a
+                      permission list enforced on some routes and not others
+                      would imply a boundary the API does not hold. Kept on
+                      screen because the concept may come back, and labelled
+                      so nobody believes it is doing anything. */}
                   {isEditing ? (
                     <AlvaMultiSelect
+                      disabled
                       aria-label="Page access"
                       value={value.permissions}
                       onChange={(next) =>

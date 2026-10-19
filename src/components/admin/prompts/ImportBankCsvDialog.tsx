@@ -12,7 +12,6 @@ import { FieldBeam } from "@/components/shared/FieldBeam";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { parseBankCsv, BANK_CSV_TEMPLATE } from "@/lib/admin/bankCsv";
 import type { BankKind } from "@/data/admin/prompts";
-import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 import { downloadCsv } from "@/lib/download-csv";
 import { cn } from "@/lib/utils";
 

@@ -1,7 +1,7 @@
 /**
  * HTTP client for the Alva Studio backend.
  *
- * See `docs/api.md` for the endpoint reference. Three jobs: attach the bearer
+ * See `docs/backend/api.md` for the endpoint reference. Three jobs: attach the bearer
  * token, normalise the two error shapes FastAPI emits, and keep the base URL in
  * one place so nothing hardcodes `/api/v1`.
  */
@@ -149,6 +149,8 @@ function defaultMessage(status: number): string {
   if (status === 408) return "That took too long. Please try again.";
   if (status === 413) return "That file is too large.";
   if (status === 415) return "That file type is not supported.";
+  /* 429 on an upload is the daily or weekly cap, not rate limiting, and the
+   * body carries when it reopens. The generic line is for everything else. */
   if (status === 429) return "Too many tries. Wait a moment and try again.";
   if (status === 503) return "That feature is not available on this server yet.";
   if (status >= 500) return "Something went wrong on our side. Try again shortly.";

@@ -83,3 +83,24 @@ export type ApiEarnings = {
 
 export const earnings = () => apiFetch<ApiEarnings>("/payments/earnings");
 export const rates = () => apiFetch<unknown[]>("/payments/rates");
+
+/**
+ * The podium.
+ *
+ * `limit` is capped at 3 server side and anything above returns 422: every
+ * contributor can read this, so "nobody below third is shown" is enforced
+ * there rather than by us.
+ *
+ * **Ties share a rank.** Every approval pays the same, so ten people with one
+ * clip each are a ten-way tie for first, listed in the order they reached that
+ * score. A podium can legitimately read 1st, 1st, 1st.
+ */
+export type ApiLeaderboardEntry = {
+  contributor_id: string;
+  full_name: string;
+  points: number;
+  rank: number;
+};
+
+export const leaderboard = () =>
+  apiFetch<ApiLeaderboardEntry[]>("/points/leaderboard", { query: { limit: 3 } });

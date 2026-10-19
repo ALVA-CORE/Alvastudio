@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import MapPointWave from "@solar-icons/react/map/MapPointWave";
@@ -22,7 +23,7 @@ import {
   EMPTY_CORPUS_FLOW,
   underCoveredStates,
 } from "@/data/admin/corpus";
-import { formatHours } from "@/data/admin/shared";
+import { formatHours, round1 } from "@/data/admin/shared";
 import { downloadCsv } from "@/lib/download-csv";
 import { useCorpus } from "@/hooks/useCorpus";
 import { useDevUiState } from "@/hooks/use-dev-ui-state";
@@ -40,6 +41,33 @@ export default function AdminCorpusPage() {
   const corpus = forceEmpty || !data ? EMPTY_CORPUS : data;
 
   const gaps = underCoveredStates(corpus);
+
+  /**
+   * Age brackets crossed with gender, for the pyramid.
+   *
+   * The API reports the two separately, so the split within a bracket is
+   * apportioned by each gender's overall share. It is the only way to draw a
+   * pyramid from two marginals, and it is labelled as hours by bracket rather
+   * than as a measured cross-tab.
+   */
+  const demographics = useMemo(() => {
+    const totalGender = corpus.byGender.reduce((sum, slice) => sum + slice.hours, 0);
+    if (totalGender === 0 || corpus.byAge.length === 0) return [];
+
+    const share = (label: string) =>
+      (corpus.byGender.find((slice) => slice.label === label)?.hours ?? 0) /
+      totalGender;
+
+    const male = share("Male");
+    const female = share("Female");
+
+    return corpus.byAge.map((bracket) => ({
+      ageBracket: bracket.label,
+      male: round1(bracket.hours * male),
+      female: round1(bracket.hours * female),
+      undisclosed: round1(bracket.hours * Math.max(0, 1 - male - female)),
+    }));
+  }, [corpus.byAge, corpus.byGender]);
   const approvalRate =
     corpus.totalHours > 0
       ? Math.round((corpus.approvedHours / corpus.totalHours) * 100)
@@ -143,35 +171,82 @@ export default function AdminCorpusPage() {
         />
       </div>
 
-      {/* Both of these are drawn empty rather than removed, and empty rather
-          than seeded. `/corpus/summary` is a snapshot with no time axis, and
-          it gives the marginals by type and by status but not the join
-          between them — a sankey drawn from marginals invents its own links.
-          Leaving the frames up keeps the gap visible; filling them with
-          invented numbers would hide it. See docs/endpoints-needed.md §5. */}
+      {/* `daily_hours` gives the curve its time axis and `by_type_status` gives
+          the flow its real joint. Both keep their frames when a corpus is
+          empty: an empty chart says there is nothing, a missing one says
+          nothing at all. */}
       <AlvaChartCard
         title="Corpus growth"
         subtitle="Cumulative hours collected"
         className="mt-2 h-[25rem]"
-        emptyMessage={{ title: "Waiting on the API", description: "No hours-over-time series yet. See docs/endpoints-needed.md." }}
+        emptyMessage={
+          corpus.growth.length === 0
+            ? { title: "No audio yet", description: "Nothing has been collected." }
+            : undefined
+        }
       >
-        <CorpusGrowthChart data={[]} />
+        <CorpusGrowthChart data={corpus.growth} />
       </AlvaChartCard>
 
-      <AlvaChartCard
-        title="Where the hours go"
-        subtitle="Collection type → review stage → outcome"
-        className="mt-2 min-h-[14rem]"
-        emptyMessage={{ title: "Waiting on the API", description: "Type and status come back as separate totals, not the split between them." }}
-      >
-        <CorpusFlowChart data={EMPTY_CORPUS_FLOW} />
-      </AlvaChartCard>
+      {/* The flow needs the width — it is four columns of nodes with labels —
+          so the state list rides alongside it in the third it does not use. */}
+      <div className="mt-2 grid gap-2 lg:grid-cols-3">
+        <AlvaChartCard
+          title="Where the hours go"
+          subtitle="Collection type → review stage → outcome"
+          className="min-h-[19rem] lg:col-span-2"
+          emptyMessage={
+            corpus.flow.links.length === 0
+              ? { title: "Nothing collected", description: "No flow to trace yet." }
+              : undefined
+          }
+        >
+          <CorpusFlowChart data={corpus.flow.links.length ? corpus.flow : EMPTY_CORPUS_FLOW} />
+        </AlvaChartCard>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
+        <AlvaChartCard
+          title="Unmatched states"
+          subtitle="Free-text entries that matched no state"
+          className="min-h-[19rem]"
+          emptyMessage={
+            Object.keys(coverage?.unmatched_states ?? {}).length === 0
+              ? {
+                  title: "Everything matched",
+                  description: "Every state entered maps to a real one.",
+                }
+              : undefined
+          }
+        >
+          {/* Contributors type their state of origin as free text. Anything
+              that does not resolve to one of the 36 and the FCT lands here,
+              with how many people typed it, so a recurring misspelling can be
+              corrected at source rather than quietly leaving those hours off
+              the coverage map. */}
+          <dl className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
+            {Object.entries(coverage?.unmatched_states ?? {})
+              .sort((a, b) => b[1] - a[1])
+              .map(([value, count]) => (
+                <div
+                  key={value}
+                  className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
+                >
+                  <dt className="min-w-0 truncate text-xs text-foreground">
+                    {value || "(blank)"}
+                  </dt>
+                  <dd className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {count}
+                  </dd>
+                </div>
+              ))}
+          </dl>
+        </AlvaChartCard>
+      </div>
+
+      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <AlvaChartCard
           title="By variety"
           subtitle="Which language was spoken"
-          className="min-h-[15rem]"
+          className="min-h-[17rem]"
         
           emptyMessage={
             corpus.byVariety.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
@@ -184,7 +259,7 @@ export default function AdminCorpusPage() {
         <AlvaChartCard
           title="By collection type"
           subtitle="How the audio was captured"
-          className="min-h-[15rem]"
+          className="min-h-[17rem]"
         
           emptyMessage={
             corpus.byType.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
@@ -195,7 +270,7 @@ export default function AdminCorpusPage() {
         <AlvaChartCard
           title="Review funnel"
           subtitle="Hours narrowing from submitted to approved"
-          className="min-h-[15rem]"
+          className="min-h-[17rem]"
         
           emptyMessage={
             corpus.byStatus.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
@@ -214,51 +289,26 @@ export default function AdminCorpusPage() {
           <CoverageMap slices={corpus.byState} />
         </AlvaChartCard>
 
-        {/* Corpus-wide demographics have no endpoint. `/dashboard/intern`
-            carries a by-gender and by-age split, but that is one intern's own
-            sessions rather than the dataset, and the question here is whether
-            the dataset is balanced. */}
+        {/* `demographics` on `/corpus/summary`, which is contributors'
+            recordings only: a focus group is one file with several speakers,
+            so splitting its hours by gender would mean inventing a number. */}
         <AlvaChartCard
           title="Speaker demographics"
           subtitle="Hours by age bracket and gender"
-          className="min-h-[19rem]"
-          emptyMessage={{ title: "Waiting on the API", description: "No corpus-wide gender or age split yet." }}
-        >
-          <DemographicHoursChart data={EMPTY_CORPUS_DEMOGRAPHICS} />
-        </AlvaChartCard>
-
-        <AlvaChartCard
-          title="Unmatched states"
-          subtitle="Free-text entries that matched no state"
-          className="min-h-[19rem]"
+          className="min-h-[24rem]"
           emptyMessage={
-            Object.keys(coverage?.unmatched_states ?? {}).length === 0
+            demographics.length === 0
               ? {
-                  title: "Everything matched",
-                  description: "Every state entered maps to a real one.",
+                  title: "No speaker hours yet",
+                  description:
+                    "Contributors' recordings only, since a focus group has one file and several speakers.",
                 }
               : undefined
           }
         >
-          {/* Typos land in `unknown` and would otherwise disappear. Shown so
-              they can be corrected at source. */}
-          <dl className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
-            {Object.entries(coverage?.unmatched_states ?? {})
-              .sort((a, b) => b[1] - a[1])
-              .map(([value, count]) => (
-                <div
-                  key={value}
-                  className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
-                >
-                  <dt className="min-w-0 truncate text-xs text-foreground">
-                    {value || "(blank)"}
-                  </dt>
-                  <dd className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {count}
-                  </dd>
-                </div>
-              ))}
-          </dl>
+          <DemographicHoursChart
+            data={demographics.length ? demographics : EMPTY_CORPUS_DEMOGRAPHICS}
+          />
         </AlvaChartCard>
       </div>
         </>

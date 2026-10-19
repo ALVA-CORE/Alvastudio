@@ -1,7 +1,7 @@
 import type { FluencyLevel, PreferredVariety } from "@/data/contributors/onboarding";
 
 /**
- * The backend's vocabularies, transcribed from `docs/api.md`, plus the
+ * The backend's vocabularies, transcribed from `docs/backend/api.md`, plus the
  * translation to and from the frontend's own.
  *
  * The two were designed independently, so several values do not line up. Every
@@ -18,7 +18,7 @@ import type { FluencyLevel, PreferredVariety } from "@/data/contributors/onboard
  * API vocabularies
  * ------------------------------------------------------------------ */
 
-/** NOTE: the API has no `annotator`. See `docs/api.md` §14. */
+/** NOTE: the API has no `annotator`. See `docs/backend/api.md` §14. */
 export type ApiUserRole = "contributor" | "intern" | "admin";
 
 export type ApiLanguageVariety = "nigerian_english" | "nigerian_pidgin";
@@ -36,7 +36,11 @@ export type ApiGender = "male" | "female" | "other" | "prefer_not_to_say";
 
 export type ApiPidginFluency = "none" | "basic" | "conversational" | "fluent" | "native";
 
-export type ApiConsentType = "ndpa_data_use";
+export type ApiConsentType =
+  | "ndpa_data_use"
+  | "focus_group_participation"
+  /** Lets the annotation activity log record. Withheld by default. */
+  | "annotation_activity_log";
 
 export type ApiSessionType = "prompt_read" | "stimuli_narration";
 
@@ -121,7 +125,7 @@ export function fromApiFluency(value: string | null | undefined): FluencyLevel |
  * claim, since every Pidgin speaker in this corpus also has English — and the
  * choice is NOT round-tripped, so reloading shows "Pidgin" rather than "Both".
  *
- * This needs a backend fix, not a cleverer mapping. See `docs/api.md` §14.
+ * This needs a backend fix, not a cleverer mapping. See `docs/backend/api.md` §14.
  * ------------------------------------------------------------------ */
 
 export function toApiVariety(

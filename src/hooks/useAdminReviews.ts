@@ -14,6 +14,11 @@ import type {
   RejectionReason,
 } from "@/data/admin/oversight";
 
+const VARIETY: Record<string, "Nigerian English" | "Nigerian Pidgin"> = {
+  nigerian_english: "Nigerian English",
+  nigerian_pidgin: "Nigerian Pidgin",
+};
+
 const MODE: Record<string, AdminRecording["mode"]> = {
   prompt_read: "Prompt read",
   stimuli_narration: "Stimuli",
@@ -127,18 +132,17 @@ function toAdminRecording(
     /* A short human handle. The API's id is a UUID, which nobody reads out
      * over a call, and the list is ordered so position is stable enough. */
     code: `REC-${String(index + 1).padStart(4, "0")}`,
-    contributor: names.get(api.contributor_id) ?? review?.contributor_name ?? "Unknown",
+    contributor: api.contributor_name ?? names.get(api.contributor_id) ?? "Unknown",
     mode: MODE[api.session_type] ?? "Prompt read",
     prompt: api.prompt_text ?? api.stimulus_text ?? "",
     durationSec,
     duration: formatDuration(durationSec),
-    /* No language variety on a recording. It belongs to the contributor's
-     * profile, which this endpoint does not join. See docs/endpoints-needed. */
-    variety: "Nigerian English",
+    /* The variety of the prompt or stimulus the clip was read from, not the
+     * contributor's profile preference — that one can be `both`, so it cannot
+     * label a single clip. */
+    variety: VARIETY[api.language_variety ?? ""] ?? "Nigerian English",
     status: api.status as RecordingStatus,
-    reviewer: api.assigned_reviewer_id
-      ? (names.get(api.assigned_reviewer_id) ?? review?.reviewer_name ?? "Assigned")
-      : "",
+    reviewer: api.reviewer_name ?? (api.assigned_reviewer_id ? "Assigned" : ""),
     submittedAt: submitted.getTime(),
     submittedLabel: relativeDays(submitted),
     rejectionReason: rejectionReason(review),

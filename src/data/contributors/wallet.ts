@@ -23,7 +23,7 @@ export type WalletEntry = {
  *
  * A verified NIN is the only route to being paid: without one there is no
  * payout destination to collect and no eligibility for a run. So this gates
- * the wallet rather than sitting beside it. See docs/integration-status.md §3.
+ * the wallet rather than sitting beside it.
  */
 export type IdentityState = "unverified" | "pending" | "verified" | "failed";
 
@@ -38,7 +38,7 @@ export type PayoutAccount = {
  *
  * `GET /wallet` splits a contributor's money four ways, not two, and the split
  * is the point: a figure you cannot withdraw shown as one balance reads as a
- * broken button. See docs/integration-status.md §3.
+ * broken button.
  */
 export type Wallet = {
   /** Kobo. Matured, above the minimum, a run would send this now. */

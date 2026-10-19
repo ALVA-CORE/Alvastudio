@@ -18,6 +18,16 @@ export type ApiRecording = {
   assigned_reviewer_id: string | null;
   reviewed_at: string | null;
   created_at: string;
+  /**
+   * The variety of the prompt this was read from, not the contributor's own.
+   *
+   * A profile holds a *preference*, which can be "both", so it cannot label a
+   * single clip. The prompt's variety is exactly what was spoken.
+   */
+  language_variety?: string | null;
+  contributor_name?: string | null;
+  /** Null while nobody is assigned. */
+  reviewer_name?: string | null;
 };
 
 /**
@@ -108,3 +118,29 @@ export const getRecording = (id: string) => apiFetch<ApiRecording>(`/recordings/
  */
 export const recordingAudioUrl = (id: string) =>
   apiFetchBlobUrl(`/recordings/${id}/audio`);
+
+/**
+ * How much a contributor may still upload.
+ *
+ * 200 a day and 1,000 a week, on Nigerian calendar periods: the day resets at
+ * midnight WAT and the week on Monday. Worth checking **before** recording —
+ * a refusal at upload would throw away a clip somebody has just spoken.
+ *
+ * Every upload counts, whatever the review says afterwards.
+ */
+export type ApiRecordingQuota = {
+  daily_limit: number;
+  daily_used: number;
+  daily_remaining: number;
+  daily_resets_at: string;
+  weekly_limit: number;
+  weekly_used: number;
+  weekly_remaining: number;
+  weekly_resets_at: string;
+  /** The smaller of the two allowances. This is the number that matters. */
+  remaining: number;
+  available_again_at: string | null;
+};
+
+export const recordingQuota = () =>
+  apiFetch<ApiRecordingQuota>("/recordings/quota");

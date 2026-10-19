@@ -24,7 +24,8 @@ export default function AnnotatorDashboardPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
-  const { metrics, activity, isLoading, error, reload } = useAnnotatorDashboard();
+  const { metrics, activity, isLoading, error, reload } =
+    useAnnotatorDashboard(timeRange);
   const { forceEmpty } = useDevUiState();
 
   if (isMobile) {
@@ -32,9 +33,8 @@ export default function AnnotatorDashboardPage() {
   }
 
   /* Metrics and the activity series are live. The tag-mix sunburst and the
-   * demographic-reach chart are not — the API exposes no per-tag or per-speaker
-   * breakdown for an annotator, so those two keep their sample shapes. See
-   * docs/backend-gaps.md. */
+   * demographic-reach chart are not: the API exposes no per-tag or per-speaker
+   * breakdown for an annotator, so those two keep their sample shapes. */
   const base = forceEmpty
     ? getEmptyAnnotatorDataset(timeRange)
     : ANNOTATOR_DASHBOARD_DATA[timeRange];

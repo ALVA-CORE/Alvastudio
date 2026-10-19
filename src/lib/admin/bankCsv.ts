@@ -1,4 +1,3 @@
-import { BANK_CATEGORIES, type BankCategory } from "@/data/admin/prompts";
 import { VARIETIES, type Variety } from "@/data/admin/shared";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 

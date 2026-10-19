@@ -20,14 +20,14 @@ import { ApiError, getToken } from "@/lib/api/client";
 import { profileToApi, recordConsent, upsertProfile } from "@/lib/api/onboarding";
 
 /**
- * Session state, backed by the API (`docs/api.md` §3).
+ * Session state, backed by the API (`docs/backend/api.md` §3).
  *
  * The bearer token is the session; the cached user is a convenience so the app
  * can paint before `/auth/me` returns. On boot, a token is verified against
  * `/auth/me` and the cache is replaced with whatever the server says — the
  * server is authoritative about role and identity, the cache never is.
  *
- * Profile fields the API does not model (see `docs/api.md` §14) are kept in the
+ * Profile fields the API does not model (see `docs/backend/api.md` §14) are kept in the
  * local record so the profile pages still render. They are explicitly NOT
  * durable: a fresh login on another device will not have them.
  */

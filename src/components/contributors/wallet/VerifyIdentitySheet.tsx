@@ -55,8 +55,7 @@ export function VerifyIdentitySheet({
     setSubmitting(false);
   }, [open]);
 
-  // Submit disabled until consent is checked, regardless of nin digits
-  const complete = nin.length === NIN_LENGTH && consent;
+  // Disabled until consent is checked, regardless of how many digits are in.
   const submitDisabled = !consent || nin.length !== NIN_LENGTH;
 
   return (

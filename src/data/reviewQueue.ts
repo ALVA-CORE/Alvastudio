@@ -70,18 +70,6 @@ export type AudioRegion = {
   color: string;
 };
 
-/** @deprecated Use AudioRegion */
-export type WaveMarker = AudioRegion;
-
-export const MARKER_COLORS = [
-  "#25F07D",
-  "#53A8F2",
-  "#B87CFF",
-  "#F5A623",
-  "#FF6B8A",
-  "#5CE1E6",
-] as const;
-
 export const REGION_TAGS: Array<{
   id: Exclude<RegionTag, "custom">;
   label: string;

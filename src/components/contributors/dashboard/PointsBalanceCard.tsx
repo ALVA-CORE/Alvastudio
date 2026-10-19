@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { LeaderboardPodium } from "@/components/contributors/dashboard/LeaderboardPodium";
+import type { LeaderboardEntry } from "@/data/contributors/dashboard";
 import { WalletFace } from "@/components/contributors/wallet/WalletFace";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaAccentTexture } from "@/lib/alva-texture";
@@ -13,6 +14,8 @@ type PointsBalanceCardProps = {
   /** Null until they have enough recordings to be ranked. */
   rank?: number | null;
   rankedOf?: number;
+  /** The live top three, already ordered second-first-third. */
+  podium?: LeaderboardEntry[];
   className?: string;
   isEmpty?: boolean;
 };
@@ -51,6 +54,7 @@ export function PointsBalanceCard({
   currentUserId,
   rank = null,
   rankedOf = 0,
+  podium = [],
   className,
   isEmpty = false,
 }: PointsBalanceCardProps) {
@@ -142,6 +146,7 @@ export function PointsBalanceCard({
               ) : (
                 <LeaderboardPodium
                   embedded
+                  entries={podium}
                   currentUserId={currentUserId}
                   className="-mx-2 mt-4"
                 />

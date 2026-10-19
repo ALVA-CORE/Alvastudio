@@ -5,16 +5,8 @@ export function isStaffRole(role?: UserRole) {
   return role === "intern" || role === "annotator" || role === "admin";
 }
 
-export function isContributorRole(role?: UserRole) {
-  return !role || role === "contributor";
-}
-
 export function isInternRole(role?: UserRole) {
   return role === "intern" || role === "admin";
-}
-
-export function isAnnotatorRole(role?: UserRole) {
-  return role === "annotator" || role === "admin";
 }
 
 export function isAdminRole(role?: UserRole) {

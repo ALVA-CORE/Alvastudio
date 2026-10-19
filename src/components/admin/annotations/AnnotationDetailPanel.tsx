@@ -20,7 +20,8 @@ import {
   type AdminAnnotation,
   type AnnotationStatus,
 } from "@/data/admin/oversight";
-import { annotationActivity } from "@/data/admin/activity";
+import { fromApiEvents, type ActivityEvent } from "@/data/admin/activity";
+import { listEvents } from "@/lib/api/annotationEvents";
 import { getAnnotation } from "@/lib/api/annotations";
 import { round1 } from "@/data/admin/shared";
 
@@ -115,20 +116,35 @@ export function AnnotationDetailPanel({
     [annotation]
   );
 
-  /* Every move the annotator made, in order. Seeded for now; the shape is
-   * what `GET /annotations/{id}/events` should return. */
-  const activity = useMemo(
-    () =>
-      annotation
-        ? annotationActivity({
-            id: annotation.id,
-            annotator: annotation.annotator,
-            durationSec: annotation.durationSec,
-            segments: counts?.segments ?? annotation.segments,
-          })
-        : [],
-    [annotation]
-  );
+  /**
+   * Every move the annotator made, in order.
+   *
+   * Read when the panel opens rather than with the list: it is up to 500
+   * events for one row, and nobody opens twenty of these at once.
+   *
+   * An empty log is not a failure. Nothing is recorded until the annotator
+   * agrees to it, so a blank replay usually means they have not — which the
+   * replay says rather than implying the work never happened.
+   */
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
+
+  useEffect(() => {
+    if (!open || !annotation) return;
+
+    let cancelled = false;
+    setActivity([]);
+
+    listEvents(annotation.id, { limit: 500 })
+      .then((page) => {
+        if (cancelled) return;
+        setActivity(fromApiEvents(page.items));
+      })
+      .catch(() => setActivity([]));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, annotation]);
 
   if (!annotation) return null;
 

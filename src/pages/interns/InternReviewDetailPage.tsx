@@ -23,7 +23,6 @@ import {
 } from "@/lib/review-progress";
 import { TextureButton } from "@/components/ui/texture-button";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
-import { cn } from "@/lib/utils";
 
 const EMPTY_ANSWERS: QualityAnswers = {
   noiseFree: "",

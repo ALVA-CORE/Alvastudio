@@ -43,9 +43,6 @@ const MIXED = "__mixed__";
 const REMOVE_BUTTON =
   "shrink-0 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100";
 
-const CHIP =
-  "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
-
 /**
  * Tag families as a pick-list, applied to whatever is selected on the timeline.
  *
@@ -60,7 +57,6 @@ const TagApplyList = memo(function TagApplyList({
   selectedIds: string[];
 }) {
   const segments = useAnnotation(selectSegments);
-  const selectedSegmentIds = useAnnotation((state) => state.selectedSegmentIds);
   const spans = useAnnotation(selectSpans);
   const { addSpan } = useAnnotationActions();
   const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);

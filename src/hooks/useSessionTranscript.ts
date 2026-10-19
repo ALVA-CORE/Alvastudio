@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as annotations from "@/lib/api/annotations";
 import { annotationAudioUrl } from "@/lib/api/annotations";
 import { getSession } from "@/lib/api/focusGroups";
+import { sendEvents } from "@/lib/api/annotationEvents";
 import { toTranscriptDoc } from "@/data/annotators/fromApi";
 import { baselineFrom, saveAnnotation, type Baseline } from "@/data/annotators/toApi";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
@@ -27,7 +28,14 @@ export type TranscriptResource =
   | { status: "unclaimed"; session: null; doc: null; error: null; topic?: string }
   | { status: "not-found"; session: null; doc: null; error: null }
   | { status: "error"; session: AnnotatorSession; doc: null; error: Error }
-  | { status: "ready"; session: AnnotatorSession; doc: TranscriptDoc; error: null };
+  | {
+      status: "ready";
+      session: AnnotatorSession;
+      doc: TranscriptDoc;
+      error: null;
+      /** The annotation the workspace writes to, as opposed to the session. */
+      annotationId: string;
+    };
 
 /** Short, readable handle. The API has no session code, so derive a stable one. */
 function sessionCode(sessionId: string): string {
@@ -114,7 +122,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
       annotationId.current = match.id;
       baseline.current = baselineFrom(document, doc);
 
-      return { session, doc };
+      return { session, doc, annotationId: match.id };
     })()
       .then((result) => {
         if (cancelled) return;
@@ -174,6 +182,23 @@ export function useSessionTranscript(sessionId: string | undefined) {
   /** Takes the next session in the queue. Resolves with its session id. */
   const claim = useCallback(async () => {
     const claimed = await annotations.claimNext();
+
+    /* The first entry in the activity log, sent here rather than from the
+     * workspace: claiming happens on the way to a session that is not open
+     * yet, so there is no recorder mounted to catch it. A fresh annotation has
+     * an empty log, which is what makes `seq: 1` safe. Failures are silent —
+     * a 403 is simply an annotator who has not agreed to the log, and it must
+     * never stop them claiming work. */
+    void sendEvents(claimed.id, [
+      {
+        id: `${claimed.id}-claim`,
+        seq: 1,
+        at: new Date().toISOString(),
+        op: "session.claim",
+        payload: {},
+      },
+    ]).catch(() => {});
+
     return claimed.session_id;
   }, []);
 

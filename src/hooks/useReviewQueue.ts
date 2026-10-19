@@ -32,6 +32,11 @@ function duration(seconds: number | null): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+const VARIETY: Record<string, string> = {
+  nigerian_english: "Nigerian English",
+  nigerian_pidgin: "Nigerian Pidgin",
+};
+
 const MODE: Record<string, ReviewQueueItem["mode"]> = {
   prompt_read: "Prompt reader",
   stimuli_narration: "Stimuli",
@@ -46,7 +51,9 @@ export function toQueueItem(
     /* A name when we can resolve one. The id's first eight characters are a
      * last resort, not an identifier anybody reads. */
     contributor:
-      names.get(recording.contributor_id) ?? recording.contributor_id.slice(0, 8),
+      recording.contributor_name ??
+      names.get(recording.contributor_id) ??
+      recording.contributor_id.slice(0, 8),
     mode: MODE[recording.session_type] ?? "Prompt reader",
     duration: duration(recording.duration_seconds),
     durationSec: Math.round(recording.duration_seconds ?? 0),
@@ -54,10 +61,9 @@ export function toQueueItem(
     prompt: recording.prompt_text ?? recording.stimulus_text ?? "",
     audioSrc: `/recordings/${recording.id}/audio`,
     device: recording.device_mic ?? NO_VALUE,
-    /* `RecordingOut` carries no language variety — it lives on the
-     * contributor's profile and this endpoint does not join it. See
-     * docs/endpoints-needed.md §6. */
-    language: NO_VALUE,
+    /* The prompt's variety, which is what was actually spoken — a
+     * contributor's profile holds a preference and can say "both". */
+    language: VARIETY[recording.language_variety ?? ""] ?? NO_VALUE,
     status: recording.status === "submitted" || recording.status === "in_review"
       ? "pending"
       : "completed",
@@ -76,7 +82,9 @@ export function useReviewQueue() {
     setLoading(true);
 
     Promise.all([
-      reviewsApi.reviewQueue(100),
+      /* The intern's own desk. Clips are allocated on submission now, so the
+       * unassigned pool they used to read is usually empty. */
+      reviewsApi.reviewQueue(100, true),
       listRecordings({ limit: 100 }),
       /* Names, not ids. `RecordingOut` carries `contributor_id` and nothing
        * else, so one list turns every row's id into somebody's name. Failing
