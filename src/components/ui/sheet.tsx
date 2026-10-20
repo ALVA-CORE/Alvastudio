@@ -4,6 +4,7 @@ import CloseCircle from "@solar-icons/react/ui/CloseCircle"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { useKeyboardInset } from "@/hooks/useKeyboardInset"
 
 const Sheet = SheetPrimitive.Root
 
@@ -62,12 +63,38 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, hideClose = false, ...props }, ref) => (
+>(({ side = "right", className, children, hideClose = false, style, ...props }, ref) => {
+  /**
+   * Lifted clear of the on-screen keyboard.
+   *
+   * `bottom: 0` is measured against the layout viewport, which a keyboard does
+   * not shrink — so a sheet with a field in it ends up underneath the keyboard
+   * the moment that field is focused, visible to nobody and typable into by
+   * nobody. Raising it by the covered height puts it back on screen.
+   *
+   * Bottom only: a side panel is full height and has nothing to lift.
+   */
+  const keyboardInset = useKeyboardInset();
+  const lifted = side === "bottom" ? keyboardInset : 0;
+
+  return (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
+      style={
+        lifted
+          ? {
+              ...style,
+              bottom: lifted,
+              /* The sheet cannot be taller than what is left of the screen,
+                 or its own top runs off instead. */
+              maxHeight: `calc(100dvh - ${lifted}px)`,
+              overflowY: "auto",
+            }
+          : style
+      }
       {...props}
     >
       {children}
@@ -79,7 +106,8 @@ const SheetContent = React.forwardRef<
       )}
     </SheetPrimitive.Content>
   </SheetPortal>
-))
+  );
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({

@@ -159,13 +159,15 @@ export default function InternRecordPage() {
           />
         )}
 
-        <StudioSiriControl
-          className="mt-10 h-28"
-          phase={recorder.phase}
-          onPrimary={handlePrimary}
-          disabled={total === 0 && recorder.phase === "idle"}
-          disabledLabel="No topic to record"
-        />
+        {!loadingTopics && (
+          <StudioSiriControl
+            className="mt-10 h-28"
+            phase={recorder.phase}
+            onPrimary={handlePrimary}
+            disabled={total === 0 && recorder.phase === "idle"}
+            disabledLabel="No topic to record"
+          />
+        )}
 
         {recorder.error && (
           <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>

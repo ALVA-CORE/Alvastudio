@@ -243,6 +243,7 @@ export default function ContributorStudioPage() {
           />
         )}
 
+        {!loadingCard && (
         <StudioSiriControl
           className="mt-10 h-28"
           phase={recorder.phase}
@@ -252,6 +253,7 @@ export default function ContributorStudioPage() {
             outOfQuota ? quotaMessage(quota) : "Nothing to record right now"
           }
         />
+        )}
 
         {recorder.error && (
           <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
