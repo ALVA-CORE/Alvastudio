@@ -54,11 +54,15 @@ describe("LeaderboardPodium", () => {
     expect(names).toEqual(["Bola", "Ada", "Chidi"]);
   });
 
-  it("says the board is empty rather than rendering nothing", () => {
+  it("keeps the three steps standing when nobody is on the board", () => {
     /* A card that simply ends under the points balance looks like something
-       failed to load, which is what an empty leaderboard looked like. */
+       failed to load, which is what an empty leaderboard looked like. The
+       steps stay, empty, so it reads as a board nobody has reached. */
     render(<LeaderboardPodium entries={toPodium([])} />);
 
-    expect(screen.getByText("Nobody on the board yet")).toBeInTheDocument();
+    expect(screen.getAllByText("Open")).toHaveLength(3);
+    expect(
+      screen.getByText(/Nobody is on the board yet/)
+    ).toBeInTheDocument();
   });
 });

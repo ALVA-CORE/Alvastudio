@@ -23,6 +23,7 @@ import { StudioProgress } from "@/components/contributors/studio/StudioProgress"
 import { StudioPromptStack } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
 import { TextureButton } from "@/components/ui/texture-button";
 
@@ -217,11 +218,13 @@ export default function ContributorStudioPage() {
           />
         </div>
 
-        {cardError ? (
+        {loadingCard ? (
+          <StudioPromptStackSkeleton className="mt-8" />
+        ) : cardError ? (
           <p role="alert" className="mt-8 text-center text-sm text-destructive">
             {cardError}
           </p>
-        ) : !loadingCard && total === 0 ? (
+        ) : total === 0 ? (
           /* 404 from /next means the bank is exhausted for this contributor —
              an end state, not a failure. */
           <AlvaEmptyState

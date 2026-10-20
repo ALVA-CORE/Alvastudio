@@ -261,7 +261,7 @@ export function ParticipantIntakeModal({
                           ageBracket: value as ParticipantDraft["ageBracket"],
                         })
                       }
-                      placeholder="Age bracket"
+                      label="Age bracket"
                       options={AGE_BRACKET_OPTIONS}
                       hasError={Boolean(fieldErrors.ageBracket)}
                     />
@@ -276,7 +276,7 @@ export function ParticipantIntakeModal({
                           gender: value as ParticipantDraft["gender"],
                         })
                       }
-                      placeholder="Gender"
+                      label="Gender"
                       options={GENDER_OPTIONS}
                       hasError={Boolean(fieldErrors.gender)}
                     />
@@ -317,7 +317,7 @@ export function ParticipantIntakeModal({
                           sessionLanguage: value as ParticipantDraft["sessionLanguage"],
                         })
                       }
-                      placeholder="Session language"
+                      label="Session language"
                       options={SESSION_LANGUAGE_OPTIONS}
                       hasError={Boolean(fieldErrors.sessionLanguage)}
                     />
@@ -332,7 +332,7 @@ export function ParticipantIntakeModal({
                           consent: value as ParticipantDraft["consent"],
                         })
                       }
-                      placeholder="Consent"
+                      label="Consent"
                       options={CONSENT_OPTIONS}
                       hasError={Boolean(fieldErrors.consent)}
                     />

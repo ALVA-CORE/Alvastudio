@@ -11,7 +11,8 @@ deployed and wired. Only what is still open is listed here.
 | --- | --- | --- | --- |
 | 1 | Scoring definitions, not endpoints | The quality radar and one figure | Medium |
 | 2 | Speaker demographics as a joint, not two marginals | 2 charts, still seeded | Low |
-| 3 | A state on the session itself | One admin column, derived today | Low |
+| 3 | `under_18` on `AgeBracket`, a question | Nothing, but the enum allows what we refuse | Low |
+| 4 | A state on the session itself | One admin column, derived today | Low |
 
 Three asks came off this list on 20 Oct without anything being built at your
 end: `daily_activity` on `/dashboard/intern`, `tag_breakdown` on
@@ -54,7 +55,21 @@ cannot be crossed, so both charts are seeded. This is the same shape as
 Speaker counts would do, we do not need hours, and we know a focus group's
 hours cannot be split by speaker.
 
-## 3. A state on the session itself
+## 3. `under_18` on `AgeBracket`
+
+We do not approve anyone under 18. Sign-up gates on it with an attestation
+checkbox, the form's bracket list starts at 18-24, and we never send
+`under_18`.
+
+The enum still accepts it, so a record can carry a value our product says
+cannot exist. **Could it be rejected for contributors at the API?** Until then
+we surface it as "Under 18" rather than folding it into 18-24, which is what we
+were doing and which hid exactly the case worth seeing.
+
+`65_plus` we do fold, into our "55+" bucket. That one is a display choice and
+is correct, since 55+ includes 65+.
+
+## 4. A state on the session itself
 
 `GET /focus-groups` has no session state, so the admin column takes the
 commonest `state` among the participants. It is right in practice and wrong in
@@ -74,8 +89,11 @@ confirmation that the derivation is the intended rule, closes it.
 | `*_kobo` vs decimal strings | We use the integers |
 | `X-Total-Count` header | Not reachable from our client, so we pass `?envelope=true` |
 | `POST /wallet/identity/nin` consent | Collected with a checkbox. It is an attestation to a government database check, so we do not send `true` on somebody's behalf. |
+| `selfie_base64` | Now sent. Worth knowing it is `anyOf: [string, null]` and absent from `required`, but the call is refused without it — "A selfie is required so your face can be matched to your ID photo". We read that as required and built a camera step for it; if the schema could say so too, the next person reading it would not have to find out by submitting. A fallback upload covers a blocked camera. Downscaled to 720px JPEG, bare base64, no `data:` prefix. |
 | `/prompts/next` | Unused. A prompt is not used up by being read, so we page the whole active bank locally. |
 | `device_mic` on an upload | Now sent. We read the label off the live audio track, so it is the mic that clip was recorded on rather than the one typed into a profile. Blank where a browser withholds the label, and then omitted rather than guessed. |
 | `GET /wallet/payout-destination` | We were reading it as a single object with an `account_number`. It is a list, and carries `account_last4`, so the wallet shows a masked number and picks the first `is_usable` destination. |
 | `english_fluency` | Now sent and read back. It had nowhere to go when the onboarding form was built. |
+| Remember me | Entirely ours, nothing needed from you. Ticked keeps the token in localStorage, unticked in sessionStorage, so it only decides whether the token outlives the tab. How long the token is valid stays yours. |
+| Sign-up drafts | The two sign-up forms keep their answers across a refresh, in localStorage. Password fields are excluded and never written. |
 | iOS Safari mp4/AAC | The type comes from `MediaRecorder.mimeType`, with a matching extension. |

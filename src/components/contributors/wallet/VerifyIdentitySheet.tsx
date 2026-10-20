@@ -9,10 +9,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { FieldBeam } from "@/components/shared/FieldBeam";
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
+import { SelfieCapture } from "@/components/contributors/wallet/SelfieCapture";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import type { IdentityState } from "@/data/contributors/wallet";
 import { cn } from "@/lib/utils";
+import { alvaToast } from "@/lib/alva-toast";
+import { reportApiError } from "@/lib/api/reportApiError";
 
 /** A NIN is eleven digits. Nothing shorter is worth sending. */
 const NIN_LENGTH = 11;
@@ -42,21 +45,25 @@ export function VerifyIdentitySheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   state: IdentityState;
-  onSubmit: (nin: string, consent: boolean) => void;
+  onSubmit: (nin: string, consent: boolean, selfie: string) => Promise<void>;
 }) {
   const [nin, setNin] = useState("");
   const [consent, setConsent] = useState(false);
+  const [selfie, setSelfie] = useState<string | null>(null);
+  const [step, setStep] = useState<"details" | "photo">("details");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setNin("");
     setConsent(false);
+    setSelfie(null);
+    setStep("details");
     setSubmitting(false);
   }, [open]);
 
   // Disabled until consent is checked, regardless of how many digits are in.
-  const submitDisabled = !consent || nin.length !== NIN_LENGTH;
+  const detailsDone = consent && nin.length === NIN_LENGTH;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -72,7 +79,9 @@ export function VerifyIdentitySheet({
           <p className="text-sm text-muted-foreground">
             {state === "pending"
               ? "This usually takes a few minutes. You can close this and carry on recording."
-              : null}
+              : step === "photo"
+                ? "Last step. Your face is matched against the photo on your NIN record."
+                : null}
           </p>
         </SheetHeader>
 
@@ -90,6 +99,51 @@ export function VerifyIdentitySheet({
           </div>
         ) : (
           <div className="mt-5 space-y-4">
+            {step === "photo" ? (
+              <>
+                <SelfieCapture value={selfie} onChange={setSelfie} />
+
+                <div className="flex items-center gap-2">
+                  <TextureButton
+                    variant="minimal"
+                    size="lg"
+                    className="w-auto"
+                    onClick={() => setStep("details")}
+                  >
+                    Back
+                  </TextureButton>
+
+                  <TextureButton
+                    variant="alva"
+                    size="lg"
+                    disabled={!selfie}
+                    loading={submitting}
+                    onClick={async () => {
+                      if (!selfie) return;
+                      setSubmitting(true);
+                      try {
+                        await onSubmit(nin, consent, selfie);
+                      } catch (cause) {
+                        /* The caller closes the sheet on success, so reaching
+                           here means it failed and everything typed is still
+                           on screen. Say why rather than letting the rejection
+                           escape to the console. */
+                        const message = reportApiError(
+                          cause,
+                          "Could not submit that for checking."
+                        );
+                        if (message) alvaToast.error(message);
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                  >
+                    Submit for checking
+                  </TextureButton>
+                </div>
+              </>
+            ) : (
+            <>
             <div>
               <label
                 htmlFor="wallet-nin"
@@ -136,15 +190,13 @@ export function VerifyIdentitySheet({
               variant="alva"
               size="lg"
               className={cn("mt-1")}
-              disabled={submitDisabled}
-              loading={submitting}
-              onClick={() => {
-                setSubmitting(true);
-                onSubmit(nin, consent);
-              }}
+              disabled={!detailsDone}
+              onClick={() => setStep("photo")}
             >
-              Submit for checking
+              Continue
             </TextureButton>
+            </>
+            )}
           </div>
         )}
       </SheetContent>

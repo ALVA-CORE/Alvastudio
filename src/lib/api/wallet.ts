@@ -110,10 +110,22 @@ export const setPayoutDestination = (body: {
  * The number is fingerprinted for duplicate detection and never stored in the
  * clear, so nothing comes back but the new state.
  */
-export const submitNin = (nin: string, consent: boolean) =>
-  apiFetch<{ identity_status: ApiIdentityStatus }>("/wallet/identity/nin", {
+/**
+ * `selfie_base64` is optional in the schema and required in practice.
+ *
+ * Bachs matches the photo against the one on the government NIN record and
+ * refuses the call without it, so a submission with only the number comes back
+ * "A selfie is required so your face can be matched to your ID photo". Bare
+ * base64, no `data:` prefix.
+ */
+export const submitNin = (nin: string, consent: boolean, selfieBase64?: string) =>
+  apiFetch<{
+    identity_status: ApiIdentityStatus;
+    detail?: string;
+    verification_url?: string | null;
+  }>("/wallet/identity/nin", {
     method: "POST",
-    body: { nin, consent },
+    body: { nin, consent, selfie_base64: selfieBase64 ?? null },
   });
 
 /**

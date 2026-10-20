@@ -133,7 +133,12 @@ const TextureButton = React.forwardRef<HTMLButtonElement, UnifiedButtonProps>(
       <Comp
         className={cn(
           buttonVariantsOuter({ variant, size }),
-          loading && "cursor-progress",
+          /* Dimmed and drained of colour while it cannot be pressed. An
+             accent button that looks exactly as pressable mid-request is one
+             people press again. Desaturation does the work rather than a flat
+             grey, so each variant keeps its own shape and weight. */
+          isBlocked && "opacity-60 saturate-[0.35]",
+          loading ? "cursor-progress" : disabled && "cursor-not-allowed",
           className
         )}
         ref={ref}

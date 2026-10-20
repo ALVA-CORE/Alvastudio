@@ -119,17 +119,12 @@ export const EMPTY_WEEKLY_SESSIONS = WEEKLY_SESSIONS.map((point) => ({
   sessions: 0,
 }));
 
-export const QUALITY_SEGMENTS: QualitySegment[] = [
-  { key: "approved", label: "Approved", value: 62, color: "hsl(var(--alva-accent))" },
-  { key: "pending", label: "In review", value: 24, color: "hsl(0 0% 42%)" },
-  { key: "rework", label: "Re-record", value: 9, color: "hsl(38 92% 50%)" },
-  { key: "rejected", label: "Rejected", value: 5, color: "hsl(0 72% 51%)" },
-];
-
-export const QUALITY_INSIGHTS: Insight[] = [
-  { label: "Acceptance rate", value: "87%" },
-  { label: "Avg review time", value: "1.2d" },
-  { label: "This week", value: "+12 clips" },
+/** The bar's four tracks at zero, so the frame survives an empty breakdown. */
+export const EMPTY_QUALITY_SEGMENTS: QualitySegment[] = [
+  { key: "approved", label: "Approved", value: 0, color: "hsl(var(--alva-accent))" },
+  { key: "pending", label: "In review", value: 0, color: "hsl(0 0% 42%)" },
+  { key: "rework", label: "Re-record", value: 0, color: "hsl(38 92% 50%)" },
+  { key: "rejected", label: "Rejected", value: 0, color: "hsl(0 72% 51%)" },
 ];
 
 export const EMPTY_QUALITY_INSIGHTS: Insight[] = [

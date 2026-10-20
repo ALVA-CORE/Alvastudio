@@ -181,8 +181,8 @@ export function WalletFace({
         open={verifyOpen}
         onOpenChange={setVerifyOpen}
         state={wallet.identity}
-        onSubmit={async (nin, consent) => {
-          await submitNin(nin, consent);
+        onSubmit={async (nin, consent, selfie) => {
+          await submitNin(nin, consent, selfie);
           onRefresh();
           setVerifyOpen(false);
           alvaToast.success("NIN submitted, we'll let you know");

@@ -68,12 +68,16 @@ const AGE_BRACKET_TO_API: Record<string, ApiAgeBracket> = {
 };
 
 const AGE_BRACKET_FROM_API: Record<string, string> = {
-  under_18: "18-24",
+  /* Surfaced, not folded into the adult bracket above it. Sign-up gates at 18
+   * and we never send this, so a record carrying it is something to look at
+   * rather than something to relabel as 18-24. */
+  under_18: "Under 18",
   "18_24": "18-24",
   "25_34": "25-34",
   "35_44": "35-44",
   "45_54": "45-54",
   "55_64": "55+",
+  /* Deliberately folded: our bucket is "55+", which includes 65. */
   "65_plus": "55+",
 };
 

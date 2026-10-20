@@ -1,7 +1,6 @@
 import {
   EMPTY_QUALITY_INSIGHTS,
-  QUALITY_INSIGHTS,
-  QUALITY_SEGMENTS,
+  EMPTY_QUALITY_SEGMENTS,
   type QualitySegment,
 } from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
@@ -60,7 +59,10 @@ export function QualityProgressBar({
           { key: "rework", label: "Re-record", value: pct(Math.max(0, breakdown.not_approved - breakdown.rejected), breakdown.total), color: "hsl(38 92% 50%)" },
           { key: "rejected", label: "Rejected", value: pct(breakdown.rejected, breakdown.total), color: "hsl(0 72% 51%)" },
         ]
-      : QUALITY_SEGMENTS;
+      /* Zeroed, not seeded. A contributor with nothing reviewed used to be
+         shown somebody else's 62% approved, which is a figure about their own
+         work and therefore the one thing that must never be invented. */
+      : EMPTY_QUALITY_SEGMENTS;
 
   const liveRate =
     total && total > 0 && approved != null
@@ -77,7 +79,7 @@ export function QualityProgressBar({
           { label: "Avg review time", value: NO_VALUE },
           { label: "Total clips", value: String(total) },
         ]
-      : QUALITY_INSIGHTS;
+      : EMPTY_QUALITY_INSIGHTS;
 
   return (
     <section className={cn("mt-6 px-4", className)}>

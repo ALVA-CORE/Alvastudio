@@ -19,21 +19,38 @@ const TOKEN_KEY = "alva-auth-token";
  * localStorage rather than an httpOnly cookie because the API issues a bearer
  * token for the client to carry, not a session cookie. That is the backend's
  * choice; if it later sets a cookie, this module is the only thing to change.
+ *
+ * WHICH storage is what "Remember me" actually controls, and it needs nothing
+ * from the API: the token's own lifetime is the backend's business, and this
+ * is only about whether it outlives the tab. Remembered writes to
+ * localStorage, not remembered to sessionStorage, which the browser clears
+ * when the tab closes. Reads check both, so a session already in flight is
+ * never dropped by a change of preference.
  * ------------------------------------------------------------------ */
 
 export function getToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
   } catch {
     // Private mode, blocked storage — treat as signed out rather than throwing.
     return null;
   }
 }
 
-export function setToken(token: string | null): void {
+/**
+ * Stores the token, or clears it from both stores.
+ *
+ * `remember` defaults to true so every existing caller — the boot-time
+ * refresh, a signup — keeps today's behaviour. Only sign-in passes false.
+ */
+export function setToken(token: string | null, remember = true): void {
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    if (!token) return;
+
+    const store = remember ? localStorage : sessionStorage;
+    store.setItem(TOKEN_KEY, token);
   } catch {
     /* Nothing useful to do; the request layer will 401 and sign the user out. */
   }
