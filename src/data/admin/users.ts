@@ -68,10 +68,10 @@ export type AdminUser = {
   /** Admins only — which areas they can open. */
   permissions?: AdminPermission[];
   /**
-   * Interns only. They apply rather than being invited, so the account exists
-   * before anyone has agreed to it and cannot be signed into until an admin
-   * says so. Every other role is either self-serve (contributor) or created by
-   * an admin, which is the approval.
+   * Interns and annotators. Both apply rather than being invited, so the
+   * account exists before anyone has agreed to it and cannot be used until an
+   * admin says so. Contributors are self-serve, and an admin-created account
+   * is approved by the act of creating it.
    */
   approval?: "pending" | "approved";
 };
@@ -80,7 +80,7 @@ export type AccountStatus = "pending" | "active" | "deactivated";
 
 /** One status, so the table, the panel and the filter cannot disagree. */
 export function accountStatus(user: AdminUser): AccountStatus {
-  if (user.role === "intern" && user.approval === "pending") return "pending";
+  if (user.approval === "pending") return "pending";
   return user.isActive ? "active" : "deactivated";
 }
 
@@ -161,9 +161,10 @@ function buildUsers(): AdminUser[] {
       role,
       // A handful of leavers, so the filter has something to hide.
       isActive: role === "intern" && index % 2 === 0 ? false : random() > 0.12,
-      // Half the interns are still waiting on an admin, so the queue is
-      // visible the moment the page opens.
-      approval: (role === "intern"
+      /* Interns and annotators both apply, and some of each are still
+       * waiting, so the approval queue is visible the moment the page opens
+       * rather than only after somebody signs up. */
+      approval: (role === "intern" || role === "annotator"
         ? index % 2 === 0
           ? "pending"
           : "approved"

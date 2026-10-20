@@ -46,8 +46,11 @@ export function fromApiUser(api: ApiUser): AdminUser {
     joinedLabel: relativeDays(created),
     output: 0,
     outputLabel: OUTPUT_LABEL[api.role],
+    /* Annotators apply too, and `intern_approved` is the only approval flag
+     * the API has, so it carries both. Flagged in the asks doc: the field is
+     * named for one role and used by two. */
     approval:
-      api.role === "intern"
+      api.role === "intern" || api.role === "annotator"
         ? api.intern_approved
           ? "approved"
           : "pending"

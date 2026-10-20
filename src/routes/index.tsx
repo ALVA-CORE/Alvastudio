@@ -5,6 +5,7 @@ import { DocumentTitle } from "@/components/layout/DocumentTitle";
 import LoginPage from "@/pages/auth/LoginPage";
 import ContributorSignupPage from "@/pages/auth/ContributorSignupPage";
 import SignupPage from "@/pages/auth/SignupPage";
+import AnnotatorSignupPage from "@/pages/auth/AnnotatorSignupPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
 import ContributorDashboardPage from "@/pages/contributors/ContributorDashboardPage";
 import ContributorStudioPage from "@/pages/contributors/ContributorStudioPage";
@@ -74,6 +75,7 @@ export function AppRoutes() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/contributor/signup" element={<ContributorSignupPage />} />
             <Route path="/intern/signup" element={<SignupPage />} />
+            <Route path="/annotator/signup" element={<AnnotatorSignupPage />} />
             <Route path="/signup" element={<Navigate to="/intern/signup" replace />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           </Route>

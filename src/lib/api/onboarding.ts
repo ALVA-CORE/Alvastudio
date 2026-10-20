@@ -74,6 +74,16 @@ export function getAnnotatorProfile(): Promise<ApiAnnotatorProfile> {
   return apiFetch<ApiAnnotatorProfile>("/onboarding/annotator-profile");
 }
 
+/** A merge, like the contributor profile: only the fields sent are applied. */
+export function upsertAnnotatorProfile(
+  patch: ApiAnnotatorProfile
+): Promise<ApiAnnotatorProfile> {
+  return apiFetch<ApiAnnotatorProfile>("/onboarding/annotator-profile", {
+    method: "PUT",
+    body: patch,
+  });
+}
+
 export function listConsents(): Promise<ApiConsent[]> {
   return apiFetch<ApiConsent[]>("/onboarding/consent");
 }

@@ -17,7 +17,13 @@ import type {
 import * as authApi from "@/lib/api/auth";
 import type { ApiUser } from "@/lib/api/auth";
 import { ApiError, getToken } from "@/lib/api/client";
-import { profileToApi, recordConsent, upsertProfile } from "@/lib/api/onboarding";
+import {
+  profileToApi,
+  recordConsent,
+  upsertAnnotatorProfile,
+  upsertProfile,
+  type ApiAnnotatorProfile,
+} from "@/lib/api/onboarding";
 
 /**
  * Session state, backed by the API (`docs/backend/api.md` §3).
@@ -43,6 +49,8 @@ type SignupPayload = {
   internProfile?: InternProfileData;
   contributorProfile?: ContributorProfileData;
   annotatorProfile?: AnnotatorProfileData;
+  /** Written to `/onboarding/annotator-profile`, for an admin to check. */
+  annotatorClearance?: ApiAnnotatorProfile;
 };
 
 type AuthContextValue = {
@@ -85,11 +93,16 @@ function toAppRole(role: ApiUser["role"]): UserRole {
   return role;
 }
 
-/** Roles the API will accept at registration. */
+/**
+ * Roles the API will accept at registration.
+ *
+ * `RegisterIn.role` is the whole `UserRole` enum, annotator included. This used
+ * to downgrade annotator to contributor because there was no annotator sign-up
+ * and nothing to send; now there is one, and sending the real role is what
+ * makes the account land in front of an admin.
+ */
 function toApiRole(role: UserRole | undefined): ApiUser["role"] {
-  if (role === "intern" || role === "admin") return role;
-  // `annotator` has no server-side equivalent; register as a contributor rather
-  // than sending a value the API will reject outright.
+  if (role === "intern" || role === "admin" || role === "annotator") return role;
   return "contributor";
 }
 
@@ -220,6 +233,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await recordConsent({ accepted: true });
       } catch {
         /* Non-fatal: the account exists and the form data stays cached locally. */
+      }
+    }
+
+    /* What an annotator claims they can tag, on the profile an admin reads
+     * before approving. Same rule: a failure here must not fail the signup. */
+    if (payload.annotatorClearance) {
+      try {
+        await upsertAnnotatorProfile(payload.annotatorClearance);
+        await recordConsent({ accepted: true });
+      } catch {
+        /* Non-fatal, and recoverable from the profile page. */
       }
     }
 
