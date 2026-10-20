@@ -49,7 +49,6 @@ type PieLabelProps = {
   outerRadius?: number;
   fill?: string;
   percent?: number;
-  status?: string;
 };
 
 function PieCalloutLabel({
@@ -59,17 +58,14 @@ function PieCalloutLabel({
   outerRadius = 0,
   fill = "currentColor",
   percent = 0,
-  status = "",
 }: PieLabelProps) {
-  const label =
-    pieConfig[status as keyof typeof pieConfig]?.label ?? status;
   const sin = Math.sin(-RADIAN * midAngle);
   const cos = Math.cos(-RADIAN * midAngle);
   const sx = cx + (outerRadius + 6) * cos;
   const sy = cy + (outerRadius + 6) * sin;
-  const mx = cx + (outerRadius + 22) * cos;
-  const my = cy + (outerRadius + 22) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 16;
+  const mx = cx + (outerRadius + 16) * cos;
+  const my = cy + (outerRadius + 16) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 10;
   const ey = my;
   const textAnchor = cos >= 0 ? "start" : "end";
 
@@ -87,9 +83,9 @@ function PieCalloutLabel({
         y={ey}
         textAnchor={textAnchor}
         dominantBaseline="central"
-        className="fill-foreground text-[10px] font-medium"
+        className="fill-foreground text-[11px] font-medium tabular-nums"
       >
-        {label} {`${Math.round(percent * 100)}%`}
+        {`${Math.round(percent * 100)}%`}
       </text>
     </g>
   );
@@ -201,7 +197,7 @@ export function DashboardCharts({
                 config={pieConfig}
                 className="mx-auto aspect-[4/3] w-full max-h-[240px]"
               >
-                <PieChart margin={{ top: 10, right: 42, bottom: 10, left: 42 }}>
+                <PieChart margin={{ top: 8, right: 28, bottom: 8, left: 28 }}>
                   {!mixEmpty && <ChartTooltip content={<ChartTooltipContent hideLabel />} />}
                   <Pie
                     data={mixData}
@@ -216,9 +212,7 @@ export function DashboardCharts({
                     label={
                       mixEmpty
                         ? false
-                        : (props) => (
-                            <PieCalloutLabel {...props} status={props.name as string} />
-                          )
+                        : (props) => <PieCalloutLabel {...props} />
                     }
                   >
                     {mixData.map((entry) => (
@@ -227,6 +221,28 @@ export function DashboardCharts({
                   </Pie>
                 </PieChart>
               </ChartContainer>
+
+              {/* The names sat on the callouts and ran off both edges of a
+                  phone, so "Prompt reads 100%" arrived as "eads 100%". The
+                  callout keeps the figure, which is short and always fits,
+                  and the names sit in a row that wraps instead of clipping. */}
+              {!mixEmpty && (
+                <ul className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+                  {mixData.map((entry) => (
+                    <li key={entry.type} className="flex items-center gap-1.5">
+                      <span
+                        aria-hidden
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: entry.fill }}
+                      />
+                      <span className="text-[11px] text-muted-foreground">
+                        {pieConfig[entry.type as keyof typeof pieConfig]?.label ??
+                          entry.type}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </ChartSlide>
           </CarouselItem>
 

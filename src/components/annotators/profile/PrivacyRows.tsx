@@ -38,8 +38,10 @@ function latestOf(consents: ApiConsent[], type: ApiConsentType) {
  * front of the editor is a prompt somebody dismisses to get to work, which is
  * not consent; here it is theirs to find, read and change whenever they like.
  *
- * Off is the default, including while this is loading, because the honest
- * thing to show about a permission nobody has granted is "off".
+ * On by default: an annotator with no record yet has one written for them the
+ * first time this loads, so the log works from day one rather than only for
+ * the people who went looking for a switch. It is theirs to turn off here at
+ * any time, and turning it off stops the recording immediately.
  */
 export function PrivacyRows() {
   const [consents, setConsents] = useState<ApiConsent[] | null>(null);
@@ -49,7 +51,27 @@ export function PrivacyRows() {
     let cancelled = false;
 
     listConsents()
-      .then((rows) => {
+      .then(async (rows) => {
+        if (cancelled) return;
+
+        /* No record at all means they have never been asked, not that they
+         * said no. The default is on, so it is written now — once, and only
+         * when nothing is on file. A withdrawal is a record saying `false`,
+         * which this leaves alone. */
+        if (!latestOf(rows, "annotation_activity_log")) {
+          try {
+            const saved = await recordConsent({
+              consent_type: "annotation_activity_log",
+              accepted: true,
+            });
+            if (!cancelled) setConsents([...rows, saved]);
+            return;
+          } catch {
+            /* Falls through to the rows we have: the switch then shows off,
+             * which is what the API will enforce anyway. */
+          }
+        }
+
         if (!cancelled) setConsents(rows);
       })
       .catch(() => {

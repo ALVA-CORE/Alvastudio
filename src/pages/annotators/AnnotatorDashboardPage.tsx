@@ -24,7 +24,7 @@ export default function AnnotatorDashboardPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
-  const { metrics, activity, isLoading, error, reload } =
+  const { metrics, activity, tagBreakdown, isLoading, error, reload } =
     useAnnotatorDashboard(timeRange);
   const { forceEmpty } = useDevUiState();
 
@@ -32,9 +32,9 @@ export default function AnnotatorDashboardPage() {
     return <AnnotatorMobileGate />;
   }
 
-  /* Metrics and the activity series are live. The tag-mix sunburst and the
-   * demographic-reach chart are not: the API exposes no per-tag or per-speaker
-   * breakdown for an annotator, so those two keep their sample shapes. */
+  /* The demographic-reach chart is the last seeded one here: the endpoint
+   * carries speaker counts by gender and by age bracket as two marginals, and
+   * that chart needs them crossed. Everything else is live. */
   const base = forceEmpty
     ? getEmptyAnnotatorDataset(timeRange)
     : ANNOTATOR_DASHBOARD_DATA[timeRange];
@@ -42,6 +42,7 @@ export default function AnnotatorDashboardPage() {
   const dataset = {
     ...base,
     activity: forceEmpty ? base.activity : activity,
+    tagBreakdown: forceEmpty ? base.tagBreakdown : tagBreakdown,
   };
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 

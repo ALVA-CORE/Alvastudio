@@ -122,9 +122,42 @@ export function LeaderboardPodium({
   const [first, second, third] = entries ?? [];
 
   /* Nobody ranked yet. One or two is fine — an early corpus genuinely has one
-     person on it, and hiding the board until a third arrives was why it
-     vanished rather than showing the one person who was on it. */
-  if (!first) return null;
+     person on it, and hiding the board until a third arrived was why it
+     vanished rather than showing the one person who was on it.
+     With nobody at all, say so: a card that simply ends under the balance
+     looks like something failed to load. */
+  if (!first) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center gap-1 px-4 pb-6 pt-5 text-center",
+          className
+        )}
+      >
+        <MedalStar
+          size={20}
+          weight="BoldDuotone"
+          className={embedded ? "text-alva-bg/70" : "text-muted-foreground"}
+        />
+        <p
+          className={cn(
+            "text-xs font-medium",
+            embedded ? "text-alva-bg" : "text-foreground"
+          )}
+        >
+          Nobody on the board yet
+        </p>
+        <p
+          className={cn(
+            "max-w-[16rem] text-[11px] leading-relaxed",
+            embedded ? "text-alva-bg/70" : "text-muted-foreground"
+          )}
+        >
+          The top three appear here once contributors start earning points.
+        </p>
+      </div>
+    );
+  }
 
   /* Second on the left, first in the middle, third on the right, with the
      steps that are not filled simply absent. Height already says who won, so

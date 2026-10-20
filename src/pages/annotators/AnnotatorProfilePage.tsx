@@ -16,6 +16,8 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { AGREEMENT_TARGET_OPTIONS } from "@/lib/validations/auth";
 import { useAuth } from "@/lib/auth/context";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAnnotatorProfile } from "@/hooks/useAnnotatorProfile";
+import { NO_VALUE } from "@/lib/no-value";
 
 function agreementLabel(value?: string) {
   return (
@@ -30,6 +32,7 @@ export default function AnnotatorProfilePage() {
   const isMobile = useIsMobile();
   const firstName = user?.fullName?.split(" ")[0] ?? "User";
   const profile = user?.annotatorProfile;
+  const { clearance, isLoading: loadingClearance } = useAnnotatorProfile();
 
   const handleLogout = () => {
     logout();
@@ -71,14 +74,20 @@ export default function AnnotatorProfilePage() {
             sheetTitle="Language clearance"
             sheetDescription="The varieties you are cleared to tag."
           >
+            {/* Both rows come from `/onboarding/annotator-profile`. They used
+                to be fixed strings that happened to match the common case. */}
             <dl>
               <ProfileInfoBlock
                 label="Cleared varieties"
-                value={profile?.varieties ?? "Nigerian English, Nigerian Pidgin"}
+                value={
+                  loadingClearance
+                    ? NO_VALUE
+                    : clearance?.varieties || "Not set"
+                }
               />
               <ProfileInfoBlock
                 label="Session scope"
-                value={profile?.scope ?? "All focus group sessions"}
+                value={loadingClearance ? NO_VALUE : clearance?.scope || "Not set"}
               />
             </dl>
           </ProfileActionRow>

@@ -4,6 +4,10 @@ import { useApiResource } from "@/hooks/useApiResource";
 import type { HeatmapColumn } from "@/components/charts/heatmap";
 import { NO_VALUE } from "@/lib/no-value";
 import type { DashboardTimeRange } from "@/data/internDashboard";
+import type { ApiTagBreakdown } from "@/lib/api/dashboard";
+import type { SunburstNode } from "@/components/charts/sunburst-data";
+import type { SpanKind } from "@/lib/annotation/tags";
+import { NON_SPEECH_COLOR, tagColor, tagFamily, tagLabel } from "@/lib/annotation/tags";
 
 /**
  * `daily_activity` → the calendar shape the activity chart reads.
@@ -63,6 +67,54 @@ const RANGE_DAYS: Record<DashboardTimeRange, number> = {
   "12m": 365,
 };
 
+/**
+ * `tag_breakdown` → the sunburst's two rings.
+ *
+ * Family on the inside, the values within it on the outside, which is the
+ * shape the API actually has. It used to be variety → family → tag, and the
+ * variety ring was invented: nothing reports which tags were applied to which
+ * language, so that ring could only ever have been made up.
+ *
+ * Families with nothing in them are left out rather than drawn as zero-width
+ * slivers, and an annotator who has tagged nothing gets no node at all, which
+ * the card reads as its empty state.
+ */
+export function toTagSunburst(breakdown: ApiTagBreakdown | undefined): SunburstNode {
+  const families: { kind: SpanKind; counts: Record<string, number> }[] = [
+    { kind: "language", counts: breakdown?.by_language ?? {} },
+    { kind: "disfluency", counts: breakdown?.by_disfluency ?? {} },
+    { kind: "untranscribable", counts: breakdown?.by_untranscribable_reason ?? {} },
+  ];
+
+  const children: SunburstNode[] = families
+    .map(({ kind, counts }) => ({
+      name: tagFamily(kind).label,
+      color: tagColor(kind),
+      children: Object.entries(counts)
+        .filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([value, count]) => ({ name: tagLabel(kind, value), value: count })),
+    }))
+    .filter((family) => family.children.length > 0);
+
+  /* Non-speech events are their own family at the API and have no span kind,
+   * so they carry the colour the workspace already paints them. */
+  const nonSpeech = Object.entries(breakdown?.by_non_speech_event ?? {})
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([value, count]) => ({ name: value, value: count }));
+
+  if (nonSpeech.length > 0) {
+    children.push({
+      name: "Non-speech",
+      color: NON_SPEECH_COLOR,
+      children: nonSpeech,
+    });
+  }
+
+  return { name: "Tags", children };
+}
+
 export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
   const { data, isLoading, error, reload } = useApiResource(annotatorDashboard, []);
 
@@ -91,5 +143,10 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
     [data]
   );
 
-  return { data, metrics, activity, isLoading, error, reload };
+  const tagBreakdown = useMemo(
+    () => toTagSunburst(data?.tag_breakdown),
+    [data]
+  );
+
+  return { data, metrics, activity, tagBreakdown, isLoading, error, reload };
 }

@@ -23,17 +23,29 @@ vi.mock("@/lib/api/wallet", async () => {
       next_action: null,
       next_action_detail: null,
     })),
-    getPayoutDestination: vi.fn(async () => ({
-      bank_code: "057",
-      bank_name: MOCK_WALLET.payoutAccount?.bank ?? "Zenith Bank",
-      account_number: MOCK_WALLET.payoutAccount?.accountNumber ?? "0123456789",
-      account_name: MOCK_WALLET.payoutAccount?.accountName ?? "Chioma Okafor",
-    })),
+    /* A list, and no account number: the API returns the last four digits
+       only. See `ApiPayoutDestination`. */
+    listPayoutDestinations: vi.fn(async () => [
+      {
+        id: "d1",
+        destination_type: "bank_account",
+        bank_code: "057",
+        account_name: MOCK_WALLET.payoutAccount?.accountName ?? "Chioma Okafor",
+        account_last4: "6789",
+        is_usable: true,
+        bachs_destination_id: null,
+        created_at: new Date().toISOString(),
+      },
+    ]),
     setPayoutDestination: vi.fn(async () => ({
+      id: "d1",
+      destination_type: "bank_account",
       bank_code: "057",
-      bank_name: "Zenith Bank",
-      account_number: "0123456789",
       account_name: "Chioma Okafor",
+      account_last4: "6789",
+      is_usable: true,
+      bachs_destination_id: null,
+      created_at: new Date().toISOString(),
     })),
     listEarnings: vi.fn(async () => ({
       contributor_id: "c1",
