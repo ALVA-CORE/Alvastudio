@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api/client";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
 import { alvaToast } from "@/lib/alva-toast";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ParticipantIntakeModal } from "@/components/interns/participants/ParticipantIntakeModal";
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
@@ -133,11 +134,13 @@ export default function InternRecordPage() {
           label={loadingTopics ? "Loading…" : total ? "Session progress" : "No topics"}
         />
 
-        {topicsError ? (
+        {loadingTopics ? (
+          <StudioPromptStackSkeleton className="mt-8" />
+        ) : topicsError ? (
           <p role="alert" className="mt-8 text-center text-sm text-destructive">
             {topicsError}
           </p>
-        ) : !loadingTopics && total === 0 ? (
+        ) : total === 0 ? (
           /* The bank is curated by an admin, so an empty one is a message for
              them rather than something an intern can fix from here. */
           <AlvaEmptyState

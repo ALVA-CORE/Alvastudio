@@ -199,13 +199,29 @@ describe("PointsBalanceCard", () => {
     );
 
     /* The API requires a consent attestation and rejects the submission
-     * without it, so the button stays disabled until it is ticked. */
+     * without it, so the step cannot be left until it is ticked. */
+    const next = within(sheet).getByRole("button", { name: /Continue/ });
+    expect(next).toBeDisabled();
+
+    await userEvent.click(within(sheet).getByRole("checkbox"));
+    await userEvent.click(next);
+
+    /* Second step: Bachs matches a photo against the one on the NIN record
+     * and refuses the call without it, so submitting is gated on having one.
+     * The camera cannot run in jsdom, which is exactly why the upload
+     * fallback exists — this drives that path. */
     const submit = within(sheet).getByRole("button", {
       name: /Submit for checking/,
     });
     expect(submit).toBeDisabled();
 
-    await userEvent.click(within(sheet).getByRole("checkbox"));
+    const file = new File(["jpeg-bytes"], "selfie.jpg", { type: "image/jpeg" });
+    await userEvent.upload(
+      within(sheet).getByTestId("selfie-file") as HTMLInputElement,
+      file
+    );
+
+    await waitFor(() => expect(submit).toBeEnabled());
     await userEvent.click(submit);
 
     expect(await screen.findByText("We're checking your NIN")).toBeInTheDocument();

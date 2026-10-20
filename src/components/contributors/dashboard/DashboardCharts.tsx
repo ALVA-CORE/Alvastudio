@@ -233,7 +233,16 @@ export function DashboardCharts({
                       <span
                         aria-hidden
                         className="size-2 shrink-0 rounded-full"
-                        style={{ background: entry.fill }}
+                        /* The slice's own `fill` is `var(--color-prompts)`,
+                           which only resolves inside `ChartContainer` — it
+                           scopes those variables to itself. Out here the chip
+                           came out unpainted, so the colour is read from the
+                           config the container builds them from. */
+                        style={{
+                          background:
+                            pieConfig[entry.type as keyof typeof pieConfig]?.color ??
+                            entry.fill,
+                        }}
                       />
                       <span className="text-[11px] text-muted-foreground">
                         {pieConfig[entry.type as keyof typeof pieConfig]?.label ??
