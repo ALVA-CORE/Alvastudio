@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { EARNINGS } from "@/data/admin/payments";
 import { relativeDays } from "@/data/admin/shared";
 import type { Earning, PayoutStatus } from "@/data/admin/payments";
 
@@ -52,6 +54,7 @@ function toEarning(api: ApiEarningsRow): Earning {
  * cannot disagree.
  */
 export function useEarnings() {
+  const { forceDemo: demo } = useDevUiState();
   const [rows, setRows] = useState<Earning[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +62,14 @@ export function useEarnings() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (demo) {
+      setRows(EARNINGS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     listEarningsSummary()
@@ -77,7 +88,7 @@ export function useEarnings() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   return {
     rows,

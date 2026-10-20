@@ -1,11 +1,17 @@
-export type DevUiState = "normal" | "empty" | "loading";
+/**
+ * `demo` fills the annotator surface from the fixtures rather than the API,
+ * so the workspace can be recorded without a backend account that happens to
+ * hold a claimed session. It is a presentation mode, not a test mode: nothing
+ * it shows was ever on a server.
+ */
+export type DevUiState = "normal" | "empty" | "loading" | "demo";
 
 const STORAGE_KEY = "alva-dev-ui-state";
 
 export function readDevUiState(): DevUiState {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    if (value === "empty" || value === "loading") return value;
+    if (value === "empty" || value === "loading" || value === "demo") return value;
     return "normal";
   } catch {
     return "normal";
@@ -20,6 +26,7 @@ export function writeDevUiState(state: DevUiState) {
 export function cycleDevUiState(current: DevUiState): DevUiState {
   if (current === "normal") return "empty";
   if (current === "empty") return "loading";
+  if (current === "loading") return "demo";
   return "normal";
 }
 
@@ -27,4 +34,5 @@ export const DEV_UI_STATE_LABELS: Record<DevUiState, string> = {
   normal: "Normal",
   empty: "Empty",
   loading: "Loading",
+  demo: "Demo",
 };

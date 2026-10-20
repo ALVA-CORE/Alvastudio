@@ -32,6 +32,8 @@ export function useDevUiState() {
     devUiState: state,
     forceEmpty: state === "empty",
     forceLoading: state === "loading",
+    /** Fixtures instead of the API, for recording the annotator surface. */
+    forceDemo: state === "demo",
     setDevUiState,
     cycleDevUiStateMode,
   };

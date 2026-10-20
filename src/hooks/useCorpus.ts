@@ -8,6 +8,8 @@ import {
   type ApiTypeStatusCell,
 } from "@/lib/api/corpus";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { DEMO_CORPUS, DEMO_CORPUS_COVERAGE } from "@/data/admin/demo";
 import { round1 } from "@/data/admin/shared";
 import type { CorpusSlice, CorpusSnapshot, SankeyFlow } from "@/data/admin/corpus";
 
@@ -105,6 +107,7 @@ function toFlow(cells: ApiTypeStatusCell[]): SankeyFlow {
  * different things under the same label.
  */
 export function useCorpus() {
+  const { forceDemo: demo } = useDevUiState();
   const [data, setData] = useState<CorpusSnapshot | null>(null);
   const [coverage, setCoverage] = useState<ApiCorpusCoverage | null>(null);
   const [raw, setRaw] = useState<ApiCorpusSummary | null>(null);
@@ -114,6 +117,17 @@ export function useCorpus() {
 
   useEffect(() => {
     let cancelled = false;
+
+    /* `raw` stays null in demo: it is the untranslated summary, and only the
+     * cards that read the snapshot are being recorded. */
+    if (demo) {
+      setData(DEMO_CORPUS);
+      setCoverage(DEMO_CORPUS_COVERAGE);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     Promise.all([corpusSummary(), corpusCoverage()])
@@ -161,7 +175,7 @@ export function useCorpus() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   return {
     data,

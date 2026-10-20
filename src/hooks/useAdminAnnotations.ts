@@ -12,6 +12,8 @@ import {
 } from "@/lib/api/focusGroups";
 import { listUsers } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { ADMIN_ANNOTATIONS } from "@/data/admin/oversight";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import type { AdminAnnotation, AnnotationStatus } from "@/data/admin/oversight";
 import { NO_VALUE } from "@/lib/no-value";
@@ -29,6 +31,7 @@ import { NO_VALUE } from "@/lib/no-value";
  * to know them and the detail panel reads the real figures when it opens.
  */
 export function useAdminAnnotations() {
+  const { forceDemo: demo } = useDevUiState();
   const [rows, setRows] = useState<AdminAnnotation[]>([]);
   const [unclaimed, setUnclaimed] = useState<ApiSessionSummary[]>([]);
   const [annotators, setAnnotators] = useState<{ id: string; name: string }[]>([]);
@@ -38,6 +41,17 @@ export function useAdminAnnotations() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (demo) {
+      setRows(ADMIN_ANNOTATIONS);
+      /* No unclaimed queue: the Assign dialog writes, and demo mode has
+       * nowhere to write to. */
+      setUnclaimed([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     Promise.all([
@@ -83,7 +97,7 @@ export function useAdminAnnotations() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   const assign = useCallback(
     async (annotationId: string, annotator: { id: string; name: string }) => {

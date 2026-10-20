@@ -26,7 +26,7 @@ export default function AnnotatorDashboardPage() {
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
   const { metrics, activity, tagBreakdown, isLoading, error, reload } =
     useAnnotatorDashboard(timeRange);
-  const { forceEmpty } = useDevUiState();
+  const { forceEmpty, forceDemo } = useDevUiState();
 
   if (isMobile) {
     return <AnnotatorMobileGate />;
@@ -39,11 +39,26 @@ export default function AnnotatorDashboardPage() {
     ? getEmptyAnnotatorDataset(timeRange)
     : ANNOTATOR_DASHBOARD_DATA[timeRange];
 
-  const dataset = {
-    ...base,
-    activity: forceEmpty ? base.activity : activity,
-    tagBreakdown: forceEmpty ? base.tagBreakdown : tagBreakdown,
-  };
+  /* Demo mode leaves the seeded dataset alone, so every card and chart on the
+   * screen is populated rather than showing a real account's zeroes. */
+  const dataset = forceDemo
+    ? base
+    : {
+        ...base,
+        activity: forceEmpty ? base.activity : activity,
+        tagBreakdown: forceEmpty ? base.tagBreakdown : tagBreakdown,
+      };
+  /* The three cards read live totals normally, the seeded ones in demo, and
+   * zeroes when the empty state is being inspected. */
+  const cards = forceDemo
+    ? base.metrics
+    : {
+        clipsAnnotated: forceEmpty ? "0" : metrics.clipsAnnotated,
+        hoursAnnotated: forceEmpty ? "0" : metrics.hoursAnnotated,
+        tagsApplied: forceEmpty ? "0" : metrics.tagsApplied,
+        periodLabel: metrics.periodLabel,
+      };
+
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
   return (
@@ -63,7 +78,7 @@ export default function AnnotatorDashboardPage() {
         </div>
       </header>
 
-      {error ? (
+      {error && !forceDemo ? (
         <div
           role="alert"
           className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
@@ -79,7 +94,7 @@ export default function AnnotatorDashboardPage() {
         </div>
       ) : null}
 
-      {isLoading ? (
+      {isLoading && !forceDemo ? (
         <div className="mt-2 space-y-2">
           <AlvaMetricGridSkeleton />
           <AnnotatorBentoSkeleton />
@@ -90,20 +105,20 @@ export default function AnnotatorDashboardPage() {
             <MetricCard
               variant="accent"
               title="Clips annotated"
-              value={forceEmpty ? "0" : metrics.clipsAnnotated}
-              period={metrics.periodLabel}
+              value={cards.clipsAnnotated}
+              period={cards.periodLabel}
               icon={ClipboardCheck}
             />
             <MetricCard
               title="Hours annotated"
-              value={forceEmpty ? "0" : metrics.hoursAnnotated}
-              period={metrics.periodLabel}
+              value={cards.hoursAnnotated}
+              period={cards.periodLabel}
               icon={ClockCircle}
             />
             <MetricCard
               title="Tags applied"
-              value={forceEmpty ? "0" : metrics.tagsApplied}
-              period={metrics.periodLabel}
+              value={cards.tagsApplied}
+              period={cards.periodLabel}
               icon={TagHorizontal}
             />
           </div>
@@ -112,7 +127,7 @@ export default function AnnotatorDashboardPage() {
             className="mt-2"
             dataset={dataset}
             range={timeRange}
-            isEmpty={forceEmpty || activity.length === 0}
+            isEmpty={forceEmpty || (!forceDemo && activity.length === 0)}
           />
         </>
       )}

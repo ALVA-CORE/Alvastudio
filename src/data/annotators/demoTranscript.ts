@@ -1,10 +1,10 @@
 /**
  * A transcript document, built from a seeded session.
  *
- * This used to be `src/data/annotators/transcripts.ts`, standing in for the
- * API while the workspace was being designed. The workspace reads
- * `GET /annotations/{id}` now, so the generator is no longer app data — it is
- * what the workspace mount tests render, and nothing else.
+ * The workspace reads `GET /annotations/{id}` in normal use. This generator
+ * backs two things that are not that: the workspace mount tests, and demo
+ * mode, which fills the annotator surface with a believable session so it can
+ * be recorded without a seeded backend account.
  */
 import {
   MAX_CHARS_PER_LINE,
@@ -17,6 +17,7 @@ import {
   type TranscriptDoc,
 } from "@/lib/annotation/types";
 import { sortSegments } from "@/lib/annotation/segments";
+import { buildTokenIndex, segmentTokenRange } from "@/lib/annotation/tokens";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 
 /**
@@ -235,17 +236,97 @@ function buildSegments(session: AnnotatorSession, speakers: Speaker[]): Segment[
   return sortSegments(segments);
 }
 
-export function buildTranscript(session: AnnotatorSession): TranscriptDoc {
+/**
+ * Tags across the first few segments.
+ *
+ * Placed against the real token index rather than guessed, because spans are
+ * document-global and inclusive on both ends: a hand-written index would drift
+ * the moment the generator changed a word. Deterministic from the session id,
+ * so a session reopens looking the way it did.
+ *
+ * A session nobody has started gets none. Tags are the human pass, and a
+ * "not started" row that already carries them would be a lie about what the
+ * workspace does.
+ */
+function buildTags(
+  session: AnnotatorSession,
+  segments: Segment[]
+): Pick<TranscriptDoc, "spans" | "nonSpeech"> {
+  if (session.status === "not-started") return { spans: [], nonSpeech: [] };
+
+  const index = buildTokenIndex(segments);
+  const random = seededRandom(hashString(`${session.id}-tags`));
+
+  const spans: TranscriptDoc["spans"] = [];
+  const nonSpeech: TranscriptDoc["nonSpeech"] = [];
+
+  segments.forEach((segment, position) => {
+    const range = segmentTokenRange(index, segment.id);
+    if (!range) return;
+
+    /* Roughly every third segment, so the transcript reads as worked rather
+     * than wallpapered. */
+    if (random() > 0.38) return;
+
+    const width = range.end - range.start;
+    const start = range.start + Math.floor(random() * Math.max(1, width - 1));
+    const end = Math.min(range.end, start + (random() > 0.6 ? 1 : 0));
+
+    if (random() > 0.45) {
+      spans.push({
+        id: `demo-lang-${position}`,
+        kind: "language",
+        value: random() > 0.5 ? "pcm" : "yo",
+        startToken: start,
+        endToken: end,
+        spanSource: "annotator_added",
+      });
+    } else {
+      spans.push({
+        id: `demo-disf-${position}`,
+        kind: "disfluency",
+        value: random() > 0.5 ? "filled_pause" : "repetition",
+        startToken: start,
+        endToken: end,
+      });
+    }
+
+    if (random() > 0.78) {
+      nonSpeech.push({
+        id: `demo-ns-${position}`,
+        type: random() > 0.5 ? "laugh" : "cough",
+        atToken: range.start,
+      });
+    }
+  });
+
+  return { spans, nonSpeech };
+}
+
+/**
+ * `tags` is off by default.
+ *
+ * The workspace tests build from here and assert on tags they apply
+ * themselves, so a document that arrives pre-tagged would make them assert
+ * against noise. Demo mode opts in, because an untagged transcript shows none
+ * of the work the workspace exists to do.
+ */
+export function buildTranscript(
+  session: AnnotatorSession,
+  { tags = false }: { tags?: boolean } = {}
+): TranscriptDoc {
   const speakers = buildSpeakers(session);
+  // A session nobody has opened has been diarized but not transcribed in the
+  // mock world either — it still gets segments, because that is what the ASR
+  // pass produces. "Not started" means no *human* has touched it.
+  const segments = buildSegments(session, speakers);
 
   return {
     sessionId: session.id,
     speakers,
     ...emptyAnnotationState(),
-    // A session nobody has opened has been diarized but not transcribed in the
-    // mock world either — it still gets segments, because that is what the ASR
-    // pass produces. "Not started" means no *human* has touched it.
-    segments: buildSegments(session, speakers),
+    ...(tags ? buildTags(session, segments) : {}),
+    segments,
   };
 }
 
