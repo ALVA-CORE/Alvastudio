@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { listSessions, type ApiSessionSummary } from "@/lib/api/focusGroups";
 import { listUsers } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { ADMIN_SESSIONS } from "@/data/admin/oversight";
 import { formatDuration, relativeDays, type Variety } from "@/data/admin/shared";
 import type { AdminSession } from "@/data/admin/oversight";
 import { NO_VALUE } from "@/lib/no-value";
@@ -46,6 +48,7 @@ function sessionState(session: ApiSessionSummary): string {
  * this endpoint with no flag needed.
  */
 export function useAdminSessions() {
+  const { forceDemo: demo } = useDevUiState();
   const [rows, setRows] = useState<AdminSession[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +56,14 @@ export function useAdminSessions() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (demo) {
+      setRows(ADMIN_SESSIONS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     Promise.all([
@@ -75,7 +86,7 @@ export function useAdminSessions() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   return {
     rows,

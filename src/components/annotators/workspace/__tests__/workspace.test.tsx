@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { AnnotationWorkspace } from "@/components/annotators/workspace/AnnotationWorkspace";
 import { AnnotationProvider, useAnnotationStore } from "@/lib/annotation/context";
 import type { AnnotationStore } from "@/lib/annotation/store";
-import { buildTranscript } from "@/test/transcriptFixture";
+import { buildTranscript } from "@/data/annotators/demoTranscript";
 import { getAnnotatorSessions } from "@/data/annotators/sessions";
 import { speakerDisplayName } from "@/lib/annotation/types";
 import {

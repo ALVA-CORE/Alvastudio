@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import * as annotations from "@/lib/api/annotations";
 import type { ApiAnnotationStatus } from "@/lib/api/annotations";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { ANNOTATOR_SESSIONS } from "@/data/annotators/sessions";
 import type { AnnotationStatus, AnnotatorSession } from "@/data/annotators/sessions";
 import { NO_VALUE } from "@/lib/no-value";
 
@@ -103,6 +105,7 @@ export type AnnotatorSessionsState = {
 };
 
 export function useAnnotatorSessions(): AnnotatorSessionsState {
+  const { forceDemo: demo } = useDevUiState();
   const [sessions, setSessions] = useState<(AnnotatorSession & { annotationId?: string })[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [isClaiming, setClaiming] = useState(false);
@@ -111,6 +114,22 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
 
   useEffect(() => {
     let cancelled = false;
+
+    /* Demo mode short-circuits the API entirely rather than merging over it.
+     * A half-seeded list would record worse than either, and the whole point
+     * is a surface that looks like a working account. */
+    if (demo) {
+      setSessions(
+        ANNOTATOR_SESSIONS.map((session) => ({
+          ...session,
+          annotationId: session.id,
+        }))
+      );
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     /* `expand=tags` is what fills the Tags column. It is opt-in at the API
@@ -182,7 +201,7 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 

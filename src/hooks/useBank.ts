@@ -14,6 +14,8 @@ import {
 } from "@/lib/api/catalog";
 import type { ApiLanguageVariety } from "@/lib/api/enums";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { BANK_ITEMS } from "@/data/admin/prompts";
 import { relativeDays } from "@/data/admin/shared";
 import type { BankItem, BankKind } from "@/data/admin/prompts";
 import type { Variety } from "@/data/admin/shared";
@@ -61,6 +63,7 @@ function toBankItem(api: ApiPrompt, kind: BankKind): BankItem {
  * a request.
  */
 export function useBank() {
+  const { forceDemo: demo } = useDevUiState();
   const [items, setItems] = useState<BankItem[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +71,14 @@ export function useBank() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (demo) {
+      setItems(BANK_ITEMS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     Promise.all([
@@ -94,7 +105,7 @@ export function useBank() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { RATES } from "@/data/admin/payments";
 import type { Rate, RateUnit } from "@/data/admin/payments";
 
 type ApiRate = {
@@ -52,6 +54,7 @@ function toRate(api: ApiRate): Rate {
  * match the ledger beneath it, and should not.
  */
 export function useRates() {
+  const { forceDemo: demo } = useDevUiState();
   const [rates, setRates] = useState<Rate[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +62,14 @@ export function useRates() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (demo) {
+      setRates(RATES);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     listRates()
@@ -77,7 +88,7 @@ export function useRates() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   const save = useCallback(async (unit: RateUnit, naira: number) => {
     const next = toRate(await putRate(unit, naira));

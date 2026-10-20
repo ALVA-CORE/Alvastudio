@@ -7,6 +7,8 @@ import {
 import { listReviews, type ApiReviewRow } from "@/lib/api/reviews";
 import { listUsers } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { useDevUiState } from "@/hooks/use-dev-ui-state";
+import { ADMIN_RECORDINGS } from "@/data/admin/oversight";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import type {
   AdminRecording,
@@ -52,6 +54,7 @@ function rejectionReason(review: ApiReviewRow | undefined): RejectionReason | un
  * further fetch.
  */
 export function useAdminReviews() {
+  const { forceDemo: demo } = useDevUiState();
   const [rows, setRows] = useState<AdminRecording[]>([]);
   const [reviews, setReviews] = useState<Map<string, ApiReviewRow>>(new Map());
   const [isLoading, setLoading] = useState(true);
@@ -60,6 +63,14 @@ export function useAdminReviews() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (demo) {
+      setRows(ADMIN_RECORDINGS);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     Promise.all([
@@ -93,7 +104,7 @@ export function useAdminReviews() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, demo]);
 
   const reassign = useCallback(
     async (recordingId: string, reviewerId: string | null, reviewerName: string) => {
