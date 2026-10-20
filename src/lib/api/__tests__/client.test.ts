@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, apiFetch, getToken, setToken } from "../client";
+import {
+  ApiError,
+  apiFetch,
+  getToken,
+  humanizeApiMessage,
+  setToken,
+} from "../client";
 
 /**
  * The client's job is to make the backend's two error shapes and its auth
@@ -207,5 +213,53 @@ describe("apiFetch", () => {
   it("tolerates an empty success body", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(respond(204, undefined)));
     await expect(apiFetch("/health")).resolves.toBeUndefined();
+  });
+
+  /**
+   * A contributor should never be asked to care about a company they have
+   * never heard of, or read an exception.
+   */
+  describe("internal messages", () => {
+    it("replaces anything naming the payment vendor", () => {
+      expect(humanizeApiMessage("Bachs not found")).not.toMatch(/bachs/i);
+      expect(humanizeApiMessage("bachs account is not provisioned")).toMatch(
+        /Identity and payment checks are unavailable/
+      );
+    });
+
+    it("replaces anything that came off an exception", () => {
+      for (const raw of [
+        "Internal Server Error",
+        "'NoneType' object has no attribute 'id'",
+        "sqlalchemy.exc.IntegrityError: duplicate key",
+        "<class 'ValueError'>",
+      ]) {
+        expect(humanizeApiMessage(raw)).toBe(
+          "Something went wrong on our side. Try again shortly."
+        );
+      }
+    });
+
+    it("leaves a message written for the reader alone", () => {
+      /* Erring towards passing through: a message they wrote about the task
+         beats a vague one we wrote. */
+      const written =
+        "A selfie is required so your face can be matched to your ID photo.";
+      expect(humanizeApiMessage(written)).toBe(written);
+      expect(humanizeApiMessage("That NIN is already in use.")).toBe(
+        "That NIN is already in use."
+      );
+    });
+
+    it("applies to the message a failed request carries", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(respond(404, { detail: "Bachs not found" }))
+      );
+
+      await expect(apiFetch("/wallet")).rejects.toThrow(
+        /Identity and payment checks are unavailable/
+      );
+    });
   });
 });

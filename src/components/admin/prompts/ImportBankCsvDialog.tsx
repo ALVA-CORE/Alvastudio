@@ -173,8 +173,15 @@ export function ImportBankCsvDialog({
             onClick={async () => {
               if (!file) return;
               setSending(true);
-              await onImport(file);
-              onOpenChange(false);
+              try {
+                await onImport(file);
+                onOpenChange(false);
+              } finally {
+                /* Without this, a throw from `onImport` leaves the button
+                   spinning for good. It handles its own errors today, which
+                   is not a reason to depend on it. */
+                setSending(false);
+              }
             }}
           >
             Add {parsed.rows.length || ""} {noun}
