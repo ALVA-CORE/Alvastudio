@@ -31,18 +31,12 @@ export function LoginForm() {
     setFormError(null);
 
     try {
-      await login(values.email, values.password);
+      await login(values.email, values.password, values.rememberMe ?? false);
     } catch (error) {
       // Sign-in has its own vocabulary: a 401 here is a wrong password rather
       // than an expired session, and two of the 403s are not refusals at all.
       setFormError(signInErrorMessage(error));
       return;
-    }
-
-    if (values.rememberMe) {
-      localStorage.setItem("alva-remember-me", "true");
-    } else {
-      localStorage.removeItem("alva-remember-me");
     }
 
     // Only navigate once the session actually exists — otherwise the redirect

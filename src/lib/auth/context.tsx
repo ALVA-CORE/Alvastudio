@@ -50,7 +50,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   /** True while the boot-time `/auth/me` is in flight. */
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<AuthUser>;
+  login: (email: string, password: string, remember?: boolean) => Promise<AuthUser>;
   signup: (payload: SignupPayload) => Promise<AuthUser>;
   logout: () => void;
 };
@@ -184,8 +184,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [user]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    await authApi.login(email, password);
+  const login = useCallback(async (
+    email: string,
+    password: string,
+    remember = true
+  ) => {
+    await authApi.login(email, password, remember);
     const apiUser = await authApi.me();
 
     const next = mergeUser(apiUser, loadUser() ?? undefined);

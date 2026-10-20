@@ -44,14 +44,24 @@ export function register(payload: RegisterPayload): Promise<ApiUser> {
  * `username` as form-encoded data. Same token either way; this one is honest
  * about what it wants.
  */
-export async function login(email: string, password: string): Promise<ApiToken> {
+/**
+ * `remember` decides whether the token outlives the tab, nothing more.
+ *
+ * How long it is valid for is the token's own business and the API's; this
+ * only chooses the store it is kept in.
+ */
+export async function login(
+  email: string,
+  password: string,
+  remember = true
+): Promise<ApiToken> {
   const token = await apiFetch<ApiToken>("/auth/login", {
     method: "POST",
     body: { email, password },
     anonymous: true,
   });
 
-  setToken(token.access_token);
+  setToken(token.access_token, remember);
   if (token.expires_in) setExpiry(Date.now() + token.expires_in * 1000);
   return token;
 }

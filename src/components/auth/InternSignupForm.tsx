@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
+import { useFormDraft } from "@/hooks/useFormDraft";
 import { signInErrorMessage } from "@/lib/api/signInError";
 import { alvaToast } from "@/lib/alva-toast";
 import { normalizePhoneDigits } from "@/lib/participant-validation";
@@ -42,6 +43,13 @@ export function InternSignupForm() {
       quotaAlerts: "weekly",
       acceptTerms: false,
     },
+  });
+
+  /* One page, but a long one, and the same refresh loses it. Passwords are
+   * never written out. */
+  const draft = useFormDraft(form, {
+    key: "alva-intern-signup-draft",
+    exclude: ["password", "confirmPassword"],
   });
 
   const [formError, setFormError] = useState<string | null>(null);
@@ -76,6 +84,7 @@ export function InternSignupForm() {
      * unapproved, and every intern route answers 403 until an admin approves
      * it, so a redirect would hand a new intern a wall of permission errors as
      * their first impression. */
+    draft.clear();
     alvaToast.success("Account created, an admin needs to approve it");
     navigate("/login");
   };
@@ -213,7 +222,7 @@ export function InternSignupForm() {
                     <AlvaSelect
                       value={field.value}
                       onValueChange={field.onChange}
-                      placeholder="How often"
+                      label="How often"
                       options={[...QUOTA_ALERT_OPTIONS]}
                       hasError={Boolean(fieldState.error)}
                       size="lg"

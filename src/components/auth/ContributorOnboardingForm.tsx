@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
@@ -32,6 +32,7 @@ import {
   GENDER_OPTIONS,
 } from "@/data/interns/participants";
 import { useAuth } from "@/lib/auth/context";
+import { useFormDraft } from "@/hooks/useFormDraft";
 import { signInErrorMessage } from "@/lib/api/signInError";
 import {
   detectMicrophoneLabel,
@@ -83,6 +84,20 @@ export function ContributorOnboardingForm() {
       consentNdpa: false,
     },
     mode: "onTouched",
+  });
+
+  /* Five steps of questions is too much to lose to a stray refresh. The two
+   * password fields are never written out. */
+  const restoreStep = useCallback(
+    (saved: number) => setStep(Math.min(saved, TOTAL_STEPS)),
+    []
+  );
+
+  const draft = useFormDraft(form, {
+    key: "alva-contributor-signup-draft",
+    step,
+    onRestoreStep: restoreStep,
+    exclude: ["password", "confirmPassword"],
   });
 
   useEffect(() => {
@@ -153,6 +168,8 @@ export function ContributorOnboardingForm() {
       setSubmitting(false);
     }
 
+    /* The account exists now, so the draft has nothing left to protect. */
+    draft.clear();
     navigate("/contributor/dashboard");
   };
 
@@ -282,7 +299,7 @@ export function ContributorOnboardingForm() {
                         <AlvaSelect
                           value={field.value}
                           onValueChange={field.onChange}
-                          placeholder="Age bracket"
+                          label="Age bracket"
                           options={AGE_BRACKET_OPTIONS}
                           hasError={Boolean(fieldState.error)}
                           size={AUTH_FIELD_SIZE}
@@ -302,7 +319,7 @@ export function ContributorOnboardingForm() {
                         <AlvaSelect
                           value={field.value}
                           onValueChange={field.onChange}
-                          placeholder="Gender"
+                          label="Gender"
                           options={GENDER_OPTIONS}
                           hasError={Boolean(fieldState.error)}
                           size={AUTH_FIELD_SIZE}
@@ -385,7 +402,7 @@ export function ContributorOnboardingForm() {
                         <AlvaSelect
                           value={field.value}
                           onValueChange={field.onChange}
-                          placeholder="Nigerian Pidgin fluency"
+                          label="Nigerian Pidgin fluency"
                           options={FLUENCY_OPTIONS}
                           hasError={Boolean(fieldState.error)}
                           size={AUTH_FIELD_SIZE}
@@ -405,7 +422,7 @@ export function ContributorOnboardingForm() {
                         <AlvaSelect
                           value={field.value}
                           onValueChange={field.onChange}
-                          placeholder="Nigerian English fluency"
+                          label="Nigerian English fluency"
                           options={FLUENCY_OPTIONS}
                           hasError={Boolean(fieldState.error)}
                           size={AUTH_FIELD_SIZE}
@@ -439,7 +456,7 @@ export function ContributorOnboardingForm() {
                       <AlvaSelect
                         value={field.value}
                         onValueChange={field.onChange}
-                        placeholder="Preferred recording variety"
+                        label="Preferred recording variety"
                         options={[...PREFERRED_VARIETY_OPTIONS]}
                         hasError={Boolean(fieldState.error)}
                         size={AUTH_FIELD_SIZE}
@@ -508,7 +525,7 @@ export function ContributorOnboardingForm() {
                       <AlvaSelect
                         value={field.value}
                         onValueChange={field.onChange}
-                        placeholder="Device / mic you will use"
+                        label="Device / mic you will use"
                         options={[...RECORDING_DEVICE_OPTIONS]}
                         hasError={Boolean(fieldState.error)}
                         size={AUTH_FIELD_SIZE}

@@ -34,6 +34,12 @@ describe("age bracket", () => {
     expect(fromApiAgeBracket("65_plus")).toBe("55+");
   });
 
+  it("shows under 18 as itself rather than as the adult bracket above it", () => {
+    /* Sign-up gates at 18 and we never send this, so a record carrying it is
+       something to look at. Folding it into 18-24 hid exactly that. */
+    expect(fromApiAgeBracket("under_18")).toBe("Under 18");
+  });
+
   it("passes through an unknown value rather than blanking it", () => {
     expect(fromApiAgeBracket("90_plus")).toBe("90_plus");
   });

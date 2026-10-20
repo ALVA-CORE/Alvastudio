@@ -30,6 +30,7 @@ export function AlvaCombobox({
   onValueChange,
   options,
   placeholder = "Select",
+  label,
   searchPlaceholder = "Search",
   emptyMessage = "Nothing found",
   className,
@@ -39,6 +40,8 @@ export function AlvaCombobox({
   onValueChange: (value: string) => void;
   options: ComboboxOption[];
   placeholder?: string;
+  /** Floats to the top edge once chosen, the same way `AlvaSelect` does it. */
+  label?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
   className?: string;
@@ -46,26 +49,33 @@ export function AlvaCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
+  const lifted = open || Boolean(selected);
 
-  return (
+  const field = (
     /* `modal` so it still works inside a sheet. Radix blanks pointer events
        outside the top dialog layer, and a non-modal popover rendered under one
        is visible but dead to the touch. */
     <Popover modal open={open} onOpenChange={setOpen}>
       {/* The beam stays lit while the list is open, not just while the trigger
           holds focus, so the field does not look abandoned mid-choice. */}
-      <FieldBeam active={open || undefined} className={className}>
+      <FieldBeam
+        active={open || undefined}
+        className={label ? undefined : className}
+      >
         <PopoverTrigger
           role="combobox"
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? label}
           aria-expanded={open}
           className={cn(
             alvaSelectClass(),
             "flex w-full items-center justify-between gap-2 px-3 text-sm",
-            !selected && "text-muted-foreground"
+            !selected && "text-muted-foreground",
+            label && lifted && "items-end pb-1.5 pt-5"
           )}
         >
-          <span className="truncate">{selected?.label ?? placeholder}</span>
+          <span className="truncate">
+            {selected?.label ?? (label ? "" : placeholder)}
+          </span>
           <AltArrowDown size={15} weight="Outline" className="shrink-0 opacity-60" />
         </PopoverTrigger>
       </FieldBeam>
@@ -116,5 +126,24 @@ export function AlvaCombobox({
         </Command>
       </PopoverContent>
     </Popover>
+  );
+
+  if (!label) return field;
+
+  return (
+    <div className={cn("relative overflow-visible pt-2", className)}>
+      <span
+        className={cn(
+          "pointer-events-none absolute z-20 max-w-[calc(100%-3.5rem)] truncate transition-all duration-200 ease-out",
+          lifted
+            ? "left-4 top-2 -translate-y-1/2 bg-alva-surface px-1.5 text-[11px] font-medium leading-none text-alva-accent"
+            : "left-3 top-[calc(0.5rem+20px)] -translate-y-1/2 text-sm text-muted-foreground"
+        )}
+      >
+        {label}
+      </span>
+
+      {field}
+    </div>
   );
 }
