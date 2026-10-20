@@ -164,9 +164,6 @@ export function ContributorOnboardingForm() {
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-foreground">Join as a contributor</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tell us about yourself so we can match you with the right prompts
-        </p>
       </div>
 
       <StepperBars

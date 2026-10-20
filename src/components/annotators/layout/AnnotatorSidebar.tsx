@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
-import Subtitles from "@solar-icons/react/ui/Subtitles";
+import Soundwave from "@solar-icons/react/video/Soundwave";
 import Settings from "@solar-icons/react/settings/Settings";
 import { cn } from "@/lib/utils";
 import { SidebarRailBlur } from "@/components/layout/SidebarRailBlur";
@@ -83,7 +83,7 @@ export function AnnotatorSidebar() {
                 {/* The blob, but not its microphone: this is the queue of sessions to
                     transcribe, and a mic here reads as "record". */}
                 {isSessions && (
-                  <SiriBlob size="nav" idleIcon={Subtitles} className="shrink-0" />
+                  <SiriBlob size="nav" idleIcon={Soundwave} className="shrink-0" />
                 )}
                 {item.id === "profile" && (
                   <Settings

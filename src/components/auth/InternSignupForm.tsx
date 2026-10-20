@@ -84,9 +84,6 @@ export function InternSignupForm() {
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-foreground">Create intern account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Set up your profile for focus group collection and review
-        </p>
       </div>
 
       <Form {...form}>

@@ -28,6 +28,8 @@ export type ApiProfile = {
   accent_influence_region?: string | null;
   native_languages?: string[] | null;
   pidgin_fluency?: ApiPidginFluency | null;
+  /** Same enum as `pidgin_fluency`: one scale, asked twice. */
+  english_fluency?: ApiPidginFluency | null;
   preferred_language_variety?: ApiLanguageVariety | null;
   device_mic?: string | null;
 };
@@ -57,6 +59,21 @@ export function upsertProfile(patch: ApiProfile): Promise<ApiProfile> {
   return apiFetch<ApiProfile>("/onboarding/profile", { method: "PUT", body: patch });
 }
 
+/**
+ * `AnnotatorProfileOut` — what an annotator is cleared for.
+ *
+ * Both fields are nullable: a profile that has never been set comes back with
+ * nothing in it, which is different from being cleared for nothing.
+ */
+export type ApiAnnotatorProfile = {
+  language_varieties?: ApiLanguageVariety[] | null;
+  sessions_covered?: string[] | null;
+};
+
+export function getAnnotatorProfile(): Promise<ApiAnnotatorProfile> {
+  return apiFetch<ApiAnnotatorProfile>("/onboarding/annotator-profile");
+}
+
 export function listConsents(): Promise<ApiConsent[]> {
   return apiFetch<ApiConsent[]>("/onboarding/consent");
 }
@@ -77,7 +94,7 @@ export function recordConsent(payload: {
  * The frontend's contributor profile is wider than the API's. These fields are
  * collected by the onboarding form and have NOWHERE to go:
  *
- *   ethnicity · occupation · englishFluency · homeLanguages · recordingDevice
+ *   ethnicity · occupation · homeLanguages · recordingDevice
  *
  * They are kept in the local user record so the profile page can still show
  * them, but they do not survive a fresh login on another device. See
@@ -96,6 +113,7 @@ export function profileToApi(profile: Partial<ContributorProfileData>): ApiProfi
           .filter(Boolean)
       : undefined,
     pidgin_fluency: toApiFluency(profile.pidginFluency),
+    english_fluency: toApiFluency(profile.englishFluency),
     preferred_language_variety: toApiVariety(profile.preferredVariety),
     // The API models the mic as free text, so the detected label is richer than
     // the enum the form collects — send it when we have it.
@@ -110,6 +128,7 @@ export function profileFromApi(profile: ApiProfile): Partial<ContributorProfileD
     stateOfOrigin: profile.state_of_origin ?? "",
     nativeLanguages: (profile.native_languages ?? []).join(", "),
     pidginFluency: fromApiFluency(profile.pidgin_fluency) as ContributorProfileData["pidginFluency"],
+    englishFluency: fromApiFluency(profile.english_fluency) as ContributorProfileData["englishFluency"],
     preferredVariety: fromApiVariety(
       profile.preferred_language_variety
     ) as ContributorProfileData["preferredVariety"],

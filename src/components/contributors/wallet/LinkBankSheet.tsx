@@ -51,7 +51,10 @@ export function LinkBankSheet({
   useEffect(() => {
     if (!open) return;
     setBank(existing?.bank ?? "");
-    setNumber(existing?.accountNumber ?? "");
+    /* The stored number is a mask — the API returns the last four digits and
+     * never the account — so there is nothing to prefill. Changing a bank
+     * means typing the number again, which is also the safer default. */
+    setNumber("");
     setResolved(existing?.accountName ?? null);
     setResolving(false);
   }, [open, existing]);

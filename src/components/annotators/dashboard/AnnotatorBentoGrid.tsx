@@ -67,13 +67,13 @@ export function AnnotatorBentoGrid({
 
       <AnnotatorChartCard
         title="Tag mix"
-        subtitle="Variety → category → tag"
+        subtitle="Category → tag"
         className="min-h-[21rem] lg:col-span-3"
         emptyMessage={
-          isEmpty
+          isEmpty || !dataset.tagBreakdown.children?.length
             ? {
                 title: "No tags applied",
-                description: "Tag a session to see how categories break down by variety.",
+                description: "Tag a session to see how your tags break down.",
               }
             : undefined
         }

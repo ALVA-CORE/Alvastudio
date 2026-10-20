@@ -21,6 +21,67 @@ export type DemographicHoursPoint = {
   undisclosed: number;
 };
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/**
+ * A `YYYY-MM-DD` day as a local calendar date.
+ *
+ * The API sends Africa/Lagos days. Parsing them as instants would shift the
+ * label a day backwards for any reader west of Greenwich.
+ */
+function calendarDay(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(year, (month ?? 1) - 1, day ?? 1);
+}
+
+/** The last seven days of capture, labelled by weekday. */
+export function toWeeklySessions(
+  daily: { date: string; sessions: number }[]
+): WeeklyPoint[] {
+  return daily.slice(-7).map((point) => ({
+    day: WEEKDAYS[calendarDay(point.date).getDay()] ?? point.date,
+    sessions: point.sessions,
+  }));
+}
+
+/**
+ * The series rolled up by month, for the capture trend.
+ *
+ * Days would draw 365 points at 12M and seven at 7D, which is two different
+ * charts wearing one title. Months keep one shape across every range, and a
+ * range shorter than a month is simply one column.
+ */
+export function toCaptureTrend(
+  daily: { date: string; sessions: number; participants: number; hours: number }[]
+): TrendPoint[] {
+  const buckets = new Map<string, TrendPoint>();
+
+  for (const point of daily) {
+    const at = calendarDay(point.date);
+    const key = `${at.getFullYear()}-${at.getMonth()}`;
+    const bucket = buckets.get(key) ?? {
+      month: MONTHS[at.getMonth()] ?? key,
+      hours: 0,
+      participants: 0,
+      sessions: 0,
+    };
+
+    bucket.hours += point.hours;
+    bucket.participants += point.participants;
+    bucket.sessions += point.sessions;
+    buckets.set(key, bucket);
+  }
+
+  return [...buckets.values()].map((bucket) => ({
+    ...bucket,
+    hours: Math.round(bucket.hours * 10) / 10,
+  }));
+}
+
 type DashboardDataset = {
   weeklySessions: WeeklyPoint[];
   captureTrend: TrendPoint[];

@@ -64,15 +64,29 @@ export type ApiBank = { code: string; name: string };
 
 export const listBanks = () => apiFetch<ApiBank[]>("/banks");
 
+/**
+ * `PayoutDestinationOut`.
+ *
+ * The account number never comes back — only its last four digits, which is
+ * the right call and the reason this type cannot be round-tripped into the
+ * form that created it. There is no bank name either, only the code, so a
+ * display name is resolved against `GET /banks`.
+ */
 export type ApiPayoutDestination = {
+  id: string;
+  destination_type: string;
   bank_code: string;
-  bank_name: string | null;
-  account_number: string;
   account_name: string | null;
+  account_last4: string;
+  /** False while the destination is still being set up at the payment rail. */
+  is_usable: boolean;
+  bachs_destination_id: string | null;
+  created_at: string;
 };
 
-export const getPayoutDestination = () =>
-  apiFetch<ApiPayoutDestination | null>("/wallet/payout-destination");
+/** A LIST, not one destination. An account can have several on file. */
+export const listPayoutDestinations = () =>
+  apiFetch<ApiPayoutDestination[]>("/wallet/payout-destination");
 
 /** Performs name enquiry server side and returns the resolved account name. */
 export const setPayoutDestination = (body: {

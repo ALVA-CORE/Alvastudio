@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  getPayoutDestination,
+  listBanks,
+  listPayoutDestinations,
   getWallet,
   listEarnings,
   setPayoutDestination,
@@ -81,11 +82,23 @@ export function useWallet() {
       /* Both are expected to fail before identity passes: there is no
        * destination to collect and no ledger to read. Neither is an error the
        * contributor should see. */
-      getPayoutDestination().catch(() => null),
+      listPayoutDestinations().catch(() => []),
       listEarnings({ limit: 50 }).catch(() => null),
+      /* Only for turning a bank code into a name: the destination carries the
+       * code and nothing else readable. Failing is fine, the code shows. */
+      listBanks().catch(() => []),
     ])
-      .then(([status, destination, earnings]) => {
+      .then(([status, destinations, earnings, banks]) => {
         if (cancelled) return;
+
+        /* A usable one first. An account can have several on file, and one
+         * still being set up at the payment rail cannot be paid into. */
+        const destination =
+          destinations.find((entry) => entry.is_usable) ?? destinations[0];
+        const bankName = destination
+          ? (banks.find((bank) => bank.code === destination.bank_code)?.name ??
+            destination.bank_code)
+          : "";
 
         setWallet({
           balanceKobo: status.earnings.payable_kobo,
@@ -96,14 +109,15 @@ export function useWallet() {
           identity: IDENTITY[status.wallet?.identity_status ?? "not_started"],
           identityDetail:
             status.wallet?.identity_failure_reason ?? status.next_action_detail,
-          payoutAccount:
-            destination && destination.account_number
-              ? {
-                  bank: destination.bank_name ?? destination.bank_code,
-                  accountNumber: destination.account_number,
-                  accountName: destination.account_name ?? "",
-                }
-              : null,
+          /* The number itself never comes back, only its last four digits,
+           * so what is shown is a mask rather than the account. */
+          payoutAccount: destination
+            ? {
+                bank: bankName,
+                accountNumber: `••••${destination.account_last4}`,
+                accountName: destination.account_name ?? "",
+              }
+            : null,
           entries: (earnings?.entries ?? []).map(toEntry),
         });
         setError(null);

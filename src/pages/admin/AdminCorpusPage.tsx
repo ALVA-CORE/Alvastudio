@@ -194,7 +194,7 @@ export default function AdminCorpusPage() {
         <AlvaChartCard
           title="Where the hours go"
           subtitle="Collection type → review stage → outcome"
-          className="min-h-[19rem] lg:col-span-2"
+          className="min-h-[26rem] lg:col-span-2"
           emptyMessage={
             corpus.flow.links.length === 0
               ? { title: "Nothing collected", description: "No flow to trace yet." }
@@ -207,7 +207,7 @@ export default function AdminCorpusPage() {
         <AlvaChartCard
           title="Unmatched states"
           subtitle="Free-text entries that matched no state"
-          className="min-h-[19rem]"
+          className="min-h-[26rem]"
           emptyMessage={
             Object.keys(coverage?.unmatched_states ?? {}).length === 0
               ? {
@@ -222,7 +222,7 @@ export default function AdminCorpusPage() {
               with how many people typed it, so a recurring misspelling can be
               corrected at source rather than quietly leaving those hours off
               the coverage map. */}
-          <dl className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
+          <dl className="alva-thin-scrollbar max-h-[21rem] space-y-1 overflow-y-auto pr-1">
             {Object.entries(coverage?.unmatched_states ?? {})
               .sort((a, b) => b[1] - a[1])
               .map(([value, count]) => (

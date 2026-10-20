@@ -54,9 +54,11 @@ describe("LeaderboardPodium", () => {
     expect(names).toEqual(["Bola", "Ada", "Chidi"]);
   });
 
-  it("renders nothing when nobody is ranked", () => {
-    const { container } = render(<LeaderboardPodium entries={toPodium([])} />);
+  it("says the board is empty rather than rendering nothing", () => {
+    /* A card that simply ends under the points balance looks like something
+       failed to load, which is what an empty leaderboard looked like. */
+    render(<LeaderboardPodium entries={toPodium([])} />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText("Nobody on the board yet")).toBeInTheDocument();
   });
 });

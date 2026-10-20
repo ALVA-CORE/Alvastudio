@@ -28,15 +28,36 @@ export type ApiContributorDashboard = {
   activity_window_days: number;
 };
 
+/** One day of an intern's own capture. Zero-filled over the window. */
+export type ApiInternDailyActivity = {
+  date: string;
+  sessions: number;
+  participants: number;
+  hours: number;
+};
+
 export type ApiInternDashboard = {
   intern_id: string;
   sessions_run: number;
   participants_captured: number;
   hours_recorded: number;
+  /**
+   * Participant counts, not hours, and two marginals rather than the joint.
+   *
+   * A focus group is one file with several speakers, so its hours cannot be
+   * split by speaker — which is also why these cannot be crossed into the
+   * age-by-gender chart.
+   */
   demographics: {
     by_age_bracket: Record<string, number>;
     by_gender: Record<string, number>;
   };
+  /** 365 days, zero-filled, oldest first, `YYYY-MM-DD` in Africa/Lagos. */
+  daily_activity: ApiInternDailyActivity[];
+  activity_window_days: number;
+  sessions_in_window: number;
+  participants_in_window: number;
+  hours_in_window: number;
 };
 
 export const contributorDashboard = () =>
@@ -56,6 +77,14 @@ export type ApiAnnotationStatusBreakdown = {
   total: number;
 };
 
+/** Counts per tag value, one map per family. Empty where nothing is tagged. */
+export type ApiTagBreakdown = {
+  by_language: Record<string, number>;
+  by_disfluency: Record<string, number>;
+  by_untranscribable_reason: Record<string, number>;
+  by_non_speech_event: Record<string, number>;
+};
+
 export type ApiAnnotatorDashboard = {
   annotator_id: string;
   annotations_total: number;
@@ -67,6 +96,16 @@ export type ApiAnnotatorDashboard = {
   tokens_annotated: number;
   gold_count: number;
   queue_available: number;
+  tag_breakdown: ApiTagBreakdown;
+  /**
+   * Participant counts across the sessions this annotator has worked, as two
+   * marginals. They cannot be crossed into the age-by-gender chart, which is
+   * why that one is still seeded.
+   */
+  speaker_demographics: {
+    by_gender: Record<string, number>;
+    by_age_bracket: Record<string, number>;
+  };
   /** 365 days, zero-filled, oldest first, `YYYY-MM-DD` in Africa/Lagos. */
   daily_activity: ApiDailyActivity[];
 };
