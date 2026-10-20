@@ -12,7 +12,8 @@ deployed and wired. Only what is still open is listed here.
 | 1 | Scoring definitions, not endpoints | The quality radar and one figure | Medium |
 | 2 | Speaker demographics as a joint, not two marginals | 2 charts, still seeded | Low |
 | 3 | `under_18` on `AgeBracket`, a question | Nothing, but the enum allows what we refuse | Low |
-| 4 | A state on the session itself | One admin column, derived today | Low |
+| 4 | Error messages that name Bachs | Contributors reading "Bachs not found" | Medium |
+| 5 | A state on the session itself | One admin column, derived today | Low |
 
 Three asks came off this list on 20 Oct without anything being built at your
 end: `daily_activity` on `/dashboard/intern`, `tag_breakdown` on
@@ -69,7 +70,22 @@ were doing and which hid exactly the case worth seeing.
 `65_plus` we do fold, into our "55+" bucket. That one is a display choice and
 is correct, since 55+ includes 65+.
 
-## 4. A state on the session itself
+## 4. Error messages that name Bachs
+
+A failed NIN submission came back **"Bachs not found"**, which went straight to
+a contributor. FastAPI's `detail` is what we show — most of yours are written
+for the reader and are better than anything we would invent, so we pass them
+through rather than translating them.
+
+A few are not. Anything naming the payment vendor asks a contributor to care
+about a company they have never heard of, and gives them nothing to do.
+
+We now replace those at our boundary, but we are pattern-matching on your
+wording, which will drift. **Could messages that reach a 4xx body be written
+for the person reading them**, with the vendor name kept to logs? We are happy
+to show whatever you send.
+
+## 5. A state on the session itself
 
 `GET /focus-groups` has no session state, so the admin column takes the
 commonest `state` among the participants. It is right in practice and wrong in

@@ -127,6 +127,42 @@ export class ApiError extends Error {
 }
 
 /**
+ * Messages that are about our plumbing rather than about the reader.
+ *
+ * Most of the API's `detail` strings are written for the person on the other
+ * end and are better than anything we would invent — "A selfie is required so
+ * your face can be matched to your ID photo" needs no help. A few are not:
+ * they name the payment vendor, or a table, or come straight off an exception.
+ * "Bachs not found" tells a contributor nothing and asks them to care about a
+ * company they have never heard of.
+ *
+ * So this is a guard, not a translation layer: anything matching goes to a
+ * written replacement, everything else passes through untouched. Erring
+ * towards passing through is deliberate — a vague message we wrote is worse
+ * than a specific one they wrote.
+ */
+const INTERNAL_MESSAGE_PATTERNS: { test: RegExp; message: string }[] = [
+  {
+    /* The payment and identity vendor. Their name is in several of these and
+     * is meaningless outside our own codebase. */
+    test: /\bbachs\b/i,
+    message:
+      "Identity and payment checks are unavailable right now. Please try again shortly, and let us know if it keeps happening.",
+  },
+  {
+    /* Straight off an exception. */
+    test: /traceback|nonetype|^internal server error|\bsqlalchemy\b|\bpsycopg\b|integrityerror|keyerror|attributeerror|<class '|object at 0x/i,
+    message: "Something went wrong on our side. Try again shortly.",
+  },
+];
+
+/** Replaces a message about our plumbing; otherwise returns it unchanged. */
+export function humanizeApiMessage(message: string): string {
+  const match = INTERNAL_MESSAGE_PATTERNS.find((entry) => entry.test.test(message));
+  return match ? match.message : message;
+}
+
+/**
  * FastAPI returns `detail` as either a plain string or an array of validation
  * objects. Both arrive as a 4xx, so the caller cannot tell them apart without
  * inspecting the body — which is what this does once, here.
@@ -134,7 +170,9 @@ export class ApiError extends Error {
 function parseError(status: number, body: unknown): ApiError {
   const detail = (body as { detail?: unknown } | null)?.detail;
 
-  if (typeof detail === "string") return new ApiError(status, detail);
+  if (typeof detail === "string") {
+    return new ApiError(status, humanizeApiMessage(detail));
+  }
 
   if (Array.isArray(detail)) {
     const fieldErrors: FieldError[] = detail.map((entry) => {
@@ -143,7 +181,9 @@ function parseError(status: number, body: unknown): ApiError {
         : [];
       // `loc` is ["body", "field"] — the tail is the field the form knows about.
       const field = String(loc[loc.length - 1] ?? "");
-      const message = String((entry as { msg?: unknown }).msg ?? "Invalid value");
+      const message = humanizeApiMessage(
+        String((entry as { msg?: unknown }).msg ?? "Invalid value")
+      );
       return { field, message };
     });
 

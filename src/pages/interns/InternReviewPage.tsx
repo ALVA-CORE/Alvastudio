@@ -122,7 +122,10 @@ export default function InternReviewPage() {
             size="sm"
             className="w-auto shrink-0"
             onClick={async () => {
-              const id = await assignNext();
+              /* `assignNext` reports its own failures and resolves null, so
+                 there is nothing to catch — but it must stay that way, and a
+                 rejection escaping here would be invisible. */
+              const id = await assignNext().catch(() => null);
               if (id) navigate(`/intern/review/${id}`);
             }}
             loading={isAssigning}

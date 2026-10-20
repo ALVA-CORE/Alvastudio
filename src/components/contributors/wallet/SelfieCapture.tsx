@@ -105,7 +105,7 @@ export function SelfieCapture({
           void accept(event.dataTransfer.files?.[0]);
         }}
         className={cn(
-          "relative mx-auto flex aspect-[4/5] w-full max-w-[15rem] cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed bg-alva-surface transition-colors",
+          "relative mx-auto flex aspect-[5/4] w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed bg-alva-surface transition-colors",
           "focus-within:border-alva-accent focus-within:ring-1 focus-within:ring-alva-accent",
           dragging ? "border-alva-accent bg-alva-accent/5" : "border-alva-border",
           value && "border-solid border-alva-border"
