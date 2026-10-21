@@ -50,6 +50,44 @@ export const internSignupSchema = z
     path: ["confirmPassword"],
   });
 
+export const ANNOTATOR_VARIETY_OPTIONS = [
+  { value: "nigerian_english", label: "Nigerian English" },
+  { value: "nigerian_pidgin", label: "Nigerian Pidgin" },
+] as const;
+
+/**
+ * Annotators apply, like interns, and wait for an admin.
+ *
+ * The two fields beyond the account itself are what the annotator profile
+ * holds: which varieties they are cleared to tag, and which sessions they
+ * cover. Both are claims at sign-up and an admin's to confirm, which is the
+ * reason the account is not usable until one does.
+ */
+export const annotatorSignupSchema = z
+  .object({
+    fullName: z.string().min(2, "Enter your full name"),
+    email: z.string().email("Enter a valid email"),
+    phone: z
+      .string()
+      .min(11, "Enter an 11-digit Nigerian number")
+      .refine(isValidNigerianPhone, "Enter a valid 11-digit Nigerian number"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+    varieties: z
+      .array(z.enum(["nigerian_english", "nigerian_pidgin"]))
+      .min(1, "Pick at least one variety"),
+    scope: z.string().min(2, "Describe the sessions you can cover"),
+    acceptTerms: z.boolean().refine((val) => val === true, {
+      message: "You must accept the terms and conditions",
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export type AnnotatorSignupValues = z.infer<typeof annotatorSignupSchema>;
+
 export type LoginValues = z.infer<typeof loginSchema>;
 export type SignupValues = z.infer<typeof signupSchema>;
 export type InternSignupValues = z.infer<typeof internSignupSchema>;

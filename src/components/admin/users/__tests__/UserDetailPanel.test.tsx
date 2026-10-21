@@ -5,10 +5,16 @@ import { UserDetailPanel } from "../UserDetailPanel";
 import { ADMIN_USERS, activitySummary, userActivity } from "@/data/admin/users";
 
 /* An annotator, because editing is staff-only: a contributor's and an intern's
- * profile is theirs and carries their consent record. */
+ * profile is theirs and carries their consent record. Approved, because
+ * annotators apply now and a pending one offers Approve where these tests
+ * expect Deactivate. */
 const user =
   ADMIN_USERS.find(
-    (row) => row.role === "annotator" && row.isActive && row.output > 0
+    (row) =>
+      row.role === "annotator" &&
+      row.isActive &&
+      row.output > 0 &&
+      row.approval === "approved"
   ) ?? ADMIN_USERS[0];
 
 function renderPanel(overrides: Partial<Parameters<typeof UserDetailPanel>[0]> = {}) {

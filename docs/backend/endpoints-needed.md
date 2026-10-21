@@ -9,11 +9,12 @@ deployed and wired. Only what is still open is listed here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | Scoring definitions, not endpoints | The quality radar and one figure | Medium |
-| 2 | Speaker demographics as a joint, not two marginals | 2 charts, still seeded | Low |
-| 3 | `under_18` on `AgeBracket`, a question | Nothing, but the enum allows what we refuse | Low |
-| 4 | Error messages that name Bachs | Contributors reading "Bachs not found" | Medium |
-| 5 | A state on the session itself | One admin column, derived today | Low |
+| 1 | Annotator sign-up and approval, 3 questions | Annotators applying for accounts | **High** |
+| 2 | Scoring definitions, not endpoints | The quality radar and one figure | Medium |
+| 3 | Speaker demographics as a joint, not two marginals | 2 charts, still seeded | Low |
+| 4 | `under_18` on `AgeBracket`, a question | Nothing, but the enum allows what we refuse | Low |
+| 5 | Error messages that name Bachs | Contributors reading "Bachs not found" | Medium |
+| 6 | A state on the session itself | One admin column, derived today | Low |
 
 Three asks came off this list on 20 Oct without anything being built at your
 end: `daily_activity` on `/dashboard/intern`, `tag_breakdown` on
@@ -22,7 +23,39 @@ deployed. We had them down as missing. Apologies for the noise.
 
 ---
 
-## 1. Scoring definitions
+## 1. Annotator sign-up and approval
+
+Annotators now apply for their own accounts rather than being created by an
+admin, the same way interns do. The page is built at `/annotator/signup` and
+posts `role: "annotator"` to `POST /auth/register`, which the `UserRole` enum
+accepts. Three things we had to assume:
+
+**1. Does registering as `annotator` leave the account unapproved?** We show
+the new annotator "an admin needs to approve it" and send them back to sign-in
+rather than into a queue. If `intern_approved` only defaults false for interns,
+an annotator is live the moment they register and that message is a lie.
+
+**2. Is `POST /users/{id}/approve-intern` the right call for an annotator?**
+It is the only approval route, so the admin Approve button uses it for both.
+A name that says `intern` doing double duty is workable but easy to get wrong
+later; `approve-user`, or an `approved` flag beside `intern_approved`, would
+say what it does.
+
+**3. Do annotator routes 403 until approved?** Intern routes do. If annotator
+routes do not, an unapproved annotator can claim and submit work, which is the
+thing approval exists to prevent.
+
+| What we send | Where |
+| --- | --- |
+| `{full_name, email, phone, password, role: "annotator"}` | `POST /auth/register` |
+| `{language_varieties, sessions_covered}` | `PUT /onboarding/annotator-profile` |
+
+The second is the claim an admin is approving: which varieties they say they
+can tag, and which sessions they can cover. It is written straight after
+registration and is non-fatal if it fails, so a dropped request costs the
+clearance rather than the account.
+
+## 2. Scoring definitions
 
 Agreed in principle on 17 Oct and sequenced for a later round, so this is a
 placeholder rather than a new ask. Two figures draw a dash or a sample until it
@@ -41,7 +74,7 @@ contributor quality bar computes it live.
 name so nobody compares the two by accident. Either works for us, we will label
 whatever the field says. The floor of 10 decided clips is settled.
 
-## 2. Speaker demographics as a joint
+## 3. Speaker demographics as a joint
 
 Two charts draw hours or speakers by age bracket, split by gender:
 
@@ -56,7 +89,7 @@ cannot be crossed, so both charts are seeded. This is the same shape as
 Speaker counts would do, we do not need hours, and we know a focus group's
 hours cannot be split by speaker.
 
-## 3. `under_18` on `AgeBracket`
+## 4. `under_18` on `AgeBracket`
 
 We do not approve anyone under 18. Sign-up gates on it with an attestation
 checkbox, the form's bracket list starts at 18-24, and we never send
@@ -70,7 +103,7 @@ were doing and which hid exactly the case worth seeing.
 `65_plus` we do fold, into our "55+" bucket. That one is a display choice and
 is correct, since 55+ includes 65+.
 
-## 4. Error messages that name Bachs
+## 5. Error messages that name Bachs
 
 A failed NIN submission came back **"Bachs not found"**, which went straight to
 a contributor. FastAPI's `detail` is what we show — most of yours are written
@@ -85,7 +118,7 @@ wording, which will drift. **Could messages that reach a 4xx body be written
 for the person reading them**, with the vendor name kept to logs? We are happy
 to show whatever you send.
 
-## 5. A state on the session itself
+## 6. A state on the session itself
 
 `GET /focus-groups` has no session state, so the admin column takes the
 commonest `state` among the participants. It is right in practice and wrong in
@@ -111,5 +144,6 @@ confirmation that the derivation is the intended rule, closes it.
 | `GET /wallet/payout-destination` | We were reading it as a single object with an `account_number`. It is a list, and carries `account_last4`, so the wallet shows a masked number and picks the first `is_usable` destination. |
 | `english_fluency` | Now sent and read back. It had nowhere to go when the onboarding form was built. |
 | Remember me | Entirely ours, nothing needed from you. Ticked keeps the token in localStorage, unticked in sessionStorage, so it only decides whether the token outlives the tab. How long the token is valid stays yours. |
-| Sign-up drafts | The two sign-up forms keep their answers across a refresh, in localStorage. Password fields are excluded and never written. |
+| Sign-up drafts | All three sign-up forms keep their answers across a refresh, in localStorage. Password fields are excluded and never written. |
+| `RegisterIn.role` | We were downgrading `annotator` to `contributor` before sending, left over from when there was no annotator sign-up. Now sent as-is. |
 | iOS Safari mp4/AAC | The type comes from `MediaRecorder.mimeType`, with a matching extension. |

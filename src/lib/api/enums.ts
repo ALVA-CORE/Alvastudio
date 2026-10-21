@@ -19,7 +19,8 @@ import type { FluencyLevel, PreferredVariety } from "@/data/contributors/onboard
  * ------------------------------------------------------------------ */
 
 /** NOTE: the API has no `annotator`. See `docs/backend/api.md` §14. */
-export type ApiUserRole = "contributor" | "intern" | "admin";
+/** `UserRole`. Annotator is registerable too, not only admin-created. */
+export type ApiUserRole = "contributor" | "intern" | "annotator" | "admin";
 
 export type ApiLanguageVariety = "nigerian_english" | "nigerian_pidgin";
 

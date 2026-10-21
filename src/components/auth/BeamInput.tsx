@@ -83,6 +83,11 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
           <div className="relative rounded-xl">
             <input
               ref={ref}
+              /* The visible label is a positioned span, not a `<label for>`,
+                 because it animates across the field's border. So the input
+                 carries the name itself: without this every field on every
+                 auth form is unlabelled to a screen reader. */
+              aria-label={props["aria-label"] ?? label}
               type={inputType}
               value={value}
               defaultValue={defaultValue}
