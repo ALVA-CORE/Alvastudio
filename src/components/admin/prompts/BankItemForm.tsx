@@ -1,10 +1,16 @@
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
+import { Input } from "@/components/ui/input";
 import { FieldBeam } from "@/components/shared/FieldBeam";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import {
   type BankKind,
 } from "@/data/admin/prompts";
 import { VARIETIES, type Variety } from "@/data/admin/shared";
+import {
+  DEFAULT_TARGET_PARTICIPANTS,
+  MAX_TARGET_PARTICIPANTS,
+  MIN_TARGET_PARTICIPANTS,
+} from "@/lib/api/catalog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,11 +22,14 @@ import { cn } from "@/lib/utils";
 export type BankDraft = {
   text: string;
   variety: Variety;
+  /** Topics only: how many people a session on this topic should have. */
+  targetParticipants?: number;
 };
 
 export const EMPTY_BANK_DRAFT: BankDraft = {
   text: "",
   variety: "Nigerian Pidgin",
+  targetParticipants: DEFAULT_TARGET_PARTICIPANTS,
 };
 
 /** Roughly two spoken sentences — past this a prompt stops being readable aloud. */
@@ -109,6 +118,45 @@ export function BankItemForm({
             options={VARIETIES.map((variety) => ({ value: variety, label: variety }))}
           />
         </div>
+
+        {/* Topics only. A prompt is read by one contributor, so a head count
+            means nothing on it; a focus group is a room, and the target is
+            what an intern is scored against for attendance. */}
+        {kind === "topic" ? (
+          <div className="min-w-0">
+            <span className="block text-xs text-muted-foreground">
+              Participants wanted
+            </span>
+            <FieldBeam className="mt-1.5">
+              <Input
+                type="number"
+                inputMode="numeric"
+                aria-label="Participants wanted"
+                min={MIN_TARGET_PARTICIPANTS}
+                max={MAX_TARGET_PARTICIPANTS}
+                value={draft.targetParticipants ?? DEFAULT_TARGET_PARTICIPANTS}
+                onChange={(event) => {
+                  /* Clamped here rather than refused: the API takes 1 to 50,
+                     and a spinner that stops is easier than an error. */
+                  const next = Number(event.target.value);
+                  onChange({
+                    targetParticipants: Number.isFinite(next)
+                      ? Math.min(
+                          MAX_TARGET_PARTICIPANTS,
+                          Math.max(MIN_TARGET_PARTICIPANTS, Math.round(next))
+                        )
+                      : DEFAULT_TARGET_PARTICIPANTS,
+                  });
+                }}
+                className={alvaFieldClass()}
+              />
+            </FieldBeam>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Sessions keep the target they were run against, so changing this
+              will not re-score sessions already recorded.
+            </p>
+          </div>
+        ) : null}
 
         {/* No category picker.
             Prompts and stimuli are separate endpoints, so what an item is was

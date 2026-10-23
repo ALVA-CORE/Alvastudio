@@ -11,7 +11,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { WEEKLY_7D } from "@/data/internDashboard";
 import { cn } from "@/lib/utils";
 
 const barConfig = {
@@ -25,7 +24,7 @@ type WeeklySessionsChartProps = {
 
 export function WeeklySessionsChart({
   className,
-  data = WEEKLY_7D,
+  data = [],
 }: WeeklySessionsChartProps) {
   return (
     <div className={cn("relative h-full min-h-0 w-full", className)}>

@@ -53,6 +53,8 @@ export type BankItem = {
   usedByCount: number;
   createdAt: number;
   createdLabel: string;
+  /** Topics only: how many people a session on this topic should have. */
+  targetParticipants?: number;
 };
 
 const PROMPT_TEXTS = [

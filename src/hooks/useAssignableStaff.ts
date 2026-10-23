@@ -44,7 +44,10 @@ export function useAssignableStaff(roles: ApiUserRole[], enabled: boolean) {
         setPeople(
           pages
             .flatMap((page) => page.items)
-            .filter((user) => user.is_active)
+            /* Active AND approved. Assigning either is refused — a
+             * deactivated person with a 400, an unapproved one by every
+             * route they would need to do the work. */
+            .filter((user) => user.is_active && user.approved)
             .map((user) => ({
               id: user.id,
               name: user.full_name,

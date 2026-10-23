@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  approveIntern,
+  approveUser,
   createUser,
   deleteUser,
   issuePasswordReset,
@@ -46,12 +46,11 @@ export function fromApiUser(api: ApiUser): AdminUser {
     joinedLabel: relativeDays(created),
     output: 0,
     outputLabel: OUTPUT_LABEL[api.role],
-    /* Annotators apply too, and `intern_approved` is the only approval flag
-     * the API has, so it carries both. Flagged in the asks doc: the field is
-     * named for one role and used by two. */
+    /* Interns and annotators both apply and both wait. Contributors are
+     * self-serve, and an admin-created account is approved by being created. */
     approval:
       api.role === "intern" || api.role === "annotator"
-        ? api.intern_approved
+        ? api.approved
           ? "approved"
           : "pending"
         : undefined,
@@ -162,7 +161,7 @@ export function useAdminUsers() {
   );
 
   const approve = useCallback(
-    async (id: string) => replace(await approveIntern(id)),
+    async (id: string) => replace(await approveUser(id)),
     [replace]
   );
 

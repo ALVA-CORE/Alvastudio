@@ -14,33 +14,6 @@ const VARIETY: Record<string, Variety> = {
 };
 
 /**
- * Where a session was recorded.
- *
- * A session has no state of its own — state is a property of the people in
- * the room — so it is the commonest state among its participants. Sessions run
- * in one place, so "commonest" and "the state" are the same thing in practice,
- * and a split room is worth seeing as whichever side it leans to rather than
- * as blank.
- */
-function sessionState(session: ApiSessionSummary): string {
-  const counts = new Map<string, number>();
-  for (const participant of session.participants ?? []) {
-    if (!participant.state) continue;
-    counts.set(participant.state, (counts.get(participant.state) ?? 0) + 1);
-  }
-
-  let best = "";
-  let top = 0;
-  for (const [state, count] of counts) {
-    if (count > top) {
-      best = state;
-      top = count;
-    }
-  }
-  return best || "Unknown";
-}
-
-/**
  * Every focus group session, across all interns.
  *
  * `expand=participants` nests them on each row, which is what makes the State
@@ -110,7 +83,11 @@ function toAdminSession(
     code: `FG-${String(index + 1).padStart(4, "0")}`,
     topic: api.topic,
     intern: interns.get(api.intern_id) ?? "Unknown",
-    state: sessionState(api),
+    /* The session's own field now. It used to be the commonest state among
+     * the participants, which was a derivation printed as a fact — somebody
+     * recording in Lagos with a room of people from Ogun read as Ogun. Blank
+     * where it was never recorded, because that is the truth about it. */
+    state: api.state ?? "",
     variety: VARIETY[api.language_variety ?? ""] ?? "Nigerian English",
     participants: api.participant_count,
     turns: api.turn_count,

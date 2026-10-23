@@ -6,6 +6,9 @@ import Pen from "@solar-icons/react/messages/Pen";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { AlvaMultiSelect } from "@/components/shared/AlvaMultiSelect";
+import { ApplicationSection } from "@/components/admin/users/ApplicationSection";
+import { ContributorProfileSection } from "@/components/admin/users/ContributorProfileSection";
+import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
@@ -183,6 +186,10 @@ export function UserDetailPanel({
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /* Above the `!user` guard below: hooks cannot be conditional, and this
+   * panel returns null before it renders anything. */
+  const profiles = useUserProfiles(user?.id);
 
   const activity = useMemo(() => (user ? userActivity(user) : []), [user]);
   const summary = useMemo(() => activitySummary(activity), [activity]);
@@ -420,6 +427,19 @@ export function UserDetailPanel({
                 </>
               )}
             </DetailGroup>
+
+            {/* Only while the decision is open. Once approved this is their
+                profile, and repeating it here would imply otherwise. */}
+            {status === "pending" ? (
+              <ApplicationSection user={user} profiles={profiles} />
+            ) : null}
+
+            {/* Everything a contributor answered at sign-up. The corpus is
+                sorted by these, so an admin looking at a person should be
+                able to see them without leaving the panel. */}
+            {user.role === "contributor" ? (
+              <ContributorProfileSection profiles={profiles} />
+            ) : null}
 
             {error ? (
               <p role="alert" className="mt-3 text-xs text-destructive">

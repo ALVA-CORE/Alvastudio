@@ -15,6 +15,14 @@ export type ApiPrompt = {
   is_active: boolean;
   created_by: string | null;
   created_at: string;
+  /**
+   * Topics only: how many people a session on this topic should have.
+   *
+   * Interns are scored on attendance against it, and each session copies the
+   * target it was run against, so editing a topic does not re-score sessions
+   * already run. Defaults to 8 at the API when unset.
+   */
+  target_participants?: number | null;
 };
 
 export type CatalogQuery = {
@@ -66,7 +74,14 @@ export type CatalogDraft = {
   language_variety: ApiLanguageVariety;
   category?: string | null;
   is_active?: boolean;
+  /** Topics only, 1-50. */
+  target_participants?: number;
 };
+
+/** The API's own default, mirrored so the form can show what it will send. */
+export const DEFAULT_TARGET_PARTICIPANTS = 8;
+export const MIN_TARGET_PARTICIPANTS = 1;
+export const MAX_TARGET_PARTICIPANTS = 50;
 
 const bank = (kind: "prompt" | "stimulus") =>
   kind === "prompt" ? "/prompts" : "/stimuli";

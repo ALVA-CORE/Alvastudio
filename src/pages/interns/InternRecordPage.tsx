@@ -15,6 +15,10 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ParticipantIntakeModal } from "@/components/interns/participants/ParticipantIntakeModal";
+import {
+  ConsentBlockedSheet,
+  namesFromConsentError,
+} from "@/components/interns/participants/ConsentBlockedSheet";
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
@@ -33,6 +37,8 @@ export default function InternRecordPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [isSaving, setSaving] = useState(false);
+  /** Names from a refused upload, or null while nothing is blocked. */
+  const [consentBlocked, setConsentBlocked] = useState<string[] | null>(null);
   const recorder = useStudioRecorder();
 
   const { topics, isLoading: loadingTopics, error: topicsError } = useFocusGroupTopics();
@@ -107,6 +113,14 @@ export default function InternRecordPage() {
       recorder.discardRecording();
       goTo((prev) => prev + 1);
     } catch (cause) {
+      /* 409 here is the consent gate: somebody in the room has not agreed, so
+       * the session cannot be processed. It needs more than a toast, because
+       * nothing the intern can tap from here fixes it. */
+      if (cause instanceof ApiError && cause.status === 409) {
+        setConsentBlocked(namesFromConsentError(cause.message));
+        return;
+      }
+
       alvaToast.error(
         cause instanceof ApiError ? cause.message : "Could not upload the session."
       );
@@ -206,6 +220,20 @@ export default function InternRecordPage() {
             </TextureButton>
           </div>
         )}
+
+        <ConsentBlockedSheet
+          open={consentBlocked !== null}
+          onOpenChange={(next) => !next && setConsentBlocked(null)}
+          names={consentBlocked ?? []}
+          onStartOver={() => {
+            /* A fresh session, with the take discarded: it was recorded with
+               somebody who did not agree, so it cannot be reused. */
+            setConsentBlocked(null);
+            setSessionId(null);
+            recorder.discardRecording();
+            setIntakeOpen(true);
+          }}
+        />
 
         <ParticipantIntakeModal
           open={intakeOpen}

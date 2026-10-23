@@ -19,6 +19,8 @@ export type ApiNotification = {
    */
   key: string;
   kind: string;
+  /** Set on `kind: "approval"`: the person waiting on an admin. */
+  user_id?: string | null;
   title: string;
   body: string;
   created_at: string;

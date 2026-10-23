@@ -10,7 +10,7 @@ import type { InternNotification, InternNotificationCategory } from "@/data/inte
 /**
  * Maps the API's notifications onto the two shapes the screens already speak.
  *
- * `kind` is an enum now — `review`, `annotation`, `earning`, `queue` — so the
+ * `kind` is an enum — `review`, `annotation`, `earning`, `queue`, `approval` — so the
  * four known values are matched directly. The substring fallback stays for
  * anything added later: a notification with a kind we have never seen should
  * still be readable, and losing it because its icon is unknown would be the
@@ -44,6 +44,10 @@ function contributorStatus(kind: string): NotificationStatus | undefined {
 }
 
 function staffCategory(kind: string): InternNotificationCategory {
+  /* Admins only: somebody has applied and is waiting. It is an announcement
+   * rather than a queue item because the queue categories are about work, and
+   * this is about a person. */
+  if (kind === "approval") return "announcement";
   if (kind === "queue") return "review-queue";
   if (kind === "earning") return "payout-summary";
   if (kind === "annotation") return "session-submitted";

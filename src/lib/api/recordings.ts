@@ -30,6 +30,15 @@ export type ApiRecording = {
   reviewer_name?: string | null;
 };
 
+/** Six hours, which is the API's ceiling on any duration it stores. */
+export const MAX_DURATION_SECONDS = 21_600;
+
+export function isSendableDuration(value: number | undefined): value is number {
+  return (
+    value != null && Number.isFinite(value) && value > 0 && value <= MAX_DURATION_SECONDS
+  );
+}
+
 /**
  * Submits a recording.
  *
@@ -46,10 +55,19 @@ function submit(
   const form = new FormData();
   form.append(idField, idValue);
   form.append("file", audio, meta.filename ?? "recording.webm");
-  if (meta.durationSeconds != null) {
+
+  /* The API refuses a duration that is negative, infinite, NaN or over six
+   * hours, and it is right to: an infinite one was stored once and broke
+   * every screen that read it. A recorder left running in a background tab
+   * can produce one, so it is dropped here rather than sent and refused,
+   * which would lose a take somebody actually recorded. */
+  if (isSendableDuration(meta.durationSeconds)) {
     form.append("duration_seconds", String(meta.durationSeconds));
   }
-  if (meta.deviceMic) form.append("device_mic", meta.deviceMic);
+
+  /* 255 is the column. A browser mic label is usually short, but a virtual
+   * device can carry a long one. */
+  if (meta.deviceMic) form.append("device_mic", meta.deviceMic.slice(0, 255));
 
   return apiFetch<ApiRecording>(path, { method: "POST", form });
 }

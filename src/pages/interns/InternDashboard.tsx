@@ -14,6 +14,8 @@ import {
   DASHBOARD_DATA,
   getEmptyDashboardDataset,
   toCaptureTrend,
+  toDemographicSpeakers,
+  toQualityRadar,
   toWeeklySessions,
   type DashboardTimeRange,
 } from "@/data/internDashboard";
@@ -42,21 +44,21 @@ export default function InternDashboard() {
   const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
   const isLoading = useSimulatedLoading();
-  const { forceEmpty } = useDevUiState();
+  const { forceEmpty, forceDemo } = useDevUiState();
   const { data: live, isLoading: loadingLive } = useApiResource(internDashboard, []);
 
-  const base = forceEmpty
-    ? getEmptyDashboardDataset(timeRange)
-    : DASHBOARD_DATA[timeRange];
+  /* The seeded dataset is for demo mode only. Everywhere else a screen with
+   * no response shows zeroes: this is one person's own work, and a sample of
+   * somebody else's is the one thing it must never be mistaken for. */
+  const base = forceDemo ? DASHBOARD_DATA[timeRange] : getEmptyDashboardDataset(timeRange);
 
   /**
-   * Live where the endpoint reaches, seeded where it does not.
+   * Every chart on this screen is live now.
    *
-   * `daily_activity` is the full window in one response, so the time filter
-   * is a slice rather than a refetch, and both charts drawn from it move with
-   * it. The quality radar and the age-by-gender chart stay seeded: the first
-   * has no agreed definition, and the second needs the two demographic
-   * marginals crossed, which a focus group's single audio file cannot give.
+   * `daily_activity` is the full window in one response, so the time filter is
+   * a slice rather than a refetch. The radar and the pyramid are not sliced:
+   * both are computed over the API's own 365-day window, so they do not move
+   * with the filter, and the cards above them say which window they are over.
    */
   const dataset =
     live && !forceEmpty
@@ -69,10 +71,17 @@ export default function InternDashboard() {
           );
           const hours = window.reduce((total, day) => total + day.hours, 0);
 
+          const radar = toQualityRadar(live.quality_in_window);
+          const pyramid = toDemographicSpeakers(live.demographics.by_gender_age);
+
           return {
             ...base,
             weeklySessions: toWeeklySessions(window),
             captureTrend: toCaptureTrend(window),
+            /* Kept as the seeded shape only while there is nothing to draw, so
+             * the card keeps its frame and shows its empty state. */
+            qualityRadar: radar.length ? radar : [],
+            demographicHours: pyramid,
             metrics: {
               ...base.metrics,
               hours: `${hours.toFixed(1)}h`,

@@ -26,8 +26,6 @@ import GraphUp from "@solar-icons/react/business/GraphUp";
 import {
   EMPTY_RECORDING_MIX,
   EMPTY_WEEKLY_SESSIONS,
-  RECORDING_MIX,
-  WEEKLY_SESSIONS,
 } from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
 
@@ -155,10 +153,12 @@ export function DashboardCharts({
    * rather than a chart of zeroes. The ghost ring keeps the donut's shape
    * behind the overlay. */
   const mixEmpty = isEmpty || (mix !== undefined && mix.length === 0);
-  const mixData = mixEmpty ? EMPTY_RECORDING_MIX : (mix ?? RECORDING_MIX);
+  const mixData = mixEmpty ? EMPTY_RECORDING_MIX : (mix ?? EMPTY_RECORDING_MIX);
+  /* Zeroes, never a sample. Before the dashboard lands these cards used to
+     draw somebody else's week, which is a figure about this contributor. */
   const weeklyData = isEmpty
     ? EMPTY_WEEKLY_SESSIONS
-    : (weekly?.length ? weekly : WEEKLY_SESSIONS);
+    : (weekly?.length ? weekly : EMPTY_WEEKLY_SESSIONS);
 
   const onSelect = useCallback((carouselApi: CarouselApi) => {
     setActiveSlide(carouselApi.selectedScrollSnap());

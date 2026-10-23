@@ -24,6 +24,7 @@ beforeEach(() => {
       phone: user.phone,
       role: user.role,
       is_active: user.isActive,
+      approved: true,
       intern_approved: true,
       created_at: new Date(user.createdAt).toISOString(),
     })),

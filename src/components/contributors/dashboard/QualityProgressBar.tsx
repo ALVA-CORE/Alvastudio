@@ -1,10 +1,10 @@
 import {
   EMPTY_QUALITY_INSIGHTS,
   EMPTY_QUALITY_SEGMENTS,
+  formatReviewTime,
   type QualitySegment,
 } from "@/data/contributors/dashboard";
 import { cn } from "@/lib/utils";
-import { NO_VALUE } from "@/lib/no-value";
 
 type QualityProgressBarProps = {
   className?: string;
@@ -26,6 +26,13 @@ type QualityProgressBarProps = {
   /** Kept for the callers that only have the two headline figures. */
   approved?: number;
   total?: number;
+  /**
+   * Median upload-to-verdict time, in seconds.
+   *
+   * Null below the API's floor of 10 decided clips, and shown as a dash: a
+   * median over three clips says nothing about this contributor.
+   */
+  medianReviewSeconds?: number | null;
 };
 
 function pct(part: number, whole: number): number {
@@ -38,6 +45,7 @@ export function QualityProgressBar({
   breakdown,
   approved,
   total,
+  medianReviewSeconds,
 }: QualityProgressBarProps) {
   /**
    * Four slices of one whole, from counts that overlap.
@@ -74,9 +82,12 @@ export function QualityProgressBar({
     : liveRate
       ? [
           { label: "Acceptance rate", value: liveRate },
-          /* No review-time figure anywhere. It is a scoring definition
-             still being sequenced, not a field somebody forgot. */
-          { label: "Avg review time", value: NO_VALUE },
+          /* "Median", not "Avg": one clip left over a weekend drags a mean
+             badly, which is why the figure is defined as a median. */
+          {
+            label: "Median review time",
+            value: formatReviewTime(medianReviewSeconds ?? null),
+          },
           { label: "Total clips", value: String(total) },
         ]
       : EMPTY_QUALITY_INSIGHTS;

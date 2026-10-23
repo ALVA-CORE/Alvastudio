@@ -95,7 +95,7 @@ export function AnnotatorBentoGrid({
             : undefined
         }
       >
-        <DemographicHoursChart data={dataset.demographicHours} />
+        <DemographicHoursChart data={dataset.demographicHours} unit="speakers" />
       </AnnotatorChartCard>
     </div>
   );

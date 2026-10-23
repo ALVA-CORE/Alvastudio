@@ -26,6 +26,16 @@ export type ApiContributorDashboard = {
   daily_activity: ApiDailyActivity[];
   recordings_in_window: number;
   activity_window_days: number;
+  /**
+   * Median upload-to-verdict time over the same 365-day window.
+   *
+   * Null below 10 decided clips, which is the agreed floor: a median over
+   * three clips is a number about three clips, not about this contributor.
+   * A flag is not a decision, so it is not counted.
+   */
+  median_review_seconds_in_window: number | null;
+  /** How many decided clips the median is over. */
+  decided_in_window: number;
 };
 
 /** One day of an intern's own capture. Zero-filled over the window. */
@@ -41,21 +51,12 @@ export type ApiInternDashboard = {
   sessions_run: number;
   participants_captured: number;
   hours_recorded: number;
-  /**
-   * Participant counts, not hours, and two marginals rather than the joint.
-   *
-   * A focus group is one file with several speakers, so its hours cannot be
-   * split by speaker — which is also why these cannot be crossed into the
-   * age-by-gender chart.
-   */
-  demographics: {
-    by_age_bracket: Record<string, number>;
-    by_gender: Record<string, number>;
-  };
+  demographics: ApiDemographicBreakdown;
   /** 365 days, zero-filled, oldest first, `YYYY-MM-DD` in Africa/Lagos. */
   daily_activity: ApiInternDailyActivity[];
   activity_window_days: number;
   sessions_in_window: number;
+  quality_in_window: ApiQualityRadar;
   participants_in_window: number;
   hours_in_window: number;
 };
@@ -66,6 +67,50 @@ export const contributorDashboard = () =>
 export const internDashboard = () => apiFetch<ApiInternDashboard>("/dashboard/intern");
 
 export type ApiDailyActivity = { date: string; count: number };
+
+/**
+ * One axis of the intern quality radar.
+ *
+ * `score` is null when there is nothing to score yet, which is "no data"
+ * rather than zero: an intern with no decided clips has not scored badly on
+ * approvals, they have not been measured.
+ */
+export type ApiRadarAxis = {
+  score: number | null;
+  numerator: number;
+  denominator: number;
+};
+
+export type ApiQualityRadar = {
+  consent: ApiRadarAxis;
+  demographics: ApiRadarAxis;
+  audio: ApiRadarAxis;
+  participants: ApiRadarAxis;
+  clip_approval: ApiRadarAxis;
+};
+
+/** One gender in one age bracket. One row per pair that occurs. */
+export type ApiGenderAgeCell = {
+  gender: string;
+  age_bracket: string;
+  speakers: number;
+};
+
+/**
+ * Participant counts, not hours.
+ *
+ * A focus group is one file with several speakers, so its hours cannot be
+ * split by speaker. `by_gender_age` is the real joint, and the two marginals
+ * are summed from it, so all three agree.
+ *
+ * The unit is a speaker in a session: somebody in two sessions counts twice,
+ * because participants have no identity across sessions.
+ */
+export type ApiDemographicBreakdown = {
+  by_gender: Record<string, number>;
+  by_age_bracket: Record<string, number>;
+  by_gender_age: ApiGenderAgeCell[];
+};
 
 export type ApiAnnotationStatusBreakdown = {
   draft: number;
@@ -96,16 +141,16 @@ export type ApiAnnotatorDashboard = {
   tokens_annotated: number;
   gold_count: number;
   queue_available: number;
-  tag_breakdown: ApiTagBreakdown;
   /**
-   * Participant counts across the sessions this annotator has worked, as two
-   * marginals. They cannot be crossed into the age-by-gender chart, which is
-   * why that one is still seeded.
+   * How many sessions this annotator is holding, and how many they may.
+   *
+   * `claim_limit` is null for admins, who are not capped. Claiming past the
+   * limit is a 409; these two are what let a screen say so beforehand.
    */
-  speaker_demographics: {
-    by_gender: Record<string, number>;
-    by_age_bracket: Record<string, number>;
-  };
+  open_claims: number;
+  claim_limit: number | null;
+  tag_breakdown: ApiTagBreakdown;
+  speaker_demographics: ApiDemographicBreakdown;
   /** 365 days, zero-filled, oldest first, `YYYY-MM-DD` in Africa/Lagos. */
   daily_activity: ApiDailyActivity[];
 };

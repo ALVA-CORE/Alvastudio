@@ -151,6 +151,12 @@ export function AnnotationDetailPanel({
   const awaitingVerdict =
     annotation.status === "submitted" || annotation.status === "approved";
 
+  /** Only work still in progress can move. */
+  const canReassign =
+    annotation.status === "draft" ||
+    annotation.status === "in_progress" ||
+    annotation.status === "needs_rework";
+
   return (
     <>
       <DetailPanel
@@ -180,14 +186,20 @@ export function AnnotationDetailPanel({
         }
         footer={
           <>
-            <PanelAction
-              icon={<UsersGroupRounded size={15} weight="Outline" />}
-              label="Reassign"
-              onClick={() => {
-                onReassign(annotation);
-                onOpenChange(false);
-              }}
-            />
+            {/* Finished work does not change hands: the API answers 409 for a
+                submitted, approved or rejected annotation. Offering a button
+                that can only fail is worse than not offering one, so it goes
+                while the work is somebody's to finish. */}
+            {canReassign ? (
+              <PanelAction
+                icon={<UsersGroupRounded size={15} weight="Outline" />}
+                label="Reassign"
+                onClick={() => {
+                  onReassign(annotation);
+                  onOpenChange(false);
+                }}
+              />
+            ) : null}
             {annotation.status === "submitted" ? (
               <>
                 <PanelAction

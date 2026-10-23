@@ -4,6 +4,7 @@ import { useApiResource } from "@/hooks/useApiResource";
 import type { HeatmapColumn } from "@/components/charts/heatmap";
 import { NO_VALUE } from "@/lib/no-value";
 import type { DashboardTimeRange } from "@/data/internDashboard";
+import { toDemographicSpeakers } from "@/data/internDashboard";
 import type { ApiTagBreakdown } from "@/lib/api/dashboard";
 import type { SunburstNode } from "@/components/charts/sunburst-data";
 import type { SpanKind } from "@/lib/annotation/tags";
@@ -148,5 +149,23 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
     [data]
   );
 
-  return { data, metrics, activity, tagBreakdown, isLoading, error, reload };
+  /* Speakers across the sessions this annotator has worked. Each speaker
+   * counts once per session now, where it used to count once per annotation
+   * held on that session, so these figures read lower than they did. */
+  const demographics = useMemo(
+    () =>
+      toDemographicSpeakers(data?.speaker_demographics.by_gender_age ?? []),
+    [data]
+  );
+
+  return {
+    data,
+    metrics,
+    activity,
+    tagBreakdown,
+    demographics,
+    isLoading,
+    error,
+    reload,
+  };
 }

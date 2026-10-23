@@ -22,6 +22,9 @@ import {
 import { useAnnotatorSessions } from "@/hooks/useAnnotatorSessions";
 import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useApiResource } from "@/hooks/useApiResource";
+import { annotatorDashboard } from "@/lib/api/dashboard";
+import { cn } from "@/lib/utils";
 import { NO_VALUE } from "@/lib/no-value";
 
 type LanguageFilter = AnnotatorSession["language"] | "all";
@@ -42,6 +45,15 @@ export default function AnnotatorSessionsPage() {
   const { sessions, isLoading, error, reload, claimNext, isClaiming } =
     useAnnotatorSessions();
 
+  /* Only for the cap. The rest of this page counts its own rows; these two
+   * numbers exist nowhere but the dashboard endpoint. */
+  const {
+    data: dashboard,
+    reload: reloadClaims,
+  } = useApiResource(annotatorDashboard, []);
+  const openClaims = dashboard?.open_claims ?? 0;
+  const claimLimit = dashboard?.claim_limit ?? null;
+
   const rows = useDevRows(sessions);
 
   const [tab, setTab] = useState<"pending" | "completed">("pending");
@@ -61,7 +73,9 @@ export default function AnnotatorSessionsPage() {
   const metrics = isEmpty
     ? EMPTY_SESSION_METRICS
     : {
-        ...SESSION_METRICS,
+        /* Counted, all of it. Nothing is spread in from the seeded set: the
+         * trends have no source, so they are blank rather than invented. */
+        periodLabel: SESSION_METRICS.periodLabel,
         queued: String(pendingCount),
         queuedTrend: "",
         hoursPending: `${(totalSeconds / 3600).toFixed(1)}h`,
@@ -78,7 +92,10 @@ export default function AnnotatorSessionsPage() {
 
   const handleClaim = async () => {
     const annotationId = await claimNext();
-    if (annotationId) reload();
+    if (annotationId) {
+      reload();
+      reloadClaims();
+    }
   };
 
   const languageFiltered =
@@ -197,8 +214,24 @@ export default function AnnotatorSessionsPage() {
   return (
     <DesktopPageShell className="py-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-2.5">
           <h1 className="text-2xl font-semibold text-foreground">Sessions</h1>
+
+          {/* An annotator may hold two at once. Shown here rather than on the
+              button, which stays live: the cap is a fact about their desk,
+              and the API says the rest if they reach for a third. */}
+          {claimLimit != null ? (
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-medium",
+                openClaims >= claimLimit
+                  ? "bg-amber-500/15 text-amber-300"
+                  : "bg-alva-surface text-muted-foreground"
+              )}
+            >
+              {openClaims} of {claimLimit} open
+            </span>
+          ) : null}
         </div>
 
         {/* The backend hands work out by claim, not assignment, so taking the

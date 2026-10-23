@@ -5,6 +5,7 @@ import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
+import { ClipPlayerSkeleton } from "@/components/admin/shared/ClipPlayerSkeleton";
 import { recordingAudioUrl } from "@/lib/api/recordings";
 import {
   AuditTimeline,
@@ -70,6 +71,8 @@ export function RecordingDetailPanel({
   const [tab, setTab] = useState("detail");
   const [confirmReopen, setConfirmReopen] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  /** Distinguishes "still fetching" from "this clip has no audio". */
+  const [audioLoading, setAudioLoading] = useState(false);
 
   /**
    * The audio route is authenticated, so an `<audio src>` pointed at it would
@@ -82,6 +85,7 @@ export function RecordingDetailPanel({
 
     let url: string | null = null;
     let cancelled = false;
+    setAudioLoading(true);
 
     recordingAudioUrl(recording.id)
       .then((blobUrl) => {
@@ -92,7 +96,10 @@ export function RecordingDetailPanel({
         url = blobUrl;
         setAudioUrl(blobUrl);
       })
-      .catch(() => setAudioUrl(null));
+      .catch(() => setAudioUrl(null))
+      .finally(() => {
+        if (!cancelled) setAudioLoading(false);
+      });
 
     return () => {
       cancelled = true;
@@ -163,7 +170,11 @@ export function RecordingDetailPanel({
         {tab === "detail" ? (
           <>
             <DetailGroup title="Clip" first>
-              {audioUrl ? (
+              {audioLoading ? (
+                <div className="col-span-2">
+                  <ClipPlayerSkeleton />
+                </div>
+              ) : audioUrl ? (
                 <div className="col-span-2">
                   <ClipPlayer src={audioUrl} />
                 </div>

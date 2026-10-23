@@ -52,6 +52,7 @@ function toBankItem(api: ApiPrompt, kind: BankKind): BankItem {
     usedByCount: api.used_by_count,
     createdAt: created.getTime(),
     createdLabel: relativeDays(created),
+    targetParticipants: api.target_participants ?? undefined,
   };
 }
 
@@ -122,6 +123,11 @@ export function useBank() {
       text: draft.text,
       language_variety: FROM_VARIETY[draft.variety],
       is_active: true,
+      /* Topics only. Sending it on a prompt would be a field the bank behind
+       * it does not have. */
+      ...(kind === "topic" && draft.targetParticipants != null
+        ? { target_participants: draft.targetParticipants }
+        : {}),
     };
     const api =
       kind === "topic" ? await createTopic(body) : await createBankItem(kind, body);
@@ -137,6 +143,9 @@ export function useBank() {
       const body = {
         text: draft.text,
         language_variety: FROM_VARIETY[draft.variety],
+        ...(kind === "topic" && draft.targetParticipants != null
+          ? { target_participants: draft.targetParticipants }
+          : {}),
       };
       const api =
         kind === "topic"

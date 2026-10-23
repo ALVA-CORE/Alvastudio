@@ -23,6 +23,7 @@ export function seededApiUsers(): ApiUser[] {
     phone: row.phone,
     role: row.role,
     is_active: row.isActive,
+    approved: row.approval !== "pending",
     intern_approved: row.approval !== "pending",
     created_at: new Date(row.createdAt).toISOString(),
   }));

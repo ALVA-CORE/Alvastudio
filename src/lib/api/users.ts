@@ -17,6 +17,9 @@ export type ApiUser = {
   role: ApiUserRole;
   is_active: boolean;
   /** Only meaningful for `intern`. False until an admin approves the signup. */
+  /** Interns and annotators both. False until an admin approves. */
+  approved: boolean;
+  /** @deprecated Alias of `approved`, kept by the API for older clients. */
   intern_approved: boolean;
   created_at: string;
   /**
@@ -118,6 +121,50 @@ export function previewUserDeletion(id: string) {
 }
 
 /** Lets an intern who registered themselves actually sign in. */
+/**
+ * What a person submitted, for an admin deciding whether to approve them.
+ *
+ * Each branch is null when it was never filled in. An applicant can write
+ * their profile before approval, which is the point: it is the claim being
+ * approved.
+ */
+export type ApiUserProfiles = {
+  user_id: string;
+  role: ApiUserRole;
+  approved: boolean;
+  profile: {
+    age_bracket?: string | null;
+    gender?: string | null;
+    state_of_origin?: string | null;
+    state_of_residence?: string | null;
+    ethnicity?: string | null;
+    occupation?: string | null;
+    native_languages?: string[] | null;
+    pidgin_fluency?: string | null;
+    english_fluency?: string | null;
+    preferred_language_variety?: string | null;
+    device_mic?: string | null;
+  } | null;
+  intern_profile: {
+    primary_state?: string | null;
+    coverage_areas?: string[] | null;
+  } | null;
+  annotator_profile: {
+    language_varieties?: string[] | null;
+    sessions_covered?: string[] | null;
+  } | null;
+};
+
+export function getUserProfiles(id: string) {
+  return apiFetch<ApiUserProfiles>(`/users/${id}/profiles`);
+}
+
+/** Interns and annotators. Replaces the deprecated `approve-intern`. */
+export function approveUser(id: string) {
+  return apiFetch<ApiUser>(`/users/${id}/approve`, { method: "POST" });
+}
+
+/** @deprecated Use {@link approveUser}. */
 export function approveIntern(id: string) {
   return apiFetch<ApiUser>(`/users/${id}/approve-intern`, { method: "POST" });
 }
