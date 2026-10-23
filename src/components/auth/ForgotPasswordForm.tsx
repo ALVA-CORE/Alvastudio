@@ -1,4 +1,7 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { requestPasswordReset } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,22 +21,69 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 
+/**
+ * Asks an admin for help getting back into an account.
+ *
+ * Not a self-serve reset. An admin approves the request and the API emails
+ * the link, so what this screen can honestly promise is that somebody will
+ * look at it.
+ *
+ * **The same thing is shown whatever the email was.** The API answers
+ * identically for an address it has never seen, and saying "we found you" or
+ * "no such account" here would turn this form into a way to find out who has
+ * an account on Alvastudio.
+ */
 export function ForgotPasswordForm() {
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const form = useForm<ForgotPasswordValues>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: "" },
   });
 
-  const onSubmit = (_values: ForgotPasswordValues) => {
-    // TODO: wire to Supabase reset flow
+  const onSubmit = async (values: ForgotPasswordValues) => {
+    setError(null);
+
+    try {
+      await requestPasswordReset(values.email);
+      setSent(true);
+    } catch (cause) {
+      /* A rate limit is the one refusal worth repeating: it is about what
+         they just did, not about whether the account exists. */
+      setError(
+        cause instanceof ApiError ? cause.message : "Could not send that request."
+      );
+    }
   };
+
+  if (sent) {
+    return (
+      <div className="space-y-6 text-center">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Request sent</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            If that email belongs to an Alvastudio account, an admin will
+            review it and email a link to set a new password.
+          </p>
+        </div>
+
+        <Link
+          to="/login"
+          className="inline-block text-sm font-medium text-primary hover:underline"
+        >
+          Back to sign in
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-2xl font-semibold text-foreground">Reset password</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          We&apos;ll send a reset link to your email
+          An admin reviews the request, then emails you a link
         </p>
       </div>
 
@@ -57,7 +107,19 @@ export function ForgotPasswordForm() {
             )}
           />
 
-          <TextureButton type="submit" variant="alva" size="lg" className="mt-2">
+          {error ? (
+            <p role="alert" className="text-center text-xs font-medium text-destructive">
+              {error}
+            </p>
+          ) : null}
+
+          <TextureButton
+            type="submit"
+            variant="alva"
+            size="lg"
+            className="mt-2"
+            loading={form.formState.isSubmitting}
+          >
             Send reset link
           </TextureButton>
         </form>

@@ -126,7 +126,14 @@ export const deleteSession = (id: string) =>
  * already run from it. A retired topic is a 409, an unknown one a 404.
  */
 /** Corrects a session's recorded state. The session's intern, or an admin. */
-export const updateSession = (sessionId: string, patch: { state: string | null }) =>
+export const updateSession = (
+  sessionId: string,
+  /* `target_participants` is admin-only: interns are scored against it, so
+   * lowering their own would raise their own score. A refused request changes
+   * nothing, including any `state` sent alongside it, so the two are sent
+   * separately. */
+  patch: { state?: string | null; target_participants?: number }
+) =>
   apiFetch<ApiSession>(`/focus-groups/${sessionId}`, {
     method: "PATCH",
     body: patch,
@@ -141,6 +148,36 @@ export const createSession = (payload: {
   duration_seconds?: number;
   participants?: ApiParticipantIn[];
 }) => apiFetch<ApiSession>("/focus-groups", { method: "POST", body: payload });
+
+/**
+ * Records a participant's consent decision, after the fact.
+ *
+ * Adds a record and leaves the old one in place, so the history is kept and
+ * the API knows who recorded each decision. Works after the audio is uploaded
+ * too, because somebody can withdraw at any time: a session with anyone who
+ * has not agreed leaves the annotation queue and the corpus until they do.
+ */
+export const setParticipantConsent = (
+  sessionId: string,
+  participantId: string,
+  body: { consent_given: boolean; consent_version?: string }
+) =>
+  apiFetch<ApiParticipant>(
+    `/focus-groups/${sessionId}/participants/${participantId}`,
+    { method: "PATCH", body }
+  );
+
+/**
+ * Removes a participant logged by mistake.
+ *
+ * Refused with 409 once the session has audio: their voice is in the
+ * recording by then, and deleting them would delete the record of whether
+ * they agreed with it. Record a decision instead.
+ */
+export const removeParticipant = (sessionId: string, participantId: string) =>
+  apiFetch<void>(`/focus-groups/${sessionId}/participants/${participantId}`, {
+    method: "DELETE",
+  });
 
 export const addParticipant = (sessionId: string, participant: ApiParticipantIn) =>
   apiFetch<ApiParticipant>(`/focus-groups/${sessionId}/participants`, {

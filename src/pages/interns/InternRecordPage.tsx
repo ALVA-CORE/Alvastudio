@@ -15,10 +15,7 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ParticipantIntakeModal } from "@/components/interns/participants/ParticipantIntakeModal";
-import {
-  ConsentBlockedSheet,
-  namesFromConsentError,
-} from "@/components/interns/participants/ConsentBlockedSheet";
+import { ConsentBlockedSheet } from "@/components/interns/participants/ConsentBlockedSheet";
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
@@ -37,8 +34,8 @@ export default function InternRecordPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [isSaving, setSaving] = useState(false);
-  /** Names from a refused upload, or null while nothing is blocked. */
-  const [consentBlocked, setConsentBlocked] = useState<string[] | null>(null);
+  /** True once an upload was refused for consent. */
+  const [consentBlocked, setConsentBlocked] = useState(false);
   const recorder = useStudioRecorder();
 
   const { topics, isLoading: loadingTopics, error: topicsError } = useFocusGroupTopics();
@@ -123,7 +120,7 @@ export default function InternRecordPage() {
        * the session cannot be processed. It needs more than a toast, because
        * nothing the intern can tap from here fixes it. */
       if (cause instanceof ApiError && cause.status === 409) {
-        setConsentBlocked(namesFromConsentError(cause.message));
+        setConsentBlocked(true);
         return;
       }
 
@@ -232,16 +229,14 @@ export default function InternRecordPage() {
         )}
 
         <ConsentBlockedSheet
-          open={consentBlocked !== null}
-          onOpenChange={(next) => !next && setConsentBlocked(null)}
-          names={consentBlocked ?? []}
-          onStartOver={() => {
-            /* A fresh session, with the take discarded: it was recorded with
-               somebody who did not agree, so it cannot be reused. */
-            setConsentBlocked(null);
-            setSessionId(null);
-            recorder.discardRecording();
-            setIntakeOpen(true);
+          open={consentBlocked}
+          onOpenChange={setConsentBlocked}
+          sessionId={sessionId}
+          onResolved={() => {
+            /* Consent is on file now, so the take that was refused can go up
+               as it is. Nothing was recorded again and nothing was lost. */
+            setConsentBlocked(false);
+            void handleSave();
           }}
         />
 

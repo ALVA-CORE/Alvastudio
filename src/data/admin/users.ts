@@ -282,24 +282,6 @@ export function activitySummary(columns: HeatmapColumn[]) {
   };
 }
 
-/**
- * What the API records about an account.
- *
- * One timestamp: when they joined. Everything else this used to show — "First
- * clip submitted", a couple of admin actions, a deactivation — was generated
- * from a seeded random, with dates to match. An audit log that invents its own
- * entries is worse than no audit log, because somebody settling a dispute
- * would read it and believe it.
- *
- * Approval and deactivation are real states we can see, but nothing says WHEN
- * either happened, so they are not dated here. A real log is an open ask.
- */
-export function userAuditLog(user: AdminUser): AuditEvent[] {
-  return [
-    { id: "joined", label: "Joined Alvastudio", at: new Date(user.createdAt) },
-  ];
-}
-
 export function formatAuditTimestamp(date: Date) {
   return date.toLocaleString(undefined, {
     month: "short",

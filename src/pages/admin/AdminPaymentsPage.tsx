@@ -20,19 +20,25 @@ import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
+import MenuDots from "@solar-icons/react/ui/MenuDots";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SyncMilestonesDialog } from "@/components/admin/payments/SyncMilestonesDialog";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
 import {
   EMPTY_PAYMENT_METRICS,
   PAYOUT_STATUS_LABELS,
-  RATE_UNIT_LABELS,
   earningsToCsv,
   formatNaira,
   paymentMetrics,
   type Earning,
   type PayoutStatus,
-  type Rate,
 } from "@/data/admin/payments";
 import { downloadCsv } from "@/lib/download-csv";
 import { alvaToast } from "@/lib/alva-toast";
@@ -83,7 +89,6 @@ export default function AdminPaymentsPage() {
     rates,
     isLoading: loadingRates,
     error: ratesError,
-    save: saveRate,
     reload: reloadRates,
   } = useRates();
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -102,6 +107,7 @@ export default function AdminPaymentsPage() {
 
   const payouts = usePayouts();
   const [runOpen, setRunOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const [detail, setDetail] = useState<Earning | null>(null);
 
   const rows = useDevRows(earnings);
@@ -113,21 +119,6 @@ export default function AdminPaymentsPage() {
     [rows, status]
   );
 
-  const commitEdit = async (rate: Rate, amount: string) => {
-    const naira = Number(amount);
-    if (!Number.isFinite(naira) || naira < 0) {
-      alvaToast.error("That is not an amount");
-      return;
-    }
-
-    try {
-      await saveRate(rate.unit, naira);
-      alvaToast.success(`${RATE_UNIT_LABELS[rate.unit]} rate updated`);
-    } catch (cause) {
-      const message = reportApiError(cause, "Could not change that rate.");
-      if (message) alvaToast.error(message);
-    }
-  };
 
   const columns = [
     {
@@ -192,18 +183,42 @@ export default function AdminPaymentsPage() {
         id="payments"
         actions={
           <div className="flex items-center gap-2">
-            <TextureButton
-              variant="minimal"
-              size="sm"
-              className="w-auto"
-              onClick={() => {
-                downloadCsv("alva-earnings.csv", earningsToCsv(filtered));
-                alvaToast.success(`Exported ${filtered.length} rows`);
-              }}
-            >
-              <Upload size={15} weight="Outline" />
-              Export CSV
-            </TextureButton>
+            {/* Everything that is not the primary action. Three buttons side
+                by side gives equal weight to a pay run and a CSV export,
+                which are not equal. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <TextureButton variant="minimal" size="sm" className="w-auto">
+                  <MenuDots size={15} weight="Outline" />
+                  More
+                </TextureButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-64 rounded-2xl border-alva-border bg-alva-card p-1.5"
+              >
+                <DropdownMenuItem
+                  className="gap-2 rounded-xl"
+                  onSelect={() => {
+                    downloadCsv("alva-earnings.csv", earningsToCsv(filtered));
+                    alvaToast.success(`Exported ${filtered.length} rows`);
+                  }}
+                >
+                  <Upload size={15} weight="Outline" />
+                  Export CSV
+                </DropdownMenuItem>
+
+                {/* One-off: milestone pay replaced per-clip pay, and this
+                    credits the blocks people had already earned. */}
+                <DropdownMenuItem
+                  className="gap-2 rounded-xl"
+                  onSelect={() => setSyncOpen(true)}
+                >
+                  <BillList size={15} weight="Outline" />
+                  Back-pay milestones
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* The only way money moves. A run pays everybody eligible at
                 once, which is why it lives here rather than on a row. */}
@@ -268,8 +283,8 @@ export default function AdminPaymentsPage() {
       </div>
 
       <AlvaChartCard
-        title="What each unit of work pays"
-        subtitle="Change a rate and every figure below is calculated from the new one"
+        title="Historic rates"
+        subtitle="What clips paid before milestone pay. Contributors now earn ₦5,000 for every 500 approved clips"
         className="mt-2"
       >
         {ratesError ? (
@@ -296,7 +311,7 @@ export default function AdminPaymentsPage() {
             description="Nothing is being paid out until a rate exists for at least one unit of work."
           />
         ) : (
-          <RateRings rates={rates} onSave={commitEdit} />
+          <RateRings rates={rates} />
         )}
       </AlvaChartCard>
 
@@ -410,6 +425,12 @@ export default function AdminPaymentsPage() {
         </AlvaChartCard>
         </TabsContent>
       </Tabs>
+
+      <SyncMilestonesDialog
+        open={syncOpen}
+        onOpenChange={setSyncOpen}
+        onDone={reloadEarnings}
+      />
 
       <RunPaymentDialog
         open={runOpen}

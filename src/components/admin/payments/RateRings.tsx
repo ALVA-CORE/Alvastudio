@@ -1,11 +1,7 @@
-import { useState } from "react";
 import { RingChart } from "@/components/charts/ring-chart";
 import { Ring } from "@/components/charts/ring";
 import { RingCenter } from "@/components/charts/ring-center";
-import { Input } from "@/components/ui/input";
-import { TextureButton } from "@/components/ui/texture-button";
 import { RATE_UNIT_LABELS, formatNaira, type Rate } from "@/data/admin/payments";
-import { cn } from "@/lib/utils";
 
 /**
  * Five rings, longest arc for the best-paid unit.
@@ -27,16 +23,15 @@ const PALETTE = [
   "hsl(330 68% 66%)",
 ];
 
-export function RateRings({
-  rates,
-  onSave,
-}: {
-  rates: Rate[];
-  onSave: (rate: Rate, naira: string) => void;
-}) {
-  const [editing, setEditing] = useState<Rate["unit"] | null>(null);
-  const [draft, setDraft] = useState("");
-
+/**
+ * What clips used to pay, per unit.
+ *
+ * Read-only since milestone pay replaced per-clip pay: `PUT /payments/rates`
+ * still answers, but the number it stores no longer prices anything. An
+ * editable field that changes nothing is worse than no field, so the editing
+ * is gone and the card says what these are.
+ */
+export function RateRings({ rates }: { rates: Rate[] }) {
   const max = Math.max(...rates.map((rate) => rate.amountKobo), 1);
 
   const data = rates.map((rate, index) => ({
@@ -45,11 +40,6 @@ export function RateRings({
     maxValue: Math.round(max / 100),
     color: PALETTE[index % PALETTE.length],
   }));
-
-  const start = (rate: Rate) => {
-    setEditing(rate.unit);
-    setDraft(String(Math.round(rate.amountKobo / 100)));
-  };
 
   return (
     <div className="grid h-full gap-4 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
@@ -75,71 +65,30 @@ export function RateRings({
       </div>
 
       <ul className="alva-thin-scrollbar max-h-[15rem] space-y-1 self-center overflow-y-auto pr-1">
-        {rates.map((rate, index) => {
-          const isEditing = editing === rate.unit;
-
-          return (
-            <li
-              key={rate.unit}
-              className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <span
-                  aria-hidden
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
-                />
-                <span className="min-w-0 truncate text-sm text-foreground">
-                  {RATE_UNIT_LABELS[rate.unit]}
-                </span>
+        {rates.map((rate, index) => (
+          <li
+            key={rate.unit}
+            className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                aria-hidden
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: PALETTE[index % PALETTE.length] }}
+              />
+              <span className="min-w-0 truncate text-sm text-foreground">
+                {RATE_UNIT_LABELS[rate.unit]}
               </span>
+            </span>
 
-              {isEditing ? (
-                <span className="flex shrink-0 items-center gap-2">
-                  <Input
-                    autoFocus
-                    inputMode="decimal"
-                    aria-label={`${RATE_UNIT_LABELS[rate.unit]} rate in naira`}
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        onSave(rate, draft);
-                        setEditing(null);
-                      }
-                      if (event.key === "Escape") setEditing(null);
-                    }}
-                    wrapperClassName="w-24"
-                    className="h-9 text-right tabular-nums"
-                  />
-                  <TextureButton
-                    variant="alva"
-                    size="sm"
-                    className="w-auto"
-                    onClick={() => {
-                      onSave(rate, draft);
-                      setEditing(null);
-                    }}
-                  >
-                    Save
-                  </TextureButton>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => start(rate)}
-                  title={`Updated ${rate.updatedLabel} by ${rate.updatedBy}`}
-                  className={cn(
-                    "shrink-0 rounded-full px-2.5 py-1 text-sm tabular-nums text-foreground transition-colors",
-                    "hover:bg-alva-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                  )}
-                >
-                  {formatNaira(rate.amountKobo)}
-                </button>
-              )}
-            </li>
-          );
-        })}
+            <span
+              title={`Last changed ${rate.updatedLabel} by ${rate.updatedBy}`}
+              className="shrink-0 px-2.5 py-1 text-sm tabular-nums text-muted-foreground"
+            >
+              {formatNaira(rate.amountKobo)}
+            </span>
+          </li>
+        ))}
       </ul>
     </div>
   );

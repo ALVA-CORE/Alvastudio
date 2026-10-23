@@ -68,6 +68,7 @@ export default function ContributorDashboardPage() {
             podium={forceEmpty ? [] : toPodium(top ?? [])}
             className="mt-1"
             isEmpty={forceEmpty}
+            milestone={forceEmpty ? null : live?.milestone}
           />
 
           <DashboardCharts

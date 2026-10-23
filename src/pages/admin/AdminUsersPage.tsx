@@ -14,6 +14,8 @@ import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { CreateUserDialog, type NewUserDraft } from "@/components/admin/users/CreateUserDialog";
 import { UserDetailPanel } from "@/components/admin/users/UserDetailPanel";
 import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
+import { RecoveryRequestsDialog } from "@/components/admin/users/RecoveryRequestsDialog";
+import KeyMinimalistic from "@solar-icons/react/security/KeyMinimalistic";
 import {
   EMPTY_USER_METRICS,
   ROLE_LABELS,
@@ -55,6 +57,7 @@ export default function AdminUsersPage() {
   const [detail, setDetail] = useState<AdminUser | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
   /* Held so the handover dialog can show the token a create or a reset
    * returned. Null while the call is in flight. */
   const [reset, setReset] = useState<{ name: string; token: string | null } | null>(
@@ -206,15 +209,30 @@ export default function AdminUsersPage() {
       <AdminPageHeader
         id="users"
         actions={
-          <TextureButton
-            variant="alva"
-            size="sm"
-            className="w-auto"
-            onClick={() => setSheetOpen(true)}
-          >
-            <AddCircle size={15} weight="Outline" />
-            New user
-          </TextureButton>
+          <div className="flex items-center gap-2">
+            {/* Recovery is not self-serve: somebody asks, an admin decides,
+                and the API emails the link. Without a way in here the
+                requests arrived nowhere. */}
+            <TextureButton
+              variant="minimal"
+              size="sm"
+              className="w-auto"
+              onClick={() => setRecoveryOpen(true)}
+            >
+              <KeyMinimalistic size={15} weight="Outline" />
+              Recovery
+            </TextureButton>
+
+            <TextureButton
+              variant="alva"
+              size="sm"
+              className="w-auto"
+              onClick={() => setSheetOpen(true)}
+            >
+              <AddCircle size={15} weight="Outline" />
+              New user
+            </TextureButton>
+          </div>
         }
       />
 
@@ -337,6 +355,8 @@ export default function AdminUsersPage() {
 
       {/* Shown after a create and after a reset: the same handover either
           way, because both end with a token somebody has to be given. */}
+      <RecoveryRequestsDialog open={recoveryOpen} onOpenChange={setRecoveryOpen} />
+
       <PasswordResetDialog
         open={reset !== null}
         onOpenChange={(next) => {

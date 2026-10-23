@@ -30,6 +30,8 @@ export type ApiProfile = {
   pidgin_fluency?: ApiPidginFluency | null;
   ethnicity?: string | null;
   occupation?: string | null;
+  /** What is spoken at home now, against `native_languages` for growing up. */
+  home_languages?: string[] | null;
   /** Same enum as `pidgin_fluency`: one scale, asked twice. */
   english_fluency?: ApiPidginFluency | null;
   preferred_language_variety?: ApiLanguageVariety | null;
@@ -103,30 +105,28 @@ export function recordConsent(payload: {
 /* ------------------------------------------------------------------ *
  * Translation
  *
- * One field the onboarding form collects still has nowhere to go:
+ * Every answer the onboarding form collects now has somewhere to go.
  *
- *   homeLanguages
- *
- * `native_languages` is a different question — what somebody grew up
- * speaking, against what is spoken at home now — so it cannot carry both.
- * Kept in the local user record, which means it does not survive a fresh
- * login on another device. Listed in the asks doc.
- *
- * `recordingDevice` rides in `device_mic`, behind the detected label when we
- * have one, which is richer than the enum the form offers.
+ * `native_languages` and `home_languages` are two questions: what somebody
+ * grew up speaking, and what is spoken at home now. `recordingDevice` rides
+ * in `device_mic`, behind the detected label when we have one, which is
+ * richer than the enum the form offers.
  * ------------------------------------------------------------------ */
+
+/** Comma-separated on screen, a list at the API. */
+function toList(value: string | undefined) {
+  if (!value) return undefined;
+  const entries = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  return entries.length ? entries : undefined;
+}
 
 export function profileToApi(profile: Partial<ContributorProfileData>): ApiProfile {
   return {
     age_bracket: toApiAgeBracket(profile.ageBracket),
     gender: toApiGender(profile.gender),
     state_of_origin: profile.stateOfOrigin || undefined,
-    native_languages: profile.nativeLanguages
-      ? profile.nativeLanguages
-          .split(",")
-          .map((entry) => entry.trim())
-          .filter(Boolean)
-      : undefined,
+    native_languages: toList(profile.nativeLanguages),
+    home_languages: toList(profile.homeLanguages),
     pidgin_fluency: toApiFluency(profile.pidginFluency),
     english_fluency: toApiFluency(profile.englishFluency),
     ethnicity: profile.ethnicity || undefined,
@@ -148,6 +148,7 @@ export function profileFromApi(profile: ApiProfile): Partial<ContributorProfileD
     englishFluency: fromApiFluency(profile.english_fluency) as ContributorProfileData["englishFluency"],
     ethnicity: profile.ethnicity ?? undefined,
     occupation: profile.occupation ?? undefined,
+    homeLanguages: (profile.home_languages ?? []).join(", "),
     preferredVariety: fromApiVariety(
       profile.preferred_language_variety
     ) as ContributorProfileData["preferredVariety"],

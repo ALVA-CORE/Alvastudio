@@ -95,8 +95,17 @@ export default function ContributorStudioPage() {
   const total = items.length;
 
   /* Which card is on top. Paging is local now, so swiping does not refetch. */
+  /**
+   * `index` counts moves, not position: it grows without bound as somebody
+   * swipes, and wraps only where it is read.
+   *
+   * It used to wrap in one of the two places that read it, so the card was
+   * right and the counter said "13/12" on a bank of twelve. Wrapped once,
+   * here, and everything downstream takes the wrapped value.
+   */
   const [index, setIndex] = useState(0);
-  const card = total > 0 ? items[((index % total) + total) % total] : null;
+  const position = total > 0 ? ((index % total) + total) % total : 0;
+  const card = total > 0 ? items[position] : null;
 
   /* A fresh bank, or a switch between prompts and stimuli, starts at the top
    * rather than wherever the previous one had been left. */
@@ -219,7 +228,7 @@ export default function ContributorStudioPage() {
           />
           <StudioProgress
             className="min-w-0 flex-1"
-            current={total ? index + 1 : 0}
+            current={total ? position + 1 : 0}
             total={total}
             label={loadingCard ? "Loading…" : total ? "Next up" : "Queue empty"}
           />
@@ -244,7 +253,7 @@ export default function ContributorStudioPage() {
           <StudioPromptStack
             className="mt-8"
             items={items}
-            current={index}
+            current={position}
             /* A stimulus is a scene to talk about, not a sentence to read.
                Telling somebody to read one is telling them to do the wrong
                thing, and it is the instruction they follow. */

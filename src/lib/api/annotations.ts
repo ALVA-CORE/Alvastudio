@@ -172,6 +172,14 @@ export function listAllAnnotations(
  * annotator. The endpoint does both in one transaction, so reassignment is not
  * the single-field edit it looks like from here.
  */
+/**
+ * Moves one annotation to another annotator.
+ *
+ * **409 when somebody holds the session on a different annotation**, which is
+ * usually an old abandoned draft. Reassign the session instead
+ * (`PATCH /focus-groups/{id}/assignee`); before the API checked this, calling
+ * it on a stale draft took the session off whoever was actually working it.
+ */
 export function assignAnnotator(annotationId: string, annotatorId: string | null) {
   return apiFetch<ApiAnnotationDocument>(`/annotations/${annotationId}/assignee`, {
     method: "PATCH",

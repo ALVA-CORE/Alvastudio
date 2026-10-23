@@ -1,157 +1,41 @@
 # Endpoints we need
 
-Checked against the live OpenAPI document, 22 Oct 2026. Only what is still
+Checked against the live OpenAPI document, 23 Oct 2026. Only what is still
 open is listed here.
 
 ## Open
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | An audit log, as events | Every History tab across the admin surface | **High** |
-| 2 | A way to fix a participant's consent | A session that cannot be saved or repaired | **High** |
-| 3 | `POST /auth/password`, change your own | Nobody can change their password | **High** |
-| 4 | An admin view of a contributor's identity status | KYC on the admin user panel | Medium |
-| 5 | `home_languages` on the profile | One onboarding answer is discarded | Low |
-| 6 | `target_participants` on a session, not only its topic | Nothing yet, a question | Low |
+| 1 | A way to remove a participant from a session with audio | A session nobody in it agreed to | Medium |
 
-Everything on the 20 Oct list was answered in
-[`replies/api-status-2026-10-22.md`](replies/api-status-2026-10-22.md) and is
-wired. The 22 Oct release is checked against our client in full: nothing we
-send was refused by the new validation, and the two defensive changes we made
-are listed under "on our side".
+All six asks from 22 Oct were answered in
+[`replies/api-status-2026-10-23.md`](replies/api-status-2026-10-23.md) and are
+wired, the audit log included. Milestone pay is wired too.
 
 ---
 
-## 1. An audit log, as events
+## 1. Removing a participant from a session that has audio
 
-Four panels on the admin surface have a History tab: a user, a clip, an
-annotation and a session. None of them has a source.
+`DELETE /focus-groups/{id}/participants/{pid}` is refused with 409 once audio
+exists, and the reasoning is right: their voice is in the recording, and
+deleting them would delete the record of whether they agreed with it.
 
-**We have to own the first half of this.** Those tabs were filled by
-reconstructing a plausible history from the row — "Claimed" placed an hour
-after submission, a verdict two hours after that, and on the user panel a
-couple of admin actions drawn from a seeded random with dates to match. It
-looked like a record and it was invented. That is gone as of today, and the
-tabs now show only timestamps you actually measured, with a line saying so.
+That leaves one case with no way out. Somebody is logged on a session, the
+audio is uploaded, and they then say no. `PATCH` records the refusal, which is
+correct and permanent, and the session leaves the annotation queue and the
+corpus for good. The recording cannot be used and cannot be repaired.
 
-What is left is thin, because this is everything the API records:
+It is rarer than the case you fixed today, and it may be the right outcome: a
+session nobody can consent to arguably should be unusable. But if a room of
+eight has one person withdraw, eight people's work is lost rather than one's.
 
-| Panel | Real entries |
-| --- | --- |
-| Clip | Submitted (`created_at`), decided (`reviewed_at`) |
-| Annotation | Claimed, started, submitted, reviewed, from the full document |
-| Session | Created |
-| User | Joined |
+Worth a decision rather than an endpoint. Either:
 
-Everything an admin opens a History tab to find is missing: who reassigned
-this and when, when it was approved and by whom, when somebody was approved,
-deactivated or had their role changed, when a payout went out, when a profile
-was edited.
-
-**What would close it:**
-
-```
-GET /audit?subject_type=user|recording|annotation|focus_group
-          &subject_id=...&limit=&offset=&envelope=true
-
-→ [{ id, at, actor_id, actor_name, action, detail }]
-```
-
-One route with a subject filter, rather than four. `action` as an enum we can
-switch on, `detail` as a written sentence we can show. The annotation activity
-log is already exactly this shape for one subject, so the pattern is yours
-already.
-
-Events worth recording, roughly in the order we would miss them: assignment
-and reassignment, verdicts, approval and deactivation, role changes, password
-resets, payout runs and withdrawals, profile edits, prompt and topic changes.
-
-It is a bigger piece than the other asks, so partial is fine. The first three
-would cover most of what an admin opens that tab for.
-
-## 2. A way to fix a participant's consent
-
-You flagged this yourselves: *"there is no route to remove a participant. A
-session recorded with someone who said no has to be deleted and recreated
-without them."*
-
-It is the one gap in the 22 Oct release with no path out of it. An intern who
-hits the consent 409 is holding a take they cannot upload and a session they
-cannot repair, and the only honest thing our screen can say is "log it again",
-which throws away the recording.
-
-Either of these closes it:
-
-| Route | What it allows |
-| --- | --- |
-| `PATCH /focus-groups/{id}/participants/{pid}` with `{consent_given, consent_version}` | Recording agreement that was given but not logged, which is the common case |
-| `DELETE /focus-groups/{id}/participants/{pid}` | Dropping somebody who genuinely refused, so the rest of the room's session survives |
-
-The first is the one we would use. The second has the obvious hazard that the
-audio still contains their voice, so it may be the wrong tool, and we would
-take your read on that.
-
-Our intake never creates an unconsented participant, so this should be rare
-for sessions started in our app. It is not rare for anything created another
-way.
-
-## 3. Changing your own password
-
-There is no route for it. `POST /users/{id}/password-reset` is an admin
-issuing a token, and `POST /auth/password-reset/redeem` spends one, so the
-only way anybody changes a password is to ask an admin for a link.
-
-That is a support ticket for every forgotten password, and it puts admins
-within reach of other people's credentials for no reason.
-
-```
-POST /auth/password   { current_password, new_password }
-```
-
-Current password checked even though the bearer token already proves who they
-are: it is the signed-in tab somebody walked away from that this stops.
-
-We have built the screen on all four profile pages against exactly that shape,
-so it works the day it lands. Until then it catches a 404 or 405 and tells
-them to ask an admin, which is the truth.
-
-## 4. An admin view of a contributor's identity status
-
-`GET /wallet` is the caller's own, so an admin cannot see whether a
-contributor has passed their NIN check, what it is waiting on, or why it
-failed. They can see the person's email and when they joined, and nothing
-about the one thing that decides whether that person can be paid.
-
-Anything that answers it is fine. The smallest would be `identity_status`,
-`identity_failure_reason` and `next_action` on `GET /users/{id}/profiles`,
-which an admin already reads for the person in front of them. A whole
-`GET /users/{id}/wallet` would also work, though it carries balances an admin
-may not need.
-
-The NIN itself should stay where it is. We are asking whether the check
-passed, not what the number is.
-
-## 5. `home_languages` on the profile
-
-The contributor onboarding form asks two language questions: what somebody
-grew up speaking, and what is spoken at home now. `native_languages` carries
-the first. The second has nowhere to go and is dropped at sign-in on another
-device.
-
-`ethnicity` and `occupation` were in the same state and are now on `ProfileIn`,
-so this is the last one. A `home_languages: string[]` alongside
-`native_languages` closes it.
-
-## 6. `target_participants` on a session
-
-`FocusGroupSession.target_participants` is copied from the topic, which is
-exactly right for scoring. An admin setting it per topic is now in the prompts
-form.
-
-The question: should an intern be able to set it on a single session? A topic
-run deliberately as a four-person conversation currently scores as half
-attended against a target of eight. Not urgent, and we have not built anything
-for it, but it is the one way the attendance axis can read unfairly.
+- a way to drop a withdrawn participant **and** their turns, keeping a
+  tombstone of the consent decision so the record survives the person; or
+- confirmation that the session is simply spent, in which case we will say so
+  plainly on the intern's screen instead of implying something can be done.
 
 ## On our side, not asks
 
@@ -180,6 +64,13 @@ for it, but it is the one way the attendance axis can read unfairly.
 | Demographic charts | The pyramid counts speakers on the intern and annotator dashboards, and hours on the corpus page, since a focus-group file holds several voices. |
 | Clip approval axis | Labelled "Clips approved", not "Quality", per your caution. A higher share of approvals is not by itself better reviewing. |
 | `ethnicity`, `occupation` | Now sent and read back. They were collected at onboarding and discarded. |
+| Account recovery | Wired, both ends. `POST /auth/password-reset/request` from the forgot-password page, and an admin queue on the users page for approve and deny. The form says the same thing whatever the email was, because the API does: anything else turns it into a way to find out who has an account here. The forgot-password page was a `TODO` before this. |
+| Emails | We send nothing and show nothing about them. The API emails the reset link on approval, and a confirmation on a password change. If a template should say something the app also says, tell us and we will keep the two in step. |
+| Milestone pay | The progress bar sits on the contributor's points card: points are not money, and money arrives in ₦5,000 steps. Ledger rows handle a null `recording_id` and `unit_type` — reading `unit_type` blindly threw on the first award. |
+| The rate editor | Read-only now, titled "Historic rates", with the milestone terms in the subtitle. A field that changes nothing is worse than no field. |
+| Back-pay | In a menu on the payments header rather than a third button beside Run payment. Previews, then credits. |
+| Password change | Sends them to sign in on the 200, rather than waiting to be thrown out by a 401 on whatever they tap next. |
+| History tabs | All four read `GET /audit` now. The derived builders are deleted. |
 | Invented history | Removed. Four History tabs were reconstructing events with made-up timestamps. They now show only what you measure, with a line saying the list is partial. |
 | Seeded fallbacks | Cleared. A dashboard with no response shows zeroes, never a sample: these are figures about one person's own work. The seeded sets are reachable only from demo mode. |
 | Remember me | Entirely ours, nothing needed from you. Ticked keeps the token in localStorage, unticked in sessionStorage, so it only decides whether the token outlives the tab. How long the token is valid stays yours. |

@@ -144,10 +144,26 @@ export type ApiUserProfiles = {
     english_fluency?: string | null;
     preferred_language_variety?: string | null;
     device_mic?: string | null;
+    home_languages?: string[] | null;
   } | null;
   intern_profile: {
     primary_state?: string | null;
     coverage_areas?: string[] | null;
+  } | null;
+  /**
+   * Where a contributor stands on being paid.
+   *
+   * Null when they have no wallet yet, which means not started rather than
+   * failed. Shows no part of the NIN, not even the last digits.
+   */
+  identity: {
+    identity_status: string;
+    /** The condition for being paid: a NIN that passed and that nobody else holds. */
+    identity_verified: boolean;
+    identity_failure_reason: string | null;
+    wallet_status: string | null;
+    next_action: string | null;
+    next_action_detail: string | null;
   } | null;
   annotator_profile: {
     language_varieties?: string[] | null;
@@ -157,6 +173,33 @@ export type ApiUserProfiles = {
 
 export function getUserProfiles(id: string) {
   return apiFetch<ApiUserProfiles>(`/users/${id}/profiles`);
+}
+
+/** Somebody who has asked an admin for help getting back into their account. */
+export type ApiPasswordResetRequest = {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string;
+  requested_at: string;
+};
+
+export function listPasswordResetRequests() {
+  return apiFetch<ApiPasswordResetRequest[]>("/users/password-reset-requests");
+}
+
+/** Approving issues the reset link and emails it to them. */
+export function approvePasswordResetRequest(id: string) {
+  return apiFetch<ApiPasswordResetIssued>(
+    `/users/password-reset-requests/${id}/approve`,
+    { method: "POST" }
+  );
+}
+
+export function denyPasswordResetRequest(id: string) {
+  return apiFetch<void>(`/users/password-reset-requests/${id}/deny`, {
+    method: "POST",
+  });
 }
 
 /** Interns and annotators. Replaces the deprecated `approve-intern`. */

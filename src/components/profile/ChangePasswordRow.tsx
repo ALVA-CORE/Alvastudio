@@ -6,6 +6,8 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { changePassword } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { alvaToast } from "@/lib/alva-toast";
+import { useAuth } from "@/lib/auth/context";
+import { useNavigate } from "react-router-dom";
 
 const MIN_LENGTH = 8;
 
@@ -21,8 +23,9 @@ const MIN_LENGTH = 8;
  * they are. A signed-in tab somebody walked away from is the case this stops,
  * and it is the convention everywhere else for the same reason.
  *
- * `POST /auth/password` is not deployed yet. Until it is, a 404 or 405 is
- * answered with the one thing that does work rather than a raw error.
+ * Changing it ends every session the account has, this tab included, so a
+ * success goes straight to the sign-in page. Waiting for a 401 on whatever
+ * they tapped next would look like being thrown out for no reason.
  */
 export function ChangePasswordRow({ hideDivider }: { hideDivider?: boolean }) {
   const [current, setCurrent] = useState("");
@@ -30,6 +33,8 @@ export function ChangePasswordRow({ hideDivider }: { hideDivider?: boolean }) {
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const tooShort = next.length > 0 && next.length < MIN_LENGTH;
   const mismatch = confirm.length > 0 && confirm !== next;
@@ -42,21 +47,17 @@ export function ChangePasswordRow({ hideDivider }: { hideDivider?: boolean }) {
 
     try {
       await changePassword({ current_password: current, new_password: next });
-      setCurrent("");
-      setNext("");
-      setConfirm("");
-      alvaToast.success("Password changed. Sign in again on your other devices.");
+
+      /* The token that made this request is already dead. Clear the session
+         ourselves and go to sign-in, so the next thing they tap is a login
+         form rather than a 401. */
+      alvaToast.success("Password changed. Sign in with your new one.");
+      logout();
+      navigate("/login");
     } catch (cause) {
-      if (cause instanceof ApiError && (cause.status === 404 || cause.status === 405)) {
-        setError(
-          "Changing your own password isn't available yet. Ask an admin to send you a reset link."
-        );
-      } else {
-        setError(
-          cause instanceof ApiError ? cause.message : "Could not change your password."
-        );
-      }
-    } finally {
+      setError(
+        cause instanceof ApiError ? cause.message : "Could not change your password."
+      );
       setSaving(false);
     }
   };
