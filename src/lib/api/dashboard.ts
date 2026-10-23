@@ -34,8 +34,29 @@ export type ApiContributorDashboard = {
    * A flag is not a decision, so it is not counted.
    */
   median_review_seconds_in_window: number | null;
+  /**
+   * Progress toward the next ₦5,000 award.
+   *
+   * Contributors are paid per block of approved clips now, not per clip, so
+   * this is what a progress bar reads. `clips_to_next` is never 0: right
+   * after an award it is a full block again.
+   *
+   * Null wherever `payment` is, for example when an intern looks at a
+   * contributor.
+   */
+  milestone: ApiMilestoneProgress | null;
   /** How many decided clips the median is over. */
   decided_in_window: number;
+};
+
+export type ApiMilestoneProgress = {
+  approved_clips: number;
+  clips_per_milestone: number;
+  milestones_reached: number;
+  clips_to_next: number;
+  amount_per_milestone: string;
+  amount_per_milestone_kobo: number;
+  currency: string;
 };
 
 /** One day of an intern's own capture. Zero-filled over the window. */

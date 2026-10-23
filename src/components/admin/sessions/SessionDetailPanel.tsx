@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import UsersGroupTwoRounded from "@solar-icons/react/users/UsersGroupTwoRounded";
 import Letter from "@solar-icons/react/messages/Letter";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import {
   AuditTimeline,
   DetailField,
@@ -11,7 +12,7 @@ import {
   DetailProse,
   PanelAction,
 } from "@/components/admin/shared/detail";
-import { sessionAudit, type AdminSession } from "@/data/admin/oversight";
+import type { AdminSession } from "@/data/admin/oversight";
 import { alvaToast } from "@/lib/alva-toast";
 import { round1 } from "@/data/admin/shared";
 import { NO_VALUE } from "@/lib/no-value";
@@ -42,7 +43,10 @@ export function SessionDetailPanel({
   onAssign: (session: AdminSession) => void;
 }) {
   const [tab, setTab] = useState("detail");
-  const audit = useMemo(() => (session ? sessionAudit(session) : []), [session]);
+  /* A session's history includes its annotations' events: who an annotation
+   * went to is recorded on the annotation, and an admin reading a session
+   * wants both. Each row says which it is about. */
+  const { entries: audit } = useAuditLog("focus_group", session?.id, open);
 
   if (!session) return null;
 

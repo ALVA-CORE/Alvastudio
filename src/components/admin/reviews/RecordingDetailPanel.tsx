@@ -4,6 +4,7 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
 import { ClipPlayerSkeleton } from "@/components/admin/shared/ClipPlayerSkeleton";
 import { recordingAudioUrl } from "@/lib/api/recordings";
@@ -18,7 +19,6 @@ import {
 import {
   RECORDING_STATUS_LABELS,
   RUBRIC_LABELS,
-  recordingAudit,
   recordingRubric,
   type AdminRecording,
   type RecordingStatus,
@@ -112,7 +112,7 @@ export function RecordingDetailPanel({
     () => (recording ? recordingRubric(recording) : []),
     [recording]
   );
-  const audit = useMemo(() => (recording ? recordingAudit(recording) : []), [recording]);
+  const { entries: audit } = useAuditLog("recording", recording?.id, open);
 
   if (!recording) return null;
 

@@ -146,8 +146,17 @@ export const withdraw = () =>
 
 export type ApiLedgerEntry = {
   id: string;
-  recording_id: string;
-  unit_type: string;
+  /**
+   * `milestone` is an award for a block of 500 approved clips; `clip` is the
+   * old per-clip pay, which still exists on older rows and still pays out.
+   */
+  kind?: "milestone" | "clip";
+  /** 1 = 500 clips, 2 = 1,000. Null on a per-clip row. */
+  milestone_number?: number | null;
+  /** Null on a milestone award: it is not about one recording. */
+  recording_id: string | null;
+  /** Null on a milestone award: it is not priced per unit. */
+  unit_type: string | null;
   amount: string;
   currency: string;
   payout_status: "pending" | "in_flight" | "paid" | "voided";

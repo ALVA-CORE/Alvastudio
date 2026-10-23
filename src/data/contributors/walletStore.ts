@@ -54,12 +54,30 @@ const KIND: Record<string, WalletEntryKind> = {
   review: "earned",
 };
 
+/**
+ * One line of the ledger.
+ *
+ * A milestone award has no `recording_id` and no `unit_type`: it is paid for
+ * reaching 500 approved clips, not for one clip. Reading `unit_type` blindly
+ * threw on the first award.
+ */
 function toEntry(api: ApiLedgerEntry): WalletEntry {
   const naira = Number(api.amount);
+  const milestone = api.kind === "milestone";
+
   return {
     id: api.id,
-    kind: api.payout_status === "paid" ? "withdrawal" : (KIND[api.unit_type] ?? "earned"),
-    label: api.notes ?? api.unit_type.replace(/_/g, " "),
+    kind:
+      api.payout_status === "paid"
+        ? "withdrawal"
+        : milestone
+          ? "bonus"
+          : (KIND[api.unit_type ?? ""] ?? "earned"),
+    label:
+      api.notes ??
+      (milestone
+        ? `Milestone ${api.milestone_number ?? ""}`.trim()
+        : (api.unit_type ?? "Earned").replace(/_/g, " ")),
     /* Money is kobo everywhere in this client. The decimals are JSON strings
      * precisely so nobody floats them, so they are parsed once, here. */
     amountKobo: Math.round((Number.isFinite(naira) ? naira : 0) * 100),

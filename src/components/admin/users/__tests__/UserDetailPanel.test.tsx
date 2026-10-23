@@ -47,9 +47,14 @@ describe("UserDetailPanel", () => {
   });
 
   it("switches to the audit log", async () => {
+    /* The history comes from `GET /audit` now, which this test does not
+       stand up, so the tab shows its empty state. What is asserted is that
+       the tab switches — the entries themselves are the API's. */
     renderPanel();
     await userEvent.click(screen.getByRole("button", { name: "Audit log" }));
-    expect(screen.getByText("Joined Alvastudio")).toBeInTheDocument();
+    expect(
+      screen.getByText("Nothing has happened to this account yet.")
+    ).toBeInTheDocument();
   });
 
   /* Deleting cannot be undone, so the bin opens a confirm pair rather than

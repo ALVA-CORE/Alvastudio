@@ -67,3 +67,22 @@ export const startPayoutRun = (notes?: string) =>
     method: "POST",
     body: notes ? { notes } : {},
   });
+
+/**
+ * Back-pays milestones reached before milestone pay shipped.
+ *
+ * A preview by default: who would be credited what, and the total. `apply`
+ * credits it. Safe to run twice — a second run finds nothing due — which is
+ * why the confirm step can be a plain confirm rather than a guarded one.
+ */
+export const syncMilestones = (apply = false) =>
+  apiFetch<{
+    contributors: number;
+    total_award: string;
+    currency: string;
+    /** False on a preview: nothing was credited. */
+    applied: boolean;
+  }>("/payments/milestones/sync", {
+    method: "POST",
+    query: apply ? { apply: true } : undefined,
+  });

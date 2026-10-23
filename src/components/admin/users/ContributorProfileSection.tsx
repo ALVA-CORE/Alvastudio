@@ -39,9 +39,11 @@ export function ContributorProfileSection({
   const text = (value: string | null | undefined) =>
     profiles === null ? NO_VALUE : value || NO_VALUE;
 
-  const languages = profiles === null
-    ? NO_VALUE
-    : (profile?.native_languages ?? []).join(", ") || NO_VALUE;
+  const list = (values: string[] | null | undefined) =>
+    profiles === null ? NO_VALUE : values?.join(", ") || NO_VALUE;
+
+  const languages = list(profile?.native_languages);
+  const homeLanguages = list(profile?.home_languages);
 
   return (
     <DetailGroup title="What they told us">
@@ -54,7 +56,8 @@ export function ContributorProfileSection({
       <DetailField label="State of residence" value={text(profile?.state_of_residence)} />
       <DetailField label="Ethnicity" value={text(profile?.ethnicity)} />
       <DetailField label="Occupation" value={text(profile?.occupation)} />
-      <DetailField label="Native languages" value={languages} span />
+      <DetailField label="Native languages" value={languages} />
+      <DetailField label="Spoken at home" value={homeLanguages} />
       <DetailField
         label="Pidgin fluency"
         value={text(fromApiFluency(profile?.pidgin_fluency))}
@@ -68,6 +71,69 @@ export function ContributorProfileSection({
         value={text(fromApiVariety(profile?.preferred_language_variety))}
       />
       <DetailField label="Microphone" value={text(profile?.device_mic)} />
+    </DetailGroup>
+  );
+}
+
+const NEXT_ACTION_LABEL: Record<string, string> = {
+  await_review: "Waiting on a review",
+  create_account: "Needs a payout account",
+  await_verification: "Check in progress",
+  verify_identity: "Needs to verify their NIN",
+  add_payout_destination: "Needs a bank account",
+  complete_onboarding: "Needs to finish setting up",
+  none: "Nothing outstanding",
+};
+
+/**
+ * Whether this contributor can be paid, and what is in the way.
+ *
+ * An admin could see who somebody was and not whether their money could
+ * move, which is the question they open this panel to answer.
+ *
+ * `identity_verified` is the condition, not `identity_status === "passed"`:
+ * a NIN can pass and still be held because another account claims it.
+ *
+ * `null` means no wallet yet, which is not started rather than failed, and
+ * reads differently from a check that went wrong.
+ */
+export function IdentitySection({ profiles }: { profiles: ApiUserProfiles | null }) {
+  if (profiles === null) return null;
+
+  const identity = profiles.identity;
+
+  if (!identity) {
+    return (
+      <DetailGroup title="Getting paid">
+        <DetailField label="Status" value="Not started" span />
+      </DetailGroup>
+    );
+  }
+
+  return (
+    <DetailGroup title="Getting paid">
+      <DetailField
+        label="Can be paid"
+        value={identity.identity_verified ? "Yes" : "No"}
+        tone={identity.identity_verified ? "accent" : "muted"}
+      />
+      <DetailField
+        label="Next step"
+        value={
+          identity.next_action
+            ? (NEXT_ACTION_LABEL[identity.next_action] ?? identity.next_action)
+            : NO_VALUE
+        }
+      />
+      {/* The same sentence the contributor reads on their own wallet, so an
+          admin helping them is looking at the same thing. */}
+      {identity.next_action_detail || identity.identity_failure_reason ? (
+        <DetailField
+          label="Detail"
+          value={identity.next_action_detail ?? identity.identity_failure_reason ?? ""}
+          span
+        />
+      ) : null}
     </DetailGroup>
   );
 }

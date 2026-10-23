@@ -53,16 +53,46 @@ export function register(payload: RegisterPayload): Promise<ApiUser> {
 /**
  * Changes the signed-in person's own password.
  *
- * **Not deployed yet.** The API has an admin-issued reset token and a redeem
- * route, but nothing a person can call for themselves. Requested in
- * `docs/backend/endpoints-needed.md`; this is the shape we asked for, so the
- * screen works the moment it lands.
+ * **Every session for that account ends, including the tab that made the
+ * change.** The 200 comes back and the token it was made with is already
+ * dead, so the caller must send them to sign in rather than wait to be told
+ * by a 401 on whatever they do next.
  */
 export function changePassword(body: {
   current_password: string;
   new_password: string;
 }) {
-  return apiFetch<void>("/auth/password", { method: "POST", body });
+  return apiFetch<{ message?: string }>("/auth/password", { method: "POST", body });
+}
+
+/**
+ * Asks an admin to approve getting back into an account.
+ *
+ * Not a self-serve reset: an admin approves, and the API emails the link.
+ *
+ * **The response is identical for an unknown or inactive email.** That is
+ * deliberate, and it means the screen must not say "we sent you a link" or
+ * "no such account" — either one turns this into a way to find out who has an
+ * account here.
+ *
+ * Repeats are coalesced for 24 hours, and a handled request cannot be made
+ * again for 15 minutes.
+ */
+export function requestPasswordReset(email: string) {
+  return apiFetch<void>("/auth/password-reset/request", {
+    method: "POST",
+    body: { email },
+    anonymous: true,
+  });
+}
+
+/** Spends a reset token. The person chooses the password. */
+export function redeemPasswordReset(body: { token: string; new_password: string }) {
+  return apiFetch<void>("/auth/password-reset/redeem", {
+    method: "POST",
+    body,
+    anonymous: true,
+  });
 }
 
 export async function login(

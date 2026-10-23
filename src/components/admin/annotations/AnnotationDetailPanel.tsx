@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import DocumentText from "@solar-icons/react/notes/DocumentText";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import Restart from "@solar-icons/react/arrows/Restart";
@@ -16,12 +16,12 @@ import {
 } from "@/components/admin/shared/detail";
 import {
   ANNOTATION_STATUS_LABELS,
-  annotationAudit,
   type AdminAnnotation,
   type AnnotationStatus,
 } from "@/data/admin/oversight";
 import { fromApiEvents, type ActivityEvent } from "@/data/admin/activity";
 import { listEvents } from "@/lib/api/annotationEvents";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { getAnnotation } from "@/lib/api/annotations";
 import { round1 } from "@/data/admin/shared";
 
@@ -78,18 +78,6 @@ export function AnnotationDetailPanel({
   const [counts, setCounts] = useState<{ segments: number; tags: number } | null>(
     null
   );
-  /**
-   * The timestamps only the full document carries.
-   *
-   * `started_at`, `submitted_at` and `reviewed_at` are not on the list row,
-   * so the history is two entries without them. They come free with the
-   * request the panel already makes for the counts.
-   */
-  const [stamps, setStamps] = useState<{
-    started_at?: string | null;
-    submitted_at?: string | null;
-    reviewed_at?: string | null;
-  } | null>(null);
 
   useEffect(() => {
     if (!open || !annotation) return;
@@ -100,11 +88,6 @@ export function AnnotationDetailPanel({
     getAnnotation(annotation.id)
       .then((document) => {
         if (cancelled) return;
-        setStamps({
-          started_at: document.started_at,
-          submitted_at: document.submitted_at,
-          reviewed_at: document.reviewed_at,
-        });
         setCounts({
           segments: document.segments?.length ?? 0,
           /* "Tags" is every mark an annotator put on a segment, not one
@@ -121,20 +104,14 @@ export function AnnotationDetailPanel({
           ),
         });
       })
-      .catch(() => {
-        setCounts(null);
-        setStamps(null);
-      });
+      .catch(() => setCounts(null));
 
     return () => {
       cancelled = true;
     };
   }, [open, annotation]);
 
-  const audit = useMemo(
-    () => (annotation ? annotationAudit(annotation, stamps ?? undefined) : []),
-    [annotation, stamps]
-  );
+  const { entries: audit } = useAuditLog("annotation", annotation?.id, open);
 
   /**
    * Every move the annotator made, in order.

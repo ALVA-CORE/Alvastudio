@@ -7,8 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { AlvaMultiSelect } from "@/components/shared/AlvaMultiSelect";
 import { ApplicationSection } from "@/components/admin/users/ApplicationSection";
-import { ContributorProfileSection } from "@/components/admin/users/ContributorProfileSection";
+import {
+  ContributorProfileSection,
+  IdentitySection,
+} from "@/components/admin/users/ContributorProfileSection";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
@@ -40,7 +44,6 @@ import {
   activitySummary,
   roleStats,
   userActivity,
-  userAuditLog,
   type AdminPermission,
   type AdminUser,
   type AdminUserRole,
@@ -193,7 +196,7 @@ export function UserDetailPanel({
 
   const activity = useMemo(() => (user ? userActivity(user) : []), [user]);
   const summary = useMemo(() => activitySummary(activity), [activity]);
-  const audit = useMemo(() => (user ? userAuditLog(user) : []), [user]);
+  const { entries: audit } = useAuditLog("user", user?.id, open);
   /* The figures this person sees on their own dashboard. An admin reading a
    * contributor should be looking at the same numbers the contributor is. */
   const stats = useMemo(() => (user ? roleStats(user) : []), [user]);
@@ -438,7 +441,12 @@ export function UserDetailPanel({
                 sorted by these, so an admin looking at a person should be
                 able to see them without leaving the panel. */}
             {user.role === "contributor" ? (
-              <ContributorProfileSection profiles={profiles} />
+              <>
+                <ContributorProfileSection profiles={profiles} />
+                {/* Whether their money can move, which is the other reason an
+                    admin opens a contributor. */}
+                <IdentitySection profiles={profiles} />
+              </>
             ) : null}
 
             {error ? (
