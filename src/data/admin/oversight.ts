@@ -44,6 +44,8 @@ export type AdminRecording = {
   status: RecordingStatus;
   reviewer: string;
   submittedAt: number;
+  /** When a verdict landed. 0 while nothing has been decided. */
+  reviewedAt: number;
   submittedLabel: string;
   /** Set only when rejected, and it is the thing the page exists to aggregate. */
   rejectionReason?: RejectionReason;
@@ -113,6 +115,7 @@ function buildRecordings(count: number): AdminRecording[] {
         status === "submitted" ? "" : pick(random, NIGERIAN_NAMES.slice(0, 6)),
       audioUrl: DEMO_CLIP,
       submittedAt: submitted.getTime(),
+      reviewedAt: 0,
       submittedLabel: relativeDays(submitted),
       rejectionReason:
         status === "rejected" || status === "flagged"
@@ -169,6 +172,8 @@ export type AdminAnnotation = {
   durationSec: number;
   duration: string;
   claimedAt: number;
+  /** Last change to the annotation. 0 when the API did not say. */
+  updatedAt: number;
   claimedLabel: string;
 };
 
@@ -216,6 +221,7 @@ function buildAnnotations(count: number): AdminAnnotation[] {
       durationSec,
       duration: formatDuration(durationSec),
       claimedAt: claimed.getTime(),
+      updatedAt: 0,
       claimedLabel: relativeDays(claimed),
     };
   }).sort((a, b) => b.claimedAt - a.claimedAt);
@@ -340,6 +346,17 @@ export function recordingRubric(
   });
 }
 
+/**
+ * What is actually on the record for a clip.
+ *
+ * Only timestamps the API measured. This used to add "Claimed by X" an hour
+ * after submission and a verdict two hours after that, which were invented
+ * numbers wearing the clothes of an audit trail — the one kind of wrong a
+ * history must never be, because somebody settling a dispute would believe it.
+ *
+ * The result is short. That is the truth about what is recorded, and the gap
+ * is an open ask rather than something to paper over.
+ */
 export function recordingAudit(recording: AdminRecording): AuditEntry[] {
   const entries: AuditEntry[] = [
     {
@@ -349,22 +366,13 @@ export function recordingAudit(recording: AdminRecording): AuditEntry[] {
     },
   ];
 
-  if (recording.reviewer) {
-    entries.push({
-      id: "claimed",
-      label: `Claimed by ${recording.reviewer}`,
-      at: new Date(recording.submittedAt + 36e5),
-      byAdmin: true,
-    });
-  }
-
-  if (recording.status !== "submitted" && recording.status !== "in_review") {
+  if (recording.reviewedAt) {
     entries.push({
       id: "decided",
       label: `${RECORDING_STATUS_LABELS[recording.status]}${
-        recording.rejectionReason ? `, ${recording.rejectionReason}` : ""
-      }`,
-      at: new Date(recording.submittedAt + 72e5),
+        recording.reviewer ? ` by ${recording.reviewer}` : ""
+      }${recording.rejectionReason ? `, ${recording.rejectionReason}` : ""}`,
+      at: new Date(recording.reviewedAt),
       byAdmin: true,
     });
   }
@@ -372,7 +380,21 @@ export function recordingAudit(recording: AdminRecording): AuditEntry[] {
   return entries.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
-export function annotationAudit(annotation: AdminAnnotation): AuditEntry[] {
+/**
+ * The list row carries `created_at` and `updated_at` and nothing between.
+ *
+ * `started_at`, `submitted_at` and `reviewed_at` are on the full document,
+ * which the detail panel fetches, so it passes them in. Without them this is
+ * two entries, which is what the API records.
+ */
+export function annotationAudit(
+  annotation: AdminAnnotation,
+  document?: {
+    started_at?: string | null;
+    submitted_at?: string | null;
+    reviewed_at?: string | null;
+  }
+): AuditEntry[] {
   const entries: AuditEntry[] = [
     {
       id: "claimed",
@@ -381,50 +403,50 @@ export function annotationAudit(annotation: AdminAnnotation): AuditEntry[] {
     },
   ];
 
-  if (annotation.status !== "draft" && annotation.status !== "in_progress") {
-    entries.push({
-      id: "submitted",
-      label: "Submitted for review",
-      at: new Date(annotation.claimedAt + 864e5),
-    });
-  }
+  const add = (id: string, label: string, iso: string | null | undefined, byAdmin = false) => {
+    if (!iso) return;
+    const at = new Date(iso);
+    if (Number.isNaN(at.getTime())) return;
+    entries.push({ id, label, at, byAdmin });
+  };
 
-  if (annotation.status === "approved" || annotation.status === "needs_rework") {
+  add("started", "Work started", document?.started_at);
+  add("submitted", "Submitted for review", document?.submitted_at);
+  add(
+    "reviewed",
+    annotation.status === "approved" ? "Approved" : "Sent back for rework",
+    document?.reviewed_at,
+    true
+  );
+
+  /* Only when nothing more specific is known: `updated_at` is the last touch
+     of any kind, so beside a submit or a verdict it is the same event twice. */
+  if (entries.length === 1 && annotation.updatedAt > annotation.claimedAt) {
     entries.push({
-      id: "reviewed",
-      label:
-        annotation.status === "approved" ? "Approved" : "Sent back for rework",
-      at: new Date(annotation.claimedAt + 1728e5),
-      byAdmin: true,
+      id: "updated",
+      label: "Last edited",
+      at: new Date(annotation.updatedAt),
     });
   }
 
   return entries.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
+/**
+ * A session carries one timestamp: when it was created.
+ *
+ * Logging participants and uploading audio both used to be placed ten minutes
+ * and an hour after it, which were invented. They are stated as facts about
+ * the session rather than dated events, because that is all that is known.
+ */
 export function sessionAudit(session: AdminSession): AuditEntry[] {
-  const entries: AuditEntry[] = [
+  return [
     {
       id: "created",
       label: `Session created by ${session.intern}`,
       at: new Date(session.createdAt),
     },
-    {
-      id: "participants",
-      label: `${session.participants} participants logged`,
-      at: new Date(session.createdAt + 6e5),
-    },
   ];
-
-  if (session.hasAudio) {
-    entries.push({
-      id: "audio",
-      label: "Audio uploaded",
-      at: new Date(session.createdAt + 36e5),
-    });
-  }
-
-  return entries.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
 /* ------------------------------------------------------------------ *

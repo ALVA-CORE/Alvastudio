@@ -57,6 +57,10 @@ export type ApiToken = {
 };
 
 export type ApiAnnotationDocument = {
+  /** When the annotator first opened it, submitted it, and got a verdict. */
+  started_at?: string | null;
+  submitted_at?: string | null;
+  reviewed_at?: string | null;
   id: string;
   session_id: string;
   task: AnnotationTask;

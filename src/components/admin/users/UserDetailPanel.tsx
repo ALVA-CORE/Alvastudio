@@ -491,24 +491,23 @@ export function UserDetailPanel({
               </DetailGroup>
             ) : null}
 
-            {!isEditing ? (
-              <DetailGroup title={ROLE_WORK_TITLE[user.role]}>
-                {stats.map((stat) => (
-                  <DetailField
-                    key={stat.label}
-                    label={stat.label}
-                    value={stat.value}
-                    tone={stat.tone}
-                  />
-                ))}
-              </DetailGroup>
-            ) : null}
           </>
         ) : null}
 
         {tab === "activity" ? (
           <>
-            <DetailGroup title="Last 12 months" first>
+            <DetailGroup title={ROLE_WORK_TITLE[user.role]} first>
+              {stats.map((stat) => (
+                <DetailField
+                  key={stat.label}
+                  label={stat.label}
+                  value={stat.value}
+                  tone={stat.tone}
+                />
+              ))}
+            </DetailGroup>
+
+            <DetailGroup title="Last 12 months">
               <DetailField
                 label="Total"
                 value={`${summary.total} ${activityNoun(user)}`}

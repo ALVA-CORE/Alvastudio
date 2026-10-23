@@ -84,6 +84,13 @@ export default function ContributorStudioPage() {
   const { data: quota, reload: reloadQuota } = useApiResource(recordingQuota, []);
   const outOfQuota = quota != null && quota.remaining <= 0;
 
+  /* A take in progress, or one recorded and not yet saved. Moving card
+   * discards the recording, so the stack is locked until they finish, retake
+   * or save: losing audio somebody just spoke to a stray arrow press is the
+   * one mistake this page can make that cannot be undone. */
+  const recordingInProgress = recorder.phase !== "idle";
+
+
   const items = (bank ?? []).map((entry) => ({ id: entry.id, prompt: entry.text }));
   const total = items.length;
 
@@ -238,8 +245,19 @@ export default function ContributorStudioPage() {
             className="mt-8"
             items={items}
             current={index}
-            onNext={() => setIndex((value) => value + 1)}
-            onPrevious={() => setIndex((value) => value - 1)}
+            /* A stimulus is a scene to talk about, not a sentence to read.
+               Telling somebody to read one is telling them to do the wrong
+               thing, and it is the instruction they follow. */
+            hint={
+              mode === "stimuli"
+                ? "and talk about it in your own words"
+                : "and read the sentence aloud"
+            }
+            locked={recordingInProgress}
+            /* Guarded as well as disabled: the top card can be dragged, and
+               a swipe does not go through the arrow buttons. */
+            onNext={() => !recordingInProgress && setIndex((value) => value + 1)}
+            onPrevious={() => !recordingInProgress && setIndex((value) => value - 1)}
           />
         )}
 

@@ -282,53 +282,22 @@ export function activitySummary(columns: HeatmapColumn[]) {
   };
 }
 
-const ADMIN_ACTIONS = [
-  "Role changed",
-  "Password reset sent",
-  "Account reactivated",
-  "Deactivated",
-];
-
+/**
+ * What the API records about an account.
+ *
+ * One timestamp: when they joined. Everything else this used to show — "First
+ * clip submitted", a couple of admin actions, a deactivation — was generated
+ * from a seeded random, with dates to match. An audit log that invents its own
+ * entries is worse than no audit log, because somebody settling a dispute
+ * would read it and believe it.
+ *
+ * Approval and deactivation are real states we can see, but nothing says WHEN
+ * either happened, so they are not dated here. A real log is an open ask.
+ */
 export function userAuditLog(user: AdminUser): AuditEvent[] {
-  let hash = 0;
-  for (let i = 0; i < user.id.length; i += 1) {
-    hash = (hash * 17 + user.id.charCodeAt(i)) % 100000;
-  }
-  const random = seeded(hash + 99);
-
-  const events: AuditEvent[] = [
+  return [
     { id: "joined", label: "Joined Alvastudio", at: new Date(user.createdAt) },
   ];
-
-  if (user.output > 0) {
-    events.push({
-      id: "first-output",
-      label: `First ${user.outputLabel.replace(/s$/, "")} submitted`,
-      at: daysAgo(Math.floor(random() * 120) + 2),
-    });
-  }
-
-  const adminActions = Math.floor(random() * 3);
-  for (let i = 0; i < adminActions; i += 1) {
-    events.push({
-      id: `admin-${i}`,
-      label: ADMIN_ACTIONS[Math.floor(random() * ADMIN_ACTIONS.length)],
-      at: daysAgo(Math.floor(random() * 60) + 1),
-      byAdmin: true,
-    });
-  }
-
-  if (!user.isActive) {
-    events.push({
-      id: "deactivated",
-      label: "Account deactivated",
-      at: daysAgo(Math.floor(random() * 20) + 1),
-      byAdmin: true,
-    });
-  }
-
-  // Newest first — an audit trail is read from what just happened.
-  return events.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
 export function formatAuditTimestamp(date: Date) {

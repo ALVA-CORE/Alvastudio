@@ -46,8 +46,14 @@ export default function InternRecordPage() {
   const items = useMemo(() => toCards(topics), [topics]);
   const total = items.length;
 
+  /* A take in progress, or one recorded and not yet saved. Moving card
+   * discards the recording, so the stack is locked until they finish, retake
+   * or save: losing audio somebody just spoke to a stray arrow press is the
+   * one mistake this page can make that cannot be undone. */
+  const recordingInProgress = recorder.phase !== "idle";
+
   const goTo = (updater: (prev: number) => number) => {
-    if (total === 0) return;
+    if (total === 0 || recordingInProgress) return;
     setCurrentIndex((prev) => (updater(prev) + total) % total);
     recorder.discardRecording();
   };
@@ -168,6 +174,10 @@ export default function InternRecordPage() {
             className="mt-8"
             items={items}
             current={currentIndex}
+            /* A focus group topic is a conversation to open, not a line to
+               read: the intern leads, the room talks. */
+            hint="and open the discussion"
+            locked={recordingInProgress}
             onNext={() => goTo((prev) => prev + 1)}
             onPrevious={() => goTo((prev) => prev - 1)}
           />
