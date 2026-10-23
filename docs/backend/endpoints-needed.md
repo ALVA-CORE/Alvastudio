@@ -7,11 +7,12 @@ open is listed here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | A way to fix a participant's consent | A session that cannot be saved or repaired | **High** |
-| 2 | `POST /auth/password`, change your own | Nobody can change their password | **High** |
-| 3 | An admin view of a contributor's identity status | KYC on the admin user panel | Medium |
-| 4 | `home_languages` on the profile | One onboarding answer is discarded | Low |
-| 5 | `target_participants` on a session, not only its topic | Nothing yet, a question | Low |
+| 1 | An audit log, as events | Every History tab across the admin surface | **High** |
+| 2 | A way to fix a participant's consent | A session that cannot be saved or repaired | **High** |
+| 3 | `POST /auth/password`, change your own | Nobody can change their password | **High** |
+| 4 | An admin view of a contributor's identity status | KYC on the admin user panel | Medium |
+| 5 | `home_languages` on the profile | One onboarding answer is discarded | Low |
+| 6 | `target_participants` on a session, not only its topic | Nothing yet, a question | Low |
 
 Everything on the 20 Oct list was answered in
 [`replies/api-status-2026-10-22.md`](replies/api-status-2026-10-22.md) and is
@@ -21,7 +22,54 @@ are listed under "on our side".
 
 ---
 
-## 1. A way to fix a participant's consent
+## 1. An audit log, as events
+
+Four panels on the admin surface have a History tab: a user, a clip, an
+annotation and a session. None of them has a source.
+
+**We have to own the first half of this.** Those tabs were filled by
+reconstructing a plausible history from the row — "Claimed" placed an hour
+after submission, a verdict two hours after that, and on the user panel a
+couple of admin actions drawn from a seeded random with dates to match. It
+looked like a record and it was invented. That is gone as of today, and the
+tabs now show only timestamps you actually measured, with a line saying so.
+
+What is left is thin, because this is everything the API records:
+
+| Panel | Real entries |
+| --- | --- |
+| Clip | Submitted (`created_at`), decided (`reviewed_at`) |
+| Annotation | Claimed, started, submitted, reviewed, from the full document |
+| Session | Created |
+| User | Joined |
+
+Everything an admin opens a History tab to find is missing: who reassigned
+this and when, when it was approved and by whom, when somebody was approved,
+deactivated or had their role changed, when a payout went out, when a profile
+was edited.
+
+**What would close it:**
+
+```
+GET /audit?subject_type=user|recording|annotation|focus_group
+          &subject_id=...&limit=&offset=&envelope=true
+
+→ [{ id, at, actor_id, actor_name, action, detail }]
+```
+
+One route with a subject filter, rather than four. `action` as an enum we can
+switch on, `detail` as a written sentence we can show. The annotation activity
+log is already exactly this shape for one subject, so the pattern is yours
+already.
+
+Events worth recording, roughly in the order we would miss them: assignment
+and reassignment, verdicts, approval and deactivation, role changes, password
+resets, payout runs and withdrawals, profile edits, prompt and topic changes.
+
+It is a bigger piece than the other asks, so partial is fine. The first three
+would cover most of what an admin opens that tab for.
+
+## 2. A way to fix a participant's consent
 
 You flagged this yourselves: *"there is no route to remove a participant. A
 session recorded with someone who said no has to be deleted and recreated
@@ -47,7 +95,7 @@ Our intake never creates an unconsented participant, so this should be rare
 for sessions started in our app. It is not rare for anything created another
 way.
 
-## 2. Changing your own password
+## 3. Changing your own password
 
 There is no route for it. `POST /users/{id}/password-reset` is an admin
 issuing a token, and `POST /auth/password-reset/redeem` spends one, so the
@@ -67,7 +115,7 @@ We have built the screen on all four profile pages against exactly that shape,
 so it works the day it lands. Until then it catches a 404 or 405 and tells
 them to ask an admin, which is the truth.
 
-## 3. An admin view of a contributor's identity status
+## 4. An admin view of a contributor's identity status
 
 `GET /wallet` is the caller's own, so an admin cannot see whether a
 contributor has passed their NIN check, what it is waiting on, or why it
@@ -83,7 +131,7 @@ may not need.
 The NIN itself should stay where it is. We are asking whether the check
 passed, not what the number is.
 
-## 4. `home_languages` on the profile
+## 5. `home_languages` on the profile
 
 The contributor onboarding form asks two language questions: what somebody
 grew up speaking, and what is spoken at home now. `native_languages` carries
@@ -94,7 +142,7 @@ device.
 so this is the last one. A `home_languages: string[]` alongside
 `native_languages` closes it.
 
-## 5. `target_participants` on a session
+## 6. `target_participants` on a session
 
 `FocusGroupSession.target_participants` is copied from the topic, which is
 exactly right for scoring. An admin setting it per topic is now in the prompts
@@ -132,6 +180,7 @@ for it, but it is the one way the attendance axis can read unfairly.
 | Demographic charts | The pyramid counts speakers on the intern and annotator dashboards, and hours on the corpus page, since a focus-group file holds several voices. |
 | Clip approval axis | Labelled "Clips approved", not "Quality", per your caution. A higher share of approvals is not by itself better reviewing. |
 | `ethnicity`, `occupation` | Now sent and read back. They were collected at onboarding and discarded. |
+| Invented history | Removed. Four History tabs were reconstructing events with made-up timestamps. They now show only what you measure, with a line saying the list is partial. |
 | Seeded fallbacks | Cleared. A dashboard with no response shows zeroes, never a sample: these are figures about one person's own work. The seeded sets are reachable only from demo mode. |
 | Remember me | Entirely ours, nothing needed from you. Ticked keeps the token in localStorage, unticked in sessionStorage, so it only decides whether the token outlives the tab. How long the token is valid stays yours. |
 | Sign-up drafts | All three sign-up forms keep their answers across a refresh, in localStorage. Password fields are excluded and never written. |

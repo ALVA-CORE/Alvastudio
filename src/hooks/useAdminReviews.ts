@@ -155,6 +155,9 @@ function toAdminRecording(
     status: api.status as RecordingStatus,
     reviewer: api.reviewer_name ?? (api.assigned_reviewer_id ? "Assigned" : ""),
     submittedAt: submitted.getTime(),
+    /* The real decision time. The history used to put it two hours after
+     * submission, which was a number nobody measured. */
+    reviewedAt: api.reviewed_at ? new Date(api.reviewed_at).getTime() : 0,
     submittedLabel: relativeDays(submitted),
     rejectionReason: rejectionReason(review),
     audioUrl: "",

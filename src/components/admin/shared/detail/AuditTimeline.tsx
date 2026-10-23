@@ -28,9 +28,19 @@ export function formatAuditTimestamp(date: Date) {
 export function AuditTimeline({
   entries,
   emptyMessage = "Nothing has happened here yet.",
+  partial = false,
 }: {
   entries: AuditEntry[];
   emptyMessage?: string;
+  /**
+   * Says the list is everything the API records, not everything that happened.
+   *
+   * The API stores a handful of timestamps per row and no event log, so a
+   * history here is three or four entries where somebody expects twenty. A
+   * short list with no explanation reads as a bug; worse, the gap used to be
+   * filled with invented entries, which read as fact.
+   */
+  partial?: boolean;
 }) {
   if (entries.length === 0) {
     return (
@@ -39,6 +49,7 @@ export function AuditTimeline({
   }
 
   return (
+    <>
     <ol className="relative">
       {entries.map((entry, index) => (
         <li key={entry.id} className="relative flex gap-3 pb-5 last:pb-0">
@@ -65,5 +76,13 @@ export function AuditTimeline({
         </li>
       ))}
     </ol>
+
+    {partial ? (
+      <p className="mt-4 border-t border-alva-border/60 pt-3 text-xs leading-relaxed text-muted-foreground">
+        Only the moments the API records are listed. Edits, assignments and
+        admin actions are not kept as events yet.
+      </p>
+    ) : null}
+    </>
   );
 }

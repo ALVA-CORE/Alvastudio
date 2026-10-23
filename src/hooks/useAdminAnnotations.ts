@@ -177,6 +177,7 @@ function toAdminAnnotation(
     durationSec,
     duration: durationSec > 0 ? formatDuration(durationSec) : NO_VALUE,
     claimedAt: claimed.getTime(),
+    updatedAt: api.updated_at ? new Date(api.updated_at).getTime() : 0,
     claimedLabel: relativeDays(claimed),
   };
 }

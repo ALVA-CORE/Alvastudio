@@ -157,18 +157,24 @@ describe("role-specific detail", () => {
     ["contributor", "Recording", "Prompts read"],
     ["intern", "Field work", "Participants logged"],
     ["annotator", "Annotation", "Segments created"],
-  ] as const)("shows %s work under %s", (role, heading, field) => {
+  ] as const)("shows %s work under %s", async (role, heading, field) => {
     const subject = ADMIN_USERS.find((row) => row.role === role);
     expect(subject).toBeTruthy();
 
     renderPanel({ user: { ...subject!, isActive: true } });
+
+    /* On Activity, not Profile. What somebody has produced is activity; the
+       profile tab is who they are and what the account can do. */
+    await userEvent.click(screen.getByRole("button", { name: "Activity" }));
+
     expect(screen.getByText(heading)).toBeInTheDocument();
     expect(screen.getByText(field)).toBeInTheDocument();
   });
 
-  it("does not show one role's figures on another", () => {
+  it("does not show one role's figures on another", async () => {
     const contributor = ADMIN_USERS.find((row) => row.role === "contributor");
     renderPanel({ user: { ...contributor!, isActive: true } });
+    await userEvent.click(screen.getByRole("button", { name: "Activity" }));
 
     expect(screen.queryByText("Segments created")).not.toBeInTheDocument();
     expect(screen.queryByText("Participants logged")).not.toBeInTheDocument();
