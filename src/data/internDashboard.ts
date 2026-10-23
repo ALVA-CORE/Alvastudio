@@ -1,3 +1,4 @@
+import { fromApiAgeBracket } from "@/lib/api/enums";
 export type DashboardTimeRange = "7d" | "30d" | "90d" | "12m";
 
 export const DASHBOARD_TIME_RANGES: Array<{
@@ -80,6 +81,76 @@ export function toCaptureTrend(
     ...bucket,
     hours: Math.round(bucket.hours * 10) / 10,
   }));
+}
+
+/** Ordered so the pyramid's axis reads youngest at the top, as it did seeded. */
+const AGE_ORDER = ["Under 18", "18-24", "25-34", "35-44", "45-54", "55+"];
+
+/**
+ * `by_gender_age` → the pyramid.
+ *
+ * Speakers, not hours: a focus group is one file with several voices, so its
+ * hours cannot be split by speaker. The chart's label says speakers.
+ *
+ * Anything that is not male or female lands in `undisclosed`, which includes
+ * "prefer not to say" and "other". They are different answers, but a pyramid
+ * has two sides and a remainder, and splitting the remainder further would
+ * make the smallest bars unreadable.
+ */
+export function toDemographicSpeakers(
+  cells: { gender: string; age_bracket: string; speakers: number }[]
+): DemographicHoursPoint[] {
+  const brackets = new Map<string, DemographicHoursPoint>();
+
+  for (const cell of cells) {
+    const ageBracket = fromApiAgeBracket(cell.age_bracket) || cell.age_bracket;
+    const row = brackets.get(ageBracket) ?? {
+      ageBracket,
+      male: 0,
+      female: 0,
+      undisclosed: 0,
+    };
+
+    if (cell.gender === "male") row.male += cell.speakers;
+    else if (cell.gender === "female") row.female += cell.speakers;
+    else row.undisclosed += cell.speakers;
+
+    brackets.set(ageBracket, row);
+  }
+
+  return [...brackets.values()].sort(
+    (a, b) => AGE_ORDER.indexOf(a.ageBracket) - AGE_ORDER.indexOf(b.ageBracket)
+  );
+}
+
+/**
+ * `quality_in_window` → the radar's five axes.
+ *
+ * An axis with no denominator is dropped rather than plotted at zero. A
+ * five-sided shape collapsed to a point because an intern has run no sessions
+ * reads as a failing intern, which is the opposite of the truth.
+ */
+export function toQualityRadar(quality: {
+  consent: { score: number | null; denominator: number };
+  demographics: { score: number | null; denominator: number };
+  audio: { score: number | null; denominator: number };
+  participants: { score: number | null; denominator: number };
+  clip_approval: { score: number | null; denominator: number };
+}): RadarPoint[] {
+  const axes: { metric: string; axis: { score: number | null; denominator: number } }[] = [
+    { metric: "Consent", axis: quality.consent },
+    { metric: "Demographics", axis: quality.demographics },
+    { metric: "Audio", axis: quality.audio },
+    { metric: "Attendance", axis: quality.participants },
+    /* Not "Quality": a higher share of approvals is not by itself better
+     * reviewing, and a label that implied it would nudge interns towards
+     * approving. The API's own description makes the same point. */
+    { metric: "Clips approved", axis: quality.clip_approval },
+  ];
+
+  return axes
+    .filter((entry) => entry.axis.score != null && entry.axis.denominator > 0)
+    .map((entry) => ({ metric: entry.metric, score: Math.round(entry.axis.score ?? 0) }));
 }
 
 type DashboardDataset = {

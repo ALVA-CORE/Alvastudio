@@ -10,6 +10,14 @@ const VALUE_SLOT = "w-10";
 
 type DemographicHoursChartProps = {
   data: DemographicHoursPoint[];
+  /**
+   * What the bars measure.
+   *
+   * Hours on the corpus page, where a clip has one speaker. Speakers on the
+   * intern and annotator dashboards, where a focus-group file holds several
+   * voices and its hours cannot be split between them.
+   */
+  unit?: "hours" | "speakers";
   className?: string;
 };
 
@@ -19,7 +27,8 @@ function niceCeiling(value: number) {
   return Math.ceil(value / (magnitude / 2)) * (magnitude / 2);
 }
 
-function formatHours(value: number) {
+function formatValue(value: number, unit: "hours" | "speakers") {
+  if (unit === "speakers") return String(Math.round(value));
   return `${Number.isInteger(value) ? value : value.toFixed(1)}h`;
 }
 
@@ -33,7 +42,11 @@ function hatchFill(color: string, angle: number) {
  * female hours extend right, so skew in what has been collected is obvious at
  * a glance rather than buried in a grouped bar chart.
  */
-export function DemographicHoursChart({ data, className }: DemographicHoursChartProps) {
+export function DemographicHoursChart({
+  data,
+  unit = "hours",
+  className,
+}: DemographicHoursChartProps) {
   const [hovered, setHovered] = useState<string | null>(null);
 
   const { axisMax, totals, peakBracket } = useMemo(() => {
@@ -90,7 +103,7 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
                 isHovered && "bg-alva-surface/60"
               )}
             >
-              <ValueLabel value={point.male} align="left" visible={isHovered} />
+              <ValueLabel value={point.male} align="left" visible={isHovered} unit={unit} />
 
               <PyramidBar
                 value={point.male}
@@ -120,7 +133,12 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
                 dimmed={dimmed}
               />
 
-              <ValueLabel value={point.female} align="right" visible={isHovered} />
+              <ValueLabel
+                value={point.female}
+                align="right"
+                visible={isHovered}
+                unit={unit}
+              />
             </div>
           );
         })}
@@ -130,13 +148,13 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
         <span className={cn(VALUE_SLOT, "shrink-0")} />
         <div className="flex flex-1 justify-between text-[10px] tabular-nums text-muted-foreground">
           {ticks.map((tick) => (
-            <span key={`left-${tick}`}>{formatHours(tick)}</span>
+            <span key={`left-${tick}`}>{formatValue(tick, unit)}</span>
           ))}
         </div>
         <span className={cn(GUTTER, "shrink-0")} />
         <div className="flex flex-1 justify-between text-[10px] tabular-nums text-muted-foreground">
           {[...ticks].reverse().map((tick) => (
-            <span key={`right-${tick}`}>{formatHours(tick)}</span>
+            <span key={`right-${tick}`}>{formatValue(tick, unit)}</span>
           ))}
         </div>
         <span className={cn(VALUE_SLOT, "shrink-0")} />
@@ -144,11 +162,11 @@ export function DemographicHoursChart({ data, className }: DemographicHoursChart
 
       <p className="mt-2 text-[11px] text-muted-foreground">
         {"Total, male "}
-        <span className="font-medium text-foreground">{formatHours(totals.male)}</span>
+        <span className="font-medium text-foreground">{formatValue(totals.male, unit)}</span>
         {", female "}
-        <span className="font-medium text-foreground">{formatHours(totals.female)}</span>
+        <span className="font-medium text-foreground">{formatValue(totals.female, unit)}</span>
         {", undisclosed "}
-        <span className="font-medium text-foreground">{formatHours(totals.undisclosed)}</span>
+        <span className="font-medium text-foreground">{formatValue(totals.undisclosed, unit)}</span>
       </p>
     </div>
   );
@@ -158,10 +176,12 @@ function ValueLabel({
   value,
   align,
   visible,
+  unit,
 }: {
   value: number;
   align: "left" | "right";
   visible: boolean;
+  unit: "hours" | "speakers";
 }) {
   return (
     <span
@@ -172,7 +192,7 @@ function ValueLabel({
         visible ? "opacity-100" : "opacity-0"
       )}
     >
-      {formatHours(value)}
+      {formatValue(value, unit)}
     </span>
   );
 }

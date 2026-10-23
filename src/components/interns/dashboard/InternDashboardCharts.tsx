@@ -106,13 +106,13 @@ export function InternDashboardCharts({
 
         <ChartCard
           title="Quality mix"
-          subtitle="Average scores across review dimensions"
+          subtitle="How your sessions score, over the last year"
           className="min-h-[22rem] lg:col-span-2"
           emptyMessage={
-            isEmpty
+            isEmpty || dataset.qualityRadar.length === 0
               ? {
-                  title: "No review scores",
-                  description: "Rubric averages appear after your first completed review.",
+                  title: "Nothing to score yet",
+                  description: "Scores appear once you have run a session.",
                 }
               : undefined
           }
@@ -133,10 +133,12 @@ export function InternDashboardCharts({
       <div className="grid gap-2 lg:grid-cols-5">
         <ChartCard
           title="Demographic reach"
-          subtitle="Recorded hours by age bracket and gender"
+          /* Speakers, not hours: one focus-group file holds several voices,
+             so its hours cannot be split between them. */
+          subtitle="Speakers by age bracket and gender"
           className="min-h-[22rem] lg:col-span-2"
           emptyMessage={
-            isEmpty
+            isEmpty || dataset.demographicHours.length === 0
               ? {
                   title: "No demographic data",
                   description: "Log participants to see which age and gender groups you cover.",
@@ -144,7 +146,7 @@ export function InternDashboardCharts({
               : undefined
           }
         >
-          <DemographicHoursChart data={dataset.demographicHours} />
+          <DemographicHoursChart data={dataset.demographicHours} unit="speakers" />
         </ChartCard>
 
         <ChartCard

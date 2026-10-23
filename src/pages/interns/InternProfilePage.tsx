@@ -12,6 +12,7 @@ import {
 } from "@/lib/validations/auth";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
+import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -118,6 +119,8 @@ export default function InternProfilePage() {
               <ProfileInfoBlock label="Quota alerts" value={quotaLabel(profile?.quotaAlerts)} />
             </dl>
           </ProfileActionRow>
+
+          <ChangePasswordRow hideDivider />
 
           <div className="mt-6 flex justify-center">
             <TextureButton variant="destructive" size="sm" className="w-auto" onClick={handleLogout}>

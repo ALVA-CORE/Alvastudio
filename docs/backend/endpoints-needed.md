@@ -1,129 +1,109 @@
 # Endpoints we need
 
-Checked against the live OpenAPI document, 20 Oct 2026. Everything asked for
-before this date was answered in
-[`replies/api-status-2026-10-17.md`](replies/api-status-2026-10-17.md), and is
-deployed and wired. Only what is still open is listed here.
+Checked against the live OpenAPI document, 22 Oct 2026. Only what is still
+open is listed here.
 
 ## Open
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | Annotator sign-up and approval, 3 questions | Annotators applying for accounts | **High** |
-| 2 | Scoring definitions, not endpoints | The quality radar and one figure | Medium |
-| 3 | Speaker demographics as a joint, not two marginals | 2 charts, still seeded | Low |
-| 4 | `under_18` on `AgeBracket`, a question | Nothing, but the enum allows what we refuse | Low |
-| 5 | Error messages that name Bachs | Contributors reading "Bachs not found" | Medium |
-| 6 | A state on the session itself | One admin column, derived today | Low |
+| 1 | A way to fix a participant's consent | A session that cannot be saved or repaired | **High** |
+| 2 | `POST /auth/password`, change your own | Nobody can change their password | **High** |
+| 3 | An admin view of a contributor's identity status | KYC on the admin user panel | Medium |
+| 4 | `home_languages` on the profile | One onboarding answer is discarded | Low |
+| 5 | `target_participants` on a session, not only its topic | Nothing yet, a question | Low |
 
-Three asks came off this list on 20 Oct without anything being built at your
-end: `daily_activity` on `/dashboard/intern`, `tag_breakdown` on
-`/dashboard/annotator`, and the intern's `*_in_window` totals were all already
-deployed. We had them down as missing. Apologies for the noise.
+Everything on the 20 Oct list was answered in
+[`replies/api-status-2026-10-22.md`](replies/api-status-2026-10-22.md) and is
+wired. The 22 Oct release is checked against our client in full: nothing we
+send was refused by the new validation, and the two defensive changes we made
+are listed under "on our side".
 
 ---
 
-## 1. Annotator sign-up and approval
+## 1. A way to fix a participant's consent
 
-Annotators now apply for their own accounts rather than being created by an
-admin, the same way interns do. The page is built at `/annotator/signup` and
-posts `role: "annotator"` to `POST /auth/register`, which the `UserRole` enum
-accepts. Three things we had to assume:
+You flagged this yourselves: *"there is no route to remove a participant. A
+session recorded with someone who said no has to be deleted and recreated
+without them."*
 
-**1. Does registering as `annotator` leave the account unapproved?** We show
-the new annotator "an admin needs to approve it" and send them back to sign-in
-rather than into a queue. If `intern_approved` only defaults false for interns,
-an annotator is live the moment they register and that message is a lie.
+It is the one gap in the 22 Oct release with no path out of it. An intern who
+hits the consent 409 is holding a take they cannot upload and a session they
+cannot repair, and the only honest thing our screen can say is "log it again",
+which throws away the recording.
 
-**2. Is `POST /users/{id}/approve-intern` the right call for an annotator?**
-It is the only approval route, so the admin Approve button uses it for both.
-A name that says `intern` doing double duty is workable but easy to get wrong
-later; `approve-user`, or an `approved` flag beside `intern_approved`, would
-say what it does.
+Either of these closes it:
 
-**3. Do annotator routes 403 until approved?** Intern routes do. If annotator
-routes do not, an unapproved annotator can claim and submit work, which is the
-thing approval exists to prevent.
-
-| What we send | Where |
+| Route | What it allows |
 | --- | --- |
-| `{full_name, email, phone, password, role: "annotator"}` | `POST /auth/register` |
-| `{language_varieties, sessions_covered}` | `PUT /onboarding/annotator-profile` |
+| `PATCH /focus-groups/{id}/participants/{pid}` with `{consent_given, consent_version}` | Recording agreement that was given but not logged, which is the common case |
+| `DELETE /focus-groups/{id}/participants/{pid}` | Dropping somebody who genuinely refused, so the rest of the room's session survives |
 
-The second is the claim an admin is approving: which varieties they say they
-can tag, and which sessions they can cover. It is written straight after
-registration and is non-fatal if it fails, so a dropped request costs the
-clearance rather than the account.
+The first is the one we would use. The second has the obvious hazard that the
+audio still contains their voice, so it may be the wrong tool, and we would
+take your read on that.
 
-## 2. Scoring definitions
+Our intake never creates an unconsented participant, so this should be rare
+for sessions started in our app. It is not rare for anything created another
+way.
 
-Agreed in principle on 17 Oct and sequenced for a later round, so this is a
-placeholder rather than a new ask. Two figures draw a dash or a sample until it
-lands.
+## 2. Changing your own password
 
-| Figure | Where | Definition we agreed |
-| --- | --- | --- |
-| Median review time | Contributor quality bar | Median of `reviewed_at - created_at` across that contributor's decided clips. Median, not mean, because one clip left over a weekend drags a mean badly. Shows a dash today. |
-| Quality radar | Intern dashboard | 5 axes, each 0-100: consent completeness, demographic completeness, audio pass rate, participants per session against target, clip approval rate. Seeded today. |
+There is no route for it. `POST /users/{id}/password-reset` is an admin
+issuing a token, and `POST /auth/password-reset/redeem` spends one, so the
+only way anybody changes a password is to ask an admin for a link.
 
-Acceptance rate is off the list: `status_breakdown` already carries it, and the
-contributor quality bar computes it live.
+That is a support ticket for every forgotten password, and it puts admins
+within reach of other people's credentials for no reason.
 
-**The window is yours to pick.** You asked that a 90-day window either reuse the
-365-day one every dashboard already shares, or carry its window in the field
-name so nobody compares the two by accident. Either works for us, we will label
-whatever the field says. The floor of 10 decided clips is settled.
+```
+POST /auth/password   { current_password, new_password }
+```
 
-## 3. Speaker demographics as a joint
+Current password checked even though the bearer token already proves who they
+are: it is the signed-in tab somebody walked away from that this stops.
 
-Two charts draw hours or speakers by age bracket, split by gender:
+We have built the screen on all four profile pages against exactly that shape,
+so it works the day it lands. Until then it catches a 404 or 405 and tells
+them to ask an admin, which is the truth.
 
-| Chart | Reads |
-| --- | --- |
-| Intern dashboard, demographic reach | `demographics` on `/dashboard/intern` |
-| Annotator dashboard, demographic reach | `speaker_demographics` on `/dashboard/annotator` |
+## 3. An admin view of a contributor's identity status
 
-Both fields give `by_gender` and `by_age_bracket` as separate marginals, which
-cannot be crossed, so both charts are seeded. This is the same shape as
-`by_type_status` on the corpus summary: the joint rather than the two edges.
-Speaker counts would do, we do not need hours, and we know a focus group's
-hours cannot be split by speaker.
+`GET /wallet` is the caller's own, so an admin cannot see whether a
+contributor has passed their NIN check, what it is waiting on, or why it
+failed. They can see the person's email and when they joined, and nothing
+about the one thing that decides whether that person can be paid.
 
-## 4. `under_18` on `AgeBracket`
+Anything that answers it is fine. The smallest would be `identity_status`,
+`identity_failure_reason` and `next_action` on `GET /users/{id}/profiles`,
+which an admin already reads for the person in front of them. A whole
+`GET /users/{id}/wallet` would also work, though it carries balances an admin
+may not need.
 
-We do not approve anyone under 18. Sign-up gates on it with an attestation
-checkbox, the form's bracket list starts at 18-24, and we never send
-`under_18`.
+The NIN itself should stay where it is. We are asking whether the check
+passed, not what the number is.
 
-The enum still accepts it, so a record can carry a value our product says
-cannot exist. **Could it be rejected for contributors at the API?** Until then
-we surface it as "Under 18" rather than folding it into 18-24, which is what we
-were doing and which hid exactly the case worth seeing.
+## 4. `home_languages` on the profile
 
-`65_plus` we do fold, into our "55+" bucket. That one is a display choice and
-is correct, since 55+ includes 65+.
+The contributor onboarding form asks two language questions: what somebody
+grew up speaking, and what is spoken at home now. `native_languages` carries
+the first. The second has nowhere to go and is dropped at sign-in on another
+device.
 
-## 5. Error messages that name Bachs
+`ethnicity` and `occupation` were in the same state and are now on `ProfileIn`,
+so this is the last one. A `home_languages: string[]` alongside
+`native_languages` closes it.
 
-A failed NIN submission came back **"Bachs not found"**, which went straight to
-a contributor. FastAPI's `detail` is what we show — most of yours are written
-for the reader and are better than anything we would invent, so we pass them
-through rather than translating them.
+## 5. `target_participants` on a session
 
-A few are not. Anything naming the payment vendor asks a contributor to care
-about a company they have never heard of, and gives them nothing to do.
+`FocusGroupSession.target_participants` is copied from the topic, which is
+exactly right for scoring. An admin setting it per topic is now in the prompts
+form.
 
-We now replace those at our boundary, but we are pattern-matching on your
-wording, which will drift. **Could messages that reach a 4xx body be written
-for the person reading them**, with the vendor name kept to logs? We are happy
-to show whatever you send.
-
-## 6. A state on the session itself
-
-`GET /focus-groups` has no session state, so the admin column takes the
-commonest `state` among the participants. It is right in practice and wrong in
-principle: a derivation presented as a fact. A `state` on the session, or
-confirmation that the derivation is the intended rule, closes it.
+The question: should an intern be able to set it on a single session? A topic
+run deliberately as a four-person conversation currently scores as half
+attended against a target of eight. Not urgent, and we have not built anything
+for it, but it is the one way the attendance axis can read unfairly.
 
 ## On our side, not asks
 
@@ -143,6 +123,16 @@ confirmation that the derivation is the intended rule, closes it.
 | `device_mic` on an upload | Now sent. We read the label off the live audio track, so it is the mic that clip was recorded on rather than the one typed into a profile. Blank where a browser withholds the label, and then omitted rather than guessed. |
 | `GET /wallet/payout-destination` | We were reading it as a single object with an `account_number`. It is a list, and carries `account_last4`, so the wallet shows a masked number and picks the first `is_usable` destination. |
 | `english_fluency` | Now sent and read back. It had nowhere to go when the onboarding form was built. |
+| Duration bounds | We drop a duration that is negative, infinite, NaN or over six hours rather than sending one that would be refused. A recorder left running in a background tab can produce one, and losing the take to a 422 is worse than losing the figure. |
+| `device_mic` length | Truncated to 255, the column width. A virtual device can carry a long label. |
+| The message guard is gone | We were pattern-matching "Bachs" at our boundary. Your 4xx and 5xx text is shown as sent now. |
+| Reassigning finished work | The button is gone for a submitted, approved or rejected annotation rather than offered and refused with a 409. |
+| Assign pickers | Filter on active AND approved. An unapproved annotator cannot do the work they would be handed. |
+| Session `state` | Read from the session's own field. We used to take the commonest state among the participants, which read Ogun for a Lagos session with a room from Ogun. |
+| Demographic charts | The pyramid counts speakers on the intern and annotator dashboards, and hours on the corpus page, since a focus-group file holds several voices. |
+| Clip approval axis | Labelled "Clips approved", not "Quality", per your caution. A higher share of approvals is not by itself better reviewing. |
+| `ethnicity`, `occupation` | Now sent and read back. They were collected at onboarding and discarded. |
+| Seeded fallbacks | Cleared. A dashboard with no response shows zeroes, never a sample: these are figures about one person's own work. The seeded sets are reachable only from demo mode. |
 | Remember me | Entirely ours, nothing needed from you. Ticked keeps the token in localStorage, unticked in sessionStorage, so it only decides whether the token outlives the tab. How long the token is valid stays yours. |
 | Sign-up drafts | All three sign-up forms keep their answers across a refresh, in localStorage. Password fields are excluded and never written. |
 | `RegisterIn.role` | We were downgrading `annotator` to `contributor` before sending, left over from when there was no annotator sign-up. Now sent as-is. |

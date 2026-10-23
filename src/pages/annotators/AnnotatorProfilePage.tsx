@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { PrivacyRows } from "@/components/annotators/profile/PrivacyRows";
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
+import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -144,6 +145,8 @@ export default function AnnotatorProfilePage() {
               />
             </dl>
           </ProfileActionRow>
+
+          <ChangePasswordRow hideDivider />
 
           <div className="mt-6 flex justify-center">
             <TextureButton

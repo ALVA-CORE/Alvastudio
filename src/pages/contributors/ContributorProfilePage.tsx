@@ -19,6 +19,7 @@ import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGa
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
 import { IdentityProfileRow } from "@/components/contributors/wallet/IdentityProfileRow";
+import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -172,6 +173,8 @@ export default function ContributorProfilePage() {
             <ProfileInfoBlock label="Recording reminders" value="Weekly" />
           </dl>
         </ProfileActionRow>
+
+        <ChangePasswordRow hideDivider />
 
         <div className="mt-6 flex justify-center">
           <TextureButton

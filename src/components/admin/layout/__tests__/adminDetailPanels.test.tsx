@@ -162,6 +162,10 @@ vi.mock("@/lib/api/catalog", async () => {
   const items = seededApiBank();
   const page = { items, total: items.length, limit: 200, offset: 0 };
   return {
+    /* Plain constants, not calls. A whole-module mock replaces them too. */
+    DEFAULT_TARGET_PARTICIPANTS: 8,
+    MIN_TARGET_PARTICIPANTS: 1,
+    MAX_TARGET_PARTICIPANTS: 50,
     listPromptsPage: vi.fn(async () => page),
     listStimuliPage: vi.fn(async () => page),
     listTopicsPage: vi.fn(async () => ({ items: [], total: 0, limit: 200, offset: 0 })),
@@ -194,7 +198,16 @@ vi.mock("@/lib/api/users", async () => {
     createUser: vi.fn(async () => items[0]),
     updateUser: vi.fn(async () => items[0]),
     deleteUser: vi.fn(async () => undefined),
+    approveUser: vi.fn(async () => items[0]),
     approveIntern: vi.fn(async () => items[0]),
+    getUserProfiles: vi.fn(async () => ({
+      user_id: items[0].id,
+      role: items[0].role,
+      approved: true,
+      profile: null,
+      intern_profile: null,
+      annotator_profile: null,
+    })),
     issuePasswordReset: vi.fn(async () => ({
       token: "prt_test",
       expires_at: new Date().toISOString(),

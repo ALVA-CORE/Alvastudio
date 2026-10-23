@@ -120,6 +120,21 @@ export const EMPTY_WEEKLY_SESSIONS = WEEKLY_SESSIONS.map((point) => ({
 }));
 
 /** The bar's four tracks at zero, so the frame survives an empty breakdown. */
+/**
+ * Seconds as something a contributor reads at a glance.
+ *
+ * Hours below a day, days above it. A review that took 31 hours is "1.3d",
+ * which answers "is this slow" faster than "31h" does.
+ */
+export function formatReviewTime(seconds: number | null): string {
+  if (seconds == null) return NO_VALUE;
+
+  const hours = seconds / 3600;
+  if (hours < 1) return `${Math.max(1, Math.round(seconds / 60))}m`;
+  if (hours < 24) return `${Math.round(hours)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+}
+
 export const EMPTY_QUALITY_SEGMENTS: QualitySegment[] = [
   { key: "approved", label: "Approved", value: 0, color: "hsl(var(--alva-accent))" },
   { key: "pending", label: "In review", value: 0, color: "hsl(0 0% 42%)" },
@@ -129,6 +144,6 @@ export const EMPTY_QUALITY_SEGMENTS: QualitySegment[] = [
 
 export const EMPTY_QUALITY_INSIGHTS: Insight[] = [
   { label: "Acceptance rate", value: "0%" },
-  { label: "Avg review time", value: NO_VALUE },
+  { label: "Median review time", value: NO_VALUE },
   { label: "This week", value: "0 clips" },
 ];

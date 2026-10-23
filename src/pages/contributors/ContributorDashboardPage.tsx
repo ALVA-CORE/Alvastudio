@@ -86,6 +86,7 @@ export default function ContributorDashboardPage() {
             breakdown={live?.status_breakdown}
             approved={live?.status_breakdown.approved}
             total={live?.status_breakdown.total}
+            medianReviewSeconds={live?.median_review_seconds_in_window}
           />
         </>
       )}

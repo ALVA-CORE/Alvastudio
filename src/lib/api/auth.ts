@@ -50,6 +50,21 @@ export function register(payload: RegisterPayload): Promise<ApiUser> {
  * How long it is valid for is the token's own business and the API's; this
  * only chooses the store it is kept in.
  */
+/**
+ * Changes the signed-in person's own password.
+ *
+ * **Not deployed yet.** The API has an admin-issued reset token and a redeem
+ * route, but nothing a person can call for themselves. Requested in
+ * `docs/backend/endpoints-needed.md`; this is the shape we asked for, so the
+ * screen works the moment it lands.
+ */
+export function changePassword(body: {
+  current_password: string;
+  new_password: string;
+}) {
+  return apiFetch<void>("/auth/password", { method: "POST", body });
+}
+
 export async function login(
   email: string,
   password: string,

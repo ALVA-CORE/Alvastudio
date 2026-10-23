@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TextureButton } from "@/components/ui/texture-button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { DEFAULT_TARGET_PARTICIPANTS } from "@/lib/api/catalog";
 import {
   BankItemForm,
   EMPTY_BANK_DRAFT,
@@ -50,7 +51,12 @@ export function BankItemSheet({
     if (!open) return;
     setDraft(
       item
-        ? { text: item.text, variety: item.variety }
+        ? {
+            text: item.text,
+            variety: item.variety,
+            targetParticipants:
+              item.targetParticipants ?? DEFAULT_TARGET_PARTICIPANTS,
+          }
         : EMPTY_BANK_DRAFT
     );
     setError(null);

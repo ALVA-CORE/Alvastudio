@@ -24,20 +24,28 @@ export default function AnnotatorDashboardPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
-  const { metrics, activity, tagBreakdown, isLoading, error, reload } =
-    useAnnotatorDashboard(timeRange);
+  const {
+    metrics,
+    activity,
+    tagBreakdown,
+    demographics,
+    isLoading,
+    error,
+    reload,
+  } = useAnnotatorDashboard(timeRange);
   const { forceEmpty, forceDemo } = useDevUiState();
 
   if (isMobile) {
     return <AnnotatorMobileGate />;
   }
 
-  /* The demographic-reach chart is the last seeded one here: the endpoint
-   * carries speaker counts by gender and by age bracket as two marginals, and
-   * that chart needs them crossed. Everything else is live. */
-  const base = forceEmpty
-    ? getEmptyAnnotatorDataset(timeRange)
-    : ANNOTATOR_DASHBOARD_DATA[timeRange];
+  /* Every chart here is live now. The reach chart counts speakers rather than
+   * hours: a focus-group file holds several voices, so its hours cannot be
+   * split between them. */
+  /* The seeded dataset is for demo mode only. Everywhere else a screen with
+   * no response shows zeroes: this is one person's own work, and a sample of
+   * somebody else's is the one thing it must never be mistaken for. */
+  const base = forceDemo ? ANNOTATOR_DASHBOARD_DATA[timeRange] : getEmptyAnnotatorDataset(timeRange);
 
   /* Demo mode leaves the seeded dataset alone, so every card and chart on the
    * screen is populated rather than showing a real account's zeroes. */
@@ -47,6 +55,7 @@ export default function AnnotatorDashboardPage() {
         ...base,
         activity: forceEmpty ? base.activity : activity,
         tagBreakdown: forceEmpty ? base.tagBreakdown : tagBreakdown,
+        demographicHours: forceEmpty ? base.demographicHours : demographics,
       };
   /* The three cards read live totals normally, the seeded ones in demo, and
    * zeroes when the empty state is being inspected. */

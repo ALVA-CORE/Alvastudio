@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchBlobUrl } from "./client";
+import { isSendableDuration } from "./recordings";
 import type { ApiAgeBracket, ApiGender, ApiLanguageVariety } from "./enums";
 
 export type ApiParticipant = {
@@ -54,6 +55,13 @@ export type ApiSessionSummary = {
   duration_seconds: number | null;
   has_audio: boolean;
   participant_count: number;
+  /**
+   * Where the session was RECORDED, as typed.
+   *
+   * Not where the speakers are from — that is each participant's own `state`.
+   * Null when it was not recorded; never derived from the participants.
+   */
+  state?: string | null;
   turn_count: number;
   created_at: string;
   participants?: ApiParticipant[];
@@ -117,9 +125,18 @@ export const deleteSession = (id: string) =>
  * the bank item it came from, so editing a topic later cannot rewrite sessions
  * already run from it. A retired topic is a 409, an unknown one a 404.
  */
+/** Corrects a session's recorded state. The session's intern, or an admin. */
+export const updateSession = (sessionId: string, patch: { state: string | null }) =>
+  apiFetch<ApiSession>(`/focus-groups/${sessionId}`, {
+    method: "PATCH",
+    body: patch,
+  });
+
 export const createSession = (payload: {
   topic: string;
   topic_id?: string;
+  /** Where it is being recorded. Omitted rather than guessed. */
+  state?: string;
   language_variety?: ApiLanguageVariety;
   duration_seconds?: number;
   participants?: ApiParticipantIn[];
@@ -142,7 +159,9 @@ export function uploadSessionAudio(
 ) {
   const form = new FormData();
   form.append("file", audio, meta.filename ?? "session.wav");
-  if (meta.durationSeconds != null) {
+  /* Same ceiling as a recording: negative, infinite, NaN or over six hours is
+   * refused, so it is dropped rather than losing the session with it. */
+  if (isSendableDuration(meta.durationSeconds)) {
     form.append("duration_seconds", String(meta.durationSeconds));
   }
   return apiFetch<ApiSession>(`/focus-groups/${sessionId}/audio`, {
