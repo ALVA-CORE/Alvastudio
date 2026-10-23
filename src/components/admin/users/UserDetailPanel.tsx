@@ -551,7 +551,6 @@ export function UserDetailPanel({
           <AuditTimeline
             entries={audit}
             emptyMessage="Nothing has happened to this account yet."
-            partial
           />
         ) : null}
       </DetailPanel>

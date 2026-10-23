@@ -290,11 +290,7 @@ export function AnnotationDetailPanel({
         ) : tab === "activity" ? (
           <ActivityReplay events={activity} />
         ) : (
-          <AuditTimeline
-            entries={audit}
-            emptyMessage="Nothing recorded yet."
-            partial
-          />
+          <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
         )}
       </DetailPanel>
 

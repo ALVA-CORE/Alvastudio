@@ -89,7 +89,6 @@ export default function AdminSettingsPage() {
             title="Backend readiness"
             sheetTitle="Backend readiness"
             sheetDescription="Which admin areas the API can serve today."
-            hideDivider
           >
             <dl>
               {ADMIN_NAV_ITEMS.filter((item) => item.id !== "settings").map((item) => (

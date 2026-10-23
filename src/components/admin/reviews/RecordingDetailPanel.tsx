@@ -229,11 +229,7 @@ export function RecordingDetailPanel({
             ) : null}
           </>
         ) : (
-          <AuditTimeline
-            entries={audit}
-            emptyMessage="Nothing recorded yet."
-            partial
-          />
+          <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
         )}
       </DetailPanel>
 
