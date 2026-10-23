@@ -17,6 +17,22 @@ type StudioPromptStackProps = {
   current: number;
   onNext: () => void;
   onPrevious: () => void;
+  /**
+   * What to do with the card, after "Click [mic]".
+   *
+   * A prompt is read aloud; a stimulus is described in the speaker's own
+   * words; a focus-group topic is discussed. Telling somebody to read a
+   * scene description is telling them to do the wrong thing.
+   */
+  hint?: string;
+  /**
+   * Locks the stack while a take is in progress.
+   *
+   * Moving to another card mid-recording would leave the audio attached to a
+   * prompt nobody was looking at, and the take is discarded on every move, so
+   * it would also throw the recording away without asking.
+   */
+  locked?: boolean;
   className?: string;
 };
 
@@ -38,6 +54,8 @@ export function StudioPromptStack({
   current,
   onNext,
   onPrevious,
+  hint,
+  locked = false,
   className,
 }: StudioPromptStackProps) {
   const len = items.length;
@@ -82,7 +100,7 @@ export function StudioPromptStack({
                   zIndex: stack.length - index,
                 }}
                 transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                drag={isTop ? "x" : false}
+                drag={isTop && !locked ? "x" : false}
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.45}
                 onDragEnd={(_, info) => {
@@ -100,7 +118,7 @@ export function StudioPromptStack({
                       duration={2.2}
                       borderRadius={28}
                     >
-                      <PromptFace prompt={card.prompt} active />
+                      <PromptFace prompt={card.prompt} hint={hint} active />
                     </BorderBeam>
                   </div>
                 ) : (
@@ -118,17 +136,31 @@ export function StudioPromptStack({
         <button
           type="button"
           onClick={onPrevious}
+          disabled={locked}
           aria-label="Previous prompt"
-          className="text-muted-foreground transition-colors hover:text-foreground"
+          className={cn(
+            "transition-colors",
+            locked
+              ? "cursor-not-allowed text-muted-foreground/40"
+              : "text-muted-foreground hover:text-foreground"
+          )}
         >
           <AltArrowLeft size={20} weight="Outline" />
         </button>
-        <span className="text-xs text-muted-foreground">Swipe to move</span>
+        <span className="text-xs text-muted-foreground">
+          {locked ? "Finish this take first" : "Swipe to move"}
+        </span>
         <button
           type="button"
           onClick={onNext}
+          disabled={locked}
           aria-label="Next prompt"
-          className="text-muted-foreground transition-colors hover:text-foreground"
+          className={cn(
+            "transition-colors",
+            locked
+              ? "cursor-not-allowed text-muted-foreground/40"
+              : "text-muted-foreground hover:text-foreground"
+          )}
         >
           <AltArrowRight size={20} weight="Outline" />
         </button>
@@ -139,11 +171,13 @@ export function StudioPromptStack({
 
 function PromptFace({
   prompt,
+  hint,
   active,
   depth = 0,
 }: {
   /** Omitted for the cards behind, which show nothing but their edge. */
   prompt?: string;
+  hint?: string;
   active?: boolean;
   depth?: number;
 }) {
@@ -178,7 +212,7 @@ function PromptFace({
               weight="BoldDuotone"
               className={active ? "text-alva-bg" : "text-alva-bg/90"}
             />
-            and read the sentence aloud
+            {hint ?? "and read the sentence aloud"}
           </div>
           <p
             className={cn(

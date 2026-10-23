@@ -102,6 +102,7 @@ export default function InternProfilePage() {
           </ProfileActionRow>
 
           <ProfileActionRow
+            hideDivider
             icon={<Bell size={20} weight="Outline" />}
             title="Notifications"
             sheetTitle="Notifications"

@@ -129,6 +129,7 @@ export default function AnnotatorProfilePage() {
           </ProfileActionRow>
 
           <ProfileActionRow
+            hideDivider
             icon={<Bell size={20} weight="Outline" />}
             title="Notifications"
             sheetTitle="Notifications"
