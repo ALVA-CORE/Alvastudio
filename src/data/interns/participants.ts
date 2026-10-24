@@ -19,11 +19,22 @@ export type ParticipantRecord = {
   nativeLanguage: string;
   sessionLanguage: SessionLanguage | "";
   consent: ConsentType | "";
+  /**
+   * They said no, or withdrew later.
+   *
+   * Separate from `consent`, which is HOW it was given. A withdrawal keeps
+   * the method on file and flips this, because the record of what somebody
+   * agreed to and then did not is the thing worth keeping.
+   */
+  withdrawn: boolean;
   occupation: string;
   loggedAt: number;
 };
 
-export type ParticipantDraft = Omit<ParticipantRecord, "id" | "loggedAt" | "sessionId" | "focusGroupSession">;
+export type ParticipantDraft = Omit<
+  ParticipantRecord,
+  "id" | "loggedAt" | "sessionId" | "focusGroupSession" | "withdrawn"
+>;
 
 export const EMPTY_PARTICIPANT_DRAFT: ParticipantDraft = {
   nameOrId: "",

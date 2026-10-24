@@ -44,6 +44,7 @@ export function LinkBankSheet({
 }) {
   const [bank, setBank] = useState("");
   const [banks, setBanks] = useState<ApiBank[]>([]);
+  const [banksError, setBanksError] = useState<string | null>(null);
   const [number, setNumber] = useState("");
   const [resolved, setResolved] = useState<string | null>(null);
   const [isResolving, setResolving] = useState(false);
@@ -66,10 +67,26 @@ export function LinkBankSheet({
    * on the dashboard. */
   useEffect(() => {
     if (!open) return;
+
     let cancelled = false;
+    setBanksError(null);
+
     listBanks()
       .then((rows) => !cancelled && setBanks(rows))
-      .catch(() => !cancelled && setBanks([]));
+      .catch((cause: unknown) => {
+        if (cancelled) return;
+        setBanks([]);
+        /* The list comes from the payment provider, so it can be a 503 while
+         * everything else on this screen works. Swallowing it left an empty
+         * picker and nobody able to say why nothing was in it. */
+        setBanksError(
+          reportApiError(
+            cause,
+            "Could not load the bank list. Try again in a moment."
+          )
+        );
+      });
+
     return () => {
       cancelled = true;
     };
@@ -147,6 +164,11 @@ export function LinkBankSheet({
               searchPlaceholder="Search banks"
               emptyMessage="No bank by that name"
             />
+            {banksError ? (
+              <p role="alert" className="mt-1.5 text-xs text-destructive">
+                {banksError}
+              </p>
+            ) : null}
           </div>
 
           <div>

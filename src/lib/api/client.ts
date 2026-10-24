@@ -28,6 +28,19 @@ const TOKEN_KEY = "alva-auth-token";
  * never dropped by a change of preference.
  * ------------------------------------------------------------------ */
 
+/**
+ * Called once when a signed-in request comes back 401.
+ *
+ * A hook rather than a redirect here: this module knows about tokens, not
+ * about routing or React state, and the auth context is the thing that can
+ * clear the user and let the route guards do the rest.
+ */
+let unauthorizedHandler: (() => void) | null = null;
+
+export function onUnauthorized(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 export function getToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
@@ -353,6 +366,23 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       );
       error.unreachable = true;
       throw error;
+    }
+
+    /**
+     * A 401 on a request that carried a token means the session is over.
+     *
+     * The backend ends every session on a password change, a role change or
+     * a deactivation, and `/auth/refresh` stops a week after sign-in. Showing
+     * "Could not validate credentials" in a red box on the page, with a Retry
+     * that cannot work, asks somebody to solve a problem only signing in
+     * again solves.
+     *
+     * Anonymous requests are left alone: a 401 from sign-in is a wrong
+     * password, not an expired session.
+     */
+    if (response.status === 401 && !anonymous) {
+      setToken(null);
+      unauthorizedHandler?.();
     }
 
     throw parseError(response.status, parsed);

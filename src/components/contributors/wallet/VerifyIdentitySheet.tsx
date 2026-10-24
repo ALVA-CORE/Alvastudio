@@ -16,6 +16,7 @@ import type { IdentityState } from "@/data/contributors/wallet";
 import { cn } from "@/lib/utils";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { ApiError } from "@/lib/api/client";
 
 /** A NIN is eleven digits. Nothing shorter is worth sending. */
 const NIN_LENGTH = 11;
@@ -52,6 +53,8 @@ export function VerifyIdentitySheet({
   const [selfie, setSelfie] = useState<string | null>(null);
   const [step, setStep] = useState<"details" | "photo">("details");
   const [submitting, setSubmitting] = useState(false);
+  /** A refusal that retrying cannot fix, so it replaces the form. */
+  const [blocked, setBlocked] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +63,7 @@ export function VerifyIdentitySheet({
     setSelfie(null);
     setStep("details");
     setSubmitting(false);
+    setBlocked(null);
   }, [open]);
 
   // Disabled until consent is checked, regardless of how many digits are in.
@@ -85,7 +89,23 @@ export function VerifyIdentitySheet({
           </p>
         </SheetHeader>
 
-        {state === "pending" ? (
+        {blocked ? (
+          <div className="mt-6 flex flex-col items-center py-4 text-center">
+            <span className="flex size-14 items-center justify-center rounded-full bg-alva-surface">
+              <ShieldCheck size={26} weight="BoldDuotone" className="text-destructive" />
+            </span>
+            <p className="mt-3 text-sm font-medium text-foreground">
+              We cannot verify this NIN
+            </p>
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+              {blocked}
+            </p>
+            <p className="mt-3 max-w-xs text-xs leading-relaxed text-muted-foreground">
+              If this is your own NIN, contact support and we will sort it out.
+              Nothing you have recorded is lost.
+            </p>
+          </div>
+        ) : state === "pending" ? (
           <div className="mt-6 flex flex-col items-center py-6 text-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-alva-surface">
               <ShieldCheck size={26} weight="BoldDuotone" className="text-amber-300" />
@@ -124,6 +144,16 @@ export function VerifyIdentitySheet({
                       try {
                         await onSubmit(nin, consent, selfie);
                       } catch (cause) {
+                        /* A 409 is a duplicate: this NIN already belongs to
+                           another account, so there is nothing to retype and
+                           nothing to try again. It stays on screen rather
+                           than in a toast that goes away while they are
+                           still reading it. */
+                        if (cause instanceof ApiError && cause.status === 409) {
+                          setBlocked(cause.message);
+                          return;
+                        }
+
                         /* The caller closes the sheet on success, so reaching
                            here means it failed and everything typed is still
                            on screen. Say why rather than letting the rejection

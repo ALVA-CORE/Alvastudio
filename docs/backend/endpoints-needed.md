@@ -7,7 +7,8 @@ open is listed here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | A way to remove a participant from a session with audio | A session nobody in it agreed to | Medium |
+| 1 | Which emails do you send? | Knowing what we can stop saying on screen | **High** |
+| 2 | `GET /banks` fails and nobody can link an account | Payouts, whenever the provider is down | Medium |
 
 All six asks from 22 Oct were answered in
 [`replies/api-status-2026-10-23.md`](replies/api-status-2026-10-23.md) and are
@@ -15,27 +16,53 @@ wired, the audit log included. Milestone pay is wired too.
 
 ---
 
-## 1. Removing a participant from a session that has audio
+## 1. Which emails do you send?
 
-`DELETE /focus-groups/{id}/participants/{pid}` is refused with 409 once audio
-exists, and the reasoning is right: their voice is in the recording, and
-deleting them would delete the record of whether they agreed with it.
+We know of two, both from what you have told us rather than from the API:
+the reset link on an approved recovery, and a confirmation after a password
+change. We send none ourselves.
 
-That leaves one case with no way out. Somebody is logged on a session, the
-audio is uploaded, and they then say no. `PATCH` records the refusal, which is
-correct and permanent, and the session leaves the annotation queue and the
-corpus for good. The recording cannot be used and cannot be repaired.
+**A list would settle several screens.** Right now we assume nothing is
+emailed, so the app says everything in-app, and if an email already covers it
+we are saying it twice. The ones that would change what we build:
 
-It is rarer than the case you fixed today, and it may be the right outcome: a
-session nobody can consent to arguably should be unusable. But if a room of
-eight has one person withdraw, eight people's work is lost rather than one's.
+| Event | Does an email go out? |
+| --- | --- |
+| Signing up | |
+| An account approved, or declined | |
+| A clip approved | |
+| A clip rejected or flagged | |
+| A milestone reached, ₦5,000 credited | |
+| A withdrawal paid, or failed | |
+| An account flagged as a duplicate | |
+| Identity check passed or failed | |
 
-Worth a decision rather than an endpoint. Either:
+Two things we would want with it:
 
-- a way to drop a withdrawn participant **and** their turns, keeping a
-  tombstone of the consent decision so the record survives the person; or
-- confirmation that the session is simply spent, in which case we will say so
-  plainly on the intern's screen instead of implying something can be done.
+- **Who gets them.** A contributor, an intern and an admin have different
+  stakes in the same event, and a clip approval is noise to an admin.
+- **Whether a notification and an email are the same event.** If both fire,
+  somebody reading the app has already seen it, and we would rather not have
+  the bell and the inbox disagree about what happened.
+
+Templates are coming to us to style. We will match whatever they say, but we
+need to know which events have one.
+
+## 2. `GET /banks` returning 503
+
+The bank picker came back empty during testing and the request had failed.
+Our fault for swallowing it, which is fixed — the sheet now says the list
+could not be loaded instead of showing an empty picker.
+
+The underlying thing is still worth a word. It is served from the payment
+provider on purpose, so the one screen a contributor needs to get paid stops
+working whenever the provider does, and there is nothing they can do but come
+back later.
+
+Is a short cache on your side possible, so a provider blip does not take the
+picker down with it? The list barely changes. We are not asking for a
+hardcoded list — your reasoning against one is right, since a code from
+anywhere else can be rejected at name enquiry.
 
 ## On our side, not asks
 
@@ -64,6 +91,10 @@ Worth a decision rather than an endpoint. Either:
 | Demographic charts | The pyramid counts speakers on the intern and annotator dashboards, and hours on the corpus page, since a focus-group file holds several voices. |
 | Clip approval axis | Labelled "Clips approved", not "Quality", per your caution. A higher share of approvals is not by itself better reviewing. |
 | `ethnicity`, `occupation` | Now sent and read back. They were collected at onboarding and discarded. |
+| Redaction | Wired from two places, as an intern meets the problem in two. The confirm checkbox is ticked by a person, never sent for them: untagged speech is not silenced, and no care at our end changes that. The player sits above it so the tick means something. |
+| `consent_blocked` | The workspace shows a banner on open, hides Mark as done, and makes autosave inert. Every write is a 409 while it holds, and an indicator cycling through "saving" and "failed" says nothing the banner has not. |
+| A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. |
+| Toasts | Wrap to two lines now, left aligned and smaller. "This payout account is on hold while we r…" was being cut mid-word. |
 | Account recovery | Wired, both ends. `POST /auth/password-reset/request` from the forgot-password page, and an admin queue on the users page for approve and deny. The form says the same thing whatever the email was, because the API does: anything else turns it into a way to find out who has an account here. The forgot-password page was a `TODO` before this. |
 | Emails | We send nothing and show nothing about them. The API emails the reset link on approval, and a confirmation on a password change. If a template should say something the app also says, tell us and we will keep the two in step. |
 | Milestone pay | The progress bar sits on the contributor's points card: points are not money, and money arrives in ₦5,000 steps. Ledger rows handle a null `recording_id` and `unit_type` — reading `unit_type` blindly threw on the first award. |

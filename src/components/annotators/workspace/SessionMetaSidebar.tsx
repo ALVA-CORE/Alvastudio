@@ -64,7 +64,8 @@ export type SessionMetaSidebarProps = {
   /** Called with the NEXT collapsed value, so `setCollapsed` can be passed directly. */
   onToggleCollapsed: (collapsed: boolean) => void;
   /** Opens the confirm step. The page owns what "done" actually does. */
-  onComplete: () => void;
+  /** Omitted while the session cannot be submitted, e.g. a withdrawn consent. */
+  onComplete?: () => void;
   /** True once the session has been handed over. */
   isComplete?: boolean;
   className?: string;
@@ -296,7 +297,7 @@ function SessionMetaSidebarImpl({
             <button
               type="button"
               onClick={onComplete}
-              disabled={isComplete}
+              disabled={isComplete || !onComplete}
               aria-label={isComplete ? "Session submitted" : "Mark session as done"}
               title={isComplete ? "Session submitted" : "Mark session as done"}
               className={cn(
@@ -484,6 +485,7 @@ function SessionMetaSidebarImpl({
                   variant="alva"
                   size="sm"
                   onClick={onComplete}
+                  disabled={!onComplete}
                   className="w-full"
                 >
                   Mark as done

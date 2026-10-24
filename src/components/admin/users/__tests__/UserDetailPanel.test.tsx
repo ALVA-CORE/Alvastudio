@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UserDetailPanel } from "../UserDetailPanel";
-import { ADMIN_USERS, activitySummary, userActivity } from "@/data/admin/users";
+import { ADMIN_USERS } from "@/data/admin/users";
 
 /* An annotator, because editing is staff-only: a contributor's and an intern's
  * profile is theirs and carries their consent record. Approved, because
@@ -38,12 +38,6 @@ describe("UserDetailPanel", () => {
     expect(screen.getByRole("dialog", { name: user.fullName })).toBeInTheDocument();
     expect(screen.getByText(user.email)).toBeInTheDocument();
     expect(screen.getByText("Joined")).toBeInTheDocument();
-  });
-
-  it("switches to activity", async () => {
-    renderPanel();
-    await userEvent.click(screen.getByRole("button", { name: "Activity" }));
-    expect(screen.getByText("Best streak")).toBeInTheDocument();
   });
 
   it("switches to the audit log", async () => {
@@ -135,54 +129,14 @@ describe("UserDetailPanel", () => {
 });
 
 describe("user activity", () => {
-  it("is stable for the same user", () => {
-    expect(activitySummary(userActivity(user))).toEqual(
-      activitySummary(userActivity(user))
-    );
-  });
-
-  /* Counts run to today, never past it — a calendar with future contributions
-   * in it is the giveaway that the series was generated rather than measured. */
-  it("never records activity in the future", () => {
-    const now = Date.now();
-    for (const column of userActivity(user)) {
-      for (const bin of column.bins) {
-        if (bin.date instanceof Date && bin.date.getTime() > now) {
-          expect(bin.count).toBe(0);
-        }
-      }
-    }
-  });
-});
-
-describe("role-specific detail", () => {
-  /* "17 sessions" under a shared label tells an admin nothing. Each role does
-   * a different job, so the panel shows that role's own figures. */
-  it.each([
-    ["contributor", "Recording", "Prompts read"],
-    ["intern", "Field work", "Participants logged"],
-    ["annotator", "Annotation", "Segments created"],
-  ] as const)("shows %s work under %s", async (role, heading, field) => {
-    const subject = ADMIN_USERS.find((row) => row.role === role);
-    expect(subject).toBeTruthy();
-
-    renderPanel({ user: { ...subject!, isActive: true } });
-
-    /* On Activity, not Profile. What somebody has produced is activity; the
-       profile tab is who they are and what the account can do. */
+  /* The series this used to assert on was generated from a seeded random, so
+     the tests were checking that the generator was deterministic rather than
+     that anything was true. The tab says so now. */
+  it("says there is nothing to show rather than inventing a history", async () => {
+    renderPanel();
     await userEvent.click(screen.getByRole("button", { name: "Activity" }));
 
-    expect(screen.getByText(heading)).toBeInTheDocument();
-    expect(screen.getByText(field)).toBeInTheDocument();
-  });
-
-  it("does not show one role's figures on another", async () => {
-    const contributor = ADMIN_USERS.find((row) => row.role === "contributor");
-    renderPanel({ user: { ...contributor!, isActive: true } });
-    await userEvent.click(screen.getByRole("button", { name: "Activity" }));
-
-    expect(screen.queryByText("Segments created")).not.toBeInTheDocument();
-    expect(screen.queryByText("Participants logged")).not.toBeInTheDocument();
+    expect(screen.getByText("No activity to show yet")).toBeInTheDocument();
   });
 });
 

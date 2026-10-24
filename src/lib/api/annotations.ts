@@ -57,6 +57,18 @@ export type ApiToken = {
 };
 
 export type ApiAnnotationDocument = {
+  /**
+   * Somebody in the session has withdrawn their consent.
+   *
+   * The document still opens, and the activity log still accepts events, but
+   * every write is a 409 — audio, tokens, segments, submit and review. The
+   * workspace reads this so it can say so on open rather than failing on the
+   * annotator's first save.
+   *
+   * Their work is kept. If the intern records a new decision it all works
+   * again; if not, the session is spent.
+   */
+  consent_blocked?: boolean;
   /** When the annotator first opened it, submitted it, and got a verdict. */
   started_at?: string | null;
   submitted_at?: string | null;

@@ -4,6 +4,7 @@ import { WorkspaceFloatingControls } from "./WorkspaceFloatingControls";
 import { TranscriptEditor } from "./TranscriptEditor";
 import { TimelineDock } from "./timeline/TimelineDock";
 import { SessionMetaSidebar, type WorkspacePassStats } from "./SessionMetaSidebar";
+import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
 import { useWorkspaceHotkeys } from "./useWorkspaceHotkeys";
 import { CompleteSessionDialog } from "./CompleteSessionDialog";
 import {
@@ -28,13 +29,26 @@ import type { AnnotatorSession } from "@/data/annotators/sessions";
 
 type AnnotationWorkspaceProps = {
   session: AnnotatorSession;
+  /**
+   * Somebody in the room withdrew their consent.
+   *
+   * Every write is refused while it holds, so the editor says so on open
+   * rather than letting somebody transcribe for twenty minutes and meet a
+   * 409 on their first save. Their work is kept either way.
+   */
+  consentBlocked?: boolean;
   /** Flushes the pending autosave. Wired to ⌘S and the header's Retry. */
   onFlushSave?: () => void;
   /** Hands the finished annotation to a reviewer. */
   onSubmit?: () => Promise<void>;
 };
 
-export function AnnotationWorkspace({ session, onFlushSave, onSubmit }: AnnotationWorkspaceProps) {
+export function AnnotationWorkspace({
+  session,
+  consentBlocked = false,
+  onFlushSave,
+  onSubmit,
+}: AnnotationWorkspaceProps) {
   const navigate = useNavigate();
   const store = useAnnotationStore();
   const { setCurrentTime, setPlaying } = useAnnotationActions();
@@ -99,6 +113,24 @@ export function AnnotationWorkspace({ session, onFlushSave, onSubmit }: Annotati
     <div className="flex h-dvh flex-col overflow-hidden bg-alva-bg">
       <WorkspaceFloatingControls onBack={handleBack} />
 
+      {consentBlocked ? (
+        <div
+          role="alert"
+          className="mx-3 mt-1 flex items-start gap-2.5 rounded-xl bg-amber-500/10 px-4 py-2.5"
+        >
+          <DangerTriangle
+            size={16}
+            weight="BoldDuotone"
+            className="mt-0.5 shrink-0 text-amber-300"
+          />
+          <p className="text-xs leading-relaxed text-amber-200">
+            Someone in this session withdrew their consent, so nothing can be
+            saved or submitted until that is resolved. Everything you have done
+            is kept. Ask the intern who recorded it to sort the consent out.
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           {/* Transcript sits on its own raised panel rather than on the page
@@ -115,7 +147,9 @@ export function AnnotationWorkspace({ session, onFlushSave, onSubmit }: Annotati
           stats={stats}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={setSidebarCollapsed}
-          onComplete={() => setConfirmOpen(true)}
+          /* Submitting is a 409 while consent is missing, so the button is
+             not offered rather than offered and refused. */
+          onComplete={consentBlocked ? undefined : () => setConfirmOpen(true)}
           isComplete={isComplete}
         />
 

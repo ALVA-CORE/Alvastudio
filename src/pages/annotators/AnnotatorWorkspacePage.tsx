@@ -34,9 +34,11 @@ import { alvaToast } from "@/lib/alva-toast";
  */
 function WorkspaceBody({
   session,
+  consentBlocked,
   onSubmit,
 }: {
   session: AnnotatorSession;
+  consentBlocked: boolean;
   onSubmit: () => Promise<void>;
 }) {
   const { flush } = useAutosaveControls();
@@ -55,6 +57,7 @@ function WorkspaceBody({
   return (
     <AnnotationWorkspace
       session={session}
+      consentBlocked={consentBlocked}
       onFlushSave={handleFlush}
       onSubmit={handleSubmit}
     />
@@ -141,9 +144,17 @@ export default function AnnotatorWorkspacePage() {
       doc={resource.doc}
       duration={resource.session.durationSec}
       annotationId={resource.annotationId}
-      onSave={handleSave}
+      /* Omitted while consent is missing, which makes autosave inert. Every
+         write is a 409 until it is resolved, and a save indicator cycling
+         through "saving" and "failed" every few seconds says nothing the
+         banner has not already said better. */
+      onSave={resource.consentBlocked ? undefined : handleSave}
     >
-      <WorkspaceBody session={resource.session} onSubmit={submit} />
+      <WorkspaceBody
+        session={resource.session}
+        consentBlocked={resource.consentBlocked}
+        onSubmit={submit}
+      />
     </AnnotationProvider>
   );
 }

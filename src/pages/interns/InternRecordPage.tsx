@@ -16,6 +16,8 @@ import { StudioPromptStackSkeleton } from "@/components/contributors/studio/Stud
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ParticipantIntakeModal } from "@/components/interns/participants/ParticipantIntakeModal";
 import { ConsentBlockedSheet } from "@/components/interns/participants/ConsentBlockedSheet";
+import { RedactParticipantSheet } from "@/components/interns/participants/RedactParticipantSheet";
+import type { ApiParticipant } from "@/lib/api/focusGroups";
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
 import { StudioPromptStack, type PromptCard } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
@@ -36,6 +38,7 @@ export default function InternRecordPage() {
   const [isSaving, setSaving] = useState(false);
   /** True once an upload was refused for consent. */
   const [consentBlocked, setConsentBlocked] = useState(false);
+  const [redacting, setRedacting] = useState<ApiParticipant | null>(null);
   const recorder = useStudioRecorder();
 
   const { topics, isLoading: loadingTopics, error: topicsError } = useFocusGroupTopics();
@@ -228,10 +231,29 @@ export default function InternRecordPage() {
           </div>
         )}
 
+        <RedactParticipantSheet
+          open={redacting !== null}
+          onOpenChange={(next) => !next && setRedacting(null)}
+          sessionId={sessionId}
+          participantId={redacting?.id ?? null}
+          participantName={redacting?.label ?? "They"}
+          onRedacted={() => {
+            /* Their turns are cut and the session is whole again, so the
+               take that was refused can go up as it is. */
+            setRedacting(null);
+            setConsentBlocked(false);
+            void handleSave();
+          }}
+        />
+
         <ConsentBlockedSheet
           open={consentBlocked}
           onOpenChange={setConsentBlocked}
           sessionId={sessionId}
+          onRemoveFromRecording={(participant) => {
+            setConsentBlocked(false);
+            setRedacting(participant);
+          }}
           onResolved={() => {
             /* Consent is on file now, so the take that was refused can go up
                as it is. Nothing was recorded again and nothing was lost. */
