@@ -174,6 +174,8 @@ anywhere else can be rejected at name enquiry.
 | Back-pay | In a menu on the payments header rather than a third button beside Run payment. Previews, then credits. |
 | Password change | Sends them to sign in on the 200, rather than waiting to be thrown out by a 401 on whatever they tap next. |
 | History tabs | All four read `GET /audit` now. The derived builders are deleted. |
+| A deleted account signing in | We show nothing specific, because a deleted account answers exactly as a typo does. That is the right call and we are not asking you to change it. Approval-pending and deactivated both get their own screen, since those two are safe to name. |
+| The activity log | No longer a switch. It is on, locked, and the copy says what is recorded rather than thanking anybody for agreeing to it. |
 | Deleting an account | The bin opened a confirm pair with no words on it, on a hard delete. It now opens a dialog built from `GET /users/{id}/deletion-preview`, which your description already said to call first, and offers deactivating as the reversible alternative. |
 | The Activity tab | Emptied. A 53-week heatmap, a total, a streak and an approval pie were all generated from a seeded random keyed on the user id, which is why "0 recordings" sat beside "5.7 hours contributed". See ask 4. |
 | A 401 | Signs the person out and sends them to login. Every screen used to render its own red box about credentials with a Retry that could not work. |

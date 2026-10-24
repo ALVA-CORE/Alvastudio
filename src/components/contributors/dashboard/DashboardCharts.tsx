@@ -22,6 +22,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { AlvaChartEmptyOverlay } from "@/components/shared/states/AlvaChartEmptyOverlay";
+import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import GraphUp from "@solar-icons/react/business/GraphUp";
 import {
   EMPTY_RECORDING_MIX,
@@ -139,12 +140,20 @@ export function DashboardCharts({
   isEmpty = false,
   mix,
   weekly,
+  milestone,
 }: {
   className?: string;
   isEmpty?: boolean;
   /** From `/dashboard/contributor`. Omit and the seeded shape is drawn. */
   mix?: { type: string; value: number; fill: string }[];
   weekly?: { day: string; sessions: number }[];
+  /** Adds a third slide. Omitted where there is no milestone to show. */
+  milestone?: {
+    clips_per_milestone: number;
+    clips_to_next: number;
+    amount_per_milestone: string;
+    currency: string;
+  } | null;
 }) {
   const [api, setApi] = useState<CarouselApi>();
   const [activeSlide, setActiveSlide] = useState(0);
@@ -163,6 +172,38 @@ export function DashboardCharts({
   const onSelect = useCallback((carouselApi: CarouselApi) => {
     setActiveSlide(carouselApi.selectedScrollSnap());
   }, []);
+
+  /**
+   * Advances every five seconds, and stops the moment somebody touches it.
+   *
+   * Permanently, not for a cooldown: once a person has swiped, they are
+   * reading one of these rather than watching all three, and sliding it out
+   * from under them is the thing carousels are disliked for. A pointer down
+   * is enough to count — they do not have to complete the drag.
+   *
+   * It also stops while the tab is hidden, so coming back does not land on
+   * whatever happened to be showing after forty silent rotations.
+   */
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (!api || paused) return;
+
+    const stop = () => setPaused(true);
+    api.on("pointerDown", stop);
+
+    const timer = window.setInterval(() => {
+      if (document.hidden) return;
+      /* `scrollNext` stops at the end without `loop`, so wrap by hand. */
+      if (api.canScrollNext()) api.scrollNext();
+      else api.scrollTo(0);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(timer);
+      api.off("pointerDown", stop);
+    };
+  }, [api, paused]);
 
   useEffect(() => {
     if (!api) return;
@@ -325,10 +366,34 @@ export function DashboardCharts({
               </ChartContainer>
             </ChartSlide>
           </CarouselItem>
+          {milestone && milestone.clips_per_milestone > 0 ? (
+            <CarouselItem className="basis-full pl-0">
+              <ChartSlide title="Next payout">
+                <div className="mx-auto aspect-[4/3] w-full max-h-[240px]">
+                  <ApprovalGauge
+                    value={Math.min(
+                      100,
+                      Math.round(
+                        ((milestone.clips_per_milestone - milestone.clips_to_next) /
+                          milestone.clips_per_milestone) *
+                          100
+                      )
+                    )}
+                    label={`${milestone.clips_to_next} clips to go`}
+                  />
+                </div>
+                <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                  {milestone.currency === "NGN" ? "₦" : `${milestone.currency} `}
+                  {Number(milestone.amount_per_milestone).toLocaleString()} every{" "}
+                  {milestone.clips_per_milestone} approved clips
+                </p>
+              </ChartSlide>
+            </CarouselItem>
+          ) : null}
         </CarouselContent>
       </Carousel>
 
-      <CarouselDots count={2} active={activeSlide} />
+      <CarouselDots count={milestone ? 3 : 2} active={activeSlide} />
     </section>
   );
 }
