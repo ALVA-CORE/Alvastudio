@@ -63,8 +63,8 @@ export function ForgotPasswordForm() {
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Request sent</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            If that email belongs to an Alvastudio account, an admin will
-            review it and email a link to set a new password.
+            An admin has been notified. You will get a link to set a new
+            password shortly.
           </p>
         </div>
 

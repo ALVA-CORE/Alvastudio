@@ -15,6 +15,11 @@ import {
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
 import { signInErrorMessage } from "@/lib/api/signInError";
+import {
+  SignInBlockedSheet,
+  signInBlock,
+  type SignInBlock,
+} from "@/components/auth/SignInBlockedSheet";
 import { loginSchema, type LoginValues } from "@/lib/validations/auth";
 
 export function LoginForm() {
@@ -27,12 +32,24 @@ export function LoginForm() {
     defaultValues: { email: "", password: "", rememberMe: false },
   });
 
+  const [blocked, setBlocked] = useState<SignInBlock | null>(null);
+
   const onSubmit = async (values: LoginValues) => {
     setFormError(null);
 
     try {
       await login(values.email, values.password, values.rememberMe ?? false);
     } catch (error) {
+      /* Two refusals are about the account rather than what was typed, and
+         there is nothing on this form to fix for either. They get a sheet
+         instead of a line under the password box, which only invites
+         somebody to try the password again. */
+      const block = signInBlock(error);
+      if (block) {
+        setBlocked(block);
+        return;
+      }
+
       // Sign-in has its own vocabulary: a 401 here is a wrong password rather
       // than an expired session, and two of the 403s are not refusals at all.
       setFormError(signInErrorMessage(error));
@@ -145,6 +162,11 @@ export function LoginForm() {
           Create an account
         </Link>
       </p>
+
+      <SignInBlockedSheet
+        block={blocked}
+        onOpenChange={(open) => !open && setBlocked(null)}
+      />
     </div>
   );
 }

@@ -23,6 +23,9 @@ import type { DashboardTimeRange } from "@/data/internDashboard";
 import { useDevUiState } from "@/hooks/use-dev-ui-state";
 import { useAdminOverview, cumulative } from "@/hooks/useAdminOverview";
 import { useCorpus } from "@/hooks/useCorpus";
+import { useApiResource } from "@/hooks/useApiResource";
+import { useRecoveryRequests } from "@/hooks/useRecoveryRequests";
+import { listDuplicateFlags } from "@/lib/api/payouts";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,6 +43,13 @@ export default function AdminDashboardPage() {
 
   const overview = useAdminOverview();
   const { data: corpusData, isLoading: loadingCorpus } = useCorpus();
+
+  /* Two queues that are about people rather than work, and both hold
+   * somebody up: a duplicate flag freezes payouts on two accounts, and a
+   * recovery request is somebody locked out. */
+  const { data: duplicateFlags } = useApiResource(listDuplicateFlags, []);
+  const duplicates = duplicateFlags ?? [];
+  const recovery = useRecoveryRequests();
 
   const isLoading = overview.isLoading || loadingCorpus;
   const corpus = forceEmpty || !corpusData ? EMPTY_CORPUS : corpusData;
@@ -93,8 +103,29 @@ export default function AdminDashboardPage() {
         to: "/admin/annotations",
         tone: "warn" as const,
       },
+      /* Not a backlog of work but of people: both accounts have their
+         payouts held until somebody decides, so an open flag is a
+         contributor not being paid. It belongs next to the queues rather
+         than only in a History tab nobody opens unprompted. */
+      {
+        id: "duplicates",
+        count: duplicates.length,
+        title: "accounts flagged as duplicates",
+        detail: "Payouts are held on both until an admin decides.",
+        to: "/admin/users",
+        tone: "bad" as const,
+      },
+      /* Somebody locked out, waiting on an admin to let them back in. */
+      {
+        id: "recovery",
+        count: recovery.rows.length,
+        title: "waiting to get back into their account",
+        detail: "Approving emails them a link to set a new password.",
+        to: "/admin/users",
+        tone: "warn" as const,
+      },
     ].filter((item) => item.count > 0);
-  }, [forceEmpty, overview.data]);
+  }, [forceEmpty, overview.data, duplicates, recovery.rows]);
 
   const approvalRate =
     corpus.totalHours > 0

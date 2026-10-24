@@ -25,6 +25,14 @@ describe("LeaderboardPodium", () => {
     expect(screen.getByText("Ada")).toBeInTheDocument();
   });
 
+  it("keeps the unfilled steps in place rather than spreading one person out", () => {
+    render(<LeaderboardPodium entries={toPodium([row("a", "Ada Obi", 120)])} />);
+
+    expect(screen.getByText("Ada")).toBeInTheDocument();
+    /* Two places still open, shown as open, so the board keeps its shape. */
+    expect(screen.getAllByText("Open")).toHaveLength(2);
+  });
+
   it("shows two without crashing on the missing third", () => {
     render(
       <LeaderboardPodium

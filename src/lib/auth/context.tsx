@@ -16,7 +16,7 @@ import type {
 } from "@/lib/validations/auth";
 import * as authApi from "@/lib/api/auth";
 import type { ApiUser } from "@/lib/api/auth";
-import { ApiError, getToken } from "@/lib/api/client";
+import { ApiError, getToken, onUnauthorized } from "@/lib/api/client";
 import {
   profileToApi,
   recordConsent,
@@ -259,6 +259,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(next);
     persistUser(next);
     return next;
+  }, []);
+
+  /**
+   * The request layer hands the session back when it expires.
+   *
+   * Registered once, so a 401 anywhere clears the user and the route guards
+   * take them to sign-in. Without it every screen rendered its own red box
+   * about credentials, with a Retry that could never work.
+   */
+  useEffect(() => {
+    onUnauthorized(() => {
+      setUser(null);
+      persistUser(null);
+    });
+    return () => onUnauthorized(null);
   }, []);
 
   const logout = useCallback(() => {

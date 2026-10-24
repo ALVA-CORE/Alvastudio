@@ -1,6 +1,39 @@
 import { describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+/* The deletion preview is a real request otherwise, and the dialog's confirm
+   stays disabled until it settles — so the test would be racing a network
+   failure rather than checking anything. */
+vi.mock("@/lib/api/users", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/users")>()),
+  previewUserDeletion: vi.fn(async () => ({
+    user_id: "u-018",
+    email: "a@b.c",
+    role: "annotator" as const,
+    recordings: 0,
+    reviews: 0,
+    reviews_on_other_users_recordings: 0,
+    ledger_entries: 0,
+    focus_group_sessions: 0,
+    participants: 0,
+    turns: 0,
+    annotations: 118,
+    annotation_segments: 0,
+    annotation_tokens: 0,
+    consent_records: 2,
+    payout_records_kept: 0,
+  })),
+  getUserProfiles: vi.fn(async () => ({
+    user_id: "u-018",
+    role: "annotator" as const,
+    approved: true,
+    profile: null,
+    intern_profile: null,
+    annotator_profile: null,
+    identity: null,
+  })),
+}));
+
 import { UserDetailPanel } from "../UserDetailPanel";
 import { ADMIN_USERS } from "@/data/admin/users";
 
@@ -53,14 +86,48 @@ describe("UserDetailPanel", () => {
 
   /* Deleting cannot be undone, so the bin opens a confirm pair rather than
    * firing on the first press. */
-  it("requires confirmation to delete", async () => {
+  /* A hard delete: the account and everything belonging to it, with no undo.
+     The bin's own confirm pair carries no words, so it opens a dialog that
+     says what goes instead of doing it. */
+  it("shows what deleting would remove before it will do it", async () => {
     const { onDelete } = renderPanel();
 
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
     expect(onDelete).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
+    expect(
+      await screen.findByText(`Delete ${user.fullName}?`)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/removes the account and everything belonging to it/i)
+    ).toBeInTheDocument();
+    /* The counts are the point: "delete Ada" and "delete Ada and 118
+       annotations" are different decisions. */
+    expect(screen.getByText("Annotations")).toBeInTheDocument();
+    expect(screen.getByText("118")).toBeInTheDocument();
+
+    /* Disabled until the preview settles, so the counts are on screen before
+       the button that acts on them can be pressed. */
+    const confirm = await screen.findByRole("button", {
+      name: "Delete permanently",
+    });
+    await waitFor(() => expect(confirm).toBeEnabled());
+
+    await userEvent.click(confirm);
     expect(onDelete).toHaveBeenCalledWith(user);
+  });
+
+  it("offers deactivating instead, which can be undone", async () => {
+    const { onToggleActive } = renderPanel();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Deactivate instead" })
+    );
+    expect(onToggleActive).toHaveBeenCalledWith(user);
   });
 
   /* Same rule for deactivating: it removes someone's access, so it goes

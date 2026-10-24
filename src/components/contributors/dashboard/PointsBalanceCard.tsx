@@ -16,13 +16,6 @@ type PointsBalanceCardProps = {
   rankedOf?: number;
   /** The live top three, already ordered second-first-third. */
   podium?: LeaderboardEntry[];
-  /** From `/dashboard/contributor`. Null where `payment` is, e.g. for an intern. */
-  milestone?: {
-    clips_per_milestone: number;
-    clips_to_next: number;
-    amount_per_milestone: string;
-    currency: string;
-  } | null;
   className?: string;
   isEmpty?: boolean;
 };
@@ -62,7 +55,6 @@ export function PointsBalanceCard({
   rank = null,
   rankedOf = 0,
   podium = [],
-  milestone,
   className,
   isEmpty = false,
 }: PointsBalanceCardProps) {
@@ -145,34 +137,6 @@ export function PointsBalanceCard({
               </TextureButton>
             </div>
 
-            {/* Points are not money. Money arrives in ₦5,000 steps, every 500
-                approved clips, so the bar is what somebody actually wants to
-                know: how far off the next one is. */}
-            {milestone && milestone.clips_per_milestone > 0 ? (
-              <div className="relative z-[1] mt-3">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-alva-bg/20">
-                  <div
-                    className="h-full rounded-full bg-alva-bg/70 transition-[width] duration-500"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        Math.round(
-                          ((milestone.clips_per_milestone - milestone.clips_to_next) /
-                            milestone.clips_per_milestone) *
-                            100
-                        )
-                      )}%`,
-                    }}
-                  />
-                </div>
-                <p className="mt-1.5 text-[11px] text-alva-bg/75">
-                  {milestone.clips_to_next} more approved{" "}
-                  {milestone.clips_to_next === 1 ? "clip" : "clips"} to{" "}
-                  {milestone.currency === "NGN" ? "₦" : `${milestone.currency} `}
-                  {Number(milestone.amount_per_milestone).toLocaleString()}
-                </p>
-              </div>
-            ) : null}
 
             <div className="relative z-[1]">
               {isEmpty ? (

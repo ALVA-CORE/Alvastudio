@@ -86,3 +86,24 @@ export const syncMilestones = (apply = false) =>
     method: "POST",
     query: apply ? { apply: true } : undefined,
   });
+
+/**
+ * Two accounts the API thinks are one person, usually the same NIN.
+ *
+ * Payouts on both are held until an admin decides, so an unresolved flag is
+ * somebody not being paid rather than a note for later.
+ */
+export type ApiDuplicateFlag = {
+  id: string;
+  kind: string;
+  status: string;
+  user_id: string;
+  matched_user_id: string | null;
+  detail: string | null;
+  created_at: string;
+};
+
+export const listDuplicateFlags = (status = "open", limit = 50) =>
+  apiFetch<ApiDuplicateFlag[]>("/payouts/duplicate-flags", {
+    query: { status, limit },
+  });

@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import { AlvaToggle } from "@/components/shared/AlvaToggle";
 import { PanelRow } from "@/components/shared/PanelPrimitives";
 import { listConsents, recordConsent } from "@/lib/api/onboarding";
 import type { ApiConsent } from "@/lib/api/onboarding";
 import type { ApiConsentType } from "@/lib/api/enums";
-import { reportApiError } from "@/lib/api/reportApiError";
-import { alvaToast } from "@/lib/alva-toast";
 import { NO_VALUE } from "@/lib/no-value";
 
 /**
@@ -38,14 +35,18 @@ function latestOf(consents: ApiConsent[], type: ApiConsentType) {
  * front of the editor is a prompt somebody dismisses to get to work, which is
  * not consent; here it is theirs to find, read and change whenever they like.
  *
- * On by default: an annotator with no record yet has one written for them the
- * first time this loads, so the log works from day one rather than only for
- * the people who went looking for a switch. It is theirs to turn off here at
- * any time, and turning it off stops the recording immediately.
+ * The activity log is on and cannot be turned off.
+ *
+ * It was a switch, defaulting on. It is now a condition of the work, so this
+ * says so instead of offering a choice that is not there. An annotator with
+ * no record yet has one written for them the first time this loads.
+ *
+ * The copy matters because of that: it does not call itself consent or thank
+ * anybody for agreeing. It states what is recorded, for how long, and who can
+ * read it, which is what somebody is owed when they have no say.
  */
 export function PrivacyRows() {
   const [consents, setConsents] = useState<ApiConsent[] | null>(null);
-  const [isSaving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,25 +84,8 @@ export function PrivacyRows() {
     };
   }, []);
 
-  const change = async (next: boolean) => {
-    setSaving(true);
-    try {
-      const saved = await recordConsent({
-        consent_type: "annotation_activity_log",
-        accepted: next,
-      });
-      setConsents((prev) => [...(prev ?? []), saved]);
-      alvaToast.success(next ? "Activity log turned on." : "Activity log turned off.");
-    } catch (cause) {
-      const message = reportApiError(cause, "Could not save that.");
-      if (message) alvaToast.error(message);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const ndpa = consents ? latestOf(consents, "ndpa_data_use") : undefined;
-  const isOn = consents ? latestOf(consents, "annotation_activity_log")?.accepted === true : false;
 
   return (
     <>
@@ -116,22 +100,13 @@ export function PrivacyRows() {
         }
       />
 
-      <PanelRow
-        label="Activity log"
-        value={
-          <AlvaToggle
-            checked={isOn}
-            onCheckedChange={(next) => void change(next)}
-            disabled={consents === null || isSaving}
-            aria-label="Activity log"
-          />
-        }
-      />
+      <PanelRow label="Activity log" value="Always on" />
 
       <div className="pt-2 text-xs leading-relaxed text-muted-foreground">
-        {isOn
-          ? "Your edits are recorded so an admin can see how a session was annotated. No transcript text is stored, only which segment changed and how long it became. Records are deleted after 90 days, and only you and an admin can read them."
-          : "Off. Nothing about how you work is recorded. Turning it on stores which segments you create, retime and tag, so an admin can replay a session. No transcript text is kept, and records are deleted after 90 days."}
+        Which segments you create, retime and tag is recorded, so an admin can
+        see how a session was annotated. No transcript text is stored, only
+        which segment changed and how long it became. Records are deleted after
+        90 days, and only you and an admin can read them.
       </div>
     </>
   );
