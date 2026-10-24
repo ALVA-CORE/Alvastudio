@@ -14,8 +14,9 @@ import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { CreateUserDialog, type NewUserDraft } from "@/components/admin/users/CreateUserDialog";
 import { UserDetailPanel } from "@/components/admin/users/UserDetailPanel";
 import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
-import { RecoveryRequestsDialog } from "@/components/admin/users/RecoveryRequestsDialog";
-import KeyMinimalistic from "@solar-icons/react/security/KeyMinimalistic";
+import { RecoveryRequestsTable } from "@/components/admin/users/RecoveryRequestsTable";
+import { useRecoveryRequests } from "@/hooks/useRecoveryRequests";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   EMPTY_USER_METRICS,
   ROLE_LABELS,
@@ -32,6 +33,8 @@ import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
+
+type Tab = "accounts" | "recovery";
 
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | AccountStatus;
@@ -57,7 +60,8 @@ export default function AdminUsersPage() {
   const [detail, setDetail] = useState<AdminUser | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>("accounts");
+  const recovery = useRecoveryRequests();
   /* Held so the handover dialog can show the token a create or a reset
    * returned. Null while the call is in flight. */
   const [reset, setReset] = useState<{ name: string; token: string | null } | null>(
@@ -214,16 +218,6 @@ export default function AdminUsersPage() {
                 and the API emails the link. Without a way in here the
                 requests arrived nowhere. */}
             <TextureButton
-              variant="minimal"
-              size="sm"
-              className="w-auto"
-              onClick={() => setRecoveryOpen(true)}
-            >
-              <KeyMinimalistic size={15} weight="Outline" />
-              Recovery
-            </TextureButton>
-
-            <TextureButton
               variant="alva"
               size="sm"
               className="w-auto"
@@ -284,7 +278,36 @@ export default function AdminUsersPage() {
         />
       </div>
 
-      <div className="mt-3">
+      <Tabs
+        className="mt-3"
+        value={tab}
+        onValueChange={(value) => setTab(value as Tab)}
+      >
+        <TabsList className="h-9 rounded-full bg-alva-surface p-1">
+          <TabsTrigger
+            value="accounts"
+            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+          >
+            Accounts
+          </TabsTrigger>
+          <TabsTrigger
+            value="recovery"
+            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+          >
+            <span className="flex items-center gap-2">
+              Account recovery
+              {/* People waiting, not a total. A queue with somebody in it
+                  should say so without being opened. */}
+              {recovery.rows.length > 0 ? (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500/20 px-1.5 text-[10px] font-semibold text-amber-300">
+                  {recovery.rows.length}
+                </span>
+              ) : null}
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="accounts" className="mt-2">
         <AlvaDataTable
           title="Accounts"
           rows={filtered}
@@ -341,7 +364,12 @@ export default function AdminUsersPage() {
             description: "Clear the filters, or create the first one.",
           }}
         />
-      </div>
+        </TabsContent>
+
+        <TabsContent value="recovery" className="mt-2">
+          <RecoveryRequestsTable {...recovery} />
+        </TabsContent>
+      </Tabs>
 
       <UserDetailPanel
         open={detailOpen}
@@ -355,8 +383,6 @@ export default function AdminUsersPage() {
 
       {/* Shown after a create and after a reset: the same handover either
           way, because both end with a token somebody has to be given. */}
-      <RecoveryRequestsDialog open={recoveryOpen} onOpenChange={setRecoveryOpen} />
-
       <PasswordResetDialog
         open={reset !== null}
         onOpenChange={(next) => {

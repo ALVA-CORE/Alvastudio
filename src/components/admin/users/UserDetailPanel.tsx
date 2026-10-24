@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
+import { DeleteUserDialog } from "@/components/admin/users/DeleteUserDialog";
 import {
   AuditTimeline,
   DetailEditField,
@@ -106,6 +107,7 @@ export function UserDetailPanel({
   const [isEditing, setEditing] = useState(false);
   const [draft, setDraft] = useState<UserDraft | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   /* Null while the token is being generated, so the dialog can open at once
    * rather than after a round trip. */
   const [resetToken, setResetToken] = useState<string | null>(null);
@@ -193,12 +195,9 @@ export function UserDetailPanel({
         activeTab={tab}
         onTabChange={setTab}
         leading={
-          <DeleteButton
-            onConfirm={() => {
-              onDelete(user);
-              onOpenChange(false);
-            }}
-          />
+          /* The bin opens the dialog rather than doing it: its own confirm
+             pair carries no words, and this is a hard delete. */
+          <DeleteButton onConfirm={() => setConfirmDelete(true)} />
         }
         header={
           <div className="flex flex-col items-center text-center">
@@ -448,6 +447,17 @@ export function UserDetailPanel({
           />
         ) : null}
       </DetailPanel>
+
+      <DeleteUserDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        user={user}
+        onConfirm={() => {
+          onDelete(user);
+          onOpenChange(false);
+        }}
+        onDeactivate={() => onToggleActive(user)}
+      />
 
       <PasswordResetDialog
         open={resetOpen}

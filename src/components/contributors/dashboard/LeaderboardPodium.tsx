@@ -233,20 +233,18 @@ export function LeaderboardPodium({
     );
   }
 
-  /* Second on the left, first in the middle, third on the right, with the
-     steps that are not filled simply absent. Height already says who won, so
-     a two-person board reads correctly without a placeholder standing in for
-     somebody who does not exist. */
+  /* Second on the left, first in the middle, third on the right.
+     An unfilled step keeps its plinth and shows the empty slot rather than
+     being dropped: one person alone on a three-wide row spread across the
+     whole card, which read as a layout fault rather than as a board with two
+     places still open. */
   const byRank: Record<1 | 2 | 3, LeaderboardEntry | undefined> = {
     1: first,
     2: second,
     3: third,
   };
 
-  const steps = STEPS.flatMap((step) => {
-    const entry = byRank[step.rank];
-    return entry ? [{ ...step, entry }] : [];
-  });
+  const steps = STEPS.map((step) => ({ ...step, entry: byRank[step.rank] }));
 
   return (
     <div
@@ -261,16 +259,25 @@ export function LeaderboardPodium({
       )}
 
       <div className="relative flex items-end justify-center gap-1.5 px-1 sm:gap-3">
-        {steps.map((step) => (
-          <PodiumSlot
-            key={step.entry.id}
-            entry={step.entry}
-            rank={step.rank}
-            blockHeight={step.blockHeight}
-            isCurrentUser={step.entry.id === currentUserId}
-            embedded={embedded}
-          />
-        ))}
+        {steps.map((step) =>
+          step.entry ? (
+            <PodiumSlot
+              key={step.rank}
+              entry={step.entry}
+              rank={step.rank}
+              blockHeight={step.blockHeight}
+              isCurrentUser={step.entry.id === currentUserId}
+              embedded={embedded}
+            />
+          ) : (
+            <EmptyPodiumSlot
+              key={step.rank}
+              rank={step.rank}
+              blockHeight={step.blockHeight}
+              embedded={embedded}
+            />
+          )
+        )}
       </div>
     </div>
   );

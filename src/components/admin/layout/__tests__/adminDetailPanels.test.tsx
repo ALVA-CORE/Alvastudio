@@ -199,6 +199,12 @@ vi.mock("@/lib/api/users", async () => {
     updateUser: vi.fn(async () => items[0]),
     deleteUser: vi.fn(async () => undefined),
     approveUser: vi.fn(async () => items[0]),
+    listPasswordResetRequests: vi.fn(async () => []),
+    approvePasswordResetRequest: vi.fn(async () => ({
+      token: "prt_test",
+      expires_at: new Date().toISOString(),
+    })),
+    denyPasswordResetRequest: vi.fn(async () => undefined),
     approveIntern: vi.fn(async () => items[0]),
     getUserProfiles: vi.fn(async () => ({
       user_id: items[0].id,
