@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import KeyMinimalistic from "@solar-icons/react/security/KeyMinimalistic";
 import UserBlock from "@solar-icons/react/users/UserBlock";
 import UserCheckRounded from "@solar-icons/react/users/UserCheckRounded";
@@ -13,13 +13,12 @@ import {
 } from "@/components/admin/users/ContributorProfileSection";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useAuditLog } from "@/hooks/useAuditLog";
+import GraphUp from "@solar-icons/react/business/GraphUp";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
-import { UserActivityHeatmap } from "@/components/admin/users/UserActivityHeatmap";
 import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
-import { SharePie } from "@/components/admin/shared/SharePie";
-import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
   AuditTimeline,
   DetailEditField,
@@ -40,14 +39,9 @@ import {
   accountStatus,
   canEditProfile,
   canResetPassword,
-  activityNoun,
-  activitySummary,
-  roleStats,
-  userActivity,
   type AdminPermission,
   type AdminUser,
   type AdminUserRole,
-  type RoleStat,
 } from "@/data/admin/users";
 import { cn } from "@/lib/utils";
 
@@ -64,19 +58,8 @@ function mockResetToken(userId: string) {
 }
 
 /** Names the work, not the person — "Output" told an admin nothing. */
-const ROLE_WORK_TITLE: Record<AdminUserRole, string> = {
-  contributor: "Recording",
-  intern: "Field work",
-  annotator: "Annotation",
-  admin: "Admin activity",
-};
 
 /** Kept, in flight, lost — the accent only for the part that counted. */
-const OUTCOME_PALETTE = [
-  "hsl(146 87% 54%)",
-  "hsl(38 92% 50%)",
-  "hsl(0 72% 55%)",
-];
 
 /**
  * Splits a person's work into kept / pending / lost.
@@ -85,67 +68,6 @@ const OUTCOME_PALETTE = [
  * above it can never disagree — two views of the same numbers that drift apart
  * is worse than one view.
  */
-function outcomeSplit(user: AdminUser, stats: RoleStat[]) {
-  const find = (label: string) =>
-    Number(stats.find((stat) => stat.label === label)?.value.replace(/[^\d]/g, "") ?? 0);
-
-  if (user.role === "contributor") {
-    const kept = find("Approved");
-    const lost = find("Rejected");
-    const waiting = find("Awaiting review");
-    if (kept + lost + waiting === 0) return null;
-    return {
-      title: "How their recordings landed",
-      centerLabel: "clips",
-      rateLabel: "approved",
-      rate: kept + lost > 0 ? Math.round((kept / (kept + lost)) * 100) : 0,
-      slices: [
-        { label: "Approved", hours: kept },
-        { label: "Awaiting", hours: waiting },
-        { label: "Rejected", hours: lost },
-      ].filter((slice) => slice.hours > 0),
-    };
-  }
-
-  if (user.role === "annotator") {
-    const kept = find("Approved");
-    const lost = find("Needs rework");
-    const open = find("Currently claimed");
-    if (kept + lost + open === 0) return null;
-    return {
-      title: "How their annotations landed",
-      centerLabel: "sessions",
-      rateLabel: "approved",
-      rate: kept + lost > 0 ? Math.round((kept / (kept + lost)) * 100) : 0,
-      slices: [
-        { label: "Approved", hours: kept },
-        { label: "In progress", hours: open },
-        { label: "Needs rework", hours: lost },
-      ].filter((slice) => slice.hours > 0),
-    };
-  }
-
-  if (user.role === "intern") {
-    const uploaded = find("Audio uploaded");
-    const missing = find("Missing audio");
-    if (uploaded + missing === 0) return null;
-    return {
-      title: "Sessions that reached an annotator",
-      centerLabel: "sessions",
-      rateLabel: "uploaded",
-      rate:
-        uploaded + missing > 0
-          ? Math.round((uploaded / (uploaded + missing)) * 100)
-          : 0,
-      slices: [
-        { label: "Audio uploaded", hours: uploaded },
-        { label: "Missing audio", hours: missing },
-      ].filter((slice) => slice.hours > 0),
-    };
-  }
-
-  return null;
-}
 
 const TABS = [
   { id: "profile", label: "Profile" },
@@ -194,17 +116,13 @@ export function UserDetailPanel({
    * panel returns null before it renders anything. */
   const profiles = useUserProfiles(user?.id);
 
-  const activity = useMemo(() => (user ? userActivity(user) : []), [user]);
-  const summary = useMemo(() => activitySummary(activity), [activity]);
   const { entries: audit } = useAuditLog("user", user?.id, open);
   /* The figures this person sees on their own dashboard. An admin reading a
    * contributor should be looking at the same numbers the contributor is. */
-  const stats = useMemo(() => (user ? roleStats(user) : []), [user]);
 
   /* Two charts rather than a third tab. The activity tab already answers
    * "how much and how often"; this answers "how much of it was any good",
    * which is the next question in every case and belongs beside the first. */
-  const outcome = useMemo(() => (user ? outcomeSplit(user, stats) : null), [user, stats]);
 
   /* Opening a different user must not carry the previous one's edits. */
   useEffect(() => {
@@ -503,56 +421,24 @@ export function UserDetailPanel({
         ) : null}
 
         {tab === "activity" ? (
-          <>
-            <DetailGroup title={ROLE_WORK_TITLE[user.role]} first>
-              {stats.map((stat) => (
-                <DetailField
-                  key={stat.label}
-                  label={stat.label}
-                  value={stat.value}
-                  tone={stat.tone}
-                />
-              ))}
-            </DetailGroup>
-
-            <DetailGroup title="Last 12 months">
-              <DetailField
-                label="Total"
-                value={`${summary.total} ${activityNoun(user)}`}
-              />
-              <DetailField label="Active days" value={String(summary.activeDays)} />
-              <DetailField label="Best streak" value={`${summary.bestStreak} days`} />
-              <DetailField label="Per active day" value={String(summary.perActiveDay)} />
-            </DetailGroup>
-
-            <section className="mt-6 border-t border-alva-border pt-6">
-              <h3 className="text-sm font-medium text-foreground">Contribution graph</h3>
-              <div className="mt-3">
-                <UserActivityHeatmap data={activity} />
-              </div>
-            </section>
-
-            {outcome ? (
-              <section className="mt-6 border-t border-alva-border pt-6">
-                <h3 className="text-sm font-medium text-foreground">
-                  {outcome.title}
-                </h3>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="h-48 rounded-xl bg-alva-surface p-3">
-                    <SharePie
-                      slices={outcome.slices}
-                      centerLabel={outcome.centerLabel}
-                      valueSuffix=""
-                      palette={OUTCOME_PALETTE}
-                    />
-                  </div>
-                  <div className="h-48 rounded-xl bg-alva-surface p-3">
-                    <ApprovalGauge value={outcome.rate} label={outcome.rateLabel} />
-                  </div>
-                </div>
-              </section>
-            ) : null}
-          </>
+          /**
+           * Nothing to show, and that is the honest answer.
+           *
+           * This tab used to carry a 53-week contribution heatmap, a total, a
+           * best streak and an approval pie. All of it was generated from a
+           * seeded random keyed on the user id, which is why it read "0
+           * recordings" and "5.7 hours contributed" on the same screen.
+           *
+           * The API gives an admin nothing per person beyond their account.
+           * Asked for in `docs/backend/endpoints-needed.md`; until it lands
+           * this says so rather than filling the space.
+           */
+          <AlvaEmptyState
+            className="mt-2"
+            icon={<GraphUp size={20} weight="Outline" />}
+            title="No activity to show yet"
+            description="Per-person figures are not available from the API yet. What this account has done is on the History tab."
+          />
         ) : null}
 
         {tab === "audit" ? (

@@ -246,6 +246,13 @@ export type AdminSession = {
   duration: string;
   hasAudio: boolean;
   /**
+   * How many people withdrew and were cut from the recording.
+   *
+   * A count, not names: they withdrew, so the API keeps no name and neither
+   * do we. 0 on nearly every session.
+   */
+  redactedCount: number;
+  /**
    * The annotator working on it, or null when nobody has picked it up.
    *
    * The admin page used to derive this by matching session topics against
@@ -281,6 +288,7 @@ function buildSessions(count: number): AdminSession[] {
       durationSec,
       duration: hasAudio ? formatDuration(durationSec) : NO_VALUE,
       hasAudio,
+      redactedCount: 0,
       // Roughly one uploaded session in six is still sitting in the queue.
       claimedBy:
         hasAudio && random() > 0.17

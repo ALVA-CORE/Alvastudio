@@ -55,6 +55,8 @@ export type ApiSessionSummary = {
   duration_seconds: number | null;
   has_audio: boolean;
   participant_count: number;
+  /** Empty for nearly every session. One entry per person removed. */
+  redactions?: ApiParticipantRedaction[];
   /**
    * Where the session was RECORDED, as typed.
    *
@@ -125,6 +127,49 @@ export const deleteSession = (id: string) =>
  * the bank item it came from, so editing a topic later cannot rewrite sessions
  * already run from it. A retired topic is a 409, an unknown one a 404.
  */
+/**
+ * What is left of a participant who withdrew and was removed.
+ *
+ * No name: they withdrew. The consent history is kept so the record of what
+ * they agreed to, and then did not, survives them.
+ */
+export type ApiParticipantRedaction = {
+  id: string;
+  removed_at: string;
+  removed_by_id: string | null;
+  consent_history: {
+    accepted: boolean;
+    policy_version: string;
+    accepted_at: string;
+    recorded_by_id: string | null;
+  }[];
+  turns_silenced: number;
+  seconds_silenced: number;
+  padding_seconds: number;
+};
+
+/**
+ * Silences a withdrawn participant's turns and removes them.
+ *
+ * Only tagged speech is silenced, which is why `confirm_turns_complete` has
+ * to be ticked by a person rather than sent on their behalf: anything they
+ * said that was never tagged as their turn stays in the file. Each turn is
+ * padded half a second either side because live tagging is approximate, and
+ * anyone talking over them in those moments goes quiet too.
+ *
+ * Refused with 409 once annotation work has begun: the transcript already
+ * holds their words, and the session is spent.
+ */
+export const redactParticipant = (
+  sessionId: string,
+  participantId: string,
+  confirmTurnsComplete: boolean
+) =>
+  apiFetch<ApiSession>(
+    `/focus-groups/${sessionId}/participants/${participantId}/redact`,
+    { method: "POST", body: { confirm_turns_complete: confirmTurnsComplete } }
+  );
+
 /** Corrects a session's recorded state. The session's intern, or an admin. */
 export const updateSession = (
   sessionId: string,

@@ -131,6 +131,18 @@ export function SessionDetailPanel({
               value={session.turns > 0 ? String(session.turns) : NO_VALUE}
             />
             <DetailField label="Length" value={session.duration} />
+            {/* No names: they withdrew, so the API keeps none and neither do
+                we. The count is what an admin needs to know the file is not
+                the one that was recorded. */}
+            {session.redactedCount > 0 ? (
+              <DetailField
+                label="Withdrawn"
+                value={`${session.redactedCount} ${
+                  session.redactedCount === 1 ? "person" : "people"
+                } removed from the recording`}
+                span
+              />
+            ) : null}
             <DetailField
               label="Hours"
               value={

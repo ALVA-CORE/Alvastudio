@@ -12,12 +12,15 @@ import {
 } from "@/components/ui/sheet";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import { PanelDivider, PanelSection } from "@/components/shared/PanelPrimitives";
+import { TextureButton } from "@/components/ui/texture-button";
 import { NO_VALUE } from "@/lib/no-value";
 
 type ParticipantDetailSheetProps = {
   participant: ParticipantRecord | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Offered only for somebody who withdrew. Omitted elsewhere. */
+  onRemoveFromRecording?: (participant: ParticipantRecord) => void;
 };
 
 function DetailSection({
@@ -41,6 +44,7 @@ export function ParticipantDetailSheet({
   participant,
   open,
   onOpenChange,
+  onRemoveFromRecording,
 }: ParticipantDetailSheetProps) {
   if (!participant) return null;
 
@@ -90,7 +94,11 @@ export function ParticipantDetailSheet({
             />
             <ProfileInfoBlock
               label="Consent"
-              value={formatConsentLabel(participant.consent) || NO_VALUE}
+              value={
+                participant.withdrawn
+                  ? "Withdrawn"
+                  : formatConsentLabel(participant.consent) || NO_VALUE
+              }
             />
             <ProfileInfoBlock label="Logged at" value={loggedAt} />
           </DetailSection>
@@ -100,6 +108,30 @@ export function ParticipantDetailSheet({
           <DetailSection title="Domain">
             <ProfileInfoBlock label="Occupation / sector" value={participant.occupation || NO_VALUE} />
           </DetailSection>
+
+          {/* Only for somebody who withdrew: the API refuses it for anyone
+              else, and offering it would suggest a session can be edited at
+              will. */}
+          {participant.withdrawn && onRemoveFromRecording ? (
+            <>
+              <PanelDivider className="-mx-6 my-0" />
+
+              <DetailSection title="Withdrawn">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  They have withdrawn, so this session cannot be worked on
+                  until their turns are cut out of the recording.
+                </p>
+                <TextureButton
+                  variant="destructive"
+                  size="sm"
+                  className="mt-3 w-auto"
+                  onClick={() => onRemoveFromRecording(participant)}
+                >
+                  Remove from the recording
+                </TextureButton>
+              </DetailSection>
+            </>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>

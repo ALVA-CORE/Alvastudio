@@ -8,6 +8,7 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
 import { ParticipantDetailSheet } from "@/components/interns/participants/ParticipantDetailSheet";
+import { RedactParticipantSheet } from "@/components/interns/participants/RedactParticipantSheet";
 import {
   EMPTY_PARTICIPANT_METRICS,
   formatGenderLabel,
@@ -23,6 +24,7 @@ export default function InternParticipantsPage() {
   const rows = useDevRows(sourceRows);
   const [selected, setSelected] = useState<ParticipantRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [redacting, setRedacting] = useState<ParticipantRecord | null>(null);
   const isEmpty = rows.length === 0;
 
   /* Counted from the rows themselves. There is no participants dashboard
@@ -195,6 +197,22 @@ export default function InternParticipantsPage() {
         participant={selected}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        onRemoveFromRecording={(participant) => {
+          setSheetOpen(false);
+          setRedacting(participant);
+        }}
+      />
+
+      <RedactParticipantSheet
+        open={redacting !== null}
+        onOpenChange={(next) => !next && setRedacting(null)}
+        sessionId={redacting?.sessionId ?? null}
+        participantId={redacting?.id ?? null}
+        participantName={redacting?.nameOrId ?? "They"}
+        onRedacted={() => {
+          setRedacting(null);
+          reload();
+        }}
       />
     </DesktopPageShell>
   );

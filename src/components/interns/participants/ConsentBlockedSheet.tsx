@@ -33,12 +33,20 @@ export function ConsentBlockedSheet({
   onOpenChange,
   sessionId,
   onResolved,
+  onRemoveFromRecording,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sessionId: string | null;
   /** Called once everybody has agreed, so the caller can retry the upload. */
   onResolved: () => void;
+  /**
+   * Somebody withdrew for good and has to come out of the recording.
+   *
+   * The other half of this problem: a switch is for agreement that was given
+   * and never logged, and this is for a refusal that stands.
+   */
+  onRemoveFromRecording?: (participant: ApiParticipant) => void;
 }) {
   const [people, setPeople] = useState<ApiParticipant[] | null>(null);
   const [agreed, setAgreed] = useState<Record<string, boolean>>({});
@@ -145,9 +153,30 @@ export function ConsentBlockedSheet({
             </p>
           ) : null}
 
+          {onRemoveFromRecording && missing.length > 0 ? (
+            <div className="rounded-2xl bg-alva-surface px-4 py-3">
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                If somebody genuinely withdrew, their turns can be cut out of
+                the recording and the rest of the session kept.
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {missing.map((person) => (
+                  <TextureButton
+                    key={person.id}
+                    variant="minimal"
+                    size="sm"
+                    className="w-auto"
+                    onClick={() => onRemoveFromRecording(person)}
+                  >
+                    Remove {person.label}
+                  </TextureButton>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Anyone who did not agree has to be left out of the session. Your
-            take is still here, and nothing has been uploaded.
+            Your take is still here, and nothing has been uploaded.
           </p>
 
           <div className="flex items-center gap-2">

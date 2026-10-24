@@ -38,6 +38,14 @@ export type TranscriptResource =
       error: null;
       /** The annotation the workspace writes to, as opposed to the session. */
       annotationId: string;
+      /**
+       * Somebody in the room withdrew, so every write is refused.
+       *
+       * The document still opens and their work is kept: this is a banner,
+       * not a dead end. If the intern records a new decision it all works
+       * again.
+       */
+      consentBlocked: boolean;
     };
 
 /** Short, readable handle. The API has no session code, so derive a stable one. */
@@ -93,6 +101,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
         doc: buildTranscript(session, { tags: true }),
         error: null,
         annotationId: session.id,
+        consentBlocked: false,
       });
       return;
     }
@@ -146,7 +155,12 @@ export function useSessionTranscript(sessionId: string | undefined) {
       annotationId.current = match.id;
       baseline.current = baselineFrom(document, doc);
 
-      return { session, doc, annotationId: match.id };
+      return {
+        session,
+        doc,
+        annotationId: match.id,
+        consentBlocked: document.consent_blocked === true,
+      };
     })()
       .then((result) => {
         if (cancelled) return;

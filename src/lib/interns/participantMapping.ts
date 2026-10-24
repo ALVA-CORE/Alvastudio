@@ -84,6 +84,7 @@ export function apiToParticipantRecord(
     nativeLanguage: participant.native_language ?? "",
     phone: participant.phone ?? "",
     consent: fromConsentVersion(participant.consent_version),
+    withdrawn: participant.consent_given === false,
     loggedAt: new Date(participant.created_at).getTime(),
   };
 }

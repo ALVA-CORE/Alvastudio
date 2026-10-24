@@ -88,6 +88,7 @@ function toAdminSession(
      * recording in Lagos with a room of people from Ogun read as Ogun. Blank
      * where it was never recorded, because that is the truth about it. */
     state: api.state ?? "",
+    redactedCount: api.redactions?.length ?? 0,
     variety: VARIETY[api.language_variety ?? ""] ?? "Nigerian English",
     participants: api.participant_count,
     turns: api.turn_count,
