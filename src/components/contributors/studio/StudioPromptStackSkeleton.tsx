@@ -51,10 +51,11 @@ export function StudioPromptStackSkeleton({ className }: { className?: string })
       {/* The record button, in its place. Standing in for it rather than
           leaving the real one live under a skeleton: there is nothing to
           record yet, and a page that does not move when the bank lands is the
-          whole point of a skeleton. The height matches `h-28` on the real
-          control so nothing shifts. */}
-      <div className="mt-10 flex h-28 items-center justify-center">
-        <Skeleton className="size-24 rounded-full bg-alva-accent/15" />
+          whole point of a skeleton. The height and the circle match `h-20`
+          and `size-16` on the real control, so nothing shifts when it
+          arrives. */}
+      <div className="mt-10 flex h-20 items-center justify-center">
+        <Skeleton className="size-16 rounded-full bg-alva-accent/15" />
       </div>
     </div>
   );

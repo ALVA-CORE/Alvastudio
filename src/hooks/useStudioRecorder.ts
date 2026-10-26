@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type RecorderPhase = "idle" | "recording" | "recorded" | "playing";
+export type RecorderPhase =
+  | "idle"
+  | "recording"
+  | "paused"
+  | "recorded"
+  | "playing";
 
 /**
  * What to record in, best first.
@@ -48,8 +53,24 @@ export function useStudioRecorder() {
   /** The mic the browser actually opened, for `device_mic` on the upload. */
   const deviceMicRef = useRef<string>("");
   /** Wall-clock length of the take, for the recording's `duration_seconds`. */
-  const startedAtRef = useRef<number>(0);
+  /**
+   * When the current run began, or null while paused.
+   *
+   * Null rather than 0: a falsy check reads a genuine `Date.now()` of 0 as
+   * "paused", which is only reachable in a test but was wrong there, and a
+   * sentinel that means two things is wrong wherever it is reached.
+   */
+  const startedAtRef = useRef<number | null>(null);
   const durationRef = useRef<number>(0);
+  /**
+   * Seconds banked before the current run.
+   *
+   * Pausing cannot be measured by `Date.now() - startedAt`: a take paused for
+   * two minutes would report two minutes of audio it does not contain, and
+   * the API would be told a length the file disagrees with. Each run is
+   * added up as it ends, and `startedAt` restarts on resume.
+   */
+  const elapsedRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -84,6 +105,7 @@ export function useStudioRecorder() {
       );
       chunksRef.current = [];
       startedAtRef.current = Date.now();
+      elapsedRef.current = 0;
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
@@ -94,7 +116,13 @@ export function useStudioRecorder() {
         const type = recorder.mimeType || mimeType || "audio/webm";
         mimeTypeRef.current = type;
         blobRef.current = new Blob(chunksRef.current, { type });
-        durationRef.current = (Date.now() - startedAtRef.current) / 1000;
+        /* `startedAt` is null while paused, so a take stopped from a pause
+           counts only what was banked. */
+        durationRef.current =
+          elapsedRef.current +
+          (startedAtRef.current === null
+            ? 0
+            : (Date.now() - startedAtRef.current) / 1000);
         setHasBlob(Boolean(blobRef.current.size));
         cleanupStream();
         setPhase("recorded");
@@ -112,6 +140,36 @@ export function useStudioRecorder() {
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current = null;
+  }, []);
+
+  /**
+   * Holds the take without ending it.
+   *
+   * `MediaRecorder.pause` keeps the chunks already gathered and stops adding
+   * to them, so resuming continues the same file rather than starting a
+   * second one. The mic track stays open on purpose: stopping it would drop
+   * the permission and the device label, and reopening mid-take can land on
+   * a different input.
+   */
+  const pauseRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "recording") return;
+
+    recorder.pause();
+    if (startedAtRef.current !== null) {
+      elapsedRef.current += (Date.now() - startedAtRef.current) / 1000;
+    }
+    startedAtRef.current = null;
+    setPhase("paused");
+  }, []);
+
+  const resumeRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "paused") return;
+
+    recorder.resume();
+    startedAtRef.current = Date.now();
+    setPhase("recording");
   }, []);
 
   const playRecording = useCallback(async () => {
@@ -150,8 +208,20 @@ export function useStudioRecorder() {
       audioRef.current.pause();
       audioRef.current = null;
     }
+    /* A discard while paused leaves a live recorder behind otherwise, which
+       keeps the mic indicator on and quietly refuses the next start. */
+    if (mediaRecorderRef.current) {
+      if (mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.onstop = null;
+        mediaRecorderRef.current.stop();
+      }
+      mediaRecorderRef.current = null;
+    }
+
     blobRef.current = null;
     durationRef.current = 0;
+    elapsedRef.current = 0;
+    startedAtRef.current = null;
     chunksRef.current = [];
     setHasBlob(false);
     cleanupStream();
@@ -195,6 +265,8 @@ export function useStudioRecorder() {
     getDeviceMic: () => deviceMicRef.current,
     startRecording,
     stopRecording,
+    pauseRecording,
+    resumeRecording,
     playRecording,
     discardRecording,
   };

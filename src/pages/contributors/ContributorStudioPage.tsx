@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import Restart from "@solar-icons/react/arrows/Restart";
-import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import Diskette from "@solar-icons/react/devices/Diskette";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
@@ -22,10 +20,10 @@ import { StudioModeDropdown, type StudioMode } from "@/components/contributors/s
 import { StudioProgress } from "@/components/contributors/studio/StudioProgress";
 import { StudioPromptStack } from "@/components/contributors/studio/StudioPromptStack";
 import { StudioSiriControl } from "@/components/contributors/studio/StudioSiriControl";
+import { StudioTakeActions } from "@/components/contributors/studio/StudioTakeActions";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
-import { TextureButton } from "@/components/ui/texture-button";
 
 /**
  * When uploads reopen, in the contributor's own time.
@@ -152,9 +150,14 @@ export default function ContributorStudioPage() {
       alvaToast.accent("Recording started", <Microphone3 size={14} weight="Bold" />);
       return;
     }
+    /* The blob pauses now. Stop is the button beside it, so the one control
+       no longer means "start" and "end" depending on when you press it. */
     if (recorder.phase === "recording") {
-      recorder.stopRecording();
-      alvaToast.success("Take saved, tap play to review", <Stop size={14} weight="Bold" />);
+      recorder.pauseRecording();
+      return;
+    }
+    if (recorder.phase === "paused") {
+      recorder.resumeRecording();
       return;
     }
     if (recorder.phase === "recorded" || recorder.phase === "playing") {
@@ -164,6 +167,11 @@ export default function ContributorStudioPage() {
         icon: <Play size={14} weight="Bold" />,
       });
     }
+  };
+
+  const handleStop = () => {
+    recorder.stopRecording();
+    alvaToast.success("Take saved, tap play to review", <Stop size={14} weight="Bold" />);
   };
 
   const handleRetake = () => {
@@ -272,9 +280,11 @@ export default function ContributorStudioPage() {
 
         {!loadingCard && (
         <StudioSiriControl
-          className="mt-10 h-28"
+          className="mt-10 h-20"
           phase={recorder.phase}
           onPrimary={handlePrimary}
+          onStop={handleStop}
+          stream={recorder.stream}
           disabled={(!card || outOfQuota) && recorder.phase === "idle"}
           disabledLabel={
             outOfQuota ? quotaMessage(quota) : "Nothing to record right now"
@@ -287,32 +297,12 @@ export default function ContributorStudioPage() {
         )}
 
         {recorder.hasBlob && recorder.phase !== "idle" && (
-          <div className="mt-8 flex items-center justify-center gap-2">
-            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={handleRetake}>
-              <span className="flex items-center gap-2">
-                <Restart size={16} weight="Outline" />
-                Retake
-              </span>
-            </TextureButton>
-
-            <TextureButton
-              variant="minimal"
-              size="icon"
-              className="h-10 w-10 rounded-full"
-              aria-label="Delete take"
-              onClick={handleRetake}
-            >
-              <TrashBinMinimalistic size={16} weight="Outline" />
-            </TextureButton>
-
-            <TextureButton variant="alva" size="sm" className="w-auto" onClick={handleSave}
-                loading={isSaving}>
-              <span className="flex items-center gap-2">
-                <Diskette size={16} weight="Bold" />
-                Save
-              </span>
-            </TextureButton>
-          </div>
+          <StudioTakeActions
+            className="mt-8"
+            onRetake={handleRetake}
+            onSave={handleSave}
+            isSaving={isSaving}
+          />
         )}
       </div>
 

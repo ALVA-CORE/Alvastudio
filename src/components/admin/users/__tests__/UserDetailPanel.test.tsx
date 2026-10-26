@@ -4,6 +4,16 @@ import userEvent from "@testing-library/user-event";
 /* The deletion preview is a real request otherwise, and the dialog's confirm
    stays disabled until it settles — so the test would be racing a network
    failure rather than checking anything. */
+/* The toaster is not mounted in these tests, so the error has nowhere to
+   render. Spying on the call is the assertion. */
+vi.mock("@/lib/alva-toast", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/alva-toast")>();
+  return {
+    ...actual,
+    alvaToast: { ...actual.alvaToast, error: vi.fn(), success: vi.fn() },
+  };
+});
+
 vi.mock("@/lib/api/users", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/users")>()),
   previewUserDeletion: vi.fn(async () => ({
@@ -59,6 +69,7 @@ vi.mock("@/lib/api/users", async (importOriginal) => ({
   })),
 }));
 
+import { alvaToast } from "@/lib/alva-toast";
 import { UserDetailPanel } from "../UserDetailPanel";
 import { ADMIN_USERS } from "@/data/admin/users";
 
@@ -98,17 +109,28 @@ describe("UserDetailPanel", () => {
     expect(screen.getByText("Joined")).toBeInTheDocument();
   });
 
-  it("switches to the audit log, with sign-ins in it", async () => {
+  it("switches to the audit log, one list with no filter on it", async () => {
     /* The history comes from `GET /audit` now, which this test does not
-       stand up, so the timeline shows its empty state. What is asserted is
-       that the tab switches and carries the sign-in filter: sign-ins belong
-       in the audit log rather than a tab of their own. */
+       stand up, so the timeline shows its empty state.
+
+       What is asserted is that nothing splits it. Sign-ins are interleaved
+       with everything else rather than sitting behind a tab or a pill: the
+       sequence is the information, and a reader should not have to join two
+       lists by timestamp to see that a password changed a minute after an
+       unfamiliar device signed in. */
     renderPanel();
     await userEvent.click(screen.getByRole("button", { name: "Audit log" }));
 
-    expect(await screen.findByRole("tab", { name: "Everything" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Sign-ins" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Nothing has happened to this account yet.")
+    ).toBeInTheDocument();
+
+    expect(screen.queryByRole("tab", { name: "Everything" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Sign-ins" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign-ins" })).not.toBeInTheDocument();
+
+    /* Nothing to page through when there is nothing on file. */
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 
   /* Deleting cannot be undone, so the bin opens a confirm pair rather than
@@ -197,7 +219,11 @@ describe("UserDetailPanel", () => {
     );
   });
 
-  it("refuses to save an invalid email", async () => {
+  it("refuses to save an invalid email, and says so in a toast", async () => {
+    /* A toast rather than a line under the field. The panel scrolls and Save
+       sits in a footer pinned below the scroll area, so an error rendered
+       beside the input can be off screen at the moment somebody presses the
+       button that caused it. */
     const { onSave } = renderPanel();
 
     await userEvent.click(screen.getByRole("button", { name: /Edit/ }));
@@ -207,7 +233,9 @@ describe("UserDetailPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(alvaToast.error).toHaveBeenCalledWith(
+      "That does not look like an email address."
+    );
   });
 
   it("drops edits on cancel", async () => {

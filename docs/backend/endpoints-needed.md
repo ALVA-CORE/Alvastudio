@@ -8,6 +8,7 @@ open is listed here.
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
 | 1 | Feedback from inside the app | The feedback form, and the admin table reading it | Medium |
+| 2 | Sign-in retention past 90 days | Looking into an account months after the fact | Low |
 
 All five asks from 24 Oct were answered in
 [`replies/api-status-2026-10-24.md`](replies/api-status-2026-10-24.md) and are
@@ -70,6 +71,32 @@ person can make with free text in it. A few an hour per account would do.
 **No email needed.** The bell is enough, and an admin reading this table is
 doing it deliberately rather than waiting to be told.
 
+## 2. Sign-in retention past 90 days
+
+Sign-ins, sign-outs and refused attempts are deleted after 90 days. Nothing
+else in the audit log expires, so a user's history is complete for every kind
+of event except the one an admin opens it to check.
+
+The case against 90 days is the case somebody actually brings: an account is
+behaving oddly and the question is when it started. Three months is not long
+for that. A contributor who only records in bursts might not sign in for six
+weeks, which makes a 90-day window one or two sessions deep for exactly the
+people whose accounts are least watched.
+
+**We are not asking you to keep them forever**, and we would rather you chose
+the number than we did. **A year** would cover the gap, and anything that
+survives a quarter-end review would help. If there is a reason for 90 we will
+take it: these are the most sensitive rows in the log, and a shorter life for
+them is a defensible policy rather than an oversight.
+
+**What we are not doing is caching them ourselves.** The only storage we have
+is the admin's browser, so a cache there would be one admin's partial copy of
+somebody else's authentication history, editable in devtools and outside
+whatever retention policy applies. A log with holes nobody can see is worse
+than one that ends honestly, and deliberately keeping personal data past its
+deletion date is the thing NDPA is about. If the window moves, it moves on
+your side, where there is one copy of it.
+
 ---
 
 ## On our side, not asks
@@ -111,7 +138,7 @@ doing it deliberately rather than waiting to be told.
 | Back-pay | In a menu on the payments header rather than a third button beside Run payment. Previews, then credits. |
 | Password change | Sends them to sign in on the 200, rather than waiting to be thrown out by a 401 on whatever they tap next. |
 | History tabs | All four read `GET /audit`, with `sign_ins` left at its default, so they are unchanged by the new actions. |
-| Sign-ins | Their own tab on the user panel, reading `sign_ins=only`. Not mixed into the audit log: one person signing in every morning is 250 rows a year against a handful of verdicts. The tab says the 90-day retention on itself, since a gap in it means two different things either side of that line. |
+| Sign-ins | In the audit log, not beside it. One list, `sign_ins=include`, interleaved: "signed in on a new device" followed by "password changed" is a story you can only read if the two are in the same timeline. The filter that used to narrow to sign-ins is gone, and so is the reason for it — the tab pages now, so a year of sign-ins can no longer push a password change off the end of a fixed fetch. The 90-day retention is stated on the tab, since a gap means two different things either side of that line. See ask 2. |
 | `POST /auth/logout` | Called from the sign-out button, and not awaited. The token is stateless, so dropping it is what ends the session; a sign-out must not fail because the network did. `everywhere` is not wired to anything yet — we have no screen where somebody would reach for it. |
 | A deleted account signing in | We show nothing specific, because a deleted account answers exactly as a typo does. That is the right call and we are not asking you to change it. Approval-pending and deactivated both get their own screen, since those two are safe to name. |
 | The activity log | No longer a switch. It is on, locked, and the copy says what is recorded rather than thanking anybody for agreeing to it. |
