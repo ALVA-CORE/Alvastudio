@@ -33,12 +33,15 @@ export function PasswordResetDialog({
   onOpenChange,
   fullName,
   token,
+  error,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   fullName: string;
   /** Null while the request is in flight. */
   token: string | null;
+  /** Set when the token could not be issued. Nothing was generated. */
+  error?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -72,28 +75,39 @@ export function PasswordResetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-xl bg-alva-surface p-3">
-          <p
-            className={cn(
-              "break-all font-mono text-sm text-foreground",
-              !token && "animate-pulse text-muted-foreground"
-            )}
-          >
-            {token ?? "Generating…"}
+        {/* A failure replaces the box rather than sitting under it. There is
+            no token to look at, and a greyed-out placeholder beside an error
+            reads as something still loading. */}
+        {error ? (
+          <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-400">
+            {error}
           </p>
-        </div>
+        ) : (
+          <>
+            <div className="rounded-xl bg-alva-surface p-3">
+              <p
+                className={cn(
+                  "break-all font-mono text-sm text-foreground",
+                  !token && "animate-pulse text-muted-foreground"
+                )}
+              >
+                {token ?? "Generating…"}
+              </p>
+            </div>
 
-        <p className="text-xs text-muted-foreground">
-          This is the only time it is shown. Close this and you will have to
-          generate another.
-        </p>
+            <p className="text-xs text-muted-foreground">
+              This is the only time it is shown. Close this and you will have to
+              generate another.
+            </p>
+          </>
+        )}
 
         <div className="flex gap-2">
           <TextureButton
             variant="alva"
             size="sm"
             className="w-auto"
-            disabled={!token}
+            disabled={!token || Boolean(error)}
             onClick={copy}
           >
             {copied ? (

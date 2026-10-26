@@ -16,6 +16,8 @@ import { SharePie } from "@/components/admin/shared/SharePie";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
 import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
+import { FeedbackTable } from "@/components/admin/feedback/FeedbackTable";
+import { useFeedback } from "@/hooks/useFeedback";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import { EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
 import { formatHours } from "@/data/admin/shared";
@@ -37,6 +39,7 @@ import { cn } from "@/lib/utils";
  * unpaid contributor are all invisible everywhere else in the product.
  */
 export default function AdminDashboardPage() {
+  const feedback = useFeedback();
   const navigate = useNavigate();
   const { forceEmpty } = useDevUiState();
   const [range, setRange] = useState<DashboardTimeRange>("12m");
@@ -321,6 +324,19 @@ export default function AdminDashboardPage() {
         >
           <CorpusFunnel slices={corpus.byStatus} />
         </AlvaChartCard>
+      </div>
+
+      {/* Last on the page on purpose. The charts above say what the corpus
+          did; this says what it was like to be the person doing it, which is
+          the thing to read once nothing is on fire. */}
+      <div className="mt-2">
+        <FeedbackTable
+          rows={feedback.rows}
+          isLoading={feedback.isLoading}
+          error={feedback.error}
+          reload={feedback.reload}
+          setStatus={feedback.setStatus}
+        />
       </div>
         </>
       )}

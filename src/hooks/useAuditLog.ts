@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { auditLog, type ApiAuditEvent, type AuditSubject } from "@/lib/api/audit";
+import {
+  auditLog,
+  type ApiAuditEvent,
+  type AuditSignIns,
+  type AuditSubject,
+} from "@/lib/api/audit";
 import type { AuditEntry } from "@/components/admin/shared/detail/AuditTimeline";
 
 /** How many events a History tab shows. Past this nobody is reading, they are searching. */
@@ -37,7 +42,9 @@ export function toAuditEntries(events: ApiAuditEvent[]): AuditEntry[] {
 export function useAuditLog(
   subjectType: AuditSubject,
   subjectId: string | undefined,
-  enabled = true
+  enabled = true,
+  /** `only` is the Sign-ins view. The default leaves them out, as the API does. */
+  signIns: AuditSignIns = "exclude"
 ) {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [isLoading, setLoading] = useState(false);
@@ -52,7 +59,12 @@ export function useAuditLog(
     setLoading(true);
     setEntries([]);
 
-    auditLog({ subject_type: subjectType, subject_id: subjectId, limit: LIMIT })
+    auditLog({
+      subject_type: subjectType,
+      subject_id: subjectId,
+      sign_ins: signIns,
+      limit: LIMIT,
+    })
       .then((page) => {
         if (!cancelled) setEntries(toAuditEntries(page.items));
       })
@@ -66,7 +78,7 @@ export function useAuditLog(
     return () => {
       cancelled = true;
     };
-  }, [subjectType, subjectId, enabled]);
+  }, [subjectType, subjectId, enabled, signIns]);
 
   return { entries, isLoading };
 }

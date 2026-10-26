@@ -2,37 +2,24 @@ import { useNavigate } from "react-router-dom";
 import Logout from "@solar-icons/react/arrows-action/Logout";
 import UserId from "@solar-icons/react/users/UserId";
 import ShieldUser from "@solar-icons/react/security/ShieldUser";
-import Notebook2 from "@solar-icons/react/school/Notebook2";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
+import { AppVersionFooter } from "@/components/profile/AppVersionFooter";
 import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
+import { FeedbackRow } from "@/components/profile/FeedbackRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import { TextureButton } from "@/components/ui/texture-button";
-import { ADMIN_NAV_ITEMS } from "@/components/admin/layout/adminNav";
 import { useAuth } from "@/lib/auth/context";
-
-/**
- * What each area is running on, from the admin's point of view.
- *
- * "Partly" is the honest word for a page whose tables are live but whose
- * charts are waiting on a field the API does not send yet. Calling that
- * "ready" would mean an admin reading an empty chart had no way to tell
- * whether it was broken or simply not built.
- */
-const STATUS_TEXT = {
-  ready: "Live",
-  partial: "Live, some charts waiting on the API",
-  blocked: "Not wired yet",
-} as const;
 
 /**
  * The admin's own account, in the same grammar as the other profile pages.
  *
- * The one addition is the readiness list: this surface is the only one where
- * what the backend can and cannot do is the admin's problem rather than an
- * engineer's, so it is worth being able to read it without leaving the app.
+ * It used to carry a "Backend readiness" list saying which admin areas the
+ * API could serve. That was a note between engineers wearing a product's
+ * clothes: every area is live now, and a list that said so told an admin
+ * nothing they could act on.
  */
 export default function AdminSettingsPage() {
   const { user, logout } = useAuth();
@@ -59,7 +46,6 @@ export default function AdminSettingsPage() {
             icon={<UserId size={20} weight="Outline" />}
             title="Account details"
             sheetTitle="Account details"
-            sheetDescription="Your admin account on Alvastudio."
           >
             <dl>
               <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />
@@ -73,7 +59,6 @@ export default function AdminSettingsPage() {
             icon={<ShieldUser size={20} weight="Outline" />}
             title="What this account can do"
             sheetTitle="Admin permissions"
-            sheetDescription="An admin can reach every surface in the product."
           >
             <dl>
               <ProfileInfoBlock label="Create and remove accounts" value="Yes" />
@@ -84,29 +69,7 @@ export default function AdminSettingsPage() {
             </dl>
           </ProfileActionRow>
 
-          <ProfileActionRow
-            icon={<Notebook2 size={20} weight="Outline" />}
-            title="Backend readiness"
-            sheetTitle="Backend readiness"
-            sheetDescription="Which admin areas the API can serve today."
-          >
-            <dl>
-              {ADMIN_NAV_ITEMS.filter((item) => item.id !== "settings").map((item) => (
-                <ProfileInfoBlock
-                  key={item.id}
-                  label={item.title}
-                  /* What it is waiting on, when it is waiting on something.
-                     "Partly ready" with no reason is a status nobody can act
-                     on. */
-                  value={
-                    item.blockedBy
-                      ? `${STATUS_TEXT[item.status]} — ${item.blockedBy}`
-                      : STATUS_TEXT[item.status]
-                  }
-                />
-              ))}
-            </dl>
-          </ProfileActionRow>
+          <FeedbackRow />
 
           <ChangePasswordRow hideDivider />
 
@@ -123,6 +86,8 @@ export default function AdminSettingsPage() {
               </span>
             </TextureButton>
           </div>
+
+          <AppVersionFooter />
         </section>
       </DesktopPageShell>
     </div>

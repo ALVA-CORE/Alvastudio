@@ -23,6 +23,31 @@ vi.mock("@/lib/api/users", async (importOriginal) => ({
     consent_records: 2,
     payout_records_kept: 0,
   })),
+  getUserActivity: vi.fn(async () => ({
+    user_id: "u-018",
+    role: "annotator" as const,
+    window_days: 365,
+    start_date: "2025-10-26",
+    end_date: "2026-10-25",
+    unit: "segments created",
+    daily: [
+      { date: "2026-10-24", count: 4 },
+      { date: "2026-10-25", count: 0 },
+    ],
+    total: 4,
+    active_days: 1,
+    best_streak: 1,
+    contributor: null,
+    intern: null,
+    annotator: {
+      annotations_started: 3,
+      submitted: 2,
+      approved: 1,
+      sent_back: 1,
+      rejected: 0,
+      segments_created: 4,
+    },
+  })),
   getUserProfiles: vi.fn(async () => ({
     user_id: "u-018",
     role: "annotator" as const,
@@ -73,15 +98,17 @@ describe("UserDetailPanel", () => {
     expect(screen.getByText("Joined")).toBeInTheDocument();
   });
 
-  it("switches to the audit log", async () => {
+  it("switches to the audit log, with sign-ins in it", async () => {
     /* The history comes from `GET /audit` now, which this test does not
-       stand up, so the tab shows its empty state. What is asserted is that
-       the tab switches — the entries themselves are the API's. */
+       stand up, so the timeline shows its empty state. What is asserted is
+       that the tab switches and carries the sign-in filter: sign-ins belong
+       in the audit log rather than a tab of their own. */
     renderPanel();
     await userEvent.click(screen.getByRole("button", { name: "Audit log" }));
-    expect(
-      screen.getByText("Nothing has happened to this account yet.")
-    ).toBeInTheDocument();
+
+    expect(await screen.findByRole("tab", { name: "Everything" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Sign-ins" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign-ins" })).not.toBeInTheDocument();
   });
 
   /* Deleting cannot be undone, so the bin opens a confirm pair rather than
@@ -196,14 +223,28 @@ describe("UserDetailPanel", () => {
 });
 
 describe("user activity", () => {
-  /* The series this used to assert on was generated from a seeded random, so
-     the tests were checking that the generator was deterministic rather than
-     that anything was true. The tab says so now. */
-  it("says there is nothing to show rather than inventing a history", async () => {
+  /* This tab used to draw a 53-week heatmap, a total, a streak and an
+     approval pie from a seeded random keyed on the user id, so the old tests
+     were checking that a generator was deterministic rather than that
+     anything was true. Every figure now comes off
+     `GET /users/{id}/activity`, and the noun comes off its `unit` rather
+     than a lookup on this side. */
+  it("shows the figures the API sent, in the unit it named", async () => {
     renderPanel();
     await userEvent.click(screen.getByRole("button", { name: "Activity" }));
 
-    expect(screen.getByText("No activity to show yet")).toBeInTheDocument();
+    expect(await screen.findByText("4 segments created")).toBeInTheDocument();
+    expect(screen.getByText("1 days")).toBeInTheDocument();
+  });
+
+  it("shows what became of the annotations", async () => {
+    renderPanel();
+    await userEvent.click(screen.getByRole("button", { name: "Activity" }));
+
+    expect(
+      await screen.findByText("What became of the annotations")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Segments created")).toBeInTheDocument();
   });
 });
 
@@ -228,17 +269,21 @@ describe("intern approval", () => {
 
   /* There is no admin-triggered reset for the roles that sign themselves up,
    * so the button was a toast with nothing behind it. */
-  it("offers a password reset to staff only", () => {
-    renderPanel({ user: { ...user, role: "annotator" as const } });
-    expect(screen.getByRole("button", { name: /Reset password/ })).toBeInTheDocument();
+  it("offers a password reset for every role", () => {
+    /* It was staff only, on the belief that there was no admin-triggered
+       reset for a contributor. There is, and while recovery emails are being
+       refused it is the only way back into a locked-out account — so the
+       people who most need it were the ones it was hidden from. */
+    for (const role of ["contributor", "intern", "annotator", "admin"] as const) {
+      renderPanel({ user: { ...user, role } });
+      expect(
+        screen.getByRole("button", { name: /Reset password/ })
+      ).toBeInTheDocument();
+      cleanup();
+    }
 
-    cleanup();
     renderPanel({ user: pendingIntern });
-    expect(screen.queryByRole("button", { name: /Reset password/ })).not.toBeInTheDocument();
-
-    cleanup();
-    renderPanel({ user: { ...user, role: "contributor" as const } });
-    expect(screen.queryByRole("button", { name: /Reset password/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reset password/ })).toBeInTheDocument();
   });
 });
 

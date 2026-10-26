@@ -3,7 +3,6 @@ import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -17,7 +16,6 @@ type ProfileActionRowProps = {
   /** Right-aligned state, for a row whose value is worth seeing at a glance. */
   value?: ReactNode;
   sheetTitle: string;
-  sheetDescription?: string;
   children: ReactNode;
   className?: string;
   hideDivider?: boolean;
@@ -28,7 +26,6 @@ export function ProfileActionRow({
   title,
   value,
   sheetTitle,
-  sheetDescription,
   children,
   className,
   hideDivider = false,
@@ -64,13 +61,15 @@ export function ProfileActionRow({
 
       <SheetContent
         side="bottom"
+        /* No description to point at, and the title alone names the sheet. */
+        aria-describedby={undefined}
         className="rounded-t-[28px] border-alva-border bg-alva-card px-5 pb-8 pt-8"
       >
-        <SheetHeader className="pr-10 text-left">
+        {/* Padded both sides rather than just the right: the close button
+            sits top-right, and clearing only that side leaves a centred
+            title centred on the wrong thing. */}
+        <SheetHeader className="px-10 text-center sm:text-center">
           <SheetTitle>{sheetTitle}</SheetTitle>
-          {sheetDescription ? (
-            <SheetDescription>{sheetDescription}</SheetDescription>
-          ) : null}
         </SheetHeader>
 
         <div className="mt-6">{children}</div>

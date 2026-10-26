@@ -4,7 +4,10 @@ import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
-import type { RecoveryRequest } from "@/hooks/useRecoveryRequests";
+import type {
+  RecoveryRequest,
+  ResetLinkOutcome,
+} from "@/hooks/useRecoveryRequests";
 
 /**
  * People waiting to be let back into their account.
@@ -16,7 +19,45 @@ import type { RecoveryRequest } from "@/hooks/useRecoveryRequests";
  * Approving emails them the link. Nothing is shown here to copy: the link is
  * theirs, and routing it through an admin's clipboard would make an admin a
  * second way into somebody else's account.
+ *
+ * What the toast says comes from `GET /users/{id}/emails`, not from the 200.
+ * The approve call answering 200 only means a token was minted; for three
+ * weeks the mail behind it was being refused while this screen said the link
+ * had been emailed, and the person it was about sat waiting for it.
  */
+/**
+ * `sent` is the mail service accepting it, which is not proof of an inbox,
+ * so the wording stops at what is known. A refusal gets the manual reset
+ * named in the same breath: an admin who has just been told the email failed
+ * needs the next step, not an apology.
+ */
+function announce(outcome: ResetLinkOutcome, email: string) {
+  if (outcome === "sent") {
+    return alvaToast.success(`Reset link sent to ${email}`);
+  }
+
+  if (outcome === "failed") {
+    return alvaToast.error(
+      `Approved, but the email to ${email} was refused. Use Reset password on their account to hand them a link.`
+    );
+  }
+
+  if (outcome === "pending") {
+    return alvaToast.show(`Approved. The email to ${email} is still queued.`, {
+      variant: "default",
+    });
+  }
+
+  if (outcome === "skipped") {
+    return alvaToast.show(`Approved. No email was needed.`, { variant: "default" });
+  }
+
+  /* The approval went through and we could not read what became of the mail. */
+  return alvaToast.show(`Approved. Could not confirm the email to ${email}.`, {
+    variant: "default",
+  });
+}
+
 export function RecoveryRequestsTable({
   rows,
   isLoading,
@@ -29,7 +70,7 @@ export function RecoveryRequestsTable({
   isLoading: boolean;
   error: string | null;
   reload: () => void;
-  approve: (id: string) => Promise<void>;
+  approve: (id: string, userId: string) => Promise<ResetLinkOutcome>;
   deny: (id: string) => Promise<void>;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -39,8 +80,8 @@ export function RecoveryRequestsTable({
 
     try {
       if (decision === "approve") {
-        await approve(request.id);
-        alvaToast.success(`Reset link emailed to ${request.email}`);
+        const outcome = await approve(request.id, request.userId);
+        announce(outcome, request.email);
       } else {
         await deny(request.id);
         alvaToast.show(`Request from ${request.name} declined`, {

@@ -123,6 +123,26 @@ export async function refresh(): Promise<ApiToken> {
   return token;
 }
 
+/**
+ * Records the sign-out.
+ *
+ * **It does not kill the token.** Tokens are signed and stateless with no
+ * revocation list, so what actually ends this session is the client throwing
+ * the token away — which `clearSession` does, with or without this call. So
+ * this is sent and not waited on: a sign-out that fails because the network
+ * is down must still sign somebody out.
+ *
+ * `everywhere` is the exception. That one does revoke, ending every session
+ * the person has, and is the thing to reach for when a token may be in
+ * somebody else's hands.
+ */
+export function logout(everywhere = false) {
+  return apiFetch<void>("/auth/logout", {
+    method: "POST",
+    body: { everywhere },
+  });
+}
+
 export function clearSession(): void {
   setToken(null);
   setExpiry(null);
