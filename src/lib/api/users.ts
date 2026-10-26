@@ -232,3 +232,100 @@ export function issuePasswordReset(id: string) {
     method: "POST",
   });
 }
+
+/* ------------------------------------------------------------------ *
+ * Per-person activity
+ * ------------------------------------------------------------------ */
+
+/** One day in the window. Quiet days are present, as `0`. */
+export type ApiActivityDay = { date: string; count: number };
+
+/** What became of the clips uploaded in the window, by their status now. */
+export type ApiContributorOutcomes = {
+  submitted: number;
+  approved: number;
+  rejected: number;
+  flagged: number;
+  pending: number;
+};
+
+export type ApiInternOutcomes = {
+  clips_reviewed: number;
+  approved: number;
+  rejected: number;
+  flagged: number;
+  sessions_run: number;
+  participants: number;
+};
+
+export type ApiAnnotatorOutcomes = {
+  annotations_started: number;
+  submitted: number;
+  approved: number;
+  sent_back: number;
+  rejected: number;
+  segments_created: number;
+};
+
+/**
+ * One person's work over a trailing window, for the admin reading them.
+ *
+ * What a count means depends on the role, and `unit` says it: a clip for a
+ * contributor, a verdict or a session for an intern, a segment for an
+ * annotator, an action for an admin. That is why nothing here hardcodes a
+ * noun — the panel prints `unit` rather than deciding for itself.
+ *
+ * Exactly one outcome block is filled, for the person's role. An admin has
+ * none: there is nothing to approve or reject about an admin action.
+ */
+export type ApiUserActivity = {
+  user_id: string;
+  role: string;
+  window_days: number;
+  start_date: string;
+  end_date: string;
+  unit: string;
+  daily: ApiActivityDay[];
+  total: number;
+  active_days: number;
+  best_streak: number;
+  contributor: ApiContributorOutcomes | null;
+  intern: ApiInternOutcomes | null;
+  annotator: ApiAnnotatorOutcomes | null;
+};
+
+export function getUserActivity(id: string, windowDays = 365) {
+  return apiFetch<ApiUserActivity>(`/users/${id}/activity`, {
+    query: { window_days: windowDays },
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Email delivery
+ * ------------------------------------------------------------------ */
+
+/**
+ * One email the API tried to send this person.
+ *
+ * `sent` means the mail service accepted it, which is not the same as it
+ * reaching an inbox, and nothing on screen should claim otherwise.
+ */
+export type ApiEmailDelivery = {
+  id: string;
+  kind: string;
+  queued_at: string;
+  sent_at: string | null;
+  status: "sent" | "pending" | "failed" | "skipped";
+  attempts: number;
+  error: string | null;
+};
+
+export function listUserEmails(
+  id: string,
+  params: { limit?: number; offset?: number } = {}
+) {
+  return apiFetch<{ items: ApiEmailDelivery[]; total: number }>(
+    `/users/${id}/emails`,
+    { query: { ...params, envelope: true } }
+  );
+}

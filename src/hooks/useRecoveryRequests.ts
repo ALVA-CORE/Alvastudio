@@ -3,9 +3,14 @@ import {
   approvePasswordResetRequest,
   denyPasswordResetRequest,
   listPasswordResetRequests,
+  listUserEmails,
+  type ApiEmailDelivery,
   type ApiPasswordResetRequest,
 } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
+
+/** What became of the link, once an approval has gone through. */
+export type ResetLinkOutcome = ApiEmailDelivery["status"] | "unknown";
 
 export type RecoveryRequest = {
   id: string;
@@ -81,10 +86,29 @@ export function useRecoveryRequests() {
     setRows((prev) => prev.filter((row) => row.id !== id));
   }, []);
 
+  /**
+   * Whether the link actually went out.
+   *
+   * A 200 from the approve call means a token was minted, not that anybody
+   * received anything. For three weeks every reset email was being refused by
+   * the mail provider while the API answered 200, and this screen said "Reset
+   * link emailed" each time. `GET /users/{id}/emails` is how it can tell.
+   *
+   * `unknown` when the lookup itself fails, which is not the same as `failed`:
+   * one means the mail was refused, the other that we did not get to ask.
+   */
   const approve = useCallback(
-    async (id: string) => {
+    async (id: string, userId: string): Promise<ResetLinkOutcome> => {
       await approvePasswordResetRequest(id);
       drop(id);
+
+      try {
+        const page = await listUserEmails(userId, { limit: 5 });
+        const link = page.items.find((email) => email.kind === "reset_link");
+        return link?.status ?? "unknown";
+      } catch {
+        return "unknown";
+      }
     },
     [drop]
   );

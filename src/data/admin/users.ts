@@ -91,14 +91,18 @@ export const STATUS_LABEL: Record<AccountStatus, string> = {
 };
 
 /**
- * Who an admin can send a reset link to.
+ * Who an admin can issue a reset token for. Everybody.
  *
- * Staff accounts only. Contributors and interns authenticate through the
- * signup flow they came in on, and there is no admin-triggered reset for them
- * to call, so the button was a toast with nothing behind it.
+ * It used to be staff only, on the belief that there was no admin-triggered
+ * reset for a contributor or an intern. There is: `POST /users/{id}/password-reset`
+ * takes any account and returns a single-use token.
+ *
+ * Hiding it was worst for exactly the people who needed it most. A
+ * contributor locked out has no other way in while recovery emails are being
+ * refused, and a deactivated account cannot ask for one at all.
  */
-export function canResetPassword(user: AdminUser) {
-  return user.role === "annotator" || user.role === "admin";
+export function canResetPassword(_user: AdminUser) {
+  return true;
 }
 
 /**

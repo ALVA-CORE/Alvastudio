@@ -1,9 +1,5 @@
 import Logout from "@solar-icons/react/arrows-action/Logout";
-import Smartphone from "@solar-icons/react/devices/Smartphone";
 import Translation2 from "@solar-icons/react/it/Translation2";
-import MapPointWave from "@solar-icons/react/map/MapPointWave";
-import Bell from "@solar-icons/react/notifications/Bell";
-import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import UserId from "@solar-icons/react/users/UserId";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,10 +15,13 @@ import { ContributorDesktopGate } from "@/components/layout/ContributorDesktopGa
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
 import { IdentityProfileRow } from "@/components/contributors/wallet/IdentityProfileRow";
+import { AppVersionFooter } from "@/components/profile/AppVersionFooter";
 import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
+import { FeedbackRow } from "@/components/profile/FeedbackRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
+import { PrivacyAlertsRow } from "@/components/profile/PrivacyAlertsRow";
 import { TextureButton } from "@/components/ui/texture-button";
 
 export default function ContributorProfilePage() {
@@ -55,7 +54,6 @@ export default function ContributorProfilePage() {
           icon={<UserId size={20} weight="Outline" />}
           title="Account details"
           sheetTitle="Account details"
-          sheetDescription="Your core identity for Alvastudio."
         >
           <dl>
             <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />
@@ -67,6 +65,33 @@ export default function ContributorProfilePage() {
             />
             <ProfileInfoBlock label="Gender" value={formatGenderLabel(profile?.gender ?? "") || "Not set"} />
             <ProfileInfoBlock label="Age bracket" value={profile?.ageBracket ?? "Not set"} />
+            {profile?.occupation ? (
+              <ProfileInfoBlock label="Occupation" value={profile.occupation} />
+            ) : null}
+          </dl>
+
+          {/* The recording setup used to be a row of its own. Four facts
+              about a microphone do not earn a tap from the profile list, and
+              the device somebody records on is part of their account in the
+              same way their phone number is. */}
+          <p className="mb-2 mt-6 text-xs text-muted-foreground">Recording setup</p>
+          <dl>
+            <ProfileInfoBlock
+              label="Self-reported device"
+              value={formatRecordingDeviceLabel(profile?.recordingDevice ?? "") || "Not set"}
+            />
+            <ProfileInfoBlock
+              label="Detected device"
+              value={profile?.detectedDeviceLabel ?? "Not detected"}
+            />
+            <ProfileInfoBlock
+              label="Detected mic"
+              value={profile?.detectedMicLabel ?? "Not detected"}
+            />
+            <ProfileInfoBlock
+              label="Default mode"
+              value={isStaff ? "Focus group" : "Prompt reader"}
+            />
           </dl>
         </ProfileActionRow>
 
@@ -74,7 +99,6 @@ export default function ContributorProfilePage() {
           icon={<Translation2 size={20} weight="Outline" />}
           title="Language profile"
           sheetTitle="Language profile"
-          sheetDescription="The language background that gives your recordings context."
         >
           <dl>
             <ProfileInfoBlock
@@ -98,49 +122,17 @@ export default function ContributorProfilePage() {
               value={profile?.homeLanguages ?? "Not set"}
             />
           </dl>
-        </ProfileActionRow>
 
-        <ProfileActionRow
-          icon={<MapPointWave size={20} weight="Outline" />}
-          title="Location & accent"
-          sheetTitle="Location & accent"
-          sheetDescription="This helps Alva interpret regional speech patterns correctly."
-        >
+          {/* Where somebody is from is part of their language background, not
+              a separate subject: a state of origin is read here to interpret
+              an accent, which is what the language rows above are for. */}
+          <p className="mb-2 mt-6 text-xs text-muted-foreground">Where you are from</p>
           <dl>
             <ProfileInfoBlock
               label="State of origin"
               value={profile?.stateOfOrigin ?? "Not set"}
             />
             <ProfileInfoBlock label="Ethnicity" value={profile?.ethnicity ?? "Not set"} />
-            {profile?.occupation ? (
-              <ProfileInfoBlock label="Occupation" value={profile.occupation} />
-            ) : null}
-          </dl>
-        </ProfileActionRow>
-
-        <ProfileActionRow
-          icon={<Smartphone size={20} weight="Outline" />}
-          title="Recording setup"
-          sheetTitle="Recording setup"
-          sheetDescription="Useful for QA when a clip sounds unusually quiet or noisy."
-        >
-          <dl>
-            <ProfileInfoBlock
-              label="Self-reported device"
-              value={formatRecordingDeviceLabel(profile?.recordingDevice ?? "") || "Not set"}
-            />
-            <ProfileInfoBlock
-              label="Detected device"
-              value={profile?.detectedDeviceLabel ?? "Not detected"}
-            />
-            <ProfileInfoBlock
-              label="Detected mic"
-              value={profile?.detectedMicLabel ?? "Not detected"}
-            />
-            <ProfileInfoBlock
-              label="Default mode"
-              value={isStaff ? "Focus group" : "Prompt reader"}
-            />
           </dl>
         </ProfileActionRow>
 
@@ -148,31 +140,15 @@ export default function ContributorProfilePage() {
             back to see whether their NIN cleared. */}
         <IdentityProfileRow />
 
-        <ProfileActionRow
-          icon={<ShieldCheck size={20} weight="Outline" />}
-          title="Consent & privacy"
-          sheetTitle="Consent & privacy"
-          sheetDescription="Your consent records and how Alva is allowed to use submitted audio."
-        >
-          <dl>
-            <ProfileInfoBlock label="Consent status" value="Accepted" />
-            <ProfileInfoBlock label="Data usage" value="Speech research and dataset creation" />
-            <ProfileInfoBlock label="Terms" value="Accepted during account setup" />
-          </dl>
-        </ProfileActionRow>
+        <PrivacyAlertsRow
+          alerts={[
+            "A clip of yours approved, rejected or flagged",
+            "Points credited, and each ₦5,000 milestone",
+            "A withdrawal paid or refused",
+          ]}
+        />
 
-        <ProfileActionRow
-          icon={<Bell size={20} weight="Outline" />}
-          title="Notifications"
-          sheetTitle="Notifications"
-          sheetDescription="How often Alva should nudge you about reviews, points, and new tasks."
-        >
-          <dl>
-            <ProfileInfoBlock label="Review updates" value="On" />
-            <ProfileInfoBlock label="Point log alerts" value="On" />
-            <ProfileInfoBlock label="Recording reminders" value="Weekly" />
-          </dl>
-        </ProfileActionRow>
+        <FeedbackRow />
 
         <ChangePasswordRow hideDivider />
 
@@ -189,6 +165,8 @@ export default function ContributorProfilePage() {
             </span>
           </TextureButton>
         </div>
+
+        <AppVersionFooter />
       </section>
     </div>
   );

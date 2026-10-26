@@ -11,14 +11,18 @@ import {
   ContributorProfileSection,
   IdentitySection,
 } from "@/components/admin/users/ContributorProfileSection";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { AuditSignIns } from "@/lib/api/audit";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
+import { useUserActivity } from "@/hooks/useUserActivity";
 import { useAuditLog } from "@/hooks/useAuditLog";
-import GraphUp from "@solar-icons/react/business/GraphUp";
-import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import { UserActivitySection } from "@/components/admin/users/UserActivitySection";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
+import { issuePasswordReset } from "@/lib/api/users";
+import { reportApiError } from "@/lib/api/reportApiError";
 import { DeleteUserDialog } from "@/components/admin/users/DeleteUserDialog";
 import {
   AuditTimeline,
@@ -45,18 +49,6 @@ import {
   type AdminUserRole,
 } from "@/data/admin/users";
 import { cn } from "@/lib/utils";
-
-/**
- * Stands in for the token `POST /users/{id}/password-reset` returns.
- *
- * Shaped like the real one — opaque, long enough not to be guessed, single
- * use — so the handover dialog can be designed before the call is wired.
- */
-function mockResetToken(userId: string) {
-  let hash = 0;
-  for (const char of userId) hash = (hash * 31 + char.charCodeAt(0)) % 1e9;
-  return `prt_${hash.toString(36)}${Math.random().toString(36).slice(2, 14)}`;
-}
 
 /** Names the work, not the person — "Output" told an admin nothing. */
 
@@ -111,6 +103,7 @@ export function UserDetailPanel({
   /* Null while the token is being generated, so the dialog can open at once
    * rather than after a round trip. */
   const [resetToken, setResetToken] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,7 +111,21 @@ export function UserDetailPanel({
    * panel returns null before it renders anything. */
   const profiles = useUserProfiles(user?.id);
 
-  const { entries: audit } = useAuditLog("user", user?.id, open);
+  /* Only once the tab is opened: a year of daily counts for somebody whose
+   * profile is all an admin wanted is a request nobody asked for. */
+  const activity = useUserActivity(user?.id, open && tab === "activity");
+
+  /* Sign-ins live in the audit log, behind a filter rather than a tab of
+   * their own. They are high volume — somebody signing in every morning is
+   * 250 rows a year against a handful of verdicts — so "Everything" asks for
+   * `include` and the API's own default would have left them out. */
+  const [auditView, setAuditView] = useState<AuditSignIns>("include");
+  const { entries: audit, isLoading: auditLoading } = useAuditLog(
+    "user",
+    user?.id,
+    open && tab === "audit",
+    auditView
+  );
   /* The figures this person sees on their own dashboard. An admin reading a
    * contributor should be looking at the same numbers the contributor is. */
 
@@ -245,11 +252,22 @@ export function UserDetailPanel({
                   label="Reset password"
                   onClick={() => {
                     setResetToken(null);
+                    setResetError(null);
                     setResetOpen(true);
-                    /* Stands in for `POST /users/{id}/password-reset`, which
-                     * returns a single-use token rather than mailing anything.
-                     * Nothing is sent, so nothing may claim it was. */
-                    setResetToken(mockResetToken(user.id));
+                    /* The real token. This dialog used to show a made-up
+                     * string shaped like one, which an admin would hand over
+                     * in good faith and which could never redeem.
+                     *
+                     * It matters more than it did: with the mail provider
+                     * refusing every reset email, this is the only way back
+                     * into an account. */
+                    issuePasswordReset(user.id)
+                      .then((issued) => setResetToken(issued.token))
+                      .catch((cause: unknown) =>
+                        setResetError(
+                          reportApiError(cause, "Could not issue a reset token.")
+                        )
+                      );
                   }}
                 />
               ) : null}
@@ -419,33 +437,53 @@ export function UserDetailPanel({
           </>
         ) : null}
 
-        {tab === "activity" ? (
-          /**
-           * Nothing to show, and that is the honest answer.
-           *
-           * This tab used to carry a 53-week contribution heatmap, a total, a
-           * best streak and an approval pie. All of it was generated from a
-           * seeded random keyed on the user id, which is why it read "0
-           * recordings" and "5.7 hours contributed" on the same screen.
-           *
-           * The API gives an admin nothing per person beyond their account.
-           * Asked for in `docs/backend/endpoints-needed.md`; until it lands
-           * this says so rather than filling the space.
-           */
-          <AlvaEmptyState
-            className="mt-2"
-            icon={<GraphUp size={20} weight="Outline" />}
-            title="No activity to show yet"
-            description="Per-person figures are not available from the API yet. What this account has done is on the History tab."
-          />
-        ) : null}
+        {tab === "activity" ? <UserActivitySection activity={activity} /> : null}
 
         {tab === "audit" ? (
-          <AuditTimeline
-            entries={audit}
-            emptyMessage="Nothing has happened to this account yet."
-          />
+          <>
+            <Tabs
+              value={auditView}
+              onValueChange={(value) => setAuditView(value as AuditSignIns)}
+            >
+              <TabsList className="h-9 rounded-full bg-alva-surface p-1">
+                <TabsTrigger
+                  value="include"
+                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+                >
+                  Everything
+                </TabsTrigger>
+                <TabsTrigger
+                  value="only"
+                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+                >
+                  Sign-ins
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <div className="mt-5">
+              <AuditTimeline
+                entries={audit}
+                emptyMessage={
+                  auditLoading
+                    ? "Loading."
+                    : auditView === "only"
+                      ? "No sign-ins on record."
+                      : "Nothing has happened to this account yet."
+                }
+              />
+            </div>
+
+            {/* Said once, at the bottom. A gap in this list means "nobody
+                signed in" inside 90 days and "we no longer know" before it,
+                and nothing else in the log expires. */}
+            <p className="mt-6 border-t border-alva-border pt-4 text-xs leading-relaxed text-muted-foreground">
+              Sign-ins, sign-outs and refused attempts are kept for 90 days.
+              The device is read from the browser; no IP address is recorded.
+            </p>
+          </>
         ) : null}
+
       </DetailPanel>
 
       <DeleteUserDialog
@@ -464,6 +502,7 @@ export function UserDetailPanel({
         onOpenChange={setResetOpen}
         fullName={user.fullName}
         token={resetToken}
+        error={resetError}
       />
 
       <ConfirmDialog

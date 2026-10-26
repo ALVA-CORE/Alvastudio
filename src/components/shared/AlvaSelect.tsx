@@ -37,6 +37,20 @@ type AlvaSelectProps = {
   className?: string;
 };
 
+/**
+ * The lifted label rides the field's top border, with nothing behind it.
+ *
+ * It used to carry a `bg-alva-surface` patch to hide the border line running
+ * through the text. The patch was the problem: one surface sitting on
+ * another, and a visible rectangle wherever the two did not match exactly.
+ * Without it the text simply crosses the edge, which is the look this was
+ * imitating in the first place.
+ *
+ * The field also no longer repads itself when the label lifts. The extra top
+ * padding existed to drop the value clear of the label, and it nudged the
+ * content down the moment somebody chose something. It was never needed: the label's
+ * baseline sits above the field's text box at every size here.
+ */
 export function AlvaSelect({
   "aria-label": ariaLabel,
   value,
@@ -62,13 +76,7 @@ export function AlvaSelect({
       <FieldBeam active={open || undefined} className={label ? undefined : className}>
         <SelectTrigger
           aria-label={ariaLabel ?? label}
-          className={cn(
-            alvaSelectClass(hasError, size),
-            "w-full",
-            /* Room for the label on the top edge, and the value sits low so
-               the two do not collide. */
-            label && lifted && "pb-1.5 pt-5 [&>span]:leading-none"
-          )}
+          className={cn(alvaSelectClass(hasError, size), "w-full")}
         >
           <SelectValue placeholder={label ? "" : placeholder} />
         </SelectTrigger>
@@ -91,7 +99,7 @@ export function AlvaSelect({
         className={cn(
           "pointer-events-none absolute z-20 max-w-[calc(100%-3.5rem)] truncate transition-all duration-200 ease-out",
           lifted
-            ? "left-4 top-2 -translate-y-1/2 bg-alva-surface px-1.5 text-[11px] font-medium leading-none text-alva-accent"
+            ? "left-4 top-2 -translate-y-1/2 text-[11px] font-medium leading-none text-alva-accent"
             : cn(
                 "left-4 -translate-y-1/2 text-sm text-muted-foreground",
                 size === "lg"

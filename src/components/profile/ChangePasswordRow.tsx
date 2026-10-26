@@ -67,7 +67,6 @@ export function ChangePasswordRow({ hideDivider }: { hideDivider?: boolean }) {
       icon={<LockPassword size={20} weight="Outline" />}
       title="Change password"
       sheetTitle="Change password"
-      sheetDescription="You will stay signed in here. Other devices are signed out."
       hideDivider={hideDivider}
     >
       <div className="space-y-2.5">

@@ -1,14 +1,15 @@
 import Logout from "@solar-icons/react/arrows-action/Logout";
-import Bell from "@solar-icons/react/notifications/Bell";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
-import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import Translation2 from "@solar-icons/react/it/Translation2";
 import UserId from "@solar-icons/react/users/UserId";
 import { useNavigate } from "react-router-dom";
 import { PrivacyRows } from "@/components/annotators/profile/PrivacyRows";
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
+import { AppVersionFooter } from "@/components/profile/AppVersionFooter";
 import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
+import { FeedbackRow } from "@/components/profile/FeedbackRow";
+import { PrivacyAlertsRow } from "@/components/profile/PrivacyAlertsRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -59,7 +60,6 @@ export default function AnnotatorProfilePage() {
             icon={<UserId size={20} weight="Outline" />}
             title="Account details"
             sheetTitle="Account details"
-            sheetDescription="Your annotator account on Alvastudio."
           >
             <dl>
               <ProfileInfoBlock label="Full name" value={user?.fullName ?? "Not set"} />
@@ -73,7 +73,6 @@ export default function AnnotatorProfilePage() {
             icon={<Translation2 size={20} weight="Outline" />}
             title="Language clearance"
             sheetTitle="Language clearance"
-            sheetDescription="The varieties you are cleared to tag."
           >
             {/* Both rows come from `/onboarding/annotator-profile`. They used
                 to be fixed strings that happened to match the common case. */}
@@ -97,7 +96,6 @@ export default function AnnotatorProfilePage() {
             icon={<Clipboard size={20} weight="Outline" />}
             title="Annotation scope"
             sheetTitle="Annotation scope"
-            sheetDescription="What lands in your queue and how it is graded."
           >
             <dl>
               <ProfileInfoBlock label="Queue" value="Focus group sessions" />
@@ -106,17 +104,16 @@ export default function AnnotatorProfilePage() {
                 label="Agreement target"
                 value={agreementLabel(profile?.agreementTarget)}
               />
-              <ProfileInfoBlock label="Second-pass review" value="Every 5th session" />
             </dl>
           </ProfileActionRow>
 
-          <ProfileActionRow
-            icon={<ShieldCheck size={20} weight="Outline" />}
-            title="Handling & privacy"
-            sheetTitle="Handling & privacy"
-            sheetDescription="How participant audio may be handled during annotation, and what is recorded about your own work."
+          <PrivacyAlertsRow
+            alerts={[
+              "A session assigned to you, and work waiting in your queue",
+              "An annotation of yours approved, sent back or rejected",
+            ]}
           >
-            <dl>
+            <dl className="mt-4">
               <PrivacyRows />
             </dl>
 
@@ -126,25 +123,9 @@ export default function AnnotatorProfilePage() {
               Audio cannot be exported from the workspace, and participant
               names are masked everywhere a session is annotated.
             </p>
-          </ProfileActionRow>
+          </PrivacyAlertsRow>
 
-          <ProfileActionRow
-            icon={<Bell size={20} weight="Outline" />}
-            title="Notifications"
-            sheetTitle="Notifications"
-            sheetDescription="Alerts for queue depth and agreement drift."
-          >
-            <dl>
-              <ProfileInfoBlock
-                label="Queue alerts"
-                value={profile?.queueAlerts === false ? "Off" : "On"}
-              />
-              <ProfileInfoBlock
-                label="Agreement alerts"
-                value={profile?.agreementAlerts === false ? "Off" : "On"}
-              />
-            </dl>
-          </ProfileActionRow>
+          <FeedbackRow />
 
           <ChangePasswordRow hideDivider />
 
@@ -161,6 +142,8 @@ export default function AnnotatorProfilePage() {
               </span>
             </TextureButton>
           </div>
+
+          <AppVersionFooter />
         </section>
       </DesktopPageShell>
     </div>

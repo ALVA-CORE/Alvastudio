@@ -14,11 +14,25 @@ import { cn } from "@/lib/utils";
 const INPUT_RADIUS = 12;
 
 export type BeamInputProps = Omit<ComponentProps<"input">, "placeholder"> & {
-  /** Floating hint — animates to the top border on focus */
+  /** Floating hint. Animates from inside the field to just above it. */
   label: string;
   showPasswordToggle?: boolean;
 };
 
+/**
+ * The lifted label rides the field's top border, with nothing behind it.
+ *
+ * It used to carry a `bg-alva-surface` patch to hide the border line running
+ * through the text. The patch was the problem: one surface sitting on
+ * another, and a visible rectangle wherever the two did not match exactly.
+ * Without it the text simply crosses the edge, which is the look this was
+ * imitating in the first place.
+ *
+ * The field also no longer repads itself when the label lifts. The extra top
+ * padding existed to drop the value clear of the label, and it nudged the
+ * content down the moment somebody started typing. It was never needed: the label's
+ * baseline sits above the field's text box at every size here.
+ */
 export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
   (
     {
@@ -63,7 +77,7 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
           className={cn(
             "pointer-events-none absolute z-20 max-w-[calc(100%-3.5rem)] truncate transition-all duration-200 ease-out",
             active
-              ? "left-4 top-2 -translate-y-1/2 bg-alva-surface px-1.5 text-[11px] font-medium leading-none text-alva-accent"
+              ? "left-4 top-2 -translate-y-1/2 text-[11px] font-medium leading-none text-alva-accent"
               : "left-5 top-[calc(0.5rem+24px)] -translate-y-1/2 text-sm text-muted-foreground"
           )}
         >
@@ -84,9 +98,9 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
             <input
               ref={ref}
               /* The visible label is a positioned span, not a `<label for>`,
-                 because it animates across the field's border. So the input
-                 carries the name itself: without this every field on every
-                 auth form is unlabelled to a screen reader. */
+                 because it animates from inside the field to above it. So the
+                 input carries the name itself: without this every field on
+                 every auth form is unlabelled to a screen reader. */
               aria-label={props["aria-label"] ?? label}
               type={inputType}
               value={value}
@@ -98,7 +112,7 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
                 // focus affordance, and a second ring inside it reads as a double border.
                 "focus-visible:outline-none",
                 "disabled:cursor-not-allowed disabled:opacity-50",
-                active ? "px-5 pb-2.5 pt-5" : "px-5",
+                "px-5",
                 showPasswordToggle && "pr-12",
                 className
               )}

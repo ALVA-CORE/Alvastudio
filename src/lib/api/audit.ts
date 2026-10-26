@@ -50,9 +50,24 @@ export type ApiAuditEvent = {
  * annotation went to is recorded on the annotation. Each row says which it is
  * about.
  */
+/**
+ * Whether sign-ins come back with everything else.
+ *
+ * They are high volume — one person signing in every morning is 250 rows a
+ * year against a handful of verdicts — so the API leaves them out by default
+ * and a screen that wants them asks. `only` is how the Sign-ins tab gets a
+ * session history without the rest of the account's life in the way.
+ *
+ * `user.sessions_ended` is NOT one of these. It stays in the default history,
+ * directly above the password change or role change that caused it, because
+ * it is the consequence of an admin action rather than a session event.
+ */
+export type AuditSignIns = "exclude" | "include" | "only";
+
 export const auditLog = (params: {
   subject_type?: AuditSubject;
   subject_id?: string;
+  sign_ins?: AuditSignIns;
   limit?: number;
   offset?: number;
 }) =>

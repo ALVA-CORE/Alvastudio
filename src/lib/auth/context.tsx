@@ -277,8 +277,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    // The API issues a stateless bearer token with no revoke endpoint, so
-    // signing out is purely local: drop the token and the cached user.
+    /* Told, not asked. `POST /auth/logout` records the sign-out so it shows
+     * on the account's history, but it does not kill the token: tokens are
+     * signed and stateless with no revocation list, so what actually ends
+     * this session is dropping it below. Sent without awaiting for that
+     * reason — a sign-out must not fail because the network did.
+     *
+     * The token is read when the request is built, which happens before
+     * `clearSession` runs on the next line. */
+    void authApi.logout().catch(() => {});
+
     authApi.clearSession();
     setUser(null);
     persistUser(null);
