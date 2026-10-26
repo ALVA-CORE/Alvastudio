@@ -2,13 +2,14 @@ import { motion } from "framer-motion";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import type { ComponentType } from "react";
 import Play from "@solar-icons/react/video/Play";
-import Stop from "@solar-icons/react/video/Stop";
+import Pause from "@solar-icons/react/video/Pause";
+import Record from "@solar-icons/react/video/Record";
 import { cn } from "@/lib/utils";
 import type { RecorderPhase } from "@/hooks/useStudioRecorder";
 
 type SiriBlobProps = {
   phase?: RecorderPhase;
-  size?: "nav" | "lg";
+  size?: "nav" | "md" | "lg";
   /**
    * Replaces the microphone at rest.
    *
@@ -27,6 +28,20 @@ const SIZE = {
     blurA: "size-9",
     blurB: "size-8",
     icon: 20,
+    inset: "inset-[3px]",
+  },
+  /**
+   * The record button, reduced.
+   *
+   * It was `size-24` and alone in the middle of the screen. The row now
+   * carries a live waveform and a stop button beside it, so the button is
+   * one control among three rather than the whole composition.
+   */
+  md: {
+    outer: "size-16",
+    blurA: "size-11",
+    blurB: "size-10",
+    icon: 22,
     inset: "inset-[3px]",
   },
   lg: {
@@ -107,7 +122,11 @@ export function SiriBlob({
 
       <div className="relative z-[1] text-alva-bg">
         {phase === "idle" && <IdleIcon size={s.icon} weight="BoldDuotone" />}
-        {phase === "recording" && <Stop size={s.icon - 2} weight="Bold" />}
+        {/* Pause, not stop. Stop is its own button in the row beside this
+            one now, and two ways to end a take sitting next to each other is
+            one too many. */}
+        {phase === "recording" && <Pause size={s.icon - 2} weight="Bold" />}
+        {phase === "paused" && <Record size={s.icon - 2} weight="Bold" />}
         {(phase === "recorded" || phase === "playing") && (
           <Play size={s.icon - 2} weight="Bold" />
         )}
