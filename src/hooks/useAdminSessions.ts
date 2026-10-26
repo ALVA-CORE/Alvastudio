@@ -1,6 +1,7 @@
+import { fetchAllPages, fetchAllRows } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import { listSessions, type ApiSessionSummary } from "@/lib/api/focusGroups";
-import { listUsers } from "@/lib/api/users";
+import { listUsers, type ApiUser } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { useDevUiState } from "@/hooks/use-dev-ui-state";
 import { ADMIN_SESSIONS } from "@/data/admin/oversight";
@@ -40,8 +41,10 @@ export function useAdminSessions() {
     setLoading(true);
 
     Promise.all([
-      listSessions({ limit: 200, expand: "participants" }),
-      listUsers({ role: "intern", limit: 200 }),
+      fetchAllRows<ApiSessionSummary>((query) =>
+        listSessions({ ...query, expand: "participants" })
+      ),
+      fetchAllPages<ApiUser>((query) => listUsers({ ...query, role: "intern" })),
     ])
       .then(([sessions, interns]) => {
         if (cancelled) return;

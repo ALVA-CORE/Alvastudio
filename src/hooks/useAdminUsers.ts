@@ -1,3 +1,4 @@
+import { fetchAllPages } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import {
   approveUser,
@@ -84,7 +85,7 @@ export function useAdminUsers() {
 
     setLoading(true);
 
-    listUsers({ limit: 200 })
+    fetchAllPages<ApiUser>((query) => listUsers(query))
       .then((page) => {
         if (cancelled) return;
         setUsers(page.items.map(fromApiUser));

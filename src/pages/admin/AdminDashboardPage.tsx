@@ -19,6 +19,12 @@ import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
 import { FeedbackTable } from "@/components/admin/feedback/FeedbackTable";
 import { useFeedback } from "@/hooks/useFeedback";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
+import {
+  APPROVAL_EMPTY,
+  APPROVAL_SUBTITLE,
+  approvalRate as approvalRate_,
+  decisionsFromStatus,
+} from "@/data/admin/approval";
 import { EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
@@ -130,7 +136,14 @@ export default function AdminDashboardPage() {
     ].filter((item) => item.count > 0);
   }, [forceEmpty, overview.data, duplicates, recovery.rows]);
 
-  const approvalRate =
+  /* Clips, decided ones only, from the API's own status tally — the same
+     measure the review page shows, through the same function. The two used
+     to compute their own and disagree: 0% here against 100% there. */
+  const decisions = decisionsFromStatus(overview.data?.recording_status);
+  const approvalRate = approvalRate_(decisions);
+
+  /** What the Approved card shows: how much of everything collected is kept. */
+  const approvedShareOfCorpus =
     corpus.totalHours > 0
       ? Math.round((corpus.approvedHours / corpus.totalHours) * 100)
       : 0;
@@ -174,7 +187,7 @@ export default function AdminDashboardPage() {
           title="Approved"
           value={formatHours(corpus.approvedHours)}
           trend={{
-            label: corpus.totalHours ? `${approvalRate}% of corpus` : "",
+            label: corpus.totalHours ? `${approvedShareOfCorpus}% of corpus` : "",
             positive: false,
             neutral: true,
           }}
@@ -288,15 +301,11 @@ export default function AdminDashboardPage() {
       <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
           title="Approval rate"
-          subtitle="Share of decided hours kept"
+          subtitle={APPROVAL_SUBTITLE}
           className="min-h-[14rem]"
-          emptyMessage={
-            corpus.totalHours === 0
-              ? { title: "Nothing decided", description: "No verdicts yet." }
-              : undefined
-          }
+          emptyMessage={approvalRate === null ? APPROVAL_EMPTY : undefined}
         >
-          <ApprovalGauge value={approvalRate} label="approved" />
+          <ApprovalGauge value={approvalRate ?? 0} label="approved" />
         </AlvaChartCard>
         <AlvaChartCard
           title="By variety"

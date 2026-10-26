@@ -68,7 +68,10 @@ export default function AdminCorpusPage() {
       undisclosed: round1(bracket.hours * Math.max(0, 1 - male - female)),
     }));
   }, [corpus.byAge, corpus.byGender]);
-  const approvalRate =
+  /* Of everything collected, not of what has been decided. Said plainly on
+     the label, because "x% approved" beside an approval gauge reading
+     something else is how the two screens came to disagree. */
+  const approvedShareOfCorpus =
     corpus.totalHours > 0
       ? Math.round((corpus.approvedHours / corpus.totalHours) * 100)
       : 0;
@@ -136,7 +139,7 @@ export default function AdminCorpusPage() {
           title="Approved hours"
           value={formatHours(corpus.approvedHours)}
           trend={{
-            label: corpus.totalHours ? `${approvalRate}% approved` : "",
+            label: corpus.totalHours ? `${approvedShareOfCorpus}% of corpus` : "",
             positive: false,
             neutral: true,
           }}

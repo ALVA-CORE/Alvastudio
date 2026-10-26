@@ -3,6 +3,7 @@ import UsersGroupTwoRounded from "@solar-icons/react/users/UsersGroupTwoRounded"
 import Letter from "@solar-icons/react/messages/Letter";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
+import { SessionSpeakers } from "@/components/admin/sessions/SessionSpeakers";
 import { useAuditLog } from "@/hooks/useAuditLog";
 import {
   AuditTimeline,
@@ -30,6 +31,10 @@ const TABS = [
  * work — found people, taken consent, run the conversation — and until a file
  * is attached it produces nothing and reaches nobody. So the panel names that
  * plainly and offers the one action that fixes it: chase the intern.
+ *
+ * Who was in the room and the recording itself sit under the session detail,
+ * not behind a tab. Both were collected and neither was readable here, which
+ * left an admin judging a session on a speaker count and the word "uploaded".
  */
 export function SessionDetailPanel({
   open,
@@ -125,7 +130,6 @@ export function SessionDetailPanel({
           </DetailGroup>
 
           <DetailGroup title="Contents">
-            <DetailField label="Speakers" value={String(session.participants)} />
             <DetailField
               label="Speaker turns"
               value={session.turns > 0 ? String(session.turns) : NO_VALUE}
@@ -152,10 +156,21 @@ export function SessionDetailPanel({
               }
             />
           </DetailGroup>
+
+          {/* The recording, and who is on it. Not a tab of its own: an admin
+              opening a session is asking whether it was collected properly,
+              and that question is answered by these two things together.
+
+              The speaker count is gone from Contents above, because the list
+              below is the count and a figure beside a list that contradicts
+              it is the next bug. */}
+          <SessionSpeakers sessionId={session.id} hasAudio={session.hasAudio} />
         </>
-      ) : (
+      ) : null}
+
+      {tab === "audit" ? (
         <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
-      )}
+      ) : null}
     </DetailPanel>
   );
 }

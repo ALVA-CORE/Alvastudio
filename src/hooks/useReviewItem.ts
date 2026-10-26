@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRecording, recordingAudioUrl } from "@/lib/api/recordings";
-import { submitReview } from "@/lib/api/reviews";
+import { reviewsForRecording, submitReview } from "@/lib/api/reviews";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { toQueueItem } from "@/hooks/useReviewQueue";
 import type { QualityAnswers, ReviewQueueItem, ReviewVerdict } from "@/data/reviewQueue";
@@ -49,6 +49,21 @@ export function useReviewItem(id: string | undefined) {
 
         const row = toQueueItem(recording);
 
+        /* The verdict already on file, if there is one.
+         *
+         * Without this a completed review opened on another device, or after
+         * a cleared browser, showed an empty rubric: the answers only lived
+         * in a local draft. `GET /reviews/recording/{id}` has been in the API
+         * the whole time and nothing was calling it.
+         *
+         * Newest last, so the most recent verdict wins if a clip was ever
+         * reviewed more than once. */
+        const verdicts =
+          row.status === "completed"
+            ? await reviewsForRecording(id).catch(() => [])
+            : [];
+        const latest = verdicts.at(-1);
+
         /* A clip whose audio failed to fetch is still worth showing — the
          * metadata and rubric are useful, and the player reports the gap. */
         const audio = await recordingAudioUrl(id).catch(() => null);
@@ -60,7 +75,25 @@ export function useReviewItem(id: string | undefined) {
         revoke();
         blobUrlRef.current = audio;
 
-        setItem({ ...row, audioSrc: audio ?? "" });
+        setItem({
+          ...row,
+          audioSrc: audio ?? "",
+          draft: latest
+            ? {
+                answers: {
+                  noiseFree: latest.q_noise_free,
+                  audible: latest.q_clear_audible,
+                  matchesPrompt: latest.q_matches_prompt,
+                  natural: latest.q_natural_intelligible,
+                  verdict: latest.verdict as ReviewVerdict,
+                },
+                notes: latest.notes ?? "",
+                regions: [],
+                playbackTime: 0,
+                completed: true,
+              }
+            : row.draft,
+        });
       } catch (cause) {
         if (cancelled) return;
         setError(reportApiError(cause, "Could not load this clip."));

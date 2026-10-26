@@ -1,3 +1,4 @@
+import { fetchAllRows } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import {
   createSession,
@@ -76,7 +77,9 @@ export function useInternParticipants() {
 
     (async () => {
       try {
-        const summaries = await listSessions({ limit: 100, expand: "participants" });
+        const summaries = await fetchAllRows<ApiSessionSummary>((query) =>
+          listSessions({ ...query, expand: "participants" })
+        );
         if (cancelled) return;
         setSessions(summaries);
 

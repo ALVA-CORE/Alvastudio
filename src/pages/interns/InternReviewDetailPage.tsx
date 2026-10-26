@@ -10,7 +10,7 @@ import {
 } from "@/data/reviewQueue";
 import { useReviewItem } from "@/hooks/useReviewItem";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
-import { AlvaTableSkeleton } from "@/components/shared/states/AlvaTableSkeleton";
+import { ReviewWorkspaceSkeleton } from "@/components/interns/review/ReviewWorkspaceSkeleton";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { ReviewClipNavigation } from "@/components/interns/review/ReviewClipNavigation";
 import { ReviewWorkspace } from "@/components/interns/review/ReviewWorkspace";
@@ -182,7 +182,7 @@ export default function InternReviewDetailPage() {
   if (isLoading) {
     return (
       <DesktopPageShell className="py-4">
-        <AlvaTableSkeleton />
+        <ReviewWorkspaceSkeleton />
       </DesktopPageShell>
     );
   }
@@ -215,6 +215,11 @@ export default function InternReviewDetailPage() {
     }
     navigate("/intern/review");
   };
+
+  /* A verdict is on file: from the row's own status, or from a draft that
+     carries one because this tab is the thing that submitted it. */
+  const isDecided =
+    item.status === "completed" || Boolean(item.draft?.answers.verdict);
 
   const handleSubmit = async () => {
     const verdict = calculateVerdictFromAnswers(answers);
@@ -286,6 +291,11 @@ export default function InternReviewDetailPage() {
 
         <ReviewWorkspace
           item={item}
+          /* Already decided, so the page is the record of a review rather
+             than the form for one. The API refuses a second verdict on the
+             same clip, so an editable form here could only ever end in a
+             refusal after the work of filling it in. */
+          readOnly={isDecided}
           answers={answers}
           onAnswersChange={setAnswers}
           playbackTime={playbackTime}

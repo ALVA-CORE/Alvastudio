@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
+import { fetchAllPages } from "@/lib/api/fetchAll";
 import {
   assignReviewer,
   listRecordingsPage,
   type ApiRecording,
 } from "@/lib/api/recordings";
 import { listReviews, type ApiReviewRow } from "@/lib/api/reviews";
-import { listUsers } from "@/lib/api/users";
+import type { ApiQualityAnswer } from "@/lib/api/enums";
+import { listUsers, type ApiUser } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { useDevUiState } from "@/hooks/use-dev-ui-state";
-import { ADMIN_RECORDINGS } from "@/data/admin/oversight";
+import {
+  ADMIN_RECORDINGS,
+  RUBRIC_QUESTIONS,
+  type RubricAnswer,
+  type RubricEntry,
+} from "@/data/admin/oversight";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import type {
   AdminRecording,
@@ -73,10 +80,14 @@ export function useAdminReviews() {
 
     setLoading(true);
 
+    /* Every page, not the first one. The API caps `limit` at 200, so a
+       single call was silently answering "the first 200" to a screen whose
+       headline figure, status ring and approval gauge are all counts of the
+       whole queue. See `fetchAllPages`. */
     Promise.all([
-      listRecordingsPage({ limit: 200 }),
-      listUsers({ limit: 200 }),
-      listReviews({ limit: 200 }),
+      fetchAllPages<ApiRecording>((query) => listRecordingsPage(query)),
+      fetchAllPages<ApiUser>((query) => listUsers(query)),
+      fetchAllPages<ApiReviewRow>((query) => listReviews(query)),
     ])
       .then(([recordings, users, reviewPage]) => {
         if (cancelled) return;
@@ -128,6 +139,21 @@ export function useAdminReviews() {
   };
 }
 
+/** The four answers, in the order the rubric asks them. */
+function toRubric(review: ApiReviewRow): RubricEntry[] {
+  const answers: Record<string, ApiQualityAnswer> = {
+    noiseFree: review.q_noise_free,
+    audible: review.q_clear_audible,
+    matchesPrompt: review.q_matches_prompt,
+    natural: review.q_natural_intelligible,
+  };
+
+  return RUBRIC_QUESTIONS.map((question) => ({
+    ...question,
+    answer: answers[question.id] as RubricAnswer,
+  }));
+}
+
 function toAdminRecording(
   api: ApiRecording,
   index: number,
@@ -160,6 +186,11 @@ function toAdminRecording(
     reviewedAt: api.reviewed_at ? new Date(api.reviewed_at).getTime() : 0,
     submittedLabel: relativeDays(submitted),
     rejectionReason: rejectionReason(review),
+    /* The reviewer's real answers, or nothing. Null is not "all yes": it is
+       "nobody has judged this", and the panel says so rather than printing
+       four rows under a heading that claims somebody did. */
+    rubric: review ? toRubric(review) : null,
+    reviewNotes: review?.notes ?? null,
     audioUrl: "",
   };
 }

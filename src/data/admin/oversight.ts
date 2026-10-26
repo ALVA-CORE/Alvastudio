@@ -50,6 +50,19 @@ export type AdminRecording = {
   /** Set only when rejected, and it is the thing the page exists to aggregate. */
   rejectionReason?: RejectionReason;
   /**
+   * The four answers the reviewer actually gave, from `GET /reviews`.
+   *
+   * **Null until somebody has reviewed it**, and that is the point. These
+   * used to be generated from a seeded random keyed on the recording id:
+   * approved clips got four yeses, unreviewed clips got four yeses, and a
+   * rejection got a roll of the dice. So an admin opening a clip read a named
+   * intern's judgement that the intern had never made, and an unreviewed clip
+   * showed a full set of answers under the heading "Reviewer answers".
+   */
+  rubric: RubricEntry[] | null;
+  /** What the reviewer wrote, if anything. */
+  reviewNotes?: string | null;
+  /**
    * Where the audio lives.
    *
    * One demo file stands in for every clip until `/recordings/{id}` returns a
@@ -93,6 +106,26 @@ const SAMPLE_PROMPTS = [
   "Explain how you get to work, from the moment you leave your door.",
 ];
 
+export const RUBRIC_QUESTIONS = [
+  { id: "noiseFree", label: "Free of background noise" },
+  { id: "audible", label: "Clear and audible" },
+  { id: "matchesPrompt", label: "Matches the prompt" },
+  { id: "natural", label: "Natural and intelligible" },
+] as const;
+
+export const RUBRIC_LABELS: Record<RubricAnswer, string> = {
+  yes: "Yes",
+  partial: "Partly",
+  no: "No",
+};
+
+/** The rubric a reviewer filled in, derived from the verdict so the two agree. */
+export type RubricEntry = {
+  id: (typeof RUBRIC_QUESTIONS)[number]["id"];
+  label: string;
+  answer: RubricAnswer;
+};
+
 function buildRecordings(count: number): AdminRecording[] {
   const random = seeded(31337);
 
@@ -121,6 +154,19 @@ function buildRecordings(count: number): AdminRecording[] {
         status === "rejected" || status === "flagged"
           ? pick(random, REJECTION_REASONS)
           : undefined,
+      /* Demo mode only, and only where a verdict exists. An undecided clip
+         has nobody's answers on it here either. */
+      rubric:
+        status === "submitted" || status === "in_review"
+          ? null
+          : RUBRIC_QUESTIONS.map((question) => ({
+              ...question,
+              answer:
+                status === "approved"
+                  ? ("yes" as const)
+                  : pick(random, ["yes", "partial", "no"] as const),
+            })),
+      reviewNotes: null,
     };
   }).sort((a, b) => b.submittedAt - a.submittedAt);
 }
@@ -311,47 +357,6 @@ import { NO_VALUE } from "@/lib/no-value";
 
 export type RubricAnswer = "yes" | "partial" | "no";
 
-export const RUBRIC_QUESTIONS = [
-  { id: "noiseFree", label: "Free of background noise" },
-  { id: "audible", label: "Clear and audible" },
-  { id: "matchesPrompt", label: "Matches the prompt" },
-  { id: "natural", label: "Natural and intelligible" },
-] as const;
-
-export const RUBRIC_LABELS: Record<RubricAnswer, string> = {
-  yes: "Yes",
-  partial: "Partly",
-  no: "No",
-};
-
-/** The rubric a reviewer filled in, derived from the verdict so the two agree. */
-export function recordingRubric(
-  recording: AdminRecording
-): Array<{ id: string; label: string; answer: RubricAnswer }> {
-  const random = seeded(
-    [...recording.id].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 1e5, 7)
-  );
-
-  return RUBRIC_QUESTIONS.map((question) => {
-    if (recording.status === "approved") return { ...question, answer: "yes" as const };
-    if (recording.status === "submitted" || recording.status === "in_review") {
-      return { ...question, answer: "yes" as const };
-    }
-    // A rejection needs at least one "no"; a flag is softer.
-    const roll = random();
-    const answer: RubricAnswer =
-      recording.status === "rejected"
-        ? roll > 0.6
-          ? "no"
-          : roll > 0.3
-            ? "partial"
-            : "yes"
-        : roll > 0.55
-          ? "partial"
-          : "yes";
-    return { ...question, answer };
-  });
-}
 
 /* ------------------------------------------------------------------ *
  * Shapes for the oversight charts
