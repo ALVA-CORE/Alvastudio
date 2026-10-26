@@ -1,9 +1,9 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import type { ComponentType } from "react";
 import Play from "@solar-icons/react/video/Play";
 import Pause from "@solar-icons/react/video/Pause";
-import Record from "@solar-icons/react/video/Record";
+import Stop from "@solar-icons/react/video/Stop";
 import { cn } from "@/lib/utils";
 import type { RecorderPhase } from "@/hooks/useStudioRecorder";
 
@@ -53,6 +53,15 @@ const SIZE = {
   },
 } as const;
 
+/** Which of the four the phase shows. Two phases share `play` on purpose. */
+const GLYPH: Record<RecorderPhase, "idle" | "stop" | "play" | "pause"> = {
+  idle: "idle",
+  recording: "stop",
+  paused: "play",
+  recorded: "play",
+  playing: "pause",
+};
+
 export function SiriBlob({
   phase = "idle",
   size = "lg",
@@ -61,6 +70,7 @@ export function SiriBlob({
 }: SiriBlobProps) {
   const isRecording = phase === "recording";
   const s = SIZE[size];
+  const glyph = GLYPH[phase];
 
   return (
     <div
@@ -120,16 +130,35 @@ export function SiriBlob({
         )}
       />
 
-      <div className="relative z-[1] text-alva-bg">
-        {phase === "idle" && <IdleIcon size={s.icon} weight="BoldDuotone" />}
-        {/* Pause, not stop. Stop is its own button in the row beside this
-            one now, and two ways to end a take sitting next to each other is
-            one too many. */}
-        {phase === "recording" && <Pause size={s.icon - 2} weight="Bold" />}
-        {phase === "paused" && <Record size={s.icon - 2} weight="Bold" />}
-        {(phase === "recorded" || phase === "playing") && (
-          <Play size={s.icon - 2} weight="Bold" />
-        )}
+      {/* Four glyphs across five phases, and no more: a mic to begin, stop
+          to end a take, play to start or resume, pause to hold playback. A
+          paused take shows play, because what the press does is carry on.
+
+          They cross-fade rather than cut. The button does not move between
+          phases, so a hard swap is the only thing that changes and it reads
+          as a flicker; keyed on the glyph rather than the phase, so paused
+          and recorded both showing play is one icon that stays put. */}
+      <div className="relative z-[1] grid place-items-center text-alva-bg">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={glyph}
+            className="col-start-1 row-start-1 flex items-center justify-center"
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+            transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+          >
+            {glyph === "idle" ? (
+              <IdleIcon size={s.icon} weight="BoldDuotone" />
+            ) : glyph === "stop" ? (
+              <Stop size={s.icon - 2} weight="Bold" />
+            ) : glyph === "play" ? (
+              <Play size={s.icon - 2} weight="Bold" />
+            ) : (
+              <Pause size={s.icon - 2} weight="Bold" />
+            )}
+          </motion.span>
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import Diskette from "@solar-icons/react/devices/Diskette";
 import Restart from "@solar-icons/react/arrows/Restart";
 import { DeleteButton } from "@/components/ui/delete-button";
@@ -31,7 +32,16 @@ export function StudioTakeActions({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center justify-center gap-3", className)}>
+    /* Rises into place rather than appearing. It arrives the instant a take
+       is finished, directly under a control that has just changed glyph, and
+       two things snapping at once reads as the page jumping. */
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.26, ease: [0.32, 0.72, 0, 1] }}
+      className={cn("flex items-center justify-center gap-3", className)}
+    >
       <div className="flex h-11 items-stretch overflow-hidden rounded-full bg-alva-surface">
         <button
           type="button"
@@ -59,6 +69,6 @@ export function StudioTakeActions({
       </div>
 
       <DeleteButton onConfirm={onDelete ?? onRetake} />
-    </div>
+    </motion.div>
   );
 }

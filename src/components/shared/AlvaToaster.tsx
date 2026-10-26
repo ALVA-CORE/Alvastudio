@@ -111,19 +111,20 @@ function ToastPill({
         dragElastic={0.75}
         onDragEnd={handleDragEnd}
         whileDrag={{ scale: 0.98, cursor: "grabbing" }}
-        /* A pill while the message fits on one line, a rounded slab when it
-           does not. The radius is half the one-line height, so a short toast
-           is still a pill and a long one grows into a shape that holds two
-           lines rather than cutting a sentence off mid-word. Two is the
-           ceiling: past that it is a page, not a toast. */
-        className="pointer-events-auto inline-flex max-w-[min(100%,24rem)] cursor-grab touch-none items-start gap-2.5 rounded-[18px] bg-alva-card px-4 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.35)] active:cursor-grabbing"
+        /* Fully round, at one line or two. A fixed radius was close enough
+           to a pill on a short message and visibly a rounded rectangle on a
+           long one, so the shape changed with the sentence. Two lines is the
+           ceiling: past that it is a page, not a toast.
+
+           `items-center` rather than `items-start`: with one line of text
+           next to a 24px icon, aligning both to the top leaves the text
+           sitting high against the circle. */
+        className="pointer-events-auto inline-flex max-w-[min(100%,24rem)] cursor-grab touch-none items-center gap-2.5 rounded-full bg-alva-card px-4 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.35)] active:cursor-grabbing"
       >
         {(item.icon || DefaultIcon) && (
           <span
             className={cn(
-              /* `mt-px` sits it on the first line's optical centre once the
-                 text is smaller than the icon. */
-              "mt-px flex size-6 shrink-0 items-center justify-center rounded-full",
+                "flex size-6 shrink-0 items-center justify-center rounded-full",
               item.variant === "accent" && "bg-alva-accent text-alva-bg",
               item.variant === "success" && "bg-alva-accent/15 text-alva-accent",
               item.variant === "error" && "bg-destructive/15 text-destructive",
