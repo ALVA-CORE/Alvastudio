@@ -11,14 +11,13 @@ import {
   ContributorProfileSection,
   IdentitySection,
 } from "@/components/admin/users/ContributorProfileSection";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { AuditSignIns } from "@/lib/api/audit";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useUserActivity } from "@/hooks/useUserActivity";
 import { useAuditLog } from "@/hooks/useAuditLog";
 import { UserActivitySection } from "@/components/admin/users/UserActivitySection";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DeleteButton } from "@/components/ui/delete-button";
+import { TextureButton } from "@/components/ui/texture-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
 import { issuePasswordReset } from "@/lib/api/users";
@@ -105,7 +104,6 @@ export function UserDetailPanel({
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   /* Above the `!user` guard below: hooks cannot be conditional, and this
    * panel returns null before it renders anything. */
@@ -115,17 +113,22 @@ export function UserDetailPanel({
    * profile is all an admin wanted is a request nobody asked for. */
   const activity = useUserActivity(user?.id, open && tab === "activity");
 
-  /* Sign-ins live in the audit log, behind a filter rather than a tab of
-   * their own. They are high volume — somebody signing in every morning is
-   * 250 rows a year against a handful of verdicts — so "Everything" asks for
-   * `include` and the API's own default would have left them out. */
-  const [auditView, setAuditView] = useState<AuditSignIns>("include");
-  const { entries: audit, isLoading: auditLoading } = useAuditLog(
-    "user",
-    user?.id,
-    open && tab === "audit",
-    auditView
-  );
+  /* One list, sign-ins included. The API leaves them out by default and we
+   * ask for them back: "signed in on a new device" followed by "password
+   * changed" is a story only one timeline can tell, and splitting it across a
+   * filter makes an admin join two lists by timestamp in their head.
+   *
+   * It pages, which is what makes that safe. Several hundred sign-ins a year
+   * against a few dozen real events would otherwise push a password change
+   * off the end of a fixed fetch, with nothing on screen saying so. */
+  const {
+    entries: audit,
+    total: auditTotal,
+    isLoading: auditLoading,
+    isLoadingMore: loadingMoreAudit,
+    hasMore: hasMoreAudit,
+    loadMore: loadMoreAudit,
+  } = useAuditLog("user", user?.id, open && tab === "audit", "include");
   /* The figures this person sees on their own dashboard. An admin reading a
    * contributor should be looking at the same numbers the contributor is. */
 
@@ -137,7 +140,6 @@ export function UserDetailPanel({
   useEffect(() => {
     setEditing(false);
     setDraft(null);
-    setError(null);
   }, [user?.id]);
 
   if (!user) return null;
@@ -152,19 +154,23 @@ export function UserDetailPanel({
 
   const patch = (next: Partial<UserDraft>) => {
     setDraft({ ...value, ...next });
-    setError(null);
   };
 
   const cancelEdit = () => {
     setEditing(false);
     setDraft(null);
-    setError(null);
   };
 
+  /* Toasts, not a line under the fields. The panel scrolls, and the Save
+     button lives in a footer pinned below the scroll area: an error rendered
+     beside the inputs can be off screen at the moment somebody presses the
+     thing that caused it. */
   const commitEdit = () => {
-    if (!value.fullName.trim()) return setError("A name is required.");
+    if (!value.fullName.trim()) {
+      return alvaToast.error("A name is required.");
+    }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.email)) {
-      return setError("That does not look like an email address.");
+      return alvaToast.error("That does not look like an email address.");
     }
     onSave(user, {
       ...value,
@@ -384,12 +390,6 @@ export function UserDetailPanel({
               </>
             ) : null}
 
-            {error ? (
-              <p role="alert" className="mt-3 text-xs text-destructive">
-                {error}
-              </p>
-            ) : null}
-
             {value.role === "admin" ? (
               <DetailGroup title="Page access">
                 <div className="col-span-2 min-w-0">
@@ -441,38 +441,33 @@ export function UserDetailPanel({
 
         {tab === "audit" ? (
           <>
-            <Tabs
-              value={auditView}
-              onValueChange={(value) => setAuditView(value as AuditSignIns)}
-            >
-              <TabsList className="h-9 rounded-full bg-alva-surface p-1">
-                <TabsTrigger
-                  value="include"
-                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-                >
-                  Everything
-                </TabsTrigger>
-                <TabsTrigger
-                  value="only"
-                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-                >
-                  Sign-ins
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <AuditTimeline
+              entries={audit}
+              emptyMessage={
+                auditLoading ? "Loading." : "Nothing has happened to this account yet."
+              }
+            />
 
-            <div className="mt-5">
-              <AuditTimeline
-                entries={audit}
-                emptyMessage={
-                  auditLoading
-                    ? "Loading."
-                    : auditView === "only"
-                      ? "No sign-ins on record."
-                      : "Nothing has happened to this account yet."
-                }
-              />
-            </div>
+            {/* How much is left, and a way to get it. The count matters as
+                much as the button: an admin who reads to the bottom of a
+                list that simply stops has no way to tell a quiet account
+                from a truncated one. */}
+            {hasMoreAudit ? (
+              <div className="mt-5 flex flex-col items-center gap-2">
+                <TextureButton
+                  variant="minimal"
+                  size="sm"
+                  className="w-auto"
+                  loading={loadingMoreAudit}
+                  onClick={() => void loadMoreAudit()}
+                >
+                  Load more
+                </TextureButton>
+                <p className="text-xs text-muted-foreground">
+                  Showing {audit.length} of {auditTotal}
+                </p>
+              </div>
+            ) : null}
 
             {/* Said once, at the bottom. A gap in this list means "nobody
                 signed in" inside 90 days and "we no longer know" before it,
