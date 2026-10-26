@@ -85,7 +85,8 @@ export function useReviewItem(id: string | undefined) {
                   audible: latest.q_clear_audible,
                   matchesPrompt: latest.q_matches_prompt,
                   natural: latest.q_natural_intelligible,
-                  verdict: latest.verdict as ReviewVerdict,
+                  /* Same three values either side, so this is a rename not a guess. */
+                  verdict: latest.verdict,
                 },
                 notes: latest.notes ?? "",
                 regions: [],

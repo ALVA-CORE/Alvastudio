@@ -70,6 +70,9 @@ vi.mock("@/lib/api/focusGroups", async () => {
   return {
     listSessions: vi.fn(async () => sessions),
     getSession: vi.fn(async () => sessions[0]),
+    /* The session panel plays the recording now. jsdom has no audio, so this
+       just has to resolve to something the player can be handed. */
+    sessionAudioUrl: vi.fn(async () => "blob:session-audio"),
     createSession: vi.fn(),
     deleteSession: vi.fn(),
     addParticipant: vi.fn(),
