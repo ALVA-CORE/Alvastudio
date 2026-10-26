@@ -65,6 +65,39 @@ export function ReviewAudioBar({
     void wavesurferRef.current?.playPause();
   };
 
+  /**
+   * Space plays and pauses the clip.
+   *
+   * Reviewing is listen, judge, listen again, and reaching for the mouse
+   * between each is most of the work. Bound on the window rather than the
+   * bar, because the hands are on the question form by then and the player
+   * does not have focus.
+   *
+   * Ignored while a field has focus, so typing a note does not start the
+   * audio, and when a modifier is held, which belongs to the browser. Space
+   * also scrolls the page by default, which is why this preventDefaults.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" && event.key !== " ") return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target?.tagName ?? "")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      void wavesurferRef.current?.playPause();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const skipBy = (seconds: number) => {
     const wavesurfer = wavesurferRef.current;
     if (!wavesurfer) return;
@@ -83,7 +116,7 @@ export function ReviewAudioBar({
   };
 
   return (
-    <section className={cn("rounded-2xl bg-alva-card p-4", className)}>
+    <section className={cn("rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
       <div className="relative overflow-visible rounded-xl p-[3px]">
         <BorderBeam
           size="md"
@@ -130,7 +163,10 @@ export function ReviewAudioBar({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      {/* The transport stays on one line on a phone: wrapped, the speed
+          control dropped under the scrubber and pushed the questions below
+          the fold. */}
+      <div className="mt-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <button
             type="button"

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Restart from "@solar-icons/react/arrows/Restart";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
@@ -19,7 +19,6 @@ import {
 import {
   RECORDING_STATUS_LABELS,
   RUBRIC_LABELS,
-  recordingRubric,
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
@@ -108,10 +107,6 @@ export function RecordingDetailPanel({
     };
   }, [open, recording]);
 
-  const rubric = useMemo(
-    () => (recording ? recordingRubric(recording) : []),
-    [recording]
-  );
   const { entries: audit } = useAuditLog("recording", recording?.id, open);
 
   if (!recording) return null;
@@ -192,10 +187,18 @@ export function RecordingDetailPanel({
               />
             </DetailGroup>
 
+            {/* Only once somebody has answered them. An unreviewed clip used
+                to show four yeses under this heading, which read as a review
+                that had happened and passed. */}
             <DetailGroup title="Reviewer answers">
               <div className="col-span-2">
+                {recording.rubric === null ? (
+                  <p className="py-2 text-xs text-muted-foreground">
+                    Nobody has reviewed this clip yet.
+                  </p>
+                ) : (
                 <dl className="space-y-0">
-                  {rubric.map((entry) => (
+                  {recording.rubric.map((entry) => (
                     <div
                       key={entry.id}
                       className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
@@ -214,6 +217,13 @@ export function RecordingDetailPanel({
                     </div>
                   ))}
                 </dl>
+                )}
+
+                {recording.reviewNotes ? (
+                  <p className="mt-3 rounded-xl bg-alva-surface p-3 text-xs leading-relaxed text-foreground">
+                    {recording.reviewNotes}
+                  </p>
+                ) : null}
               </div>
             </DetailGroup>
 

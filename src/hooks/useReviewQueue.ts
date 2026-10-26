@@ -1,7 +1,8 @@
+import { fetchAllPages, fetchAllRows } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import * as reviewsApi from "@/lib/api/reviews";
 import { listRecordings, type ApiRecording } from "@/lib/api/recordings";
-import { listUsers } from "@/lib/api/users";
+import { listUsers, type ApiUser } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 import { NO_VALUE } from "@/lib/no-value";
@@ -85,11 +86,13 @@ export function useReviewQueue() {
       /* The intern's own desk. Clips are allocated on submission now, so the
        * unassigned pool they used to read is usually empty. */
       reviewsApi.reviewQueue(100, true),
-      listRecordings({ limit: 100 }),
+      fetchAllRows<ApiRecording>((query) => listRecordings(query)),
       /* Names, not ids. `RecordingOut` carries `contributor_id` and nothing
        * else, so one list turns every row's id into somebody's name. Failing
        * here costs the names, not the queue. */
-      listUsers({ role: "contributor", limit: 200 }).catch(() => null),
+      fetchAllPages<ApiUser>((query) =>
+        listUsers({ ...query, role: "contributor" })
+      ).catch(() => null),
     ])
       .then(([queue, all, people]) => {
         if (cancelled) return;

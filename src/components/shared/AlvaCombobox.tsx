@@ -100,7 +100,7 @@ export function AlvaCombobox({
         <Command className="bg-transparent">
           <CommandInput
             placeholder={searchPlaceholder}
-            className="h-11 border-0 text-sm placeholder:text-muted-foreground focus:ring-0"
+            className="h-11 border-0 text-xs placeholder:text-xs placeholder:text-muted-foreground focus:ring-0 sm:text-sm sm:placeholder:text-sm"
           />
           <CommandList className="max-h-60">
             <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">

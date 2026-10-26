@@ -1,3 +1,4 @@
+import { fetchAllPages } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import {
   approveUser,
@@ -10,8 +11,6 @@ import {
   type ApiUser,
 } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
-import { ADMIN_USERS } from "@/data/admin/users";
 import { relativeDays } from "@/data/admin/shared";
 import type { AdminUser, AdminUserRole } from "@/data/admin/users";
 import { NO_VALUE } from "@/lib/no-value";
@@ -66,7 +65,6 @@ export function fromApiUser(api: ApiUser): AdminUser {
  * believe it.
  */
 export function useAdminUsers() {
-  const { forceDemo: demo } = useDevUiState();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,16 +73,10 @@ export function useAdminUsers() {
   useEffect(() => {
     let cancelled = false;
 
-    if (demo) {
-      setUsers(ADMIN_USERS);
-      setError(null);
-      setLoading(false);
-      return;
-    }
 
     setLoading(true);
 
-    listUsers({ limit: 200 })
+    fetchAllPages<ApiUser>((query) => listUsers(query))
       .then((page) => {
         if (cancelled) return;
         setUsers(page.items.map(fromApiUser));
@@ -100,7 +92,7 @@ export function useAdminUsers() {
     return () => {
       cancelled = true;
     };
-  }, [attempt, demo]);
+  }, [attempt]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 

@@ -70,6 +70,9 @@ vi.mock("@/lib/api/focusGroups", async () => {
   return {
     listSessions: vi.fn(async () => sessions),
     getSession: vi.fn(async () => sessions[0]),
+    /* The session panel plays the recording now. jsdom has no audio, so this
+       just has to resolve to something the player can be handed. */
+    sessionAudioUrl: vi.fn(async () => "blob:session-audio"),
     createSession: vi.fn(),
     deleteSession: vi.fn(),
     addParticipant: vi.fn(),
@@ -98,7 +101,7 @@ vi.mock("@/lib/api/adminDashboard", () => ({
  * renders its skeleton on the first frame the way a real fetch would. */
 vi.mock("@/hooks/useEarnings", async () => {
   const { useEffect, useState } = await import("react");
-  const { EARNINGS } = await import("@/data/admin/payments");
+  const { EARNINGS } = await import("@/test/adminFixtures");
   return {
     useEarnings: () => {
       const [isLoading, setLoading] = useState(true);
@@ -118,7 +121,7 @@ vi.mock("@/hooks/useEarnings", async () => {
 });
 
 vi.mock("@/hooks/useRates", async () => {
-  const { RATES } = await import("@/data/admin/payments");
+  const { RATES } = await import("@/test/adminFixtures");
   return {
     useRates: () => ({
       rates: RATES,
@@ -242,6 +245,16 @@ const PAGES = [
   ["audio", AdminAudioPage],
 ] as const;
 
+/**
+ * The audio bench loads nothing.
+ *
+ * It scores files the admin drops onto it, in the browser, so there is no
+ * request to wait for. It used to show a skeleton anyway, driven by a timer
+ * that pretended to be a fetch; that timer is gone with the rest of the mock
+ * machinery, and so is the skeleton.
+ */
+const LOADING_PAGES = PAGES.filter(([id]) => id !== "audio");
+
 function renderPage(Page: () => React.ReactElement) {
   return render(
     <MemoryRouter>
@@ -261,7 +274,7 @@ describe("admin pages", () => {
   /* The heading is outside the loading branch, so it is there immediately —
    * the body is not. A page that renders its content on the first frame has
    * lost its skeleton, and the layout will jump when real data arrives. */
-  it.each(PAGES)("%s shows a skeleton before its content", (id, Page) => {
+  it.each(LOADING_PAGES)("%s shows a skeleton before its content", (id, Page) => {
     renderPage(Page);
 
     expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();

@@ -45,9 +45,18 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ["**/data/admin/demo", "**/data/annotators/demoTranscript"],
+              /* `src/test` holds the generated rows the suite renders
+                 against. Nothing that ships may read them.
+
+                 This rule is the whole reason they live there. Admin screens
+                 used to fall back to a seeded year of users, recordings and
+                 payments whenever a request failed, and the intern charts
+                 drew a fixture on a live page. A figure nobody measured,
+                 shown to somebody who will act on it, is worse than an empty
+                 chart — so an empty chart is what they get. */
+              group: ["@/test/*", "**/test/adminFixtures", "**/test/apiUserFixtures"],
               message:
-                "Demo fixtures are for demo mode only. Gate on `forceDemo` in a hook instead of importing them into a component.",
+                "Generated fixtures are for tests. A screen with no data shows zeroes, never a sample.",
             },
           ],
         },
@@ -55,10 +64,8 @@ export default tseslint.config(
     },
   },
   {
-    /* The two places a fixture is honest: a hook that gates on `forceDemo`
-       before reaching for one, and a test. Components and pages have no
-       business importing them at all, which is what the rule above is for. */
-    files: ["src/hooks/**", "**/__tests__/**", "src/test/**"],
+    /* The one place a fixture is honest: a test. */
+    files: ["**/__tests__/**", "src/test/**", "**/*.test.ts", "**/*.test.tsx"],
     rules: { "no-restricted-imports": "off" },
   }
 );

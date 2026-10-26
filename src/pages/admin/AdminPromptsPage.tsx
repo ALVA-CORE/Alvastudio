@@ -19,8 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
 import Upload from "@solar-icons/react/arrows-action/Upload";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { BankItemSheet } from "@/components/admin/prompts/BankItemSheet";
 import { CreateBankItemDialog } from "@/components/admin/prompts/CreateBankItemDialog";
@@ -35,7 +35,6 @@ import {
   bankCategory,
 } from "@/data/admin/prompts";
 import { alvaToast } from "@/lib/alva-toast";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useBank } from "@/hooks/useBank";
 import { reportApiError } from "@/lib/api/reportApiError";
 
@@ -62,7 +61,7 @@ export default function AdminPromptsPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<BankItem | null>(null);
 
-  const rows = useDevRows(items);
+  const rows = items;
 
   /* Focus group topics are prompts carrying that category, so the tab filters
    * the prompts bank rather than reading a bank of its own. */

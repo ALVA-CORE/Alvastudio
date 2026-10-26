@@ -4,8 +4,6 @@ import {
   type ApiAdminDashboard,
 } from "@/lib/api/adminDashboard";
 import { reportApiError } from "@/lib/api/reportApiError";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
-import { DEMO_ADMIN_DASHBOARD } from "@/data/admin/demo";
 import type { GrowthPoint } from "@/data/admin/corpus";
 
 /**
@@ -19,7 +17,6 @@ import type { GrowthPoint } from "@/data/admin/corpus";
  * the chart says so rather than letting a reader assume otherwise.
  */
 export function useAdminOverview() {
-  const { forceDemo: demo } = useDevUiState();
   const [data, setData] = useState<ApiAdminDashboard | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,14 +25,6 @@ export function useAdminOverview() {
   useEffect(() => {
     let cancelled = false;
 
-    /* Demo mode short-circuits the request. A real admin account has none of
-     * this, and half-seeded figures record worse than either. */
-    if (demo) {
-      setData(DEMO_ADMIN_DASHBOARD);
-      setError(null);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
 
     adminDashboard()
@@ -54,7 +43,7 @@ export function useAdminOverview() {
     return () => {
       cancelled = true;
     };
-  }, [attempt, demo]);
+  }, [attempt]);
 
   return {
     data,

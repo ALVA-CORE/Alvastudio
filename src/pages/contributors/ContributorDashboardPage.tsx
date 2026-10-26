@@ -9,7 +9,6 @@ import { PointsBalanceCard } from "@/components/contributors/dashboard/PointsBal
 import { DashboardCharts } from "@/components/contributors/dashboard/DashboardCharts";
 import { QualityProgressBar } from "@/components/contributors/dashboard/QualityProgressBar";
 import { ContributorDashboardSkeleton } from "@/components/contributors/dashboard/ContributorDashboardSkeleton";
-import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { useApiResource } from "@/hooks/useApiResource";
 import { contributorDashboard, leaderboard } from "@/lib/api/dashboard";
 import {
@@ -22,11 +21,7 @@ export default function ContributorDashboardPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isStaff = isStaffRole(user?.role);
-  const isLoading = useSimulatedLoading();
-  const { forceEmpty } = useDevUiState();
-
-  /* Live counts. The charts below still run on seeded data — the endpoint
-   * returns totals, not a time series. */
+  /* Live counts. */
   const { data: live, isLoading: loadingLive } = useApiResource(
     contributorDashboard,
     []
@@ -56,34 +51,32 @@ export default function ContributorDashboardPage() {
         />
       </FixedBlurHeader>
 
-      {isLoading || loadingLive ? (
+      {loadingLive ? (
         <ContributorDashboardSkeleton />
       ) : (
         <>
           <PointsBalanceCard
-            points={forceEmpty ? 0 : (live?.points ?? 0)}
+            points={live?.points ?? 0}
             currentUserId={live?.contributor_id ?? "1"}
-            rank={forceEmpty ? null : (live?.rank ?? null)}
+            rank={live?.rank ?? null}
             rankedOf={live?.ranked_contributors ?? 0}
-            podium={forceEmpty ? [] : toPodium(top ?? [])}
+            podium={toPodium(top ?? [])}
             className="mt-1"
-            isEmpty={forceEmpty}
           />
 
           <DashboardCharts
             className="px-4"
-            isEmpty={forceEmpty}
             mix={
               live
                 ? toRecordingMix(live.prompts_read, live.total_recordings)
                 : undefined
             }
             weekly={live ? toWeeklySessions(live.daily_activity) : undefined}
-            milestone={forceEmpty ? null : live?.milestone}
+            milestone={live?.milestone}
           />
 
           <QualityProgressBar
-            isEmpty={forceEmpty || (live?.status_breakdown.total ?? 0) === 0}
+            isEmpty={(live?.status_breakdown.total ?? 0) === 0}
             breakdown={live?.status_breakdown}
             approved={live?.status_breakdown.approved}
             total={live?.status_breakdown.total}

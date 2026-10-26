@@ -28,6 +28,7 @@ import {
   EMPTY_RECORDING_MIX,
   EMPTY_WEEKLY_SESSIONS,
 } from "@/data/contributors/dashboard";
+import { CarouselDots } from "@/components/shared/CarouselDots";
 import { cn } from "@/lib/utils";
 
 const pieConfig = {
@@ -87,24 +88,6 @@ function PieCalloutLabel({
         {`${Math.round(percent * 100)}%`}
       </text>
     </g>
-  );
-}
-
-function CarouselDots({ count, active }: { count: number; active: number }) {
-  return (
-    <div className="mt-3 flex items-center justify-center gap-1.5">
-      {Array.from({ length: count }).map((_, index) => (
-        <span
-          key={index}
-          className={cn(
-            "h-1.5 rounded-full transition-all duration-300",
-            index === active
-              ? "w-5 bg-alva-accent"
-              : "w-1.5 bg-alva-card"
-          )}
-        />
-      ))}
-    </div>
   );
 }
 

@@ -71,7 +71,7 @@ vi.mock("@/lib/api/users", async (importOriginal) => ({
 
 import { alvaToast } from "@/lib/alva-toast";
 import { UserDetailPanel } from "../UserDetailPanel";
-import { ADMIN_USERS } from "@/data/admin/users";
+import { ADMIN_USERS } from "@/test/adminFixtures";
 
 /* An annotator, because editing is staff-only: a contributor's and an intern's
  * profile is theirs and carries their consent record. Approved, because

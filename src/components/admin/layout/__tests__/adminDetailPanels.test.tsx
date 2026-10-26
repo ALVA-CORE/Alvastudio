@@ -67,6 +67,9 @@ vi.mock("@/lib/api/focusGroups", async () => {
   return {
     listSessions: vi.fn(async () => sessions),
     getSession: vi.fn(async () => sessions[0]),
+    /* The session panel plays the recording now. jsdom has no audio, so this
+       just has to resolve to something the player can be handed. */
+    sessionAudioUrl: vi.fn(async () => "blob:session-audio"),
     createSession: vi.fn(),
     deleteSession: vi.fn(),
     addParticipant: vi.fn(),
@@ -95,7 +98,7 @@ vi.mock("@/lib/api/adminDashboard", () => ({
  * renders its skeleton on the first frame the way a real fetch would. */
 vi.mock("@/hooks/useEarnings", async () => {
   const { useEffect, useState } = await import("react");
-  const { EARNINGS } = await import("@/data/admin/payments");
+  const { EARNINGS } = await import("@/test/adminFixtures");
   return {
     useEarnings: () => {
       const [isLoading, setLoading] = useState(true);
@@ -115,7 +118,7 @@ vi.mock("@/hooks/useEarnings", async () => {
 });
 
 vi.mock("@/hooks/useRates", async () => {
-  const { RATES } = await import("@/data/admin/payments");
+  const { RATES } = await import("@/test/adminFixtures");
   return {
     useRates: () => ({
       rates: RATES,

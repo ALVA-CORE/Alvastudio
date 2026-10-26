@@ -1,3 +1,4 @@
+import { fetchAllPages, fetchAllRows } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import {
   assignAnnotator,
@@ -10,10 +11,8 @@ import {
   listSessions,
   type ApiSessionSummary,
 } from "@/lib/api/focusGroups";
-import { listUsers } from "@/lib/api/users";
+import { listUsers, type ApiUser } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
-import { ADMIN_ANNOTATIONS } from "@/data/admin/oversight";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import type { AdminAnnotation, AnnotationStatus } from "@/data/admin/oversight";
 import { NO_VALUE } from "@/lib/no-value";
@@ -31,7 +30,6 @@ import { NO_VALUE } from "@/lib/no-value";
  * to know them and the detail panel reads the real figures when it opens.
  */
 export function useAdminAnnotations() {
-  const { forceDemo: demo } = useDevUiState();
   const [rows, setRows] = useState<AdminAnnotation[]>([]);
   const [unclaimed, setUnclaimed] = useState<ApiSessionSummary[]>([]);
   const [annotators, setAnnotators] = useState<{ id: string; name: string }[]>([]);
@@ -42,24 +40,17 @@ export function useAdminAnnotations() {
   useEffect(() => {
     let cancelled = false;
 
-    if (demo) {
-      setRows(ADMIN_ANNOTATIONS);
-      /* No unclaimed queue: the Assign dialog writes, and demo mode has
-       * nowhere to write to. */
-      setUnclaimed([]);
-      setError(null);
-      setLoading(false);
-      return;
-    }
 
     setLoading(true);
 
     Promise.all([
       /* `expand=tags` because the table has a tag column. It is opt-in at
        * the API since counting tags reads every span on the page. */
-      listAllAnnotations({ limit: 200, expand: "tags" }),
-      listSessions({ limit: 200 }),
-      listUsers({ limit: 200 }),
+      fetchAllPages<ApiAnnotationSummary>((query) =>
+        listAllAnnotations({ ...query, expand: "tags" })
+      ),
+      fetchAllRows<ApiSessionSummary>((query) => listSessions(query)),
+      fetchAllPages<ApiUser>((query) => listUsers(query)),
     ])
       .then(([annotations, sessions, users]) => {
         if (cancelled) return;
@@ -97,7 +88,7 @@ export function useAdminAnnotations() {
     return () => {
       cancelled = true;
     };
-  }, [attempt, demo]);
+  }, [attempt]);
 
   const assign = useCallback(
     async (annotationId: string, annotator: { id: string; name: string }) => {

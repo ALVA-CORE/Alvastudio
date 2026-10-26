@@ -8,15 +8,14 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { SessionDetailPanel } from "@/components/admin/sessions/SessionDetailPanel";
 import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
 import { alvaToast } from "@/lib/alva-toast";
 import type { AdminSession } from "@/data/admin/oversight";
 import { STATES, round1 } from "@/data/admin/shared";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useAdminSessions } from "@/hooks/useAdminSessions";
 
 type Tab = "all" | "no-audio";
@@ -36,7 +35,7 @@ export default function AdminFocusGroupsPage() {
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [detail, setDetail] = useState<AdminSession | null>(null);
   const [assigning, setAssigning] = useState<AdminSession | null>(null);
-  const rows = useDevRows(live);
+  const rows = live;
 
   const missingAudio = useMemo(() => rows.filter((row) => !row.hasAudio), [rows]);
 

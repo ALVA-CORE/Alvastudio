@@ -8,8 +8,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { CreateUserDialog, type NewUserDraft } from "@/components/admin/users/CreateUserDialog";
 import { UserDetailPanel } from "@/components/admin/users/UserDetailPanel";
@@ -30,7 +30,6 @@ import {
 } from "@/data/admin/users";
 import { alvaToast } from "@/lib/alva-toast";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +67,7 @@ export default function AdminUsersPage() {
     null
   );
 
-  const rows = useDevRows(users);
+  const rows = users;
   const isEmpty = rows.length === 0;
   const metrics = isEmpty ? EMPTY_USER_METRICS : userMetrics(rows);
 

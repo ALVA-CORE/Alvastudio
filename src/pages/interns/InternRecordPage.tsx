@@ -164,7 +164,7 @@ export default function InternRecordPage() {
     <>
       <DesktopPageShell className="py-6">
         <div className="mb-4">
-          <h1 className="text-2xl font-semibold text-foreground">Record focus group</h1>
+          <h1 className="text-xl font-semibold text-foreground sm:text-2xl">Record focus group</h1>
         </div>
 
         <StudioProgress

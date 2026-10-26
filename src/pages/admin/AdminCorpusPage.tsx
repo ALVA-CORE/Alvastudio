@@ -8,8 +8,8 @@ import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { TextureButton } from "@/components/ui/texture-button";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { VarietyRings } from "@/components/admin/shared/VarietyRings";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { CoverageMap } from "@/components/admin/shared/CoverageMap";
@@ -26,7 +26,6 @@ import {
 import { formatHours, round1 } from "@/data/admin/shared";
 import { downloadCsv } from "@/lib/download-csv";
 import { useCorpus } from "@/hooks/useCorpus";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
 
 /**
  * The corpus, sliced every way the project is judged on.
@@ -37,8 +36,7 @@ import { useDevUiState } from "@/hooks/use-dev-ui-state";
  */
 export default function AdminCorpusPage() {
   const { data, coverage, raw, isLoading, error, reload } = useCorpus();
-  const { forceEmpty } = useDevUiState();
-  const corpus = forceEmpty || !data ? EMPTY_CORPUS : data;
+  const corpus = !data ? EMPTY_CORPUS : data;
 
   const gaps = underCoveredStates(corpus);
 
@@ -68,7 +66,10 @@ export default function AdminCorpusPage() {
       undisclosed: round1(bracket.hours * Math.max(0, 1 - male - female)),
     }));
   }, [corpus.byAge, corpus.byGender]);
-  const approvalRate =
+  /* Of everything collected, not of what has been decided. Said plainly on
+     the label, because "x% approved" beside an approval gauge reading
+     something else is how the two screens came to disagree. */
+  const approvedShareOfCorpus =
     corpus.totalHours > 0
       ? Math.round((corpus.approvedHours / corpus.totalHours) * 100)
       : 0;
@@ -136,7 +137,7 @@ export default function AdminCorpusPage() {
           title="Approved hours"
           value={formatHours(corpus.approvedHours)}
           trend={{
-            label: corpus.totalHours ? `${approvalRate}% approved` : "",
+            label: corpus.totalHours ? `${approvedShareOfCorpus}% of corpus` : "",
             positive: false,
             neutral: true,
           }}

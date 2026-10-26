@@ -11,7 +11,7 @@ import ContributorDashboardPage from "@/pages/contributors/ContributorDashboardP
 import ContributorStudioPage from "@/pages/contributors/ContributorStudioPage";
 import ContributorProfilePage from "@/pages/contributors/ContributorProfilePage";
 import ContributorNotificationsPage from "@/pages/contributors/ContributorNotificationsPage";
-import InternDashboardPage from "@/pages/interns/InternDashboardPage";
+import InternDashboard from "@/pages/interns/InternDashboard";
 import InternReviewPage from "@/pages/interns/InternReviewPage";
 import InternReviewDetailPage from "@/pages/interns/InternReviewDetailPage";
 import InternRecordPage from "@/pages/interns/InternRecordPage";
@@ -34,23 +34,24 @@ import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 import NotFoundPage from "@/pages/errors/NotFoundPage";
 import { ProtectedRoute, GuestRoute, RoleRoute, AdminAreaRoute } from "@/routes/guards";
 import { useAuth } from "@/lib/auth/context";
-import { homePathForRole, isInternRole, isAdminRole } from "@/lib/auth/roles";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { homePathForRole } from "@/lib/auth/roles";
 
 /**
- * Interns get a real mobile surface (they record in the field), so on a phone
- * they fall back to the contributor dashboard. Annotators and admins do not —
- * both are desktop work — so they keep their own home and meet the mobile gate,
- * which explains why rather than dropping them somewhere they can't act.
+ * Everybody lands on their own home, on every screen size.
+ *
+ * An intern on a phone used to be sent to the contributor dashboard, on the
+ * grounds that the intern one was built for a laptop. That showed somebody
+ * another role's screen, with another role's figures and another role's
+ * navigation, and it is the sort of thing that should be impossible rather
+ * than merely unusual — an intern has no contributor record to read.
+ *
+ * The intern dashboard stacks to one column on a narrow screen, so there was
+ * nothing to fall back from. Annotators and admins meet a gate on mobile
+ * instead, which says why rather than dropping them somewhere they cannot
+ * act.
  */
 function useHomePath() {
   const { user } = useAuth();
-  const isMobile = useIsMobile();
-
-  if (user && isMobile && isInternRole(user.role) && !isAdminRole(user.role)) {
-    return "/contributor/dashboard";
-  }
-
   return homePathForRole(user?.role);
 }
 
@@ -89,7 +90,7 @@ export function AppRoutes() {
             <Route path="/contributor/profile" element={<ContributorProfilePage />} />
 
             <Route element={<RoleRoute roles={["intern", "admin"]} />}>
-              <Route path="/intern/dashboard" element={<InternDashboardPage />} />
+              <Route path="/intern/dashboard" element={<InternDashboard />} />
               <Route path="/intern/record" element={<InternRecordPage />} />
               <Route path="/intern/participants" element={<InternParticipantsPage />} />
               <Route path="/intern/review" element={<InternReviewPage />} />

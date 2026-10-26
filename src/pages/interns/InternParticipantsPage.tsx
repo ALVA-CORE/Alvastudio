@@ -14,14 +14,13 @@ import {
   formatGenderLabel,
   type ParticipantRecord,
 } from "@/data/interns/participants";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useInternParticipants } from "@/hooks/useFocusGroups";
 import { NO_VALUE } from "@/lib/no-value";
 
 export default function InternParticipantsPage() {
   const { rows: sourceRows, sessions, isLoading, error, reload } =
     useInternParticipants();
-  const rows = useDevRows(sourceRows);
+  const rows = sourceRows;
   const [selected, setSelected] = useState<ParticipantRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [redacting, setRedacting] = useState<ParticipantRecord | null>(null);
@@ -65,7 +64,7 @@ export default function InternParticipantsPage() {
   return (
     <DesktopPageShell className="py-4">
       <header>
-        <h1 className="text-2xl font-semibold text-foreground">Participants</h1>
+        <h1 className="text-xl font-semibold text-foreground sm:text-2xl">Participants</h1>
       </header>
 
       {error ? (

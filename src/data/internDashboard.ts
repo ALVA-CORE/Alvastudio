@@ -153,7 +153,7 @@ export function toQualityRadar(quality: {
     .map((entry) => ({ metric: entry.metric, score: Math.round(entry.axis.score ?? 0) }));
 }
 
-type DashboardDataset = {
+export type DashboardDataset = {
   weeklySessions: WeeklyPoint[];
   captureTrend: TrendPoint[];
   qualityRadar: RadarPoint[];

@@ -181,7 +181,7 @@ export function AlvaDataTable<T extends { id: string }>({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 rounded-full border-0 bg-alva-surface pl-9 shadow-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+              className="h-9 rounded-full border-0 bg-alva-surface pl-9 text-xs shadow-none placeholder:text-xs focus-visible:ring-1 focus-visible:ring-alva-accent sm:text-sm sm:placeholder:text-sm"
               aria-label={searchPlaceholder}
             />
           </div>
@@ -279,9 +279,9 @@ export function AlvaDataTable<T extends { id: string }>({
                     <div className="flex min-w-0 items-start gap-3">
                       {renderMobileLeading?.(row)}
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">{mobile.title}</p>
+                        <p className="text-[13px] font-medium text-foreground">{mobile.title}</p>
                         {mobile.subtitle && (
-                          <p className="mt-1 text-xs text-muted-foreground">{mobile.subtitle}</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{mobile.subtitle}</p>
                         )}
                       </div>
                     </div>

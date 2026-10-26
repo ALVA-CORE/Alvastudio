@@ -18,7 +18,7 @@ export function AdminPageHeader({
 }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-2xl font-semibold text-foreground">
+      <h1 className="text-xl font-semibold sm:text-2xl text-foreground">
         {adminNavItem(id).title}
       </h1>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

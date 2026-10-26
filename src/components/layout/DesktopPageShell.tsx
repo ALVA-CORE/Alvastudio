@@ -15,7 +15,10 @@ export function DesktopPageShell({
   return (
     <div
       className={cn(
-        "mx-auto w-full px-6 py-8",
+        /* A phone has no room to give away. 24px either side is 12% of a
+           390px screen before anything is drawn, and 16px still crowds a
+           four-column table. Desktop keeps the wider gutter. */
+        "mx-auto w-full px-3 py-8 sm:px-6",
         fullWidth ? "max-w-[90rem]" : "max-w-6xl",
         className
       )}

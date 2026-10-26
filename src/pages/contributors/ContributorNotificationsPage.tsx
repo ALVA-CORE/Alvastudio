@@ -32,7 +32,6 @@ import {
   withRecordingDetail,
 } from "@/data/notifications";
 import { getRecording } from "@/lib/api/recordings";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useNotifications } from "@/hooks/useNotifications";
 
 const SORT_LABELS: Record<NotificationSort, string> = {
@@ -51,8 +50,9 @@ export default function ContributorNotificationsPage() {
   const { items, unread, isLoading, error, reload, markOneRead, markAllRead } =
     useNotifications();
 
-  const notifications = useDevRows(
-    useMemo(() => items.map(toContributorNotification), [items])
+  const notifications = useMemo(
+    () => items.map(toContributorNotification),
+    [items]
   );
 
   const visibleNotifications = useMemo(() => {

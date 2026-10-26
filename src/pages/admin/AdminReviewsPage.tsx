@@ -8,8 +8,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { ReviewerFlowChart } from "@/components/admin/shared/ReviewerFlowChart";
 import { SharePie } from "@/components/admin/shared/SharePie";
@@ -19,13 +19,17 @@ import { alvaToast } from "@/lib/alva-toast";
 import { StatusRings } from "@/components/admin/shared/StatusRings";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
 import {
+  APPROVAL_EMPTY,
+  APPROVAL_SUBTITLE,
+  approvalRate,
+} from "@/data/admin/approval";
+import {
   RECORDING_STATUS_LABELS,
   rejectionBreakdown,
   reviewerFlow,
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useAdminReviews } from "@/hooks/useAdminReviews";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NO_VALUE } from "@/lib/no-value";
@@ -67,7 +71,7 @@ export default function AdminReviewsPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [detail, setDetail] = useState<AdminRecording | null>(null);
   const [reassigning, setReassigning] = useState<AdminRecording | null>(null);
-  const rows = useDevRows(live);
+  const rows = live;
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
@@ -81,7 +85,9 @@ export default function AdminReviewsPage() {
   const pending = rows.filter(
     (row) => row.status === "submitted" || row.status === "in_review"
   ).length;
-  const decided = approved + rejected;
+  /* Through the shared function, so this and the dashboard cannot drift into
+     two different answers under the same heading again. */
+  const rate = approvalRate({ approved, rejected });
 
   const flow = useMemo(() => reviewerFlow(rows), [rows]);
 
@@ -196,7 +202,7 @@ export default function AdminReviewsPage() {
           title="Approved"
           value={String(approved)}
           trend={{
-            label: decided ? `${Math.round((approved / decided) * 100)}% of decided` : "",
+            label: rate === null ? "" : `${rate}% of decided`,
             positive: false,
             neutral: true,
           }}
@@ -249,13 +255,11 @@ export default function AdminReviewsPage() {
 
         <AlvaChartCard
           title="Approval rate"
-          subtitle="Share of decided clips kept"
+          subtitle={APPROVAL_SUBTITLE}
           className="min-h-[16rem]"
+          emptyMessage={rate === null ? APPROVAL_EMPTY : undefined}
         >
-          <ApprovalGauge
-            value={decided ? Math.round((approved / decided) * 100) : 0}
-            label="approved"
-          />
+          <ApprovalGauge value={rate ?? 0} label="approved" />
         </AlvaChartCard>
 
         <AlvaChartCard

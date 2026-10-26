@@ -1,12 +1,4 @@
 import {
-  NIGERIAN_NAMES,
-  STATES,
-  VARIETIES,
-  daysAgo,
-  formatDuration,
-  pick,
-  relativeDays,
-  seeded,
   type Variety,
 } from "./shared";
 import type { SunburstNode } from "@/components/charts/sunburst-data";
@@ -50,6 +42,19 @@ export type AdminRecording = {
   /** Set only when rejected, and it is the thing the page exists to aggregate. */
   rejectionReason?: RejectionReason;
   /**
+   * The four answers the reviewer actually gave, from `GET /reviews`.
+   *
+   * **Null until somebody has reviewed it**, and that is the point. These
+   * used to be generated from a seeded random keyed on the recording id:
+   * approved clips got four yeses, unreviewed clips got four yeses, and a
+   * rejection got a roll of the dice. So an admin opening a clip read a named
+   * intern's judgement that the intern had never made, and an unreviewed clip
+   * showed a full set of answers under the heading "Reviewer answers".
+   */
+  rubric: RubricEntry[] | null;
+  /** What the reviewer wrote, if anything. */
+  reviewNotes?: string | null;
+  /**
    * Where the audio lives.
    *
    * One demo file stands in for every clip until `/recordings/{id}` returns a
@@ -58,8 +63,28 @@ export type AdminRecording = {
   audioUrl: string;
 };
 
-/** Stands in for every clip's audio until the backend returns a URL. */
-const DEMO_CLIP = "/audio/demo-review.mp3";
+
+
+
+export const RUBRIC_QUESTIONS = [
+  { id: "noiseFree", label: "Free of background noise" },
+  { id: "audible", label: "Clear and audible" },
+  { id: "matchesPrompt", label: "Matches the prompt" },
+  { id: "natural", label: "Natural and intelligible" },
+] as const;
+
+export const RUBRIC_LABELS: Record<RubricAnswer, string> = {
+  yes: "Yes",
+  partial: "Partly",
+  no: "No",
+};
+
+/** The rubric a reviewer filled in, derived from the verdict so the two agree. */
+export type RubricEntry = {
+  id: (typeof RUBRIC_QUESTIONS)[number]["id"];
+  label: string;
+  answer: RubricAnswer;
+};
 
 export type RejectionReason =
   | "Background noise"
@@ -75,57 +100,6 @@ export const REJECTION_REASONS: RejectionReason[] = [
   "Unnatural delivery",
   "Clipped or truncated",
 ];
-
-const MODES = ["Prompt read", "Stimuli", "Focus group"] as const;
-const STATUSES: RecordingStatus[] = [
-  "approved", "approved", "approved", "approved",
-  "in_review", "in_review",
-  "submitted", "submitted",
-  "rejected",
-  "flagged",
-];
-
-const SAMPLE_PROMPTS = [
-  "The traffic for Lagos island go always choke by seven a.m.",
-  "Tell us about a market day you still remember.",
-  "Describe the last time you helped a stranger find their way.",
-  "Talk about a meal your family makes that nobody else gets right.",
-  "Explain how you get to work, from the moment you leave your door.",
-];
-
-function buildRecordings(count: number): AdminRecording[] {
-  const random = seeded(31337);
-
-  return Array.from({ length: count }, (_, index) => {
-    const status = pick(random, STATUSES);
-    const submitted = daysAgo(Math.floor(random() * 45));
-    const durationSec = Math.floor(random() * 95) + 12;
-
-    return {
-      id: `r-${String(index + 1).padStart(3, "0")}`,
-      code: `REC-${String(index + 1).padStart(4, "0")}`,
-      contributor: pick(random, NIGERIAN_NAMES),
-      mode: pick(random, MODES),
-      prompt: pick(random, SAMPLE_PROMPTS),
-      durationSec,
-      duration: formatDuration(durationSec),
-      variety: pick(random, VARIETIES),
-      status,
-      reviewer:
-        status === "submitted" ? "" : pick(random, NIGERIAN_NAMES.slice(0, 6)),
-      audioUrl: DEMO_CLIP,
-      submittedAt: submitted.getTime(),
-      reviewedAt: 0,
-      submittedLabel: relativeDays(submitted),
-      rejectionReason:
-        status === "rejected" || status === "flagged"
-          ? pick(random, REJECTION_REASONS)
-          : undefined,
-    };
-  }).sort((a, b) => b.submittedAt - a.submittedAt);
-}
-
-export const ADMIN_RECORDINGS: AdminRecording[] = buildRecordings(64);
 
 /** Rejections grouped by cause — guidance problem or equipment problem. */
 export function rejectionBreakdown(rows: AdminRecording[]) {
@@ -177,57 +151,6 @@ export type AdminAnnotation = {
   claimedLabel: string;
 };
 
-const TOPICS = [
-  "Discuss one habit young people have that older people complain about.",
-  "Debate whether remote work is better than going to the office.",
-  "Talk about how social media changed communication in Nigeria.",
-  "Discuss what makes a voice sound trustworthy.",
-  "Tell us about a memorable market day.",
-  "Argue for and against cash transfers as a way to reduce poverty.",
-  "Describe how you would explain Lagos traffic to a visitor.",
-  "Talk about a song that everyone in your family knows.",
-  "Discuss whether children should learn their mother tongue first.",
-  "Debate who should pay for a wedding, and why.",
-  "Tell us about the last time you queued for something.",
-  "Discuss what makes a neighbourhood feel safe.",
-  "Argue whether football or music does more for the country.",
-  "Describe a meal you would cook for someone homesick.",
-];
-
-const ANNOTATION_STATUSES: AnnotationStatus[] = [
-  "approved", "approved", "approved",
-  "submitted", "submitted",
-  "in_progress", "in_progress",
-  "draft",
-  "needs_rework",
-];
-
-function buildAnnotations(count: number): AdminAnnotation[] {
-  const random = seeded(8086);
-
-  return Array.from({ length: count }, (_, index) => {
-    const claimed = daysAgo(Math.floor(random() * 30));
-    const durationSec = Math.floor(random() * 2100) + 600;
-    const segments = Math.floor(random() * 220) + 40;
-
-    return {
-      id: `a-${String(index + 1).padStart(3, "0")}`,
-      code: `ANN-${String(index + 1).padStart(4, "0")}`,
-      topic: pick(random, TOPICS),
-      annotator: pick(random, NIGERIAN_NAMES.slice(0, 8)),
-      status: pick(random, ANNOTATION_STATUSES),
-      segments,
-      tags: Math.floor(segments * (0.3 + random() * 0.8)),
-      durationSec,
-      duration: formatDuration(durationSec),
-      claimedAt: claimed.getTime(),
-      updatedAt: 0,
-      claimedLabel: relativeDays(claimed),
-    };
-  }).sort((a, b) => b.claimedAt - a.claimedAt);
-}
-
-export const ADMIN_ANNOTATIONS: AdminAnnotation[] = buildAnnotations(38);
 
 /* ------------------------------------------------------------------ *
  * Focus group oversight
@@ -265,93 +188,13 @@ export type AdminSession = {
   createdLabel: string;
 };
 
-function buildSessions(count: number): AdminSession[] {
-  const random = seeded(6502);
-
-  return Array.from({ length: count }, (_, index) => {
-    const created = daysAgo(Math.floor(random() * 60));
-    // A quarter never got their audio uploaded — invisible work, and the
-    // single most useful thing this page surfaces.
-    const hasAudio = random() > 0.25;
-    const durationSec = hasAudio ? Math.floor(random() * 2400) + 900 : 0;
-    const participants = Math.floor(random() * 5) + 2;
-
-    return {
-      id: `fg-${String(index + 1).padStart(3, "0")}`,
-      code: `FG-${String(index + 1).padStart(4, "0")}`,
-      topic: pick(random, TOPICS),
-      intern: pick(random, NIGERIAN_NAMES.slice(8, 14)),
-      state: pick(random, STATES),
-      variety: pick(random, VARIETIES),
-      participants,
-      turns: hasAudio ? Math.floor(random() * 90) + participants * 4 : 0,
-      durationSec,
-      duration: hasAudio ? formatDuration(durationSec) : NO_VALUE,
-      hasAudio,
-      redactedCount: 0,
-      // Roughly one uploaded session in six is still sitting in the queue.
-      claimedBy:
-        hasAudio && random() > 0.17
-          ? pick(random, NIGERIAN_NAMES.slice(0, 8))
-          : null,
-      createdAt: created.getTime(),
-      createdLabel: relativeDays(created),
-    };
-  }).sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export const ADMIN_SESSIONS: AdminSession[] = buildSessions(42);
-
-
 /* ------------------------------------------------------------------ *
  * Detail-panel extras
  * ------------------------------------------------------------------ */
 
-import { NO_VALUE } from "@/lib/no-value";
 
 export type RubricAnswer = "yes" | "partial" | "no";
 
-export const RUBRIC_QUESTIONS = [
-  { id: "noiseFree", label: "Free of background noise" },
-  { id: "audible", label: "Clear and audible" },
-  { id: "matchesPrompt", label: "Matches the prompt" },
-  { id: "natural", label: "Natural and intelligible" },
-] as const;
-
-export const RUBRIC_LABELS: Record<RubricAnswer, string> = {
-  yes: "Yes",
-  partial: "Partly",
-  no: "No",
-};
-
-/** The rubric a reviewer filled in, derived from the verdict so the two agree. */
-export function recordingRubric(
-  recording: AdminRecording
-): Array<{ id: string; label: string; answer: RubricAnswer }> {
-  const random = seeded(
-    [...recording.id].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 1e5, 7)
-  );
-
-  return RUBRIC_QUESTIONS.map((question) => {
-    if (recording.status === "approved") return { ...question, answer: "yes" as const };
-    if (recording.status === "submitted" || recording.status === "in_review") {
-      return { ...question, answer: "yes" as const };
-    }
-    // A rejection needs at least one "no"; a flag is softer.
-    const roll = random();
-    const answer: RubricAnswer =
-      recording.status === "rejected"
-        ? roll > 0.6
-          ? "no"
-          : roll > 0.3
-            ? "partial"
-            : "yes"
-        : roll > 0.55
-          ? "partial"
-          : "yes";
-    return { ...question, answer };
-  });
-}
 
 /* ------------------------------------------------------------------ *
  * Shapes for the oversight charts

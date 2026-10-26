@@ -11,6 +11,8 @@ type ReviewWorkspaceProps = {
   onPlaybackTimeChange?: (time: number) => void;
   onSubmit: () => void;
   isSubmitting?: boolean;
+  /** A verdict is already on file: show it, do not offer to change it. */
+  readOnly?: boolean;
 };
 
 export function ReviewWorkspace({
@@ -21,6 +23,7 @@ export function ReviewWorkspace({
   onPlaybackTimeChange,
   onSubmit,
   isSubmitting,
+  readOnly,
 }: ReviewWorkspaceProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -37,6 +40,7 @@ export function ReviewWorkspace({
           onChange={onAnswersChange}
           onSubmit={onSubmit}
           isSubmitting={isSubmitting}
+          readOnly={readOnly}
         />
       </div>
     </div>

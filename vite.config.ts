@@ -53,6 +53,17 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     css: false,
     restoreMocks: true,
+    /**
+     * Five seconds is not enough under load.
+     *
+     * These are `userEvent` tests: every keystroke is a real event with its
+     * own microtask flush, so a form with a dozen fields is hundreds of
+     * them. Run alone they finish in two seconds; run alongside forty other
+     * files on a busy machine they tip over the default, and a different
+     * test fails each time. That is a scheduling problem being reported as a
+     * product one, which is worse than a slow suite.
+     */
+    testTimeout: 20000,
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

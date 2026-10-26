@@ -9,8 +9,8 @@ import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { AnnotatorBreakdownChart } from "@/components/admin/shared/AnnotatorBreakdownChart";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
 import { AnnotationDetailPanel } from "@/components/admin/annotations/AnnotationDetailPanel";
@@ -21,7 +21,6 @@ import {
   type AdminAnnotation,
   type AnnotationStatus,
 } from "@/data/admin/oversight";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useAdminAnnotations } from "@/hooks/useAdminAnnotations";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import { reportApiError } from "@/lib/api/reportApiError";
@@ -77,7 +76,7 @@ export default function AdminAnnotationsPage() {
    * without refetching the whole screen. */
   const [assigned, setAssigned] = useState<Record<string, string>>({});
   const [detail, setDetail] = useState<AdminAnnotation | null>(null);
-  const rows = useDevRows(live);
+  const rows = live;
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
