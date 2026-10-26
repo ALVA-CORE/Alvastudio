@@ -110,6 +110,10 @@ export function SessionDetailPanel({
     >
       {tab === "detail" ? (
         <>
+          {/* The recording first: an admin opening a session is asking
+              whether it was collected properly, and listening is how that is
+              answered. */}
+          <SessionSpeakers sessionId={session.id} hasAudio={session.hasAudio}>
           {!session.hasAudio ? (
             <div className="mb-6 rounded-xl bg-red-500/10 p-3">
               <p className="text-sm text-red-400">This session reaches nobody</p>
@@ -157,14 +161,7 @@ export function SessionDetailPanel({
             />
           </DetailGroup>
 
-          {/* The recording, and who is on it. Not a tab of its own: an admin
-              opening a session is asking whether it was collected properly,
-              and that question is answered by these two things together.
-
-              The speaker count is gone from Contents above, because the list
-              below is the count and a figure beside a list that contradicts
-              it is the next bug. */}
-          <SessionSpeakers sessionId={session.id} hasAudio={session.hasAudio} />
+          </SessionSpeakers>
         </>
       ) : null}
 

@@ -116,7 +116,7 @@ export function ReviewAudioBar({
   };
 
   return (
-    <section className={cn("rounded-2xl bg-alva-card p-4", className)}>
+    <section className={cn("rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
       <div className="relative overflow-visible rounded-xl p-[3px]">
         <BorderBeam
           size="md"
@@ -163,7 +163,10 @@ export function ReviewAudioBar({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      {/* The transport stays on one line on a phone: wrapped, the speed
+          control dropped under the scrubber and pushed the questions below
+          the fold. */}
+      <div className="mt-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <button
             type="button"

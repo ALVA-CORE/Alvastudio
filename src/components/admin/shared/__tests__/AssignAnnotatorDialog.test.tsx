@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ADMIN_USERS } from "@/data/admin/users";
+import { ADMIN_USERS } from "@/test/adminFixtures";
 
 const listUsers = vi.fn();
 

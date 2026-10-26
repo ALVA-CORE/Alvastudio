@@ -3,9 +3,6 @@ import * as annotations from "@/lib/api/annotations";
 import { annotationAudioUrl } from "@/lib/api/annotations";
 import { getSession } from "@/lib/api/focusGroups";
 import { sendEvents } from "@/lib/api/annotationEvents";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
-import { ANNOTATOR_SESSIONS } from "@/data/annotators/sessions";
-import { buildTranscript } from "@/data/annotators/demoTranscript";
 import { toTranscriptDoc } from "@/data/annotators/fromApi";
 import { baselineFrom, saveAnnotation, type Baseline } from "@/data/annotators/toApi";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
@@ -64,7 +61,6 @@ const LANGUAGE: Record<string, AnnotatorSession["language"]> = {
 };
 
 export function useSessionTranscript(sessionId: string | undefined) {
-  const { forceDemo: demo } = useDevUiState();
   const [resource, setResource] = useState<TranscriptResource>({
     status: "loading",
     session: null,
@@ -82,27 +78,6 @@ export function useSessionTranscript(sessionId: string | undefined) {
   useEffect(() => {
     if (!sessionId) {
       setResource({ status: "not-found", session: null, doc: null, error: null });
-      return;
-    }
-
-    /* Demo mode builds the document from the fixture generator instead of
-     * reading one. Deterministic from the session id, so the same session
-     * opens on the same transcript across takes of a recording. */
-    if (demo) {
-      const session = ANNOTATOR_SESSIONS.find((entry) => entry.id === sessionId);
-      if (!session) {
-        setResource({ status: "not-found", session: null, doc: null, error: null });
-        return;
-      }
-
-      setResource({
-        status: "ready",
-        session,
-        doc: buildTranscript(session, { tags: true }),
-        error: null,
-        annotationId: session.id,
-        consentBlocked: false,
-      });
       return;
     }
 
@@ -199,7 +174,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
         return current;
       });
     };
-  }, [sessionId, attempt, demo]);
+  }, [sessionId, attempt]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 
@@ -211,15 +186,11 @@ export function useSessionTranscript(sessionId: string | undefined) {
    * send overlapping token splices.
    */
   const save = useCallback(async (doc: TranscriptDoc) => {
-    /* Nothing to save against: the document was never read from a server. The
-     * autosave indicator still runs, which is what a recording wants to show. */
-    if (demo) return;
-
     const id = annotationId.current;
     const base = baseline.current;
     if (!id || !base) return;
     baseline.current = await saveAnnotation(id, doc, base);
-  }, [demo]);
+  }, []);
 
   /** Takes the next session in the queue. Resolves with its session id. */
   const claim = useCallback(async () => {
@@ -245,12 +216,10 @@ export function useSessionTranscript(sessionId: string | undefined) {
   }, []);
 
   const submit = useCallback(async () => {
-    if (demo) return;
-
     const id = annotationId.current;
     if (!id) return;
     await annotations.submitAnnotation(id);
-  }, [demo]);
+  }, []);
 
   return { resource, reload, save, submit, claim };
 }

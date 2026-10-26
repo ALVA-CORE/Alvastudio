@@ -1,10 +1,12 @@
-import { ADMIN_USERS } from "@/data/admin/users";
-import { BANK_ITEMS } from "@/data/admin/prompts";
 import {
   ADMIN_ANNOTATIONS,
   ADMIN_RECORDINGS,
   ADMIN_SESSIONS,
-} from "@/data/admin/oversight";
+  ADMIN_USERS,
+  BANK_ITEMS,
+} from "@/test/adminFixtures";
+
+
 import type { ApiUser } from "@/lib/api/users";
 
 /**

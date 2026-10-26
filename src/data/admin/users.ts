@@ -1,6 +1,5 @@
 import type { HeatmapColumn } from "@/components/charts/heatmap";
-import { NIGERIAN_NAMES, daysAgo, relativeDays, round1, seeded } from "./shared";
-import { NO_VALUE } from "@/lib/no-value";
+import { round1 } from "./shared";
 
 export type AdminUserRole = "contributor" | "intern" | "annotator" | "admin";
 
@@ -134,65 +133,9 @@ export const ROLE_LABELS: Record<AdminUserRole, string> = {
   admin: "Admin",
 };
 
-const OUTPUT_LABEL: Record<AdminUserRole, string> = {
-  contributor: "recordings",
-  intern: "sessions",
-  annotator: "annotations",
-  admin: NO_VALUE,
-};
 
-/* Weighted: a speech corpus is mostly contributors, with a thin staff layer. */
-const ROLE_MIX: AdminUserRole[] = [
-  ...Array<AdminUserRole>(11).fill("contributor"),
-  ...Array<AdminUserRole>(4).fill("intern"),
-  ...Array<AdminUserRole>(4).fill("annotator"),
-  "admin",
-];
 
-function buildUsers(): AdminUser[] {
-  const random = seeded(7717);
-
-  return ROLE_MIX.map((role, index) => {
-    const fullName = NIGERIAN_NAMES[index % NIGERIAN_NAMES.length];
-    const created = daysAgo(Math.floor(random() * 240) + 3);
-    const handle = fullName.toLowerCase().replace(/\s+/g, ".");
-
-    return {
-      id: `u-${String(index + 1).padStart(3, "0")}`,
-      fullName,
-      email: `${handle}@alvacoreai.com`,
-      phone: `080${Math.floor(random() * 90000000 + 10000000)}`,
-      role,
-      // A handful of leavers, so the filter has something to hide.
-      isActive: role === "intern" && index % 2 === 0 ? false : random() > 0.12,
-      /* Interns and annotators both apply, and some of each are still
-       * waiting, so the approval queue is visible the moment the page opens
-       * rather than only after somebody signs up. */
-      approval: (role === "intern" || role === "annotator"
-        ? index % 2 === 0
-          ? "pending"
-          : "approved"
-        : undefined) as AdminUser["approval"],
-      createdAt: created.getTime(),
-      joinedLabel: relativeDays(created),
-      output:
-        role === "admin"
-          ? 0
-          : Math.floor(random() * (role === "contributor" ? 180 : 40)) + 1,
-      outputLabel: OUTPUT_LABEL[role],
-    };
-  })
-    /* Applications first. They are the only rows on this page that are
-     * waiting on the person reading it; everything else is a record. */
-    .sort((a, b) => {
-      const waiting = Number(accountStatus(b) === "pending") -
-        Number(accountStatus(a) === "pending");
-      return waiting !== 0 ? waiting : b.createdAt - a.createdAt;
-    });
-}
-
-export const ADMIN_USERS: AdminUser[] = buildUsers();
-
+/** Headline counts for the users page, read off the rows it already has. */
 export function userMetrics(rows: AdminUser[]) {
   const active = rows.filter((row) => row.isActive);
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -200,13 +143,9 @@ export function userMetrics(rows: AdminUser[]) {
   return {
     total: String(rows.length),
     active: String(active.length),
-    staff: String(
-      active.filter((row) => row.role !== "contributor").length
-    ),
+    staff: String(active.filter((row) => row.role !== "contributor").length),
     joinedThisWeek: String(rows.filter((row) => row.createdAt >= weekAgo).length),
-    pending: String(
-      rows.filter((row) => accountStatus(row) === "pending").length
-    ),
+    pending: String(rows.filter((row) => accountStatus(row) === "pending").length),
   };
 }
 

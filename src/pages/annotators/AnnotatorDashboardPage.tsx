@@ -11,12 +11,10 @@ import { NotificationsMenu } from "@/components/shared/NotificationsMenu";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
 import {
-  ANNOTATOR_DASHBOARD_DATA,
   getEmptyAnnotatorDataset,
 } from "@/data/annotators/dashboard";
 import type { DashboardTimeRange } from "@/data/internDashboard";
 import { useAnnotatorDashboard } from "@/hooks/useAnnotatorDashboard";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth/context";
 
@@ -33,7 +31,6 @@ export default function AnnotatorDashboardPage() {
     error,
     reload,
   } = useAnnotatorDashboard(timeRange);
-  const { forceEmpty, forceDemo } = useDevUiState();
 
   if (isMobile) {
     return <AnnotatorMobileGate />;
@@ -42,31 +39,19 @@ export default function AnnotatorDashboardPage() {
   /* Every chart here is live now. The reach chart counts speakers rather than
    * hours: a focus-group file holds several voices, so its hours cannot be
    * split between them. */
-  /* The seeded dataset is for demo mode only. Everywhere else a screen with
-   * no response shows zeroes: this is one person's own work, and a sample of
-   * somebody else's is the one thing it must never be mistaken for. */
-  const base = forceDemo ? ANNOTATOR_DASHBOARD_DATA[timeRange] : getEmptyAnnotatorDataset(timeRange);
+  /* Zeroes, never a sample. This is one person's own work, and a screen that
+   * fills itself with somebody else's figures when the request fails is the
+   * one thing it must never do. */
+  const base = getEmptyAnnotatorDataset(timeRange);
 
-  /* Demo mode leaves the seeded dataset alone, so every card and chart on the
-   * screen is populated rather than showing a real account's zeroes. */
-  const dataset = forceDemo
-    ? base
-    : {
-        ...base,
-        activity: forceEmpty ? base.activity : activity,
-        tagBreakdown: forceEmpty ? base.tagBreakdown : tagBreakdown,
-        demographicHours: forceEmpty ? base.demographicHours : demographics,
-      };
-  /* The three cards read live totals normally, the seeded ones in demo, and
-   * zeroes when the empty state is being inspected. */
-  const cards = forceDemo
-    ? base.metrics
-    : {
-        clipsAnnotated: forceEmpty ? "0" : metrics.clipsAnnotated,
-        hoursAnnotated: forceEmpty ? "0" : metrics.hoursAnnotated,
-        tagsApplied: forceEmpty ? "0" : metrics.tagsApplied,
-        periodLabel: metrics.periodLabel,
-      };
+  const dataset = { ...base, activity, tagBreakdown, demographicHours: demographics };
+
+  const cards = {
+    clipsAnnotated: metrics.clipsAnnotated,
+    hoursAnnotated: metrics.hoursAnnotated,
+    tagsApplied: metrics.tagsApplied,
+    periodLabel: metrics.periodLabel,
+  };
 
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
@@ -87,7 +72,7 @@ export default function AnnotatorDashboardPage() {
         </div>
       </header>
 
-      {error && !forceDemo ? (
+      {error ? (
         <div
           role="alert"
           className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
@@ -103,7 +88,7 @@ export default function AnnotatorDashboardPage() {
         </div>
       ) : null}
 
-      {isLoading && !forceDemo ? (
+      {isLoading ? (
         <div className="mt-2 space-y-2">
           <AlvaMetricGridSkeleton />
           <AnnotatorBentoSkeleton />
@@ -136,7 +121,7 @@ export default function AnnotatorDashboardPage() {
             className="mt-2"
             dataset={dataset}
             range={timeRange}
-            isEmpty={forceEmpty || (!forceDemo && activity.length === 0)}
+            isEmpty={activity.length === 0}
           />
         </>
       )}

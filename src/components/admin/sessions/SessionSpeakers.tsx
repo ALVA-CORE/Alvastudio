@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
@@ -30,9 +30,18 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 export function SessionSpeakers({
   sessionId,
   hasAudio,
+  children,
 }: {
   sessionId: string;
   hasAudio: boolean;
+  /**
+   * The session's own rows, shown between the player and the speakers.
+   *
+   * Taken as children rather than mounting this component twice: one mount
+   * is one `GET /focus-groups/{id}` and one audio fetch, and the order the
+   * panel wants is player, then the session facts, then who is on it.
+   */
+  children?: ReactNode;
 }) {
   const [participants, setParticipants] = useState<ApiParticipant[] | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -80,27 +89,28 @@ export function SessionSpeakers({
 
   return (
     <>
-      <section className="mt-6 border-t border-alva-border pt-6">
-        <h3 className="text-sm font-medium text-foreground">The recording</h3>
-        <div className="mt-3">
-          {audioLoading ? (
+      {/* No heading. It is the first thing in the panel and plainly a
+          player; a label over it only pushes it down. */}
+      <div className="mb-6">
+        {audioLoading ? (
             <ClipPlayerSkeleton />
-          ) : audioUrl ? (
-            <ClipPlayer src={audioUrl} />
-          ) : hasAudio ? (
-            /* There is a file; we could not fetch it. Said apart from "no
-               audio", because the two call for different people to do
-               different things. */
-            <p className="text-xs text-destructive">
-              The recording is there but could not be loaded.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              No audio on this session yet, so there is nothing to listen to.
-            </p>
-          )}
-        </div>
-      </section>
+        ) : audioUrl ? (
+          <ClipPlayer src={audioUrl} />
+        ) : hasAudio ? (
+          /* There is a file; we could not fetch it. Said apart from "no
+             audio", because the two call for different people to do
+             different things. */
+          <p className="text-xs text-destructive">
+            The recording is there but could not be loaded.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No audio on this session yet, so there is nothing to listen to.
+          </p>
+        )}
+      </div>
+
+      {children}
 
       {failed ? (
         <p role="alert" className="mt-6 text-xs text-destructive">

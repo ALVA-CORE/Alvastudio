@@ -19,6 +19,7 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import MenuDots from "@solar-icons/react/ui/MenuDots";
 import {
@@ -28,7 +29,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SyncMilestonesDialog } from "@/components/admin/payments/SyncMilestonesDialog";
-import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
 import {
@@ -42,7 +42,6 @@ import {
 } from "@/data/admin/payments";
 import { downloadCsv } from "@/lib/download-csv";
 import { alvaToast } from "@/lib/alva-toast";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { relativeDays } from "@/data/admin/shared";
 
 /**
@@ -110,7 +109,7 @@ export default function AdminPaymentsPage() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [detail, setDetail] = useState<Earning | null>(null);
 
-  const rows = useDevRows(earnings);
+  const rows = earnings;
   const isEmpty = rows.length === 0;
   const metrics = isEmpty ? EMPTY_PAYMENT_METRICS : paymentMetrics(rows);
 

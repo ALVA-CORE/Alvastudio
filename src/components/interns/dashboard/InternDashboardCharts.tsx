@@ -3,10 +3,9 @@ import { DemographicHoursChart } from "@/components/interns/dashboard/Demographi
 import { WeeklySessionsChart } from "@/components/interns/dashboard/WeeklySessionsChart";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { AlvaChartEmptyOverlay } from "@/components/shared/states/AlvaChartEmptyOverlay";
-import {
-  DASHBOARD_DATA,
-  getEmptyDashboardDataset,
-  type DashboardTimeRange,
+import type {
+  DashboardDataset,
+  DashboardTimeRange,
 } from "@/data/internDashboard";
 import { Line } from "@/components/dither-kit/area";
 import { LineChart } from "@/components/dither-kit/area-chart";
@@ -29,6 +28,15 @@ const focusGroupConfig = {
 };
 
 type InternDashboardChartsProps = {
+  /**
+   * This intern's own figures.
+   *
+   * Passed in rather than read here. These charts used to draw
+   * `DASHBOARD_DATA[timeRange]` — a seeded fixture — on a live page, while
+   * the dashboard above them computed the real dataset and never handed it
+   * over. So an intern with no sessions saw somebody's invented year.
+   */
+  dataset: DashboardDataset;
   timeRange: DashboardTimeRange;
   onTimeRangeChange: (value: DashboardTimeRange) => void;
   className?: string;
@@ -71,15 +79,12 @@ function ChartCard({
 }
 
 export function InternDashboardCharts({
+  dataset,
   timeRange,
   onTimeRangeChange,
   className,
   isEmpty = false,
 }: InternDashboardChartsProps) {
-  const dataset = isEmpty
-    ? getEmptyDashboardDataset(timeRange)
-    : DASHBOARD_DATA[timeRange];
-
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between gap-2">
@@ -87,11 +92,15 @@ export function InternDashboardCharts({
         <DashboardTimeFilter value={timeRange} onChange={onTimeRangeChange} />
       </div>
 
-      <div className="grid gap-2 lg:grid-cols-5">
+      {/* One row that swipes on a phone, a grid from `lg`. Stacked, four
+          charts are four screens of scrolling before anything else on the
+          page; side by side they are one gesture apart, which is how the
+          contributor dashboard already reads. */}
+      <div className="alva-thin-scrollbar -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0">
         <ChartCard
           title="Weekly sessions"
           subtitle="Record activity by day"
-          className="min-h-[22rem] lg:col-span-3"
+          className="min-h-[22rem] w-[85vw] shrink-0 snap-start lg:w-auto lg:shrink lg:col-span-3"
           emptyMessage={
             isEmpty
               ? {
@@ -107,7 +116,7 @@ export function InternDashboardCharts({
         <ChartCard
           title="Quality mix"
           subtitle="How your sessions score, over the last year"
-          className="min-h-[22rem] lg:col-span-2"
+          className="min-h-[22rem] w-[85vw] shrink-0 snap-start lg:w-auto lg:shrink lg:col-span-2"
           emptyMessage={
             isEmpty || dataset.qualityRadar.length === 0
               ? {
@@ -130,13 +139,17 @@ export function InternDashboardCharts({
         </ChartCard>
       </div>
 
-      <div className="grid gap-2 lg:grid-cols-5">
+      {/* One row that swipes on a phone, a grid from `lg`. Stacked, four
+          charts are four screens of scrolling before anything else on the
+          page; side by side they are one gesture apart, which is how the
+          contributor dashboard already reads. */}
+      <div className="alva-thin-scrollbar -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-5 lg:overflow-visible lg:px-0">
         <ChartCard
           title="Demographic reach"
           /* Speakers, not hours: one focus-group file holds several voices,
              so its hours cannot be split between them. */
           subtitle="Speakers by age bracket and gender"
-          className="min-h-[22rem] lg:col-span-2"
+          className="min-h-[22rem] w-[85vw] shrink-0 snap-start lg:w-auto lg:shrink lg:col-span-2"
           emptyMessage={
             isEmpty || dataset.demographicHours.length === 0
               ? {
@@ -152,7 +165,7 @@ export function InternDashboardCharts({
         <ChartCard
           title="Capture volume"
           subtitle="Focus group hours and participants over time"
-          className="min-h-[22rem] lg:col-span-3"
+          className="min-h-[22rem] w-[85vw] shrink-0 snap-start lg:w-auto lg:shrink lg:col-span-3"
           emptyMessage={
             isEmpty
               ? {

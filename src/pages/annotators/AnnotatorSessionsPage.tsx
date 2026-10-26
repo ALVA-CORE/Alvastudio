@@ -20,7 +20,6 @@ import {
   type AnnotatorSession,
 } from "@/data/annotators/sessions";
 import { useAnnotatorSessions } from "@/hooks/useAnnotatorSessions";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useApiResource } from "@/hooks/useApiResource";
 import { annotatorDashboard } from "@/lib/api/dashboard";
@@ -54,7 +53,7 @@ export default function AnnotatorSessionsPage() {
   const openClaims = dashboard?.open_claims ?? 0;
   const claimLimit = dashboard?.claim_limit ?? null;
 
-  const rows = useDevRows(sessions);
+  const rows = sessions;
 
   const [tab, setTab] = useState<"pending" | "completed">("pending");
   const [language, setLanguage] = useState<LanguageFilter>("all");

@@ -8,8 +8,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { ReviewerFlowChart } from "@/components/admin/shared/ReviewerFlowChart";
 import { SharePie } from "@/components/admin/shared/SharePie";
@@ -30,7 +30,6 @@ import {
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { useAdminReviews } from "@/hooks/useAdminReviews";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NO_VALUE } from "@/lib/no-value";
@@ -72,7 +71,7 @@ export default function AdminReviewsPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [detail, setDetail] = useState<AdminRecording | null>(null);
   const [reassigning, setReassigning] = useState<AdminRecording | null>(null);
-  const rows = useDevRows(live);
+  const rows = live;
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),

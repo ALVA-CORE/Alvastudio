@@ -7,7 +7,6 @@ import { REVIEW_STATUS_LABELS, type ReviewQueueItem } from "@/data/reviewQueue";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDevRows } from "@/hooks/use-dev-ui-state";
 import { getReviewDisplayStatus } from "@/lib/review-progress";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +32,7 @@ export default function InternReviewPage() {
   /* Live. `/reviews/queue` is unclaimed work, `/recordings` is everything this
    * reviewer can see; the hook merges them into the existing row shape. */
   const { items, isLoading, error, reload, assignNext, isAssigning } = useReviewQueue();
-  const queueRows = useDevRows(items);
+  const queueRows = items;
 
   const pendingRows = useMemo(
     () =>

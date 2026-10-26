@@ -8,14 +8,12 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { PanelRow } from "@/components/shared/PanelPrimitives";
 import { TextureButton } from "@/components/ui/texture-button";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
-import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { alvaToast } from "@/lib/alva-toast";
 import { toQcResult, type QcResult } from "@/data/admin/audioQc";
 import { scoreAudio } from "@/lib/api/audio";
 import { ApiError } from "@/lib/api/client";
 import { reportApiError } from "@/lib/api/reportApiError";
-import { useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 import { cn } from "@/lib/utils";
 import { NO_VALUE } from "@/lib/no-value";
 
@@ -41,7 +39,6 @@ function percent(value: number | null) {
  * looks like.
  */
 export default function AdminAudioPage() {
-  const isLoading = useSimulatedLoading();
   const inputRef = useRef<HTMLInputElement>(null);
   const [results, setResults] = useState<QcResult[]>([]);
   const [selected, setSelected] = useState(0);
@@ -110,10 +107,6 @@ export default function AdminAudioPage() {
     <DesktopPageShell className="py-4">
       <AdminPageHeader id="audio" />
 
-      {isLoading ? (
-        <AdminPageSkeleton metrics={false} charts={2} chartColumns={2} />
-      ) : (
-        <>
       {/* Not an error. The ML stack is optional, and a bench that says
           "something went wrong" when it is simply not installed sends
           somebody looking for a fault that is not there. */}
@@ -300,8 +293,6 @@ export default function AdminAudioPage() {
           </p>
         </div>
       </div>
-        </>
-      )}
     </DesktopPageShell>
   );
 }

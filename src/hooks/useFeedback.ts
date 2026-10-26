@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { DEMO_FEEDBACK } from "@/data/admin/demo";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
 import {
   isMissingRoute,
   listFeedback,
@@ -20,7 +18,6 @@ import { reportApiError } from "@/lib/api/reportApiError";
  * who can do nothing about it.
  */
 export function useFeedback() {
-  const { forceDemo: demo } = useDevUiState();
   const [rows, setRows] = useState<ApiFeedback[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,15 +26,6 @@ export function useFeedback() {
   useEffect(() => {
     let cancelled = false;
 
-    /* Demo mode short-circuits the request, as every other admin hook does.
-     * The route does not exist yet, so without this the table is empty in a
-     * recording and there is nothing to show of it. */
-    if (demo) {
-      setRows(DEMO_FEEDBACK);
-      setError(null);
-      setLoading(false);
-      return;
-    }
 
     setLoading(true);
 
@@ -59,7 +47,7 @@ export function useFeedback() {
     return () => {
       cancelled = true;
     };
-  }, [attempt, demo]);
+  }, [attempt]);
 
   const setStatus = useCallback(
     async (id: string, status: FeedbackStatus) => {
@@ -70,9 +58,6 @@ export function useFeedback() {
         current.map((row) => (row.id === id ? { ...row, status } : row))
       );
 
-      /* Nothing to send in demo mode: the move on screen is the whole point,
-         and a 404 would snap the row back mid-recording. */
-      if (demo) return;
 
       try {
         await setFeedbackStatus(id, status);
@@ -81,7 +66,7 @@ export function useFeedback() {
         throw cause;
       }
     },
-    [rows, demo]
+    [rows]
   );
 
   return {

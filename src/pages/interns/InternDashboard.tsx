@@ -11,7 +11,6 @@ import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaChartCardSkeleton } from "@/components/shared/states/AlvaChartCardSkeleton";
 import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGridSkeleton";
 import {
-  DASHBOARD_DATA,
   getEmptyDashboardDataset,
   toCaptureTrend,
   toDemographicSpeakers,
@@ -23,7 +22,6 @@ import { useAuth } from "@/lib/auth/context";
 import { NO_VALUE } from "@/lib/no-value";
 import { useApiResource } from "@/hooks/useApiResource";
 import { internDashboard } from "@/lib/api/dashboard";
-import { useDevUiState, useSimulatedLoading } from "@/hooks/use-dev-ui-state";
 
 /** How many days of `daily_activity` each filter shows. */
 const RANGE_DAYS: Record<DashboardTimeRange, number> = {
@@ -43,14 +41,12 @@ const RANGE_LABEL: Record<DashboardTimeRange, string> = {
 export default function InternDashboard() {
   const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
-  const isLoading = useSimulatedLoading();
-  const { forceEmpty, forceDemo } = useDevUiState();
-  const { data: live, isLoading: loadingLive } = useApiResource(internDashboard, []);
+  const { data: live, isLoading } = useApiResource(internDashboard, []);
 
-  /* The seeded dataset is for demo mode only. Everywhere else a screen with
-   * no response shows zeroes: this is one person's own work, and a sample of
-   * somebody else's is the one thing it must never be mistaken for. */
-  const base = forceDemo ? DASHBOARD_DATA[timeRange] : getEmptyDashboardDataset(timeRange);
+  /* Zeroes, never a sample. This is one person's own work, and a screen that
+   * fills itself with somebody else's figures when the request fails is the
+   * one thing it must never do. */
+  const base = getEmptyDashboardDataset(timeRange);
 
   /**
    * Every chart on this screen is live now.
@@ -61,7 +57,7 @@ export default function InternDashboard() {
    * with the filter, and the cards above them say which window they are over.
    */
   const dataset =
-    live && !forceEmpty
+    live
       ? (() => {
           const window = live.daily_activity.slice(-RANGE_DAYS[timeRange]);
           const sessions = window.reduce((total, day) => total + day.sessions, 0);
@@ -101,19 +97,23 @@ export default function InternDashboard() {
 
   return (
     <DesktopPageShell>
-      <header className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="mt-1 text-2xl font-semibold text-foreground">
+      {/* The greeting and the bell share the top line on every width; the
+          range filter drops under the bell on a phone and rejoins it on a
+          desktop. Three things abreast on 390px leaves the greeting one word
+          wide. */}
+      <header className="space-y-2 sm:flex sm:items-end sm:justify-between sm:gap-2 sm:space-y-0">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-xl font-semibold text-foreground sm:mt-1 sm:text-2xl">
             How far, {firstName}
           </h1>
-        </div>
-        <div className="flex items-center gap-2">
           <NotificationsMenu />
+        </div>
+        <div className="flex justify-end sm:items-center sm:gap-2">
           <DashboardTimeFilter value={timeRange} onChange={setTimeRange} />
         </div>
       </header>
 
-      {isLoading || loadingLive ? (
+      {isLoading ? (
         <div className="mt-2 space-y-2">
           <AlvaMetricGridSkeleton />
           <div className="grid gap-2 lg:grid-cols-5">
@@ -127,7 +127,9 @@ export default function InternDashboard() {
         </div>
       ) : (
         <>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Two abreast on a phone. One per row turned four cards into four
+              screens of scrolling before the charts. */}
+          <div className="mt-2 grid grid-cols-2 gap-2 xl:grid-cols-4">
             <MetricCard
               variant="accent"
               title="Hours recorded"
@@ -135,7 +137,6 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.hoursTrend,
                 positive: dataset.metrics.hoursTrend.startsWith("+"),
-                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={ClockCircle}
@@ -146,7 +147,6 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.participantsTrend,
                 positive: dataset.metrics.participantsTrend.startsWith("+"),
-                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={UsersGroupRounded}
@@ -157,7 +157,6 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.clipsTrend,
                 positive: dataset.metrics.clipsTrend.startsWith("+"),
-                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={CheckCircle}
@@ -168,7 +167,6 @@ export default function InternDashboard() {
               trend={{
                 label: dataset.metrics.sessionsTrend,
                 positive: dataset.metrics.sessionsTrend.startsWith("+"),
-                neutral: forceEmpty,
               }}
               period={dataset.metrics.periodLabel}
               icon={Microphone3}
@@ -177,9 +175,10 @@ export default function InternDashboard() {
 
           <InternDashboardCharts
             className="mt-2"
+            dataset={dataset}
+            isEmpty={!live}
             timeRange={timeRange}
             onTimeRangeChange={setTimeRange}
-            isEmpty={forceEmpty}
           />
         </>
       )}

@@ -98,7 +98,7 @@ vi.mock("@/lib/api/adminDashboard", () => ({
  * renders its skeleton on the first frame the way a real fetch would. */
 vi.mock("@/hooks/useEarnings", async () => {
   const { useEffect, useState } = await import("react");
-  const { EARNINGS } = await import("@/data/admin/payments");
+  const { EARNINGS } = await import("@/test/adminFixtures");
   return {
     useEarnings: () => {
       const [isLoading, setLoading] = useState(true);
@@ -118,7 +118,7 @@ vi.mock("@/hooks/useEarnings", async () => {
 });
 
 vi.mock("@/hooks/useRates", async () => {
-  const { RATES } = await import("@/data/admin/payments");
+  const { RATES } = await import("@/test/adminFixtures");
   return {
     useRates: () => ({
       rates: RATES,

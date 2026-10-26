@@ -10,8 +10,8 @@ import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
-import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
+import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
 import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart";
@@ -28,7 +28,6 @@ import {
 import { EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
-import { useDevUiState } from "@/hooks/use-dev-ui-state";
 import { useAdminOverview, cumulative } from "@/hooks/useAdminOverview";
 import { useCorpus } from "@/hooks/useCorpus";
 import { useApiResource } from "@/hooks/useApiResource";
@@ -47,7 +46,6 @@ import { cn } from "@/lib/utils";
 export default function AdminDashboardPage() {
   const feedback = useFeedback();
   const navigate = useNavigate();
-  const { forceEmpty } = useDevUiState();
   const [range, setRange] = useState<DashboardTimeRange>("12m");
 
   const overview = useAdminOverview();
@@ -61,10 +59,10 @@ export default function AdminDashboardPage() {
   const recovery = useRecoveryRequests();
 
   const isLoading = overview.isLoading || loadingCorpus;
-  const corpus = forceEmpty || !corpusData ? EMPTY_CORPUS : corpusData;
+  const corpus = !corpusData ? EMPTY_CORPUS : corpusData;
   const growth = useMemo(
-    () => (forceEmpty ? [] : cumulative(overview.data?.daily_activity ?? [])),
-    [forceEmpty, overview.data]
+    () => cumulative(overview.data?.daily_activity ?? []),
+    [overview.data]
   );
 
   /**
@@ -76,7 +74,7 @@ export default function AdminDashboardPage() {
    */
   const attention = useMemo(() => {
     const stats = overview.data;
-    if (forceEmpty || !stats) return [];
+    if (!stats) return [];
 
     const age = (days: number | null) =>
       days === null ? "" : days === 1 ? " · 1 day waiting" : ` · ${days} days waiting`;
@@ -85,7 +83,11 @@ export default function AdminDashboardPage() {
       {
         id: "unreviewed",
         count: stats.stuck_unreviewed_recordings.count,
-        title: "recordings await a verdict",
+        /* The API's `stuck_*` figures count only what has waited past its
+           threshold, not the whole queue. "Await a verdict" read as every
+           pending clip and disagreed with the review page's own total, which
+           is a smaller number counted differently. */
+        title: "recordings have waited too long",
         detail: `Nobody has decided on them${age(
           stats.stuck_unreviewed_recordings.oldest_age_days
         )}.`,
@@ -134,7 +136,7 @@ export default function AdminDashboardPage() {
         tone: "warn" as const,
       },
     ].filter((item) => item.count > 0);
-  }, [forceEmpty, overview.data, duplicates, recovery.rows]);
+  }, [overview.data, duplicates, recovery.rows]);
 
   /* Clips, decided ones only, from the API's own status tally — the same
      measure the review page shows, through the same function. The two used
@@ -213,7 +215,7 @@ export default function AdminDashboardPage() {
           subtitle="Running total over the last year"
           className="h-[25rem] lg:col-span-4"
           emptyMessage={
-            forceEmpty
+            growth.length === 0
               ? {
                   title: "No audio yet",
                   description: "The curve starts once the first clip is approved.",
