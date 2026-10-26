@@ -7,6 +7,7 @@ import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import Star from "@solar-icons/react/like/Star";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
+import { NO_VALUE } from "@/lib/no-value";
 import { FeedbackDetailPanel } from "@/components/admin/feedback/FeedbackDetailPanel";
 import {
   DropdownMenu,
@@ -25,12 +26,20 @@ import {
 import type { AdminUserRole } from "@/data/admin/users";
 import { cn } from "@/lib/utils";
 
-/** New reads loudest. It is the only status anybody has to do something about. */
+/**
+ * Four statuses, four weights.
+ *
+ * New reads loudest, because it is the only one anybody has to do something
+ * about. In progress is warm: somebody has it. The two settled ones part on
+ * weight rather than hue — Done is plain foreground, Dismissed is faded out,
+ * which is what being set aside looks like. They were both muted before,
+ * which made "we fixed it" and "we are not fixing it" the same answer.
+ */
 const STATUS_TINT: Record<FeedbackStatus, string> = {
   new: "text-alva-accent",
   reading: "text-amber-300",
-  done: "text-muted-foreground",
-  wont_fix: "text-muted-foreground",
+  done: "text-foreground",
+  wont_fix: "text-muted-foreground/70",
 };
 
 function timeLabel(iso: string) {
@@ -87,13 +96,25 @@ export function FeedbackTable({
       sortable: true,
       sortValue: (row: ApiFeedback) => row.full_name ?? "",
       render: (row: ApiFeedback) => (
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-foreground">
-            {row.full_name ?? "Signed out"}
-          </span>
-          {row.role ? <RoleTag role={row.role as AdminUserRole} /> : null}
-        </div>
+        <span className="font-medium text-foreground">
+          {row.full_name ?? "Signed out"}
+        </span>
       ),
+    },
+    {
+      /* Its own column rather than a tag beside the name. Which role somebody
+         is in is the first thing to sort on when the same complaint arrives
+         four times, and inline it was also stealing width from the message. */
+      key: "role",
+      header: "Role",
+      sortable: true,
+      sortValue: (row: ApiFeedback) => row.role ?? "",
+      render: (row: ApiFeedback) =>
+        row.role ? (
+          <RoleTag role={row.role as AdminUserRole} />
+        ) : (
+          <span className="text-muted-foreground">{NO_VALUE}</span>
+        ),
     },
     {
       key: "kind",
@@ -110,7 +131,7 @@ export function FeedbackTable({
       /* The cell carries the width. A max-width on the span alone does
          nothing: the table cell sizes to its content first and the span
          never reaches its limit, which is why this was running full width. */
-      className: "max-w-0 w-[38%]",
+      className: "w-[26%] max-w-0",
       render: (row: ApiFeedback) => (
         /* One line here, the whole thing in the panel. A table that wraps a
            paragraph stops being a table. */

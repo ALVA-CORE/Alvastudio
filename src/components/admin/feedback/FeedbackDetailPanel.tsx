@@ -14,7 +14,6 @@ import { NO_VALUE } from "@/lib/no-value";
 import {
   FEEDBACK_KIND_LABEL,
   FEEDBACK_STATUS_LABEL,
-  SUPPORT_EMAIL,
   type ApiFeedback,
   type FeedbackStatus,
 } from "@/lib/api/feedback";
@@ -28,9 +27,10 @@ import { cn } from "@/lib/utils";
  * truncated cell three rows down. Everything else — who, which screen, when —
  * is context for reading it, and sits under it.
  *
- * The reply button is a mailto rather than anything in-app. There is no
- * messaging in the product, and a Reply that opened a box going nowhere would
- * be worse than sending somebody to their mail client.
+ * There is no reply here. The product has no messaging, a mailto button only
+ * hands the conversation to a mail client, and the person's address is a row
+ * below for anybody who wants to do that themselves. The actions are the
+ * three this queue actually has: in progress, done, set aside.
  */
 export function FeedbackDetailPanel({
   open,
@@ -51,10 +51,6 @@ export function FeedbackDetailPanel({
     .slice(0, 2)
     .map((part) => part[0])
     .join("");
-
-  const replyHref = item.email
-    ? `mailto:${item.email}?subject=${encodeURIComponent("Re: your Alva Studio feedback")}`
-    : `mailto:${SUPPORT_EMAIL}`;
 
   return (
     <DetailPanel
@@ -100,7 +96,6 @@ export function FeedbackDetailPanel({
       }
       footer={
         <>
-          <PanelAction label="Reply by email" onClick={() => window.open(replyHref)} />
           {item.status === "done" || item.status === "wont_fix" ? (
             <PanelAction label="Reopen" onClick={() => onSetStatus(item, "new")} />
           ) : (
