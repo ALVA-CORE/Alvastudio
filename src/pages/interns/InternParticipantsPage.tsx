@@ -64,7 +64,7 @@ export default function InternParticipantsPage() {
   return (
     <DesktopPageShell className="py-4">
       <header>
-        <h1 className="text-2xl font-semibold text-foreground">Participants</h1>
+        <h1 className="text-xl font-semibold text-foreground sm:text-2xl">Participants</h1>
       </header>
 
       {error ? (

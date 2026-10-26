@@ -33,7 +33,9 @@ export function MetricCard({
   return (
     <article
       className={cn(
-        "relative flex min-h-[9.5rem] flex-col rounded-2xl p-4",
+        /* Two of these sit side by side on a phone, so the padding and the
+           figure both come down a step. The desktop sizes are unchanged. */
+        "relative flex min-h-[8rem] flex-col rounded-2xl p-3 sm:min-h-[9.5rem] sm:p-4",
         isAccent
           ? cn(alvaAccentTextureClass, "text-alva-bg")
           : "bg-alva-card text-foreground",
@@ -43,7 +45,7 @@ export function MetricCard({
       <div className="flex items-start justify-between gap-3">
         <p
           className={cn(
-            "text-sm font-medium",
+            "text-xs font-medium sm:text-sm",
             isAccent ? "text-alva-bg/90" : "text-muted-foreground"
           )}
         >
@@ -55,12 +57,12 @@ export function MetricCard({
             isAccent ? "bg-alva-bg/15 text-alva-bg" : alvaAccentTextureClass
           )}
         >
-          <Icon size={18} weight="BoldDuotone" className={isAccent ? undefined : "text-alva-bg"} />
+          <Icon size={16} weight="BoldDuotone" className={isAccent ? undefined : "text-alva-bg"} />
         </span>
       </div>
 
       <div className="mt-auto pt-6">
-        <p className="text-3xl font-semibold tracking-tight">{value}</p>
+        <p className="text-2xl font-semibold tracking-tight sm:text-3xl">{value}</p>
         {/* An empty pill is not a quiet pill: a card with no trend to report
             was drawing a grey tab with nothing in it. Nothing to say, nothing
             drawn, and the row collapses with it. */}
