@@ -74,6 +74,15 @@ export function useStudioRecorder() {
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  /**
+   * The element currently playing a take back, mirrored into state.
+   *
+   * The waveform draws from it, and a ref alone never re-renders, so the
+   * strip would stay flat through the whole playback.
+   */
+  const [playbackElement, setPlaybackElement] = useState<HTMLAudioElement | null>(
+    null
+  );
 
   const cleanupStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -177,9 +186,21 @@ export function useStudioRecorder() {
 
     setError(null);
 
-    if (audioRef.current) {
-      audioRef.current.pause();
+    /* Resume where it stopped rather than starting the take again. Playback
+       can be paused now, and a pause that silently rewinds is a pause nobody
+       would use twice. */
+    const current = audioRef.current;
+    if (current && current.paused && current.currentTime > 0 && !current.ended) {
+      try {
+        await current.play();
+        setPhase("playing");
+        return;
+      } catch {
+        /* Falls through and plays it from the top. */
+      }
     }
+
+    if (current) current.pause();
 
     const url = URL.createObjectURL(blobRef.current);
     const audio = new Audio(url);
@@ -187,6 +208,7 @@ export function useStudioRecorder() {
 
     audio.onended = () => {
       setPhase("recorded");
+      setPlaybackElement(null);
       URL.revokeObjectURL(url);
     };
 
@@ -195,12 +217,21 @@ export function useStudioRecorder() {
         await audioContextRef.current.resume();
       }
       await audio.play();
+      setPlaybackElement(audio);
       setPhase("playing");
     } catch {
       setError("Could not play back this recording.");
       setPhase("recorded");
+      setPlaybackElement(null);
       URL.revokeObjectURL(url);
     }
+  }, []);
+
+  /** Holds playback where it is. `playRecording` picks it up from there. */
+  const pausePlayback = useCallback(() => {
+    if (!audioRef.current) return;
+    audioRef.current.pause();
+    setPhase("recorded");
   }, []);
 
   const discardRecording = useCallback(() => {
@@ -249,6 +280,8 @@ export function useStudioRecorder() {
      * indicators, with the glow reacting to a different capture than the take.
      */
     stream,
+    /** The element playing a take back, for the waveform. Null when silent. */
+    playbackElement,
     /** The recorded audio, for upload. Null until a take is finished. */
     getBlob: () => blobRef.current,
     /** Filename with the real extension, so the API sees the real format. */
@@ -268,6 +301,7 @@ export function useStudioRecorder() {
     pauseRecording,
     resumeRecording,
     playRecording,
+    pausePlayback,
     discardRecording,
   };
 }

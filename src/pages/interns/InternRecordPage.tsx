@@ -1,3 +1,4 @@
+import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import Diskette from "@solar-icons/react/devices/Diskette";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
@@ -56,6 +57,16 @@ export default function InternRecordPage() {
     recorder.discardRecording();
   };
 
+  const handleHold = () => {
+    recorder.pauseRecording();
+    alvaToast.show("Take paused, press play to carry on");
+  };
+
+  const handleStop = () => {
+    recorder.stopRecording();
+    alvaToast.success("Take saved, tap play to review", <Stop size={14} weight="Bold" />);
+  };
+
   const handlePrimary = async () => {
     if (!sessionId && recorder.phase === "idle") {
       setIntakeOpen(true);
@@ -67,28 +78,28 @@ export default function InternRecordPage() {
       alvaToast.accent("Recording started", <Microphone3 size={14} weight="Bold" />);
       return;
     }
-    /* The blob pauses now. Stop is the button beside it, so the one control
-       no longer means "start" and "end" depending on when you press it. */
+    /* A tap ends the take. Holding pauses it, which the control handles
+       itself and routes to `handleHold`. */
     if (recorder.phase === "recording") {
-      recorder.pauseRecording();
+      handleStop();
       return;
     }
     if (recorder.phase === "paused") {
       recorder.resumeRecording();
       return;
     }
-    if (recorder.phase === "recorded" || recorder.phase === "playing") {
+    /* Playing: the glyph is a pause, so the press holds it where it is. */
+    if (recorder.phase === "playing") {
+      recorder.pausePlayback();
+      return;
+    }
+    if (recorder.phase === "recorded") {
       await recorder.playRecording();
       alvaToast.show("Playing your take", {
         variant: "default",
         icon: <Play size={14} weight="Bold" />,
       });
     }
-  };
-
-  const handleStop = () => {
-    recorder.stopRecording();
-    alvaToast.success("Take saved, tap play to review", <Stop size={14} weight="Bold" />);
   };
 
   const handleRetake = () => {
@@ -196,8 +207,9 @@ export default function InternRecordPage() {
             className="mt-10 h-20"
             phase={recorder.phase}
             onPrimary={handlePrimary}
-            onStop={handleStop}
+            onHold={handleHold}
             stream={recorder.stream}
+            playbackElement={recorder.playbackElement}
             disabled={total === 0 && recorder.phase === "idle"}
             disabledLabel="No topic to record"
           />
@@ -207,14 +219,18 @@ export default function InternRecordPage() {
           <p className="mt-3 text-center text-xs text-destructive">{recorder.error}</p>
         )}
 
-        {recorder.hasBlob && recorder.phase !== "idle" && (
-          <StudioTakeActions
+        {/* Present so the row can leave as well as arrive: without it the
+            actions vanish the instant a retake starts. */}
+        <AnimatePresence initial={false}>
+          {recorder.hasBlob && recorder.phase !== "idle" ? (
+            <StudioTakeActions
             className="mt-8"
-            onRetake={handleRetake}
-            onSave={() => void handleSave()}
-            isSaving={isSaving}
-          />
-        )}
+              onRetake={handleRetake}
+              onSave={() => void handleSave()}
+              isSaving={isSaving}
+            />
+          ) : null}
+        </AnimatePresence>
 
         <RedactParticipantSheet
           open={redacting !== null}

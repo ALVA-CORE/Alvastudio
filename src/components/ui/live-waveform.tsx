@@ -5,6 +5,7 @@ import {
   type ComponentProps,
   type CSSProperties,
 } from "react";
+import { bandAt } from "@/components/ui/live-waveform-band";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,11 +26,19 @@ import { cn } from "@/lib/utils";
 
 export type LiveWaveformMode = "scrolling" | "static";
 
+
 export type LiveWaveformProps = Omit<ComponentProps<"div">, "children"> & {
   /** Listen to the microphone. Ignored for permissions when `stream` is set. */
   active?: boolean;
   /** An already-open capture to analyse. Nothing is requested when given. */
   stream?: MediaStream | null;
+  /**
+   * A playing `<audio>` to analyse instead of a microphone.
+   *
+   * Routed through the same analyser and then on to the speakers, so the
+   * strip moves with the take being played back rather than sitting flat.
+   */
+  element?: HTMLMediaElement | null;
   /** Animate a waiting pattern while there is nothing to listen to. */
   processing?: boolean;
   barWidth?: number;
@@ -57,6 +66,7 @@ export type LiveWaveformProps = Omit<ComponentProps<"div">, "children"> & {
 export function LiveWaveform({
   active = false,
   stream: externalStream = null,
+  element = null,
   processing = false,
   barWidth = 3,
   barHeight = 4,
@@ -90,7 +100,7 @@ export function LiveWaveform({
   const historyRef = useRef<number[]>([]);
   const phaseRef = useRef(0);
 
-  const listening = active || Boolean(externalStream);
+  const listening = active || Boolean(externalStream) || Boolean(element);
 
   /* Read in the draw loop, which is not a React render, so they live in refs
      rather than closing over a stale props object. */
@@ -161,19 +171,30 @@ export function LiveWaveform({
         if (!p.processing) return 0;
         /* A travelling wave, so "waiting" does not look like "dead". */
         const t = phaseRef.current;
-        return 0.18 + 0.16 * Math.sin(index * 0.35 - t) + 0.08 * Math.sin(index * 0.11 - t * 1.7);
+        /* Symmetric too, so the resting pattern and the live one are the
+           same shape. */
+        const d = Math.abs(index - (count - 1) / 2);
+        return 0.18 + 0.16 * Math.sin(d * 0.35 - t) + 0.08 * Math.sin(d * 0.11 - t * 1.7);
       }
 
-      /* Low frequencies carry most of a voice, so the band is sampled from
-         the lower half rather than the whole spectrum: the top half of an
-         FFT of speech is close to flat and would draw a flat row of bars. */
+      /* Only the lower part of the spectrum is used: the top of an FFT of
+         speech is close to flat and would draw a flat row. */
+      const half = Math.max(1, Math.ceil(count / 2));
+      const fromCentre = bandAt(index, count);
+
       const usable = Math.floor(bins.length * 0.6);
-      const from = Math.floor((index / count) * usable);
-      const to = Math.max(from + 1, Math.floor(((index + 1) / count) * usable));
+      const from = Math.floor(fromCentre * usable);
+      const to = Math.max(from + 1, Math.floor((fromCentre + 1 / half) * usable));
 
       let sum = 0;
-      for (let i = from; i < to; i += 1) sum += bins[i];
-      return Math.min(1, (sum / (to - from) / 255) * p.sensitivity);
+      for (let i = from; i < Math.min(to, bins.length); i += 1) sum += bins[i];
+      const level = sum / Math.max(1, Math.min(to, bins.length) - from) / 255;
+
+      /* The outer bars carry the quiet end of the spectrum, so without this
+         the strip tapers to nothing and reads as a narrower control than it
+         is. */
+      const lift = 1 - fromCentre * 0.35;
+      return Math.min(1, level * p.sensitivity * lift);
     };
 
     phaseRef.current += 0.08;
@@ -230,6 +251,42 @@ export function LiveWaveform({
 
     let cancelled = false;
 
+    /**
+     * An audio element, analysed on its way to the speakers.
+     *
+     * `createMediaElementSource` takes the element's output away from the
+     * default route, so the analyser has to be connected on to `destination`
+     * or the take plays silently. It can also only be called once per
+     * element, which is why a failure here falls back to leaving the element
+     * alone rather than retrying: a silent playback is worse than a flat
+     * waveform.
+     */
+    const attachElement = (media: HTMLMediaElement) => {
+      if (cancelled) return;
+
+      try {
+        const AudioCtx =
+          window.AudioContext ??
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext;
+
+        const context = new AudioCtx();
+        const analyser = context.createAnalyser();
+        analyser.fftSize = fftSize;
+        analyser.smoothingTimeConstant = smoothingTimeConstant;
+
+        const source = context.createMediaElementSource(media);
+        source.connect(analyser);
+        analyser.connect(context.destination);
+
+        contextRef.current = context;
+        analyserRef.current = analyser;
+      } catch {
+        /* Already wired to another context, or blocked. The strip draws its
+           resting row and the audio still plays. */
+      }
+    };
+
     const attach = (source: MediaStream) => {
       if (cancelled) {
         if (ownedStreamRef.current === source) {
@@ -255,7 +312,9 @@ export function LiveWaveform({
       onStreamReady?.(source);
     };
 
-    if (externalStream) {
+    if (element) {
+      attachElement(element);
+    } else if (externalStream) {
       attach(externalStream);
     } else {
       navigator.mediaDevices
