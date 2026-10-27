@@ -32,16 +32,25 @@ const SETTLE_MS = 420;
  * lands, and only then does `onDone` fire. A loading screen that is cut off
  * mid-animation is worse than none: it reads as a glitch on the way in.
  *
- * **It waits before showing.** A boot check is usually one fast request, and
- * a splash that appears and vanishes inside 200ms is a flash, not a brand
- * moment. Nothing paints until the wait has proved itself slow.
+ * **It plays every time.** Every refresh, every first visit, signed in or
+ * out. It is the way into the app rather than a progress indicator, so it
+ * does not wait to find out whether there is anything to wait for.
  */
 export function AlvaSplash({
-  delayMs = 220,
+  delayMs = 0,
   onStart,
   onDone,
 }: {
-  /** How long the wait has to last before anything is drawn. */
+  /**
+   * How long the wait has to last before anything is drawn.
+   *
+   * **Zero now, on purpose.** It used to be 220ms so a fast boot never
+   * flashed a splash it did not need — correct for a loading indicator, and
+   * wrong for this, which is the way into the app. It should be the same on
+   * every refresh and on a first visit, including a signed-out one where
+   * there is no session to check at all. Kept as a parameter because the
+   * threshold behaviour is still a sensible thing to want.
+   */
   delayMs?: number;
   /**
    * Called the moment anything is actually painted.
@@ -110,8 +119,8 @@ export function AlvaSplash({
   }, [shown, reduced, onDone]);
 
   if (!shown) {
-    /* The old behaviour, unchanged, for every boot fast enough not to need
-       this screen: a tinted page so the wrong one is never painted. */
+    /* Only reachable when a caller passes a threshold. A tinted page, so the
+       wrong screen is never painted underneath. */
     return <div className="min-h-dvh bg-alva-bg" aria-busy="true" />;
   }
 
@@ -128,36 +137,41 @@ export function AlvaSplash({
           edge of the ellipse can ever cross into frame. */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-0 h-[150dvh] w-[180vw] -translate-x-1/2"
+        /* One layer, one transform, so the browser composites the travel
+           instead of repainting a gradient every frame. Taller and wider
+           than the viewport so no edge of the ellipse can cross into frame
+           and read as a line. */
+        className="pointer-events-none absolute left-1/2 top-0 h-dvh w-[180vw] -translate-x-1/2"
         style={{
           background:
-            "radial-gradient(ellipse 40% 26% at 50% 34%," +
-            "hsl(var(--alva-accent)/0.40) 0%," +
-            "hsl(var(--alva-accent)/0.26) 22%," +
-            "hsl(var(--alva-accent)/0.13) 42%," +
-            "hsl(var(--alva-accent)/0.05) 62%," +
-            "hsl(var(--alva-accent)/0.012) 80%," +
+            "radial-gradient(ellipse 42% 30% at 50% 50%," +
+            "hsl(var(--alva-accent)/0.42) 0%," +
+            "hsl(var(--alva-accent)/0.27) 20%," +
+            "hsl(var(--alva-accent)/0.14) 40%," +
+            "hsl(var(--alva-accent)/0.055) 60%," +
+            "hsl(var(--alva-accent)/0.014) 80%," +
             "transparent 100%)",
         }}
-        /* From low on the screen to where the page glow sits: the ellipse's
-           centre ends just above the top edge, which is the shape every
-           other page wears. */
-        initial={reduced ? false : { y: "48%", opacity: 0.55 }}
-        animate={{ y: "-24%", opacity: 1 }}
+        /* Starts centred on the bottom quarter of the screen: the layer is
+           one viewport tall and its gradient centred, so +75% puts the
+           middle of the glow at 75% down. It finishes centred just above the
+           top edge, which is where the glow sits on every other page. */
+        initial={reduced ? false : { y: "75%", opacity: 0.6 }}
+        animate={{ y: "-62%", opacity: 1 }}
         transition={{ duration: RISE_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
       />
 
       <motion.div
-        className="relative flex items-center justify-center gap-3 px-6"
+        className="relative flex items-center justify-center gap-2.5 px-6"
         initial={reduced ? false : { opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
       >
-        <AlvaLogo className="h-12 shrink-0 sm:h-14" />
+        <AlvaLogo className="h-9 shrink-0 sm:h-10" />
 
         {/* The text node carries the name for assistive tech in full from the
             start — a screen reader should not be made to watch it type. */}
-        <span className="flex items-baseline text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <span className="flex items-baseline text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           <span aria-hidden>{WORDMARK.slice(0, typed)}</span>
           <span className="sr-only">{WORDMARK}</span>
 

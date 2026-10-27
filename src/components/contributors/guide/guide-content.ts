@@ -2,7 +2,7 @@
  * The contributor guide, as data.
  *
  * Written by Lolu, 27 Oct 2026. Kept as structure rather than a blob of
- * markup so the sheet can render each kind of thing the way it deserves —
+ * markup so the sheet can render each kind of thing the way it deserves ,
  * the setup steps as a checklist, the rejection reasons as cards, the two
  * recording modes as their own sections. A wall of prose on a phone is a
  * wall nobody climbs.
@@ -13,7 +13,7 @@
  */
 
 export type GuideStep = {
-  /** Icon key, resolved in the component — this file stays free of JSX. */
+  /** Icon key, resolved in the component , this file stays free of JSX. */
   icon: GuideIcon;
   title: string;
   detail: string;
@@ -73,7 +73,7 @@ export const SETUP_STEPS: GuideStep[] = [
   {
     icon: "still",
     title: "Stay still",
-    detail: "Don't move around or tap the phone while it is recording.",
+    detail: "Do not move around or tap the phone while it is recording.",
   },
   {
     icon: "device",
@@ -87,12 +87,12 @@ export const PROMPT_STEPS: GuideStep[] = [
     icon: "text",
     title: "Read it exactly as written",
     detail:
-      "Word for word. Don't add, skip or change anything, even if you would normally say it differently.",
+      "Word for word. Do not add, skip or change anything, even if you would normally say it differently.",
   },
   {
     icon: "whole",
     title: "Read the whole sentence",
-    detail: "Don't stop halfway or cut off the last word.",
+    detail: "Do not stop halfway or cut off the last word.",
   },
   {
     icon: "pause",
@@ -104,7 +104,7 @@ export const PROMPT_STEPS: GuideStep[] = [
     icon: "natural",
     title: "Sound like yourself",
     detail:
-      "Normal pace, normal volume, your own accent. Don't put on a foreign accent or read like a robot.",
+      "Normal pace, normal volume, your own accent. Do not put on a foreign accent or read like a robot.",
   },
   {
     icon: "retake",
@@ -132,7 +132,7 @@ export const NARRATION_STEPS: GuideStep[] = [
   },
   {
     icon: "unscripted",
-    title: "Talk, don't read",
+    title: "Talk, do not read",
     detail:
       "Say it the way you would to a friend. Small pauses and “ehn” or “you know” are fine.",
   },
@@ -140,7 +140,7 @@ export const NARRATION_STEPS: GuideStep[] = [
     icon: "keepGoing",
     title: "Keep talking",
     detail:
-      "Up to 2 minutes. Long silences are trimmed off and not paid — only your speaking time counts.",
+      "Up to 2 minutes. Long silences are trimmed off and not paid, so only your speaking time counts.",
   },
   {
     icon: "private",
@@ -165,7 +165,7 @@ export const NARRATION_STEPS: GuideStep[] = [
  *
  * This was a nine-row, three-column table. A table on a phone is either a
  * horizontal scroll or four-point type, and this is the part somebody reads
- * *after* a rejection — when they are annoyed and looking for one specific
+ * *after* a rejection , when they are annoyed and looking for one specific
  * row. So each reason is a card: the name, what it means, and the fix, with
  * the fix visually separated because it is the only line that tells them
  * what to do next.
@@ -179,12 +179,12 @@ export type Rejection = {
 export const REJECTIONS: Rejection[] = [
   {
     reason: "Transcript mismatch",
-    meaning: "What you said doesn't match the sentence on screen — words added, skipped or changed.",
+    meaning: "What you said does not match the sentence on screen: words added, skipped or changed.",
     fix: "Read word for word, and re-record if you slip.",
   },
   {
     reason: "Off-topic narration",
-    meaning: "Your story doesn't answer the topic shown.",
+    meaning: "Your story does not answer the topic shown.",
     fix: "Read the topic again before you start.",
   },
   {
@@ -200,7 +200,7 @@ export const REJECTIONS: Rejection[] = [
   {
     reason: "Distortion",
     meaning: "Your voice sounds crackly, buzzy or breaking up.",
-    fix: "Hold the phone 15–20 cm away, and don't shout.",
+    fix: "Hold the phone 15–20 cm away, and do not shout.",
   },
   {
     reason: "Too quiet",

@@ -216,10 +216,12 @@ export function InternSignupForm() {
               control={form.control}
               name="primaryState"
               render={({ field, fieldState }) => (
-                <FormItem className="space-y-1.5">
-                  <FormLabel className="text-sm text-muted-foreground">Primary state</FormLabel>
+                <FormItem>
                   <FormControl>
+                    {/* The label floats inside the field, so there is none
+                        above it. Two labels is the same question twice. */}
                     <StateCombobox
+                      label="Primary state"
                       value={field.value}
                       onChange={field.onChange}
                       size="lg"
@@ -234,13 +236,12 @@ export function InternSignupForm() {
               control={form.control}
               name="quotaAlerts"
               render={({ field, fieldState }) => (
-                <FormItem className="space-y-1.5">
-                  <FormLabel className="text-sm text-muted-foreground">Quota alerts</FormLabel>
+                <FormItem>
                   <FormControl>
                     <AlvaSelect
                       value={field.value}
                       onValueChange={field.onChange}
-                      label="How often"
+                      label="Quota alerts"
                       options={[...QUOTA_ALERT_OPTIONS]}
                       hasError={Boolean(fieldState.error)}
                       size="lg"

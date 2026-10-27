@@ -30,9 +30,8 @@ describe("BootGate", () => {
       </BootGate>
     );
 
-    /* Past the threshold, so the splash is now painting. */
     act(() => {
-      vi.advanceTimersByTime(300);
+      vi.advanceTimersByTime(10);
     });
     expect(screen.getByRole("status")).toBeInTheDocument();
 
@@ -54,9 +53,11 @@ describe("BootGate", () => {
     expect(screen.getByText("the app")).toBeInTheDocument();
   });
 
-  /* And the counterpart: a boot fast enough never to draw the splash must
-     not be held for an animation that is never going to play. */
-  it("holds nothing when the session resolves below the threshold", () => {
+  /* A signed-out visitor has no session to check. They used to see nothing
+     at all, because the gate released before the splash had drawn a frame.
+     The entrance to the app should not depend on there happening to be a
+     request to cover. */
+  it("plays even when there is no session to check", () => {
     vi.useFakeTimers();
     loading = false;
 
@@ -67,7 +68,30 @@ describe("BootGate", () => {
     );
 
     act(() => {
-      vi.advanceTimersByTime(1);
+      vi.advanceTimersByTime(10);
+    });
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByText("the app")).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(2200);
+    });
+    expect(screen.getByText("the app")).toBeInTheDocument();
+  });
+
+  /* The app must render even if the animation never reports back. */
+  it("gives up and lets the app through rather than hanging", () => {
+    vi.useFakeTimers();
+    loading = false;
+
+    render(
+      <BootGate>
+        <App />
+      </BootGate>
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
     });
     expect(screen.getByText("the app")).toBeInTheDocument();
   });

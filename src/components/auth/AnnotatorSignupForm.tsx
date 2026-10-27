@@ -221,12 +221,11 @@ export function AnnotatorSignupForm() {
             control={form.control}
             name="varieties"
             render={({ field, fieldState }) => (
-              <FormItem className="space-y-1.5">
-                <FormLabel className="text-sm text-muted-foreground">
-                  Varieties you can tag
-                </FormLabel>
+              <FormItem>
                 <FormControl>
                   <AlvaMultiSelect
+                    label="Varieties you can tag"
+                    size="lg"
                     value={field.value}
                     onChange={field.onChange}
                     options={[...ANNOTATOR_VARIETY_OPTIONS]}

@@ -1,58 +1,46 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AlvaSplash } from "@/components/shared/AlvaSplash";
 import { useAuth } from "@/lib/auth/context";
+
+/**
+ * A hard ceiling on the hold, in ms.
+ *
+ * Nothing should reach it: the splash always starts and always finishes. It
+ * exists because the one unacceptable failure here is an app that never
+ * renders, and a timer is cheaper than being sure.
+ */
+const CEILING_MS = 4000;
 
 /**
  * Holds the app back until both the session check and the splash are done.
  *
  * Two clocks, and the later one wins. The session check usually finishes
  * first, and if the splash unmounted the moment it did, the glow would be
- * cut off halfway up the screen — which reads as a glitch on the way in,
- * worse than no splash at all.
+ * cut off halfway up the screen, which reads as a glitch on the way in.
+ *
+ * **It plays on every boot**, refresh or first visit, signed in or out. It
+ * used to skip itself whenever the session resolved inside a threshold,
+ * which was right for a loading indicator and wrong for this: a signed-out
+ * visitor has no session to check, so they saw it never. The entrance to the
+ * app should not depend on whether there happened to be a request to cover.
  *
  * It sits above the router rather than inside a route guard, because a guard
- * remounts on navigation: the splash would replay every time somebody moved
- * between protected routes.
- *
- * **Nothing is held for a fast boot.** `AlvaSplash` paints nothing until the
- * wait has proved slow, so if the session resolves inside its threshold the
- * animation never starts, `onDone` never fires, and this gets out of the way
- * immediately. The hold only exists once there is something to finish.
+ * remounts on navigation and the splash would replay every time somebody
+ * moved between protected routes.
  */
 export function BootGate({ children }: { children: ReactNode }) {
   const { isLoading } = useAuth();
   const [animated, setAnimated] = useState(false);
 
-  /**
-   * Whether the splash ever got as far as drawing itself.
-   *
-   * A ref, and set on **start** rather than on finish. It used to be set in
-   * `onDone`, which meant that between the first painted frame and the last
-   * one this still read false — so a session check landing in that window
-   * took the "it never started" branch and tore the splash down mid-rise.
-   * The two states it has to tell apart are "not yet drawn" and "drawing",
-   * and only a start signal can do that.
-   *
-   * A ref because the child announces it from an effect, and child effects
-   * run before the parent's: by the time the `isLoading` effect below reads
-   * it, it is already true. A state update would arrive a render too late.
-   */
-  const started = useRef(false);
-
-  const onStart = useCallback(() => {
-    started.current = true;
-  }, []);
-
   const onDone = useCallback(() => setAnimated(true), []);
 
-  /* Once the session is known and the splash never started, there is nothing
-     left to wait for — a boot fast enough to stay under the threshold is
-     held for nothing at all. */
+  /* The safety net, not the mechanism. */
   useEffect(() => {
-    if (!isLoading && !started.current) setAnimated(true);
-  }, [isLoading]);
+    const timer = window.setTimeout(() => setAnimated(true), CEILING_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
-  if (isLoading || !animated) return <AlvaSplash onStart={onStart} onDone={onDone} />;
+  if (isLoading || !animated) return <AlvaSplash onDone={onDone} />;
 
   return <>{children}</>;
 }
