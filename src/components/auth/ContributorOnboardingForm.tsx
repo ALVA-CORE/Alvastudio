@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BeamInput } from "@/components/auth/BeamInput";
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
+import { ConsentLinks } from "@/components/auth/ConsentLinks";
 import { StepperBars } from "@/components/interns/participants/StepperBars";
 import { StateCombobox } from "@/components/interns/participants/StateCombobox";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
@@ -651,7 +652,7 @@ export function ContributorOnboardingForm() {
                       </FormControl>
                       <div className="space-y-1 leading-snug">
                         <FormLabel className="cursor-pointer text-sm font-normal text-foreground">
-                          I acknowledge Alva&apos;s NDPA-compliant data-use policy
+                          <ConsentLinks />
                         </FormLabel>
                         <FormMessage />
                       </div>

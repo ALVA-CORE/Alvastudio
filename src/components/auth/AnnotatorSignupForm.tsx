@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BeamInput } from "@/components/auth/BeamInput";
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
+import { ConsentLinks } from "@/components/auth/ConsentLinks";
 import { AlvaMultiSelect } from "@/components/shared/AlvaMultiSelect";
 import { TextureButton } from "@/components/ui/texture-button";
 import {
@@ -271,7 +272,7 @@ export function AnnotatorSignupForm() {
                   </FormControl>
                   <div className="space-y-1 leading-snug">
                     <FormLabel className="cursor-pointer text-xs font-normal text-muted-foreground">
-                      I agree to the terms and conditions and NDPA data-use policy
+                      <ConsentLinks />
                     </FormLabel>
                     <FormMessage />
                   </div>

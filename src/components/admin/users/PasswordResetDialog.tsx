@@ -75,6 +75,8 @@ export function PasswordResetDialog({
 }) {
   const [stage, setStage] = useState<Stage>({ kind: "confirm" });
   const [copied, setCopied] = useState(false);
+  /** The token in hand, so a re-check can still offer it if the send fails. */
+  const [issued, setIssued] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -103,6 +105,8 @@ export function PasswordResetDialog({
    * was being refused.
    */
   const confirmDelivery = async (token: string) => {
+    setIssued(token);
+
     try {
       const page = await listUserEmails(userId, { limit: 5 });
       const link = page.items.find(
@@ -137,6 +141,45 @@ export function PasswordResetDialog({
       });
     }
   };
+
+  /**
+   * "Queued" is not an outcome, so this keeps asking until there is one.
+   *
+   * A row arrives `pending` with `attempts: 0` — nothing has tried to send
+   * it yet. Reading that once and printing "it will go out shortly" tells an
+   * admin the happy ending before anybody knows it, and this screen has
+   * already done that for three weeks while every message was being refused.
+   *
+   * So it re-reads. A send that works flips to `sent` within a few seconds;
+   * one that is refused flips to `failed` with the provider's error, and the
+   * admin gets the token and the real reason instead of a promise. A row
+   * still `pending` after all of these is its own finding — it means nothing
+   * is draining the queue — and it says so rather than looking patient.
+   */
+  useEffect(() => {
+    if (stage.kind !== "queued" || !issued) return;
+
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (attempts > 5) {
+        window.clearInterval(timer);
+        setStage({
+          kind: "undelivered",
+          token: issued,
+          reason:
+            "The email is still waiting to be sent, which usually means the mail queue is not running. Use the token and tell the team.",
+        });
+        return;
+      }
+
+      void confirmDelivery(issued);
+      /* `confirmDelivery` moves the stage itself, which stops this effect. */
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [stage.kind, issued, userId]);
 
   const send = async () => {
     setStage({ kind: "sending" });
@@ -180,7 +223,7 @@ export function PasswordResetDialog({
             {stage.kind === "sent"
               ? `${email} can now set a new password. The link works once.`
               : stage.kind === "queued"
-                ? `The email to ${email} is queued and will go out shortly.`
+                ? `The email to ${email} has not gone out yet. Checking…`
                 : stage.kind === "undelivered"
                   ? "Pass this token to them yourself. They set their own password with it, and it works once."
                   : `We will email ${email} a link to set a new password. Their current one keeps working until they use it.`}

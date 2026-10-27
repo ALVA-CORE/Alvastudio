@@ -1,10 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
+import QuestionCircle from "@solar-icons/react/ui/QuestionCircle";
 import type { IconProps, IconWeight } from "@solar-icons/react/lib/types";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import UserRounded from "@solar-icons/react/users/UserRounded";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
+import { ContributorGuideSheet } from "@/components/contributors/guide/ContributorGuideSheet";
 import { cn } from "@/lib/utils";
 import { alvaAccentTextureClass } from "@/lib/alva-texture";
 
@@ -72,9 +74,10 @@ export function FloatingBottomNav({ isStaff = false }: FloatingBottomNavProps) {
   const location = useLocation();
   const activeId = getActiveNav(location.pathname, isStaff);
   const items = isStaff ? staffMobileNav : contributorNav;
+  const [guideOpen, setGuideOpen] = useState(false);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 pb-[env(safe-area-inset-bottom)] md:hidden">
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex items-center justify-center gap-2 px-4 pb-[env(safe-area-inset-bottom)] md:hidden">
       <nav
         aria-label="Main navigation"
         className="pointer-events-auto flex items-center gap-0.5 rounded-full bg-alva-surface p-1 shadow-[0_8px_32px_rgba(0,0,0,0.45)] ring-1 ring-white/5"
@@ -111,6 +114,39 @@ export function FloatingBottomNav({ isStaff = false }: FloatingBottomNavProps) {
           );
         })}
       </nav>
+
+      {/* Detached on purpose.
+          It is not a place in the app — it opens over whatever you are doing
+          and closes back onto it, so putting it inside the pill would make a
+          destination of something that never changes the page. Set apart, it
+          reads as what it is: help, always within reach of a thumb.
+
+          Contributors only. Staff have their own guidance and this one is
+          written for somebody recording. */}
+      {!isStaff ? (
+        <>
+          <button
+            type="button"
+            aria-label="How to get your recordings approved"
+            aria-haspopup="dialog"
+            aria-expanded={guideOpen}
+            onClick={() => setGuideOpen(true)}
+            className={cn(
+              "pointer-events-auto flex size-[46px] shrink-0 items-center justify-center rounded-full",
+              "bg-alva-surface text-muted-foreground shadow-[0_8px_32px_rgba(0,0,0,0.45)] ring-1 ring-white/5",
+              "transition-colors hover:text-foreground",
+              guideOpen && "text-alva-accent"
+            )}
+          >
+            <QuestionCircle
+              size={20}
+              weight={guideOpen ? "BoldDuotone" : "Outline"}
+            />
+          </button>
+
+          <ContributorGuideSheet open={guideOpen} onOpenChange={setGuideOpen} />
+        </>
+      ) : null}
     </div>
   );
 }

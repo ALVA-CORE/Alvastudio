@@ -38,10 +38,21 @@ const SETTLE_MS = 420;
  */
 export function AlvaSplash({
   delayMs = 220,
+  onStart,
   onDone,
 }: {
   /** How long the wait has to last before anything is drawn. */
   delayMs?: number;
+  /**
+   * Called the moment anything is actually painted.
+   *
+   * The caller needs this, not just `onDone`. Knowing only when the
+   * animation *ends* leaves no way to tell "it never started" apart from
+   * "it is still running" — so a boot check finishing early looks like the
+   * first, the gate lets go, and the splash is cut off mid-rise. Which is
+   * exactly what happened.
+   */
+  onStart?: () => void;
   /**
    * Called once the animation has played out.
    *
@@ -58,6 +69,12 @@ export function AlvaSplash({
     const timer = window.setTimeout(() => setShown(true), delayMs);
     return () => window.clearTimeout(timer);
   }, [delayMs]);
+
+  /* Announced from an effect rather than inside the timeout, so it cannot
+     fire during a render the caller is in the middle of. */
+  useEffect(() => {
+    if (shown) onStart?.();
+  }, [shown, onStart]);
 
   /* Reduced motion gets the finished lockup, not a faster version of the
      animation. The point of the preference is no movement, and a wordmark

@@ -1,4 +1,5 @@
 import { apiFetch, ApiError } from "./client";
+import { SUPPORT_EMAIL } from "@/lib/links";
 
 /**
  * Feedback from the person using the app.
@@ -12,7 +13,9 @@ import { apiFetch, ApiError } from "./client";
  */
 
 /** Where support picks it up until the route exists. */
-export const SUPPORT_EMAIL = "support@alvacoreai.com";
+/* Re-exported so existing callers keep working. Defined in `lib/links`,
+   with the terms, privacy and payments URLs it belongs beside. */
+export { SUPPORT_EMAIL };
 
 export type FeedbackKind = "bug" | "idea" | "confusing" | "praise" | "other";
 

@@ -23,22 +23,36 @@ export function BootGate({ children }: { children: ReactNode }) {
   const { isLoading } = useAuth();
   const [animated, setAnimated] = useState(false);
 
-  /* Whether the splash ever got as far as drawing itself. Without this, a
-     boot that resolves inside the threshold would wait for an `onDone` that
-     is never coming. */
+  /**
+   * Whether the splash ever got as far as drawing itself.
+   *
+   * A ref, and set on **start** rather than on finish. It used to be set in
+   * `onDone`, which meant that between the first painted frame and the last
+   * one this still read false — so a session check landing in that window
+   * took the "it never started" branch and tore the splash down mid-rise.
+   * The two states it has to tell apart are "not yet drawn" and "drawing",
+   * and only a start signal can do that.
+   *
+   * A ref because the child announces it from an effect, and child effects
+   * run before the parent's: by the time the `isLoading` effect below reads
+   * it, it is already true. A state update would arrive a render too late.
+   */
   const started = useRef(false);
-  const onDone = useCallback(() => {
+
+  const onStart = useCallback(() => {
     started.current = true;
-    setAnimated(true);
   }, []);
 
+  const onDone = useCallback(() => setAnimated(true), []);
+
   /* Once the session is known and the splash never started, there is nothing
-     left to wait for. */
+     left to wait for — a boot fast enough to stay under the threshold is
+     held for nothing at all. */
   useEffect(() => {
     if (!isLoading && !started.current) setAnimated(true);
   }, [isLoading]);
 
-  if (isLoading || !animated) return <AlvaSplash onDone={onDone} />;
+  if (isLoading || !animated) return <AlvaSplash onStart={onStart} onDone={onDone} />;
 
   return <>{children}</>;
 }
