@@ -285,14 +285,14 @@ if (typeof URL.revokeObjectURL !== "function") {
 /* ------------------------------------------------------------------ *
  * Canvas and image decoding
  *
- * jsdom implements neither, and the selfie step needs both to turn a picked
+ * jsdom implements neither, and the ID document step needs both to turn a picked
  * file into base64. These are the smallest stand-ins that let that path be
  * tested; nothing asserts on the bytes, only that a photo arrives.
  * ------------------------------------------------------------------ */
 /* Only `toDataURL`, which jsdom leaves unimplemented. `getContext` is left
  * alone — the chart components use a real one, and replacing it broke them. */
 HTMLCanvasElement.prototype.toDataURL = () =>
-  "data:image/jpeg;base64,c2VsZmll";
+  "data:image/jpeg;base64,ZG9jdW1lbnQ=";
 
 Object.defineProperty(HTMLImageElement.prototype, "decode", {
   configurable: true,

@@ -2,18 +2,19 @@ import { useEffect, useState } from "react";
 import { getCapacity } from "@/lib/api/capacity";
 
 /**
- * Whether the sign-up page should let somebody start at all.
+ * Whether a contributor signing up now gets straight in.
  *
- * Checked on arrival rather than only on submit, so a closed platform is the
- * first thing somebody reads instead of the thing they discover after
- * filling in nine fields.
+ * Read on arrival so the page can say what will happen before nine fields
+ * are filled in, rather than after. It is **not** the boundary — the account
+ * is created either way, and the register response's `waitlisted` is what
+ * actually decides. A check in the browser is a check anybody can skip.
  *
- * The submit path still handles the refusal. This is the courtesy; the API's
- * `403` is the boundary, and it has to be, because a check in the browser is
- * a check anybody can skip.
+ * `accepting`, not `open`: the API folds "an admin closed it" and "the limit
+ * is reached" into one answer, and re-deriving that here would be a second
+ * copy of a rule the server owns.
  *
  * `undefined` while unknown, so a page can wait rather than flashing a form
- * it is about to take away.
+ * it is about to change.
  */
 export function useSignupsOpen(): boolean | undefined {
   const [open, setOpen] = useState<boolean | undefined>(undefined);

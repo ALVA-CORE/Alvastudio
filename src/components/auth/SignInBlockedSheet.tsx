@@ -22,11 +22,13 @@ export type SignInBlock = "pending" | "suspended" | "full";
  * nothing on the form for them to fix. An inline error line next to a
  * password box invites them to try the password again.
  *
- * "Full" is the third, and it is not a refusal. The account is made and
- * everything they typed is kept; what is deferred is the way in, exactly as
- * an intern waits on approval. It gets a sheet because there is nothing on
- * the form to change, and an inline error would invite another try at a
- * thing that worked.
+ * "Full" is the third, and it is not a refusal at all — which is why it is
+ * the one that never comes from an error. A contributor signing up while
+ * the platform is full gets a `201` with `waitlisted: true`: the account is
+ * made, everything they typed is kept, and what is deferred is only the way
+ * in. The caller sets this sheet from that flag. It gets a sheet because
+ * there is nothing on the form to change, and an inline error would invite
+ * another try at a thing that already worked.
  *
  * Deleted accounts are not here. The API answers a deleted account the same
  * way it answers a typo, deliberately, so that nobody can use the sign-in
@@ -56,14 +58,24 @@ const COPY: Record<
     tone: "text-alva-accent",
     title: "You're on the list",
     detail:
-      "Alva Studio is full right now. Your account is saved, and we'll email you the moment a place opens so you can sign in.",
+      "Alva Studio is full right now. Your account is saved and we've emailed you — we'll be in touch the moment a place opens.",
   },
 };
 
-/** Null when the failure is nothing to open a sheet about. */
+/**
+ * Null when the failure is nothing to open a sheet about.
+ *
+ * Note what is **not** here: "full". Capacity stopped being an error on
+ * 27 Oct — the sign-up succeeds and the account is waitlisted — so there is
+ * nothing to detect, and a branch left behind matching "at capacity" would
+ * be dead code pattern-matching English that the backend is free to reword.
+ *
+ * `isWaitlisted` covers the one case where it still arrives as an error: a
+ * waitlisted contributor whose session reaches a contributor route anyway.
+ */
 export function signInBlock(error: unknown): SignInBlock | null {
   if (!(error instanceof ApiError)) return null;
-  if (error.isAtCapacity) return "full";
+  if (error.isWaitlisted) return "full";
   if (error.isPendingApproval) return "pending";
   if (error.isAccountSuspended) return "suspended";
   return null;

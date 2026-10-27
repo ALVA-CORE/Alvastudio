@@ -23,13 +23,13 @@ export type RoleVersion = {
 
 export const APP_VERSIONS = {
   contributor: {
-    version: "1.4.0",
-    released: "2026-10-26",
+    version: "1.5.0",
+    released: "2026-10-27",
     notes: [
+      "Verify with your NIN document instead of a selfie",
+      "The wallet keeps itself up to date while a review runs",
       "Milestone pay, and a gauge for the next ₦5,000",
       "Change your own password",
-      "Bank picker says when the list could not load",
-      "Give feedback from your profile",
     ],
   },
   intern: {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import {
@@ -6,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FieldBeam } from "@/components/shared/FieldBeam";
+import { FloatingFieldLabel } from "@/components/shared/FloatingFieldLabel";
 import { alvaSelectClass } from "@/lib/alva-form-styles";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +37,8 @@ export function AlvaMultiSelect({
   summary,
   className,
   disabled = false,
+  label: fieldLabel,
+  size = "md",
   "aria-label": ariaLabel,
 }: {
   value: string[];
@@ -45,8 +49,12 @@ export function AlvaMultiSelect({
   /** Overrides the default "N selected" label. */
   summary?: (selected: string[]) => string;
   className?: string;
+  /** The floating label. Pass this instead of a label above the field. */
+  label?: string;
+  size?: "md" | "lg";
   "aria-label"?: string;
 }) {
+  const [open, setOpen] = useState(false);
   const toggle = (option: string) =>
     onChange(
       value.includes(option)
@@ -64,19 +72,29 @@ export function AlvaMultiSelect({
           : `${value.length} selected`;
 
   return (
-    <DropdownMenu>
-      <FieldBeam className={className}>
+    <FloatingFieldLabel
+      label={fieldLabel}
+      lifted={open || value.length > 0}
+      size={size}
+      className={className}
+    >
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <FieldBeam active={open || undefined} className={fieldLabel ? undefined : className}>
         <DropdownMenuTrigger
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? fieldLabel}
           disabled={disabled}
           className={cn(
-            alvaSelectClass(),
+            alvaSelectClass(undefined, size),
             "flex w-full items-center justify-between gap-2 px-3 text-sm",
             value.length === 0 && "text-muted-foreground",
             disabled && "cursor-not-allowed opacity-50"
           )}
         >
-          <span className="truncate">{label}</span>
+          {/* While the floating label is down it IS the placeholder, so the
+              trigger shows nothing underneath it. */}
+          <span className="truncate">
+            {fieldLabel && value.length === 0 ? "" : label}
+          </span>
           <AltArrowDown size={15} weight="Outline" className="shrink-0 opacity-60" />
         </DropdownMenuTrigger>
       </FieldBeam>
@@ -122,5 +140,6 @@ export function AlvaMultiSelect({
         })}
       </DropdownMenuContent>
     </DropdownMenu>
+    </FloatingFieldLabel>
   );
 }

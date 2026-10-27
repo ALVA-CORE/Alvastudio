@@ -1,5 +1,3 @@
-import type { HeatmapColumn } from "@/components/charts/heatmap";
-import { round1 } from "./shared";
 
 export type AdminUserRole = "contributor" | "intern" | "annotator" | "admin";
 
@@ -71,20 +69,28 @@ export type AdminUser = {
    * account exists before anyone has agreed to it and cannot be used until an
    * admin says so. Contributors are self-serve, and an admin-created account
    * is approved by the act of creating it.
+   *
+   * `waiting` is the exception: a contributor who signed up while the
+   * platform was full. Kept apart from `pending` because the two are not the
+   * same wait — nobody is reviewing a waitlisted contributor, they are
+   * queueing for a place, and an admin scanning this column needs to know
+   * which pile a name is in.
    */
-  approval?: "pending" | "approved";
+  approval?: "pending" | "waiting" | "approved";
 };
 
-export type AccountStatus = "pending" | "active" | "deactivated";
+export type AccountStatus = "pending" | "waiting" | "active" | "deactivated";
 
 /** One status, so the table, the panel and the filter cannot disagree. */
 export function accountStatus(user: AdminUser): AccountStatus {
   if (user.approval === "pending") return "pending";
+  if (user.approval === "waiting") return "waiting";
   return user.isActive ? "active" : "deactivated";
 }
 
 export const STATUS_LABEL: Record<AccountStatus, string> = {
   pending: "Pending approval",
+  waiting: "On the waiting list",
   active: "Active",
   deactivated: "Deactivated",
 };
@@ -123,6 +129,9 @@ export function canEditProfile(user: AdminUser) {
 export const STATUS_TINT: Record<AccountStatus, string> = {
   active: "text-alva-accent",
   pending: "text-amber-300",
+  /* Neutral, not amber. Nobody is being judged and nothing is overdue —
+     they are queueing, and a warning colour would say otherwise. */
+  waiting: "text-muted-foreground",
   deactivated: "text-red-400",
 };
 
@@ -165,45 +174,7 @@ export type AuditEvent = {
   byAdmin?: boolean;
 };
 
-/**
- * A year of daily activity, calendar-shaped.
- *
- * Seeded off the user id so the same person shows the same history every time
- * the panel opens — a heatmap that reshuffles on reopen looks like a bug.
- */
-export function activitySummary(columns: HeatmapColumn[]) {
-  const days = columns
-    .flatMap((column) => column.bins)
-    .filter((bin) => bin.date instanceof Date && (bin.date as Date) <= new Date());
 
-  const total = days.reduce((sum, bin) => sum + (bin.count ?? 0), 0);
-  const activeDays = days.filter((bin) => (bin.count ?? 0) > 0).length;
-
-  /* Longest run of consecutive days with something on them. */
-  let streak = 0;
-  let best = 0;
-  for (const bin of days) {
-    streak = (bin.count ?? 0) > 0 ? streak + 1 : 0;
-    if (streak > best) best = streak;
-  }
-
-  return {
-    total,
-    activeDays,
-    bestStreak: best,
-    perActiveDay: activeDays > 0 ? round1(total / activeDays) : 0,
-  };
-}
-
-export function formatAuditTimestamp(date: Date) {
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 
 
@@ -224,13 +195,3 @@ export type RoleStat = { label: string; value: string; tone?: "accent" | "danger
 
 
 
-/** What the activity tab's headline reads as, per role. */
-export function activityNoun(user: AdminUser) {
-  return user.role === "contributor"
-    ? "recordings"
-    : user.role === "intern"
-      ? "sessions"
-      : user.role === "annotator"
-        ? "segments"
-        : "actions";
-}

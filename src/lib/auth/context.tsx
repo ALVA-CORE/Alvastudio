@@ -113,6 +113,10 @@ function mergeUser(apiUser: ApiUser, local?: Partial<AuthUser>): AuthUser {
     email: apiUser.email,
     phone: apiUser.phone ?? undefined,
     role: toAppRole(apiUser.role),
+    /* The API's, not the browser's: a place opening is something only the
+       server knows, so this is re-read on every boot rather than trusted
+       from storage. */
+    waitlisted: apiUser.waitlisted === true,
     // Local-only extras. Preserved across a refresh, lost across devices.
     onboardingComplete: local?.onboardingComplete,
     internProfile: local?.internProfile,
@@ -139,6 +143,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .me()
       .then((apiUser) => {
         if (cancelled) return;
+
+        /* A waitlisted contributor has a valid token and no usable app: every
+           contributor route answers 403 until an admin lets them in. Keeping
+           the session would render a shell where each request fails one at a
+           time. Cleared here, in the one place that already decides whether a
+           stored token means "signed in" — a route guard doing it would
+           bounce to /login, which bounces back, which is a redirect loop. */
+        if (apiUser.waitlisted === true) {
+          authApi.clearSession();
+          setUser(null);
+          persistUser(null);
+          return;
+        }
+
         const next = mergeUser(apiUser, loadUser() ?? undefined);
         setUser(next);
         persistUser(next);

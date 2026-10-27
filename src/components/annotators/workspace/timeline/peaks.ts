@@ -71,8 +71,3 @@ export function segmentPeaks(segmentId: string, sampleCount: number): number[] {
   peakCache.set(key, peaks);
   return peaks;
 }
-
-/** Test seam. */
-export function __clearPeakCache() {
-  peakCache.clear();
-}

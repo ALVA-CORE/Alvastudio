@@ -3,9 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { AnnotatorBentoGrid } from "@/components/annotators/dashboard/AnnotatorBentoGrid";
 import { AnnotatorBentoSkeleton } from "@/components/annotators/dashboard/AnnotatorBentoSkeleton";
 import {
-  ANNOTATOR_DASHBOARD_DATA,
   getEmptyAnnotatorDataset,
 } from "@/data/annotators/dashboard";
+import { ANNOTATOR_DASHBOARD_DATA } from "@/test/annotatorDashboardFixtures";
 import { buildActivitySeries } from "@/components/annotators/dashboard/AnnotatorActivityChart";
 
 /**

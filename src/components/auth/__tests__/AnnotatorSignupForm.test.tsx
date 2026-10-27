@@ -110,7 +110,16 @@ describe("AnnotatorSignupForm", () => {
     await user.type(screen.getByLabelText("Full name"), "Ada Obi");
     await user.click(screen.getByRole("button", { name: "Create annotator account" }));
 
-    await waitFor(() => expect(screen.getByText("Pick at least one")).toBeInTheDocument());
+    /* The field names itself through `aria-label`, since its visible label
+       animates out of the box and a `<label for>` that moves makes the
+       browser scroll to it. So this is the check that the control is still
+       reachable by name with no stacked label above it. */
+    expect(
+      screen.getByRole("button", { name: "Varieties you can tag" })
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/pick at least one/i)).toBeInTheDocument()
+    );
     expect(signup).not.toHaveBeenCalled();
   });
 });

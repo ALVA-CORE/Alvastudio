@@ -7,7 +7,6 @@ import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
 import {
   getCapacity,
-  isCapacityLocalOnly,
   setCapacityOpen,
   type PlatformCapacity,
 } from "@/lib/api/capacity";
@@ -19,12 +18,16 @@ import {
  * sign-up page, and opening lets them back in; neither is the sort of thing
  * to do on a misclick from a page header.
  *
- * **While the API has no capacity route this only reaches this browser**, and
- * the dialog says so rather than implying a platform-wide switch. A door the
- * client closes is not closed: `POST /auth/register` is public and anybody
- * can call it directly. The ask is in `docs/backend/endpoints-needed.md`;
- * when it lands this component is unchanged and the warning disappears on
- * its own, because the API's answer carries the figures the local one cannot.
+ * **The switch is the server's since 27 Oct.** It used to reach only the
+ * browser it was pressed in, with a caveat on the dialog saying so — a door
+ * the client closes is not closed, and `POST /auth/register` is public. Now
+ * the API enforces it, so the caveat is gone and the dialog can say what
+ * actually happens instead.
+ *
+ * Closing does not turn anybody away. A contributor still signs up, still
+ * fills everything in, still gets an email; they wait for a place rather
+ * than being refused, and an admin lets them in. That is the sentence the
+ * dialog has to carry, because "close sign-ups" sounds like the opposite.
  */
 export function SignupsToggle() {
   const [state, setState] = useState<PlatformCapacity | null>(null);
@@ -52,7 +55,14 @@ export function SignupsToggle() {
   if (!state) return null;
 
   const closing = state.open;
-  const localOnly = isCapacityLocalOnly(state);
+
+  /* What the switch is actually holding. An admin deciding whether to close
+     wants the number in front of them, not in another tab. `accounts`
+     counts contributors who are in — the waiting list is not in it. */
+  const standing =
+    state.limit === null
+      ? `${state.accounts} contributor${state.accounts === 1 ? "" : "s"} so far, no limit set.`
+      : `${state.accounts} of ${state.limit} places taken.`;
 
   const apply = async () => {
     setWorking(true);
@@ -95,11 +105,7 @@ export function SignupsToggle() {
             ? "New contributors can still sign up, but will wait for a place instead of getting in."
             : "New contributors will be let straight in again."
         }
-        detail={
-          localOnly && closing
-            ? "Only this browser for now, and the API still accepts a sign-up sent to it directly."
-            : undefined
-        }
+        detail={standing}
         confirmLabel={closing ? "Close sign-ups" : "Open sign-ups"}
         onConfirm={() => void apply()}
         isPending={working}

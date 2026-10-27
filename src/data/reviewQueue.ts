@@ -79,38 +79,6 @@ export type AudioRegion = {
   color: string;
 };
 
-export const REGION_TAGS: Array<{
-  id: Exclude<RegionTag, "custom">;
-  label: string;
-  description: string;
-}> = [
-  {
-    id: "background-noise",
-    label: "Background noise",
-    description: "Traffic, room tone, or interference over the speaker",
-  },
-  {
-    id: "clipping",
-    label: "Clipping",
-    description: "Distorted or peaking audio on loud moments",
-  },
-  {
-    id: "off-prompt",
-    label: "Off-prompt",
-    description: "Speaker drifted from the assigned text or stimulus",
-  },
-  {
-    id: "unintelligible",
-    label: "Unintelligible",
-    description: "Hard to understand speech at this timestamp",
-  },
-  {
-    id: "good-segment",
-    label: "Good segment",
-    description: "Clean, usable audio worth keeping in the corpus",
-  },
-];
-
 export const TRI_STATE_OPTIONS: Array<{ value: TriStateAnswer; label: string }> = [
   { value: "yes", label: "Yes" },
   { value: "partial", label: "Partial" },

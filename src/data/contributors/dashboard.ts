@@ -55,12 +55,6 @@ export function toPodium(
   }));
 }
 
-export const RECORDING_MIX = [
-  { type: "prompts", value: 58, fill: "var(--color-prompts)" },
-  { type: "stimuli", value: 42, fill: "var(--color-stimuli)" },
-];
-
-/** Ghost ring, so the donut keeps its shape behind the empty overlay. */
 export const EMPTY_RECORDING_MIX = [
   { type: "prompts", value: 1, fill: "hsl(0 0% 20%)" },
   { type: "stimuli", value: 1, fill: "hsl(0 0% 16%)" },
@@ -104,20 +98,18 @@ export function toWeeklySessions(daily: { date: string; count: number }[]) {
   });
 }
 
-export const WEEKLY_SESSIONS = [
-  { day: "Mon", sessions: 4 },
-  { day: "Tue", sessions: 7 },
-  { day: "Wed", sessions: 5 },
-  { day: "Thu", sessions: 9 },
-  { day: "Fri", sessions: 6 },
-  { day: "Sat", sessions: 3 },
-  { day: "Sun", sessions: 8 },
-];
-
-export const EMPTY_WEEKLY_SESSIONS = WEEKLY_SESSIONS.map((point) => ({
-  ...point,
-  sessions: 0,
-}));
+/* The days of the week, at zero. Written out rather than derived from an
+   invented week with its numbers knocked down, which is how that fixture
+   stayed alive in shipping code. */
+export const EMPTY_WEEKLY_SESSIONS = [
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+].map((day) => ({ day, sessions: 0 }));
 
 /** The bar's four tracks at zero, so the frame survives an empty breakdown. */
 /**

@@ -7,26 +7,6 @@
  */
 
 /** Deterministic, so a re-render does not reshuffle a table or restart a chart. */
-export function seeded(seed: number) {
-  let state = seed;
-  return () => {
-    state = (state * 1664525 + 1013904223) % 4294967296;
-    return state / 4294967296;
-  };
-}
-
-export function pick<T>(random: () => number, options: readonly T[]): T {
-  return options[Math.floor(random() * options.length)];
-}
-
-export const NIGERIAN_NAMES = [
-  "Chioma Okafor", "Tunde Adeyemi", "Amaka Nwosu", "Ibrahim Bello",
-  "Blessing Uche", "Emeka Duru", "Fatima Sani", "Victor Oghene",
-  "Ngozi Peters", "Suleiman Rabiu", "Grace Etim", "Halima Bashir",
-  "Segun Alabi", "Precious Wills", "Musa Danladi", "Aisha Mohammed",
-  "Chinedu Obi", "Zainab Kabir", "Bola Ogundele", "Joy Effiong",
-] as const;
-
 export const STATES = [
   "Lagos", "FCT", "Rivers", "Kano", "Oyo", "Enugu", "Kaduna",
   "Delta", "Anambra", "Edo", "Plateau", "Cross River", "Borno", "Ogun",
@@ -41,14 +21,6 @@ export function round1(value: number) {
 }
 
 /** `YYYY-MM-DD`, n days back from today. */
-export function daysAgo(n: number): Date {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - n);
-  return date;
-}
-
-/** "3d ago" / "Yesterday" / "Just now" — the grammar the other tables use. */
 export function relativeDays(date: Date) {
   const hours = Math.floor((Date.now() - date.getTime()) / 36e5);
   if (hours < 1) return "Just now";

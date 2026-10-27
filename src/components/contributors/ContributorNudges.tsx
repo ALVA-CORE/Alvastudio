@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { FeedbackForm } from "@/components/profile/FeedbackRow";
 import { VerifyIdentitySheet } from "@/components/contributors/wallet/VerifyIdentitySheet";
-import { submitNin, useWallet } from "@/data/contributors/walletStore";
+import { submitIdentityDocument, useWallet } from "@/data/contributors/walletStore";
 import { useNudge, DAYS, MINUTES } from "@/hooks/useNudge";
 import { useAuth } from "@/lib/auth/context";
 import { alvaToast } from "@/lib/alva-toast";
@@ -19,13 +19,17 @@ import { alvaToast } from "@/lib/alva-toast";
  * somebody's first screen is a thing to dismiss rather than read, and it
  * teaches people to close whatever appears.
  *
- * **Verifying a NIN is asked every day until it is done.** It is not a
+ * **Verifying identity is asked every day until it is done.** It is not a
  * nicety: an unverified contributor can record for weeks and then find they
  * cannot be paid, which is the worst moment to learn it. Five minutes into a
- * session, once a day, and never again once they are verified.
+ * session, once a day, and never again once it is done.
+ *
+ * "Done" means submitted, not passed. Document review takes a person, and
+ * asking somebody to upload their ID again tomorrow because nobody has read
+ * yesterday's yet is how you get four copies of the same card.
  *
  * **Feedback is asked at most once a day**, and never on the same visit as
- * the NIN prompt. Two sheets in one session is a product talking over
+ * the identity prompt. Two sheets in one session is a product talking over
  * somebody trying to work.
  */
 export function ContributorNudges() {
@@ -36,10 +40,14 @@ export function ContributorNudges() {
      other's dismissals. */
   const scope = user?.id ?? "anon";
 
-  const verified = wallet?.identity === "verified";
+  /* Anything but "we have never heard from you" counts as handled. A
+     submission already under review is not something another upload moves
+     along, and a failed one is answered in the wallet rather than by a sheet
+     that opens on its own. */
+  const handled = wallet?.identity !== "unverified";
   const knowIdentity = wallet !== null && wallet !== undefined;
 
-  const nin = useNudge({
+  const identity = useNudge({
     key: `alva-nudge-nin:${scope}`,
     after: 5 * MINUTES,
     /* Every day until it is done. Unlike feedback, this one costs them
@@ -47,7 +55,7 @@ export function ContributorNudges() {
        much they record. */
     quietFor: 1 * DAYS,
     enabled: knowIdentity,
-    done: verified,
+    done: handled,
   });
 
   const feedback = useNudge({
@@ -55,7 +63,7 @@ export function ContributorNudges() {
     after: 8 * MINUTES,
     quietFor: 1 * DAYS,
     /* Never both in one sitting. */
-    enabled: knowIdentity && !nin.open,
+    enabled: knowIdentity && !identity.open,
     done: false,
   });
 
@@ -63,16 +71,20 @@ export function ContributorNudges() {
     <>
       {wallet ? (
         <VerifyIdentitySheet
-          open={nin.open}
+          open={identity.open}
           onOpenChange={(open) => {
-            if (!open) nin.dismiss();
+            if (!open) identity.dismiss();
           }}
           state={wallet.identity}
-          onSubmit={async (ninValue, consent, selfie) => {
-            await submitNin(ninValue, consent, selfie);
+          nextAction={wallet.nextAction}
+          detail={wallet.identityDetail}
+          onSubmit={async (submission) => {
+            const { detail } = await submitIdentityDocument(submission, {
+              needsAccount: wallet.nextAction === "create_account",
+            });
             reload();
-            nin.dismiss();
-            alvaToast.success("NIN submitted, we'll let you know");
+            identity.dismiss();
+            alvaToast.success(detail);
           }}
         />
       ) : null}

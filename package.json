@@ -7,8 +7,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "vite --port 3000",
-    "dev:clean": "rm -rf node_modules/.vite && vite --port 3000",
+    "dev": "vite --host --port 3000",
+    "dev:clean": "rm -rf node_modules/.vite && vite --host --port 3000",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",

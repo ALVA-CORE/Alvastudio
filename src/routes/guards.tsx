@@ -9,12 +9,14 @@ import { canOpenAdminArea } from "@/lib/auth/adminPermissions";
 /**
  * Held while the session is being verified.
  *
- * Deliberately a bare tinted page rather than a spinner: the wait is a single
- * request and usually imperceptible, so a spinner would flash in and out and
- * read as jank. This just avoids painting the wrong screen.
+ * A bare tinted page, deliberately. `BootGate` sits above the router and
+ * already holds the whole app behind the splash while the boot check runs,
+ * so by the time any of these guards render, the only waits left are the
+ * imperceptible ones — and a second splash here would replay on every
+ * guarded navigation.
  */
 function SessionGate() {
-  return <div className="min-h-screen bg-alva-bg" aria-busy="true" />;
+  return <div className="min-h-dvh bg-alva-bg" aria-busy="true" />;
 }
 
 export function ProtectedRoute() {

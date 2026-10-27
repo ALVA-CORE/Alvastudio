@@ -24,7 +24,7 @@ import { loginSchema, type LoginValues } from "@/lib/validations/auth";
 
 export function LoginForm() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginValues>({
@@ -38,7 +38,19 @@ export function LoginForm() {
     setFormError(null);
 
     try {
-      await login(values.email, values.password, values.rememberMe ?? false);
+      const account = await login(values.email, values.password, values.rememberMe ?? false);
+
+      /* Their sign-in worked — the API issues a token to a waitlisted
+         contributor exactly as it does to a pending intern's *failed* one.
+         That difference is the trap: nothing throws, so without this they
+         would land on a dashboard where every request answers 403.
+         Signed out again, because a session that can load nothing is worse
+         than none, and the sheet says what is actually happening. */
+      if (account.waitlisted) {
+        logout();
+        setBlocked("full");
+        return;
+      }
     } catch (error) {
       /* Two refusals are about the account rather than what was typed, and
          there is nothing on this form to fix for either. They get a sheet

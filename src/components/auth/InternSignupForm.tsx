@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BeamInput } from "@/components/auth/BeamInput";
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
+import { ConsentLinks } from "@/components/auth/ConsentLinks";
 import { StateCombobox } from "@/components/interns/participants/StateCombobox";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -215,10 +216,12 @@ export function InternSignupForm() {
               control={form.control}
               name="primaryState"
               render={({ field, fieldState }) => (
-                <FormItem className="space-y-1.5">
-                  <FormLabel className="text-sm text-muted-foreground">Primary state</FormLabel>
+                <FormItem>
                   <FormControl>
+                    {/* The label floats inside the field, so there is none
+                        above it. Two labels is the same question twice. */}
                     <StateCombobox
+                      label="Primary state"
                       value={field.value}
                       onChange={field.onChange}
                       size="lg"
@@ -233,13 +236,12 @@ export function InternSignupForm() {
               control={form.control}
               name="quotaAlerts"
               render={({ field, fieldState }) => (
-                <FormItem className="space-y-1.5">
-                  <FormLabel className="text-sm text-muted-foreground">Quota alerts</FormLabel>
+                <FormItem>
                   <FormControl>
                     <AlvaSelect
                       value={field.value}
                       onValueChange={field.onChange}
-                      label="How often"
+                      label="Quota alerts"
                       options={[...QUOTA_ALERT_OPTIONS]}
                       hasError={Boolean(fieldState.error)}
                       size="lg"
@@ -266,7 +268,7 @@ export function InternSignupForm() {
                   </FormControl>
                   <div className="space-y-1 leading-snug">
                     <FormLabel className="cursor-pointer text-xs font-normal text-muted-foreground">
-                      I agree to the terms and conditions and NDPA data-use policy
+                      <ConsentLinks />
                     </FormLabel>
                     <FormMessage />
                   </div>

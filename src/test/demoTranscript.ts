@@ -38,7 +38,7 @@ import {
   OPENING_THREAD,
   threadsForTopic,
   type ConversationTurn,
-} from "@/data/annotators/conversations";
+} from "@/test/conversations";
 
 /* Deterministic PRNG so a session always generates the same transcript. */
 function seededRandom(seed: number) {
