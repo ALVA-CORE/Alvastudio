@@ -7,6 +7,7 @@ import ContributorSignupPage from "@/pages/auth/ContributorSignupPage";
 import SignupPage from "@/pages/auth/SignupPage";
 import AnnotatorSignupPage from "@/pages/auth/AnnotatorSignupPage";
 import ForgotPasswordPage from "@/pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import ContributorDashboardPage from "@/pages/contributors/ContributorDashboardPage";
 import ContributorStudioPage from "@/pages/contributors/ContributorStudioPage";
 import ContributorProfilePage from "@/pages/contributors/ContributorProfilePage";
@@ -80,6 +81,17 @@ export function AppRoutes() {
             <Route path="/signup" element={<Navigate to="/intern/signup" replace />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           </Route>
+        </Route>
+
+        {/* Outside `GuestRoute`, deliberately.
+            A reset link is opened by whoever clicks it, and that is often
+            somebody with a live session in another tab — an admin testing
+            it, or a person who is signed in on this device and locked out
+            of another. Behind the guest guard they would be bounced to
+            their dashboard and the link would silently do nothing, which
+            is the one outcome a recovery flow cannot afford. */}
+        <Route element={<AuthLayout />}>
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { alvaToast } from "@/lib/alva-toast";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
 import PlaylistMinimalistic from "@solar-icons/react/list/PlaylistMinimalistic";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import { BorderBeam } from "border-beam";
-import { useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export type GuideMode = "prompt" | "stimuli";
@@ -15,8 +15,8 @@ export const GUIDE_MODES = [
   { id: "stimuli", label: "Stimuli", icon: Microphone3 },
 ] as const;
 
-/** Long enough to notice, short enough not to feel stuck. */
-const BEAT_MS = 2400;
+/** Enough of the card on screen to count as having arrived at it. */
+const IN_VIEW = 0.6;
 
 /**
  * The Record page's mode switch, working.
@@ -27,11 +27,17 @@ const BEAT_MS = 2400;
  * it, doing the thing it does. Picking "Stimuli" here shows the stimuli
  * rules, which is exactly what picking it on the Record page does.
  *
- * **It demonstrates itself until it is touched.** A small round button with
- * an icon in it does not announce that it opens, so left alone it opens,
- * shows what is inside, and closes again. The first interaction of any kind
- * stops that for good: a control that keeps animating under somebody's
- * thumb is fighting them.
+ * **It opens itself when it is scrolled to, and then stays open.** A small
+ * round button with an icon in it does not announce that it opens, so it
+ * shows what is inside rather than waiting to be found. It used to cycle —
+ * open, close, open — which is worse than not demonstrating at all: the
+ * options vanish just as somebody starts reading them, and the card
+ * underneath moves every couple of seconds. Opening once and staying open
+ * says the same thing and then stops talking.
+ *
+ * A toast carries the part the menu cannot: what the two options *are*. The
+ * labels are the Record page's, which is right, but "Stimuli" means nothing
+ * on its own the first time anybody reads it.
  *
  * Built from the real control's pieces, beam included, rather than a
  * screenshot, so it cannot go stale the next time that page changes.
@@ -43,35 +49,46 @@ export function ModeSwitcher({
   value: GuideMode;
   onChange: (next: GuideMode) => void;
 }) {
-  const reduced = useReducedMotion() ?? false;
-
   const [open, setOpen] = useState(false);
   const [touched, setTouched] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
 
-  const demoing = !touched && !reduced;
+  /**
+   * Opens when it is scrolled into view, once, and never closes itself.
+   *
+   * On arrival rather than on a timer: somebody three screens above this has
+   * no use for a menu opening, and by the time they reach it the timer has
+   * been and gone. An `IntersectionObserver` fires exactly when the card is
+   * actually in front of them.
+   *
+   * It disconnects after the first hit, so scrolling back past it does not
+   * reopen a menu they have already closed.
+   */
+  const announced = useRef(false);
 
-  /* Open, hold, close, pause. Four beats so the closed state is visible for
-     as long as the open one, which is what makes it read as a thing being
-     opened rather than a panel that flickers. */
   useEffect(() => {
-    if (!demoing) return;
+    if (!root || touched || announced.current) return;
 
-    const timer = window.setInterval(() => {
-      /* Not while the tab is in the background: it would run for an hour
-         behind another window, for nobody. */
-      if (document.hidden) return;
-      setOpen((value) => !value);
-    }, BEAT_MS);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || announced.current) return;
+        announced.current = true;
+        observer.disconnect();
 
-    return () => window.clearInterval(timer);
-  }, [demoing]);
+        setOpen(true);
+        /* The part the menu cannot say. "Stimuli" is the Record page's own
+           word, which is right, and means nothing the first time it is
+           read. */
+        alvaToast.accent(
+          "Prompt reader is reading sentences aloud. Stimuli is telling a story in your own words. Pick one to see its rules."
+        );
+      },
+      { threshold: IN_VIEW }
+    );
 
-  /* Reduced motion gets it open and still, which is the state that carries
-     the information. */
-  useEffect(() => {
-    if (reduced) setOpen(true);
-  }, [reduced]);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [root, touched]);
 
   /**
    * Closes on a click elsewhere, the way a menu is expected to.
@@ -87,7 +104,7 @@ export function ModeSwitcher({
     if (!touched || !open) return;
 
     const onDown = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (!root?.contains(event.target as Node)) setOpen(false);
     };
 
     /* Deferred a frame: the click that opened this is still propagating,
@@ -100,7 +117,7 @@ export function ModeSwitcher({
       window.clearTimeout(timer);
       document.removeEventListener("pointerdown", onDown);
     };
-  }, [touched, open]);
+  }, [touched, open, root]);
 
   const take = () => setTouched(true);
 
@@ -108,7 +125,7 @@ export function ModeSwitcher({
   const ActiveIcon = active.icon;
 
   return (
-    <div ref={root} className="flex items-start gap-3">
+    <div ref={setRoot} className="flex items-start gap-3">
       <div className="relative shrink-0 overflow-visible rounded-full">
         <BorderBeam
           size="pulse-outside"

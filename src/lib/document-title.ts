@@ -17,6 +17,7 @@ const TITLES: Array<[path: string, title: string]> = [
   ["/contributor/signup", "Create your account"],
   ["/intern/signup", "Create an intern account"],
   ["/forgot-password", "Reset your password"],
+  ["/reset-password", "Set a new password"],
 
   ["/contributor/dashboard", "Home"],
   ["/contributor/studio", "Studio"],

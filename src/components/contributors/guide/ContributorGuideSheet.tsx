@@ -298,12 +298,17 @@ export function ContributorGuideSheet({
                 in the shape they will meet it, doing the thing it does:
                 picking Stimuli here shows the stimuli rules, exactly as
                 picking it on the Record page changes what they record. */}
+            {/* The sentence comes first, the control second.
+                Underneath, it moved: the menu opens by growing the card, so
+                the line explaining the control slid down the screen every
+                time somebody used it. Above, it stays put, and it is read
+                before the thing it describes rather than after. */}
             <div className="mb-3 rounded-2xl bg-alva-surface px-3.5 py-3">
-              <ModeSwitcher value={mode} onChange={selectMode} />
-              <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
+              <p className="mb-2.5 text-xs leading-relaxed text-muted-foreground">
                 On the Record page, this is how you choose what to record.
                 Pick one to see its rules.
               </p>
+              <ModeSwitcher value={mode} onChange={selectMode} />
             </div>
 
             {mode === "prompt" ? (

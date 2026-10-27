@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContributorGuideSheet } from "@/components/contributors/guide/ContributorGuideSheet";
 import {
@@ -177,5 +177,54 @@ describe("ModeSwitcher", () => {
       "false"
     );
     expect(scroller.scrollTop).toBe(120);
+  });
+});
+
+describe("ModeSwitcher, on arrival", () => {
+  /**
+   * It opens when it is scrolled to, once, and does not close itself.
+   *
+   * It used to cycle open and shut on a timer, which is worse than no
+   * demonstration at all: the options vanish just as somebody starts
+   * reading them, and the card underneath moves every couple of seconds.
+   */
+  it("opens itself when the card comes into view, and stays open", () => {
+    const observed: Array<(entries: unknown[]) => void> = [];
+    const disconnect = vi.fn();
+
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: (entries: unknown[]) => void) {
+          observed.push(callback);
+        }
+        observe() {}
+        unobserve() {}
+        disconnect = disconnect;
+        takeRecords() {
+          return [];
+        }
+      }
+    );
+
+    render(<ContributorGuideSheet open onOpenChange={() => {}} />);
+    const trigger = screen.getByRole("button", { name: /Recording mode/ });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    act(() => {
+      observed.forEach((fire) => fire([{ isIntersecting: true }]));
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    /* Scrolling past it again must not reopen a menu somebody has closed,
+       so it stops watching after the first hit. */
+    expect(disconnect).toHaveBeenCalled();
+
+    act(() => {
+      observed.forEach((fire) => fire([{ isIntersecting: false }]));
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    vi.unstubAllGlobals();
   });
 });
