@@ -5,18 +5,18 @@ import type { UserRole } from "@/lib/validations/auth";
 import type { AdminNavId } from "@/components/admin/layout/adminNav";
 import type { AdminPermission } from "@/data/admin/users";
 import { canOpenAdminArea } from "@/lib/auth/adminPermissions";
-import { AlvaSplash } from "@/components/shared/AlvaSplash";
 
 /**
  * Held while the session is being verified.
  *
- * A bare tinted page for the first fraction of a second, because the wait is
- * one request and usually imperceptible — anything that flashes in and out
- * reads as jank. `AlvaSplash` owns that threshold and only draws itself once
- * the wait has proved slow enough to be worth covering.
+ * A bare tinted page, deliberately. `BootGate` sits above the router and
+ * already holds the whole app behind the splash while the boot check runs,
+ * so by the time any of these guards render, the only waits left are the
+ * imperceptible ones — and a second splash here would replay on every
+ * guarded navigation.
  */
 function SessionGate() {
-  return <AlvaSplash />;
+  return <div className="min-h-dvh bg-alva-bg" aria-busy="true" />;
 }
 
 export function ProtectedRoute() {

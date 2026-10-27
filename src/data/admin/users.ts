@@ -71,20 +71,28 @@ export type AdminUser = {
    * account exists before anyone has agreed to it and cannot be used until an
    * admin says so. Contributors are self-serve, and an admin-created account
    * is approved by the act of creating it.
+   *
+   * `waiting` is the exception: a contributor who signed up while the
+   * platform was full. Kept apart from `pending` because the two are not the
+   * same wait — nobody is reviewing a waitlisted contributor, they are
+   * queueing for a place, and an admin scanning this column needs to know
+   * which pile a name is in.
    */
-  approval?: "pending" | "approved";
+  approval?: "pending" | "waiting" | "approved";
 };
 
-export type AccountStatus = "pending" | "active" | "deactivated";
+export type AccountStatus = "pending" | "waiting" | "active" | "deactivated";
 
 /** One status, so the table, the panel and the filter cannot disagree. */
 export function accountStatus(user: AdminUser): AccountStatus {
   if (user.approval === "pending") return "pending";
+  if (user.approval === "waiting") return "waiting";
   return user.isActive ? "active" : "deactivated";
 }
 
 export const STATUS_LABEL: Record<AccountStatus, string> = {
   pending: "Pending approval",
+  waiting: "On the waiting list",
   active: "Active",
   deactivated: "Deactivated",
 };
@@ -123,6 +131,9 @@ export function canEditProfile(user: AdminUser) {
 export const STATUS_TINT: Record<AccountStatus, string> = {
   active: "text-alva-accent",
   pending: "text-amber-300",
+  /* Neutral, not amber. Nobody is being judged and nothing is overdue —
+     they are queueing, and a warning colour would say otherwise. */
+  waiting: "text-muted-foreground",
   deactivated: "text-red-400",
 };
 

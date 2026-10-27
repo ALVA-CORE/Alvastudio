@@ -7,123 +7,12 @@ open is listed here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | Close sign-ups and sign-ins at a capacity | Holding the platform at a set number of people | **High** |
-| 2 | Tell the contributors the identity migration reset | People who were verified finding out at withdrawal | **High** |
-| 3 | An idempotency key on `POST /wallet/identity/documents` | A safe retry after a 502 | Medium |
+| 1 | Tell the contributors the identity migration reset | People who were verified finding out at withdrawal | **High** |
+| 2 | An idempotency key on `POST /wallet/identity/documents` | A safe retry after a 502 | Medium |
 
 ---
 
-## 1. A waiting list for contributors when we are full
-
-We want to hold the platform at a set number of contributors. **Nobody is
-turned away** — we still want their details. They just do not get in until a
-place opens.
-
-This is the approval flow you already have for interns and annotators,
-applied to contributors when a cap is on. It is **contributors only**: an
-intern or an annotator already waits on an admin, so a cap adds nothing to
-their sign-up.
-
-**What should happen**
-
-1. Contributor signs up while we are full. **The account is created**, with
-   everything they filled in, and `approved: false`.
-2. They get the "waiting for approval" email straight away, and every admin
-   gets the "an account is waiting" one. Both already exist.
-3. Signing in gets the `403` you already send for an unapproved account, so
-   nothing new is needed on login.
-4. An admin opens the gate, approves them, and **the existing "Your account
-   is approved" email goes out**. They sign in. No new mail template.
-
-So the only new thing is the switch itself, and making register honour it.
-
-**The switch**
-
-```
-GET   /platform/capacity                     (public, unauthenticated)
-  → { open: true, accounts: 412, limit: 500 }
-
-PATCH /platform/capacity   { open, limit }   (admin)
-  → the same shape
-```
-
-- **`open`** is the switch an admin flips. `limit` is a number it can close
-  at on its own; either is enough on its own, and an admin can close early by
-  sending `open: false`.
-- **Public on the read.** The sign-up page needs it before anybody has an
-  account. It carries no personal data, only three numbers.
-- **`accounts`** is whatever you count towards the cap. Tell us which roles
-  it includes; we only display it.
-
-**What register should do while closed**
-
-```
-POST /auth/register, role=contributor, while closed
-  → 201, the account created with approved: false
-```
-
-Not a `403`. We want the person and their data; we are only deferring
-access. Interns and annotators are unaffected either way.
-
-**Two things we would like on the response**, so the screen can tell "you
-are in" from "you are on the list" without guessing:
-
-```json
-{ "...": "...", "approved": false, "waitlisted": true }
-```
-
-Without it we infer waitlisted from `approved: false`, which is also true of
-a normal intern sign-up, and the two need different words on screen.
-
-**And a stable `code` on the refusals**, rather than English we have to match
-on. We are currently reading messages for two things:
-
-| What we match | Why we need it |
-| --- | --- |
-| `at capacity`, `registration is closed` | Opens the waiting-list sheet instead of a field error |
-| `already registered`, `already exists`, `already taken` | Somebody already on the list who signs up again gets the same sheet, not a red line implying they mistyped |
-
-Both fall back safely to showing your own sentence, so a reword cannot
-mislead anybody — it just makes the screen less helpful. Something like
-`{"detail": "...", "code": "at_capacity"}` and `code: "email_taken"` would
-settle it.
-
-**Signing in is a dead end for a waitlisted contributor**, which is correct
-and we are not asking you to change it: the account exists and is not
-approved, so your existing `403` refuses them. The sheet therefore offers
-nowhere to go — no "back to sign in", because that would be a second dead
-end after the first.
-
-**Nothing else is enforced client-side.** Until this exists the admin switch
-only reaches the browser it was pressed in, and the confirm dialog says so.
-A door the client closes is not closed, and we are not shipping a control
-that claims otherwise.
-
----
-
-The document-verification handoff of 27 Oct is wired — see
-[`replies/api-status-2026-10-27-documents.md`](replies/api-status-2026-10-27-documents.md).
-The selfie flow is gone, `POST /wallet/identity/nin` is no longer called from
-anywhere, and the wallet follows `next_action`. Two follow-ups came out of it,
-below.
-
-Both asks from 26 Oct are answered in
-[`replies/api-status-2026-10-26.md`](replies/api-status-2026-10-26.md) and
-wired: `POST/GET/PATCH /feedback`, and sign-ins kept a year.
-
-All five asks from 24 Oct were answered in
-[`replies/api-status-2026-10-24.md`](replies/api-status-2026-10-24.md) and are
-wired: the email list, the recovery 503s, sign-ins in the audit log,
-`GET /users/{id}/activity`, and the cached bank list.
-
-**One thing we are waiting on rather than asking for.** Emails still reach
-nobody until the sending domain is verified with Resend. Nothing on our side
-changes when it is done. Until then an approved recovery answers 503 and we
-show that, and the manual reset on the user panel is the way back in.
-
----
-
-## 2. The migration reset verified contributors, and they do not know
+## 1. The migration reset verified contributors, and they do not know
 
 > "Existing identity states are reset for document review by the migration…
 > Returning contributors may therefore need to submit a document even if an
@@ -148,7 +37,7 @@ If you would rather we did it in-app instead, tell us and we will: a one-time
 sheet on next open, worded as a change at our end rather than a failure at
 theirs. Mail is better because it reaches people who are not recording today.
 
-## 3. An idempotency key on the document route
+## 2. An idempotency key on the document route
 
 Your own note is the reason:
 
@@ -190,7 +79,7 @@ on a bad connection, which is most of them.
 | The 4,194,304-character cap | Images are downscaled to a 1600px long edge, which lands far under it — bigger than the old selfie's 720px on purpose, because a person has to read the document number. A PDF cannot be shrunk in a browser, so an oversized one says "try a photo instead" rather than offering a retry that fails the same way. |
 | Double submission | The submit button is disabled while the request is in flight, and a 409, 410, 502 or 503 replaces the form rather than returning to it. Nothing in our client retries a request automatically — `apiFetch` has no retry at all — so an identity document is never re-uploaded without a person pressing something. |
 | NINs and documents at rest | Held in React state for the life of the sheet and dropped the moment it closes. No draft, no `localStorage`, no analytics, nothing in a URL, nothing logged. The sign-up forms use a draft helper; this sheet deliberately does not. |
-| A 502 on the document route | We stop rather than offer a retry, because your note says the provider may have the document anyway. See ask 3 — an idempotency key would let us do better. |
+| A 502 on the document route | We stop rather than offer a retry, because your note says the provider may have the document anyway. See ask 2 — an idempotency key would let us do better. |
 | Polling a review | Only while something is pending, only while the tab is in front, every 20s, plus one re-read on return to the tab. One component owns the timer; the other two readers of the wallet on the same screen do not each run one. |
 | `POST /wallet/account` | Called as the first step of the gate when `next_action` says `create_account`, not on page load. It is one tap for the contributor either way. |
 | `POST /wallet/onboarding-link` | Requested on click only, never minted ahead of time. |
@@ -209,6 +98,10 @@ on a bad connection, which is most of them.
 | `ethnicity`, `occupation` | Now sent and read back. They were collected at onboarding and discarded. |
 | Redaction | Wired from two places, as an intern meets the problem in two. The confirm checkbox is ticked by a person, never sent for them: untagged speech is not silenced, and no care at our end changes that. The player sits above it so the tick means something. |
 | `consent_blocked` | The workspace shows a banner on open, hides Mark as done, and makes autosave inert. Every write is a 409 while it holds, and an indicator cycling through "saving" and "failed" says nothing the banner has not. |
+| `accepting` vs `open` | We read `accepting` everywhere. Folding "an admin closed it" and "the limit is reached" into one field was more than we asked for and it removed the one place we would otherwise have reimplemented your rule. |
+| `waitlisted` | Read at the gate, not discovered a request at a time. A waitlisted contributor's **sign-in succeeds** — the token is issued, nothing throws — so without an explicit check they would land on a dashboard where every call answers 403. Login signs them back out and shows the sheet; a stored token for one is cleared on boot. |
+| The waiting list on the users table | Its own status, "On the waiting list", kept apart from "Pending approval" and tinted neutral rather than amber. Nobody is reviewing them and nothing is overdue — they are queueing, and an amber pill would say an admin was late. |
+| `code` on refusals | `ApiError.code` now carries it and `isAlreadyRegistered` branches on `email_taken` first. The old wording match is kept underneath only for a backend not yet on this version. |
 | A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. The same is true of a 410, which means the flow changed under us again and needs to reach us rather than them. |
 | "Submitted" vs "verified" | The success toast shows your `detail` verbatim, which says submitted. Nothing on our side says verified until `identity_status` does. A review is a person reading a document, and the old face match came back in minutes — the wait is the thing most likely to be misread, so the wording is yours rather than ours. |
 | Toasts | Wrap to two lines now, left aligned and smaller. "This payout account is on hold while we r…" was being cut mid-word. |

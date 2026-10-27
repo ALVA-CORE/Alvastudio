@@ -34,6 +34,11 @@ type Stage =
  * it, which is slow, unauditable, and teaches people that credentials arrive
  * over WhatsApp.
  *
+ * **Mail works now** — the verified sender went live on 27 Oct, and the
+ * recovery `503` that guarded against the testing address no longer fires.
+ * The delivery check below stays regardless: a 200 means a token was minted,
+ * never that anything reached anybody.
+ *
  * `POST /users/{id}/password-reset` queues the email itself. So the normal
  * path is now: confirm, send, and say whether it went.
  *

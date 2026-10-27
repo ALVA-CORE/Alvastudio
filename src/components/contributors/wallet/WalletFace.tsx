@@ -348,7 +348,7 @@ function IdentityGate({
 
   return (
     <div className="relative">
-      <div aria-hidden className="pointer-events-none select-none blur-[14px]">
+      <div aria-hidden className="pointer-events-none select-none blur-[5px]">
         {children}
       </div>
 
@@ -364,7 +364,7 @@ function IdentityGate({
         </span>
 
         <p className="mt-3 text-sm font-semibold text-foreground">{heading}</p>
-        <p className="mt-1 max-w-[17rem] text-xs text-muted-foreground">{body}</p>
+        <p className="mt-1 max-w-[17rem] text-xs text-foreground">{body}</p>
 
         {/* Nothing to press while somebody is reading it. A button that only
             reopens the same sentence is a button that does nothing. */}

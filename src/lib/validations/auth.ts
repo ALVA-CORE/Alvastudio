@@ -147,6 +147,15 @@ export type AuthUser = {
    * An empty array means genuinely nothing beyond the overview.
    */
   adminPermissions?: string[];
+  /**
+   * A contributor signed up while the platform was full.
+   *
+   * They have a real account and a working sign-in — the token is issued,
+   * their profile and consent still save — but every contributor route
+   * answers 403 until an admin approves them. So this is read at the gate
+   * rather than discovered one failed request at a time.
+   */
+  waitlisted?: boolean;
 };
 
 export const AGREEMENT_TARGET_OPTIONS = [

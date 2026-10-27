@@ -45,14 +45,18 @@ export function fromApiUser(api: ApiUser): AdminUser {
     joinedLabel: relativeDays(created),
     output: 0,
     outputLabel: OUTPUT_LABEL[api.role],
-    /* Interns and annotators both apply and both wait. Contributors are
-     * self-serve, and an admin-created account is approved by being created. */
+    /* Interns and annotators both apply and both wait on a judgement.
+     * Contributors are self-serve — unless they signed up while the platform
+     * was full, in which case they wait on a place instead, which is a
+     * different queue and reads as one. */
     approval:
       api.role === "intern" || api.role === "annotator"
         ? api.approved
           ? "approved"
           : "pending"
-        : undefined,
+        : api.waitlisted
+          ? "waiting"
+          : undefined,
   };
 }
 

@@ -48,19 +48,23 @@ describe("signInBlock", () => {
  * nothing on the form to change, and a line under a field invites another go
  * at a thing that worked.
  */
-describe("signInBlock, at capacity", () => {
-  it("opens for a platform that is not taking anybody new", () => {
-    expect(signInBlock(new ApiError(403, "Alva Studio is at capacity"))).toBe("full");
-    expect(signInBlock(new ApiError(403, "Registration is closed"))).toBe("full");
+describe("signInBlock, on the waiting list", () => {
+  /* Capacity stopped being a refusal on 27 Oct: a full platform answers the
+     sign-up with 201 and `waitlisted: true`. The only way it still arrives
+     as an error is a waitlisted session reaching a contributor route, and
+     the backend has made that sentence a contract. */
+  it("opens for a contributor route refusing a waitlisted account", () => {
+    expect(
+      signInBlock(new ApiError(403, "Contributor account is on the waiting list"))
+    ).toBe("full");
   });
 
-  it("wins over the other 403s, because it is the reason they cannot get in", () => {
-    /* An account can be both unapproved and arriving at a closed door. The
-       closed door is the thing they can do nothing about, so it is what they
-       are told. */
-    expect(
-      signInBlock(new ApiError(403, "Registration is closed, we are at capacity"))
-    ).toBe("full");
+  /* The old "at capacity" / "registration is closed" match is gone rather
+     than kept as a harmless extra. A dead branch pattern-matching English
+     the backend is free to reword is how a screen changes silently. */
+  it("no longer guesses at capacity wording", () => {
+    expect(signInBlock(new ApiError(403, "Alva Studio is at capacity"))).toBeNull();
+    expect(signInBlock(new ApiError(403, "Registration is closed"))).toBeNull();
   });
 
   it("leaves an ordinary 403 alone", () => {
@@ -76,7 +80,14 @@ describe("signInBlock, at capacity", () => {
  * the email field implying they typed something wrong.
  */
 describe("isAlreadyRegistered", () => {
-  it("recognises the wordings an API uses for a taken email", () => {
+  /* The contract since 27 Oct. `detail` may be reworded, `code` may not. */
+  it("branches on the stable code, whatever the sentence says", () => {
+    expect(
+      new ApiError(409, "Totally new wording", [], "email_taken").isAlreadyRegistered
+    ).toBe(true);
+  });
+
+  it("still recognises the wordings, for an API not yet sending a code", () => {
     for (const message of [
       "Email already registered",
       "A user with this email already exists",

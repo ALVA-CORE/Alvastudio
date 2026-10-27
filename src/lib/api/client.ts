@@ -80,12 +80,25 @@ export class ApiError extends Error {
   readonly status: number;
   /** Populated for 422 so forms can attach messages to the right input. */
   readonly fieldErrors: FieldError[];
+  /**
+   * A stable machine-readable reason, where the API sends one.
+   *
+   * Only some refusals carry it — `email_taken` is the first. Branch on this
+   * and never on `message`, which the backend says it may reword.
+   */
+  readonly code: string | null;
 
-  constructor(status: number, message: string, fieldErrors: FieldError[] = []) {
+  constructor(
+    status: number,
+    message: string,
+    fieldErrors: FieldError[] = [],
+    code: string | null = null
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.fieldErrors = fieldErrors;
+    this.code = code;
   }
 
   /** The token is missing, expired or rejected. */
@@ -114,39 +127,39 @@ export class ApiError extends Error {
   }
 
   /**
-   * The platform is not taking new people, or not letting them in.
-   *
-   * A `403` whose detail says the place is full. Not a permissions problem
-   * and not about this person: there is nothing on the form for them to fix,
-   * which is why it opens a sheet rather than a line under a field.
-   *
-   * **Matched on the message, pending a code of its own.** Asked for in
-   * `docs/backend/endpoints-needed.md`; a `code` field on the body would be
-   * better than reading English, and until there is one this falls back to
-   * the generic 403 rather than breaking.
-   */
-  get isAtCapacity(): boolean {
-    return this.status === 403 && /at capacity|registration is closed|we are full/i.test(this.message);
-  }
-
-  /**
    * This email already has an account.
    *
-   * Only interesting while the platform is full: somebody on the waiting
-   * list who tries again with the same details should be told they are
-   * already on it, not handed a validation error that reads like a mistake
-   * they made.
+   * `code: "email_taken"` since 27 Oct, which is what this reads. The
+   * message fallback stays for a backend not yet on that version, and it is
+   * deliberately narrow — a wrong guess here puts somebody on the wrong
+   * screen, and showing the API's own sentence is the safer miss.
    *
-   * **Matched on the message, pending a code of its own**, like
-   * `isAtCapacity` above. A wrong guess falls back to showing the API's own
-   * sentence, which is correct if unhelpful, so this cannot mislead.
+   * There is **no capacity refusal to detect any more.** A contributor
+   * signing up while the platform is full gets a `201` with
+   * `waitlisted: true`, not a `403`, so the string match that used to live
+   * beside this is gone rather than kept "just in case" — a dead branch
+   * matching English is how a reworded message silently changes a screen.
    */
   get isAlreadyRegistered(): boolean {
+    if (this.code === "email_taken") return true;
+
     return (
       this.status >= 400 &&
       this.status < 500 &&
       /already (registered|exists|taken)|email.*(taken|in use)/i.test(this.message)
     );
+  }
+
+  /**
+   * A contributor whose account is real but still on the waiting list.
+   *
+   * Every contributor route answers this `403`, and the backend has made the
+   * sentence a contract alongside the intern and annotator ones. It is the
+   * backstop: `user.waitlisted` is read at the gate so nobody reaches a
+   * screen that would produce it.
+   */
+  get isWaitlisted(): boolean {
+    return this.status === 403 && /on the waiting list/i.test(this.message);
   }
 
   /** The device has no connection at all. */
@@ -182,12 +195,14 @@ export class ApiError extends Error {
  */
 function parseError(status: number, body: unknown): ApiError {
   const detail = (body as { detail?: unknown } | null)?.detail;
+  const raw = (body as { code?: unknown } | null)?.code;
+  const code = typeof raw === "string" && raw ? raw : null;
 
   /* Shown as sent. Every 4xx and 5xx a contributor can receive is written for
    * them now, and the vendor's name stays in the API's logs. We used to catch
    * "Bachs not found" here; a vendor name reaching a reader is their bug to
    * hear about rather than ours to paper over. */
-  if (typeof detail === "string") return new ApiError(status, detail);
+  if (typeof detail === "string") return new ApiError(status, detail, [], code);
 
   if (Array.isArray(detail)) {
     const fieldErrors: FieldError[] = detail.map((entry) => {
@@ -203,11 +218,12 @@ function parseError(status: number, body: unknown): ApiError {
     return new ApiError(
       status,
       fieldErrors[0]?.message ?? "Please check the details and try again.",
-      fieldErrors
+      fieldErrors,
+      code
     );
   }
 
-  return new ApiError(status, defaultMessage(status));
+  return new ApiError(status, defaultMessage(status), [], code);
 }
 
 function defaultMessage(status: number): string {

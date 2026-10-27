@@ -42,3 +42,43 @@ describe("AlvaSplash", () => {
     expect(screen.getByText("Alvacore")).toBeInTheDocument();
   });
 });
+
+describe("AlvaSplash handover", () => {
+  /* The reason `onDone` exists: the session check usually finishes first,
+     and unmounting the splash the moment it does cuts the glow off halfway
+     up the screen, which reads as a glitch rather than a loading screen. */
+  it("does not hand over until the animation has played out", () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    render(<AlvaSplash delayMs={0} onDone={onDone} />);
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(onDone).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(onDone).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(420);
+    });
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  /* And the counterpart: a boot fast enough never to draw the splash must
+     never fire `onDone`, or a caller waiting on it would hold the app open
+     on a screen nobody can see. */
+  it("never fires while it is below the threshold", () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    render(<AlvaSplash delayMs={5000} onDone={onDone} />);
+
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(onDone).not.toHaveBeenCalled();
+  });
+});

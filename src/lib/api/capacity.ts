@@ -1,76 +1,55 @@
-import { apiFetch, ApiError } from "./client";
+import { apiFetch } from "./client";
 
 /**
- * Whether the platform is taking new people.
+ * Whether the platform is taking new contributors.
  *
- * **The API does not serve this yet.** Asked for in
- * `docs/backend/endpoints-needed.md`; until it lands the switch is kept in
- * this browser so an admin can work, and the confirm dialog says plainly
- * what that does and does not cover.
+ * **Served by the API since 27 Oct.** It used to be kept in `localStorage`
+ * with a caveat on the dialog, because `POST /auth/register` is public and a
+ * door the client closes is not closed. That is over: the switch is enforced
+ * on the server, so it reaches everybody rather than the browser it was
+ * pressed in, and there is no local fallback left to drift out of step.
  *
- * It has to become the API's, not because local storage is inconvenient but
- * because `POST /auth/register` is a public route: a door the client closes
- * is not closed. When the endpoint exists these two functions start
- * answering from it and nothing above them changes.
+ * Contributors only. An intern or an annotator already waits on an admin, so
+ * a cap adds nothing to their sign-up.
  */
 
 export type PlatformCapacity = {
-  /** False once an admin has closed it, or the limit is reached. */
+  /** The switch an admin flips. */
   open: boolean;
-  /** Accounts counted towards the limit. Null when only the client knows. */
-  accounts: number | null;
-  /** The number it closes at. Null while nobody has set one. */
+  /**
+   * Contributors who are **in**: approved and not deactivated.
+   *
+   * Not the same number as the admin dashboard's contributor count, which
+   * counts accounts — the waiting list included. Deactivating somebody frees
+   * a place, and this can sit *above* `limit`, because an admin may let
+   * someone in off the list while the platform is full.
+   */
+  accounts: number;
+  /** The number it closes at on its own. Null means no cap. */
   limit: number | null;
+  /**
+   * `open` AND below `limit`, worked out by the API.
+   *
+   * The field to read. `open: true` with `accounts` at `limit` is closed, and
+   * deriving that here would be a second implementation of a rule the server
+   * already owns.
+   */
+  accepting: boolean;
 };
 
-const LOCAL_KEY = "alva-signups-open";
+export const getCapacity = () =>
+  apiFetch<PlatformCapacity>("/platform/capacity", { anonymous: true });
 
-function readLocal(): boolean {
-  try {
-    return localStorage.getItem(LOCAL_KEY) !== "closed";
-  } catch {
-    return true;
-  }
-}
+/** Sends only what changed; `{}` would change nothing. */
+export const setCapacityOpen = (open: boolean) =>
+  apiFetch<PlatformCapacity>("/platform/capacity", {
+    method: "PATCH",
+    body: { open },
+  });
 
-function writeLocal(open: boolean) {
-  try {
-    if (open) localStorage.removeItem(LOCAL_KEY);
-    else localStorage.setItem(LOCAL_KEY, "closed");
-  } catch {
-    /* Blocked storage: the switch simply does not persist. */
-  }
-}
-
-/** A route that is not deployed, told apart from one that failed. */
-function isMissing(cause: unknown) {
-  return cause instanceof ApiError && (cause.status === 404 || cause.status === 405);
-}
-
-export async function getCapacity(): Promise<PlatformCapacity> {
-  try {
-    return await apiFetch<PlatformCapacity>("/platform/capacity", {
-      anonymous: true,
-    });
-  } catch (cause) {
-    if (!isMissing(cause)) throw cause;
-    return { open: readLocal(), accounts: null, limit: null };
-  }
-}
-
-export async function setCapacityOpen(open: boolean): Promise<PlatformCapacity> {
-  try {
-    return await apiFetch<PlatformCapacity>("/platform/capacity", {
-      method: "PATCH",
-      body: { open },
-    });
-  } catch (cause) {
-    if (!isMissing(cause)) throw cause;
-    writeLocal(open);
-    return { open, accounts: null, limit: null };
-  }
-}
-
-/** True while the switch is only this browser's, so screens can say so. */
-export const isCapacityLocalOnly = (state: PlatformCapacity) =>
-  state.accounts === null && state.limit === null;
+/** `null` removes the cap. A negative number or one over 2^31-1 is a 422. */
+export const setCapacityLimit = (limit: number | null) =>
+  apiFetch<PlatformCapacity>("/platform/capacity", {
+    method: "PATCH",
+    body: { limit },
+  });

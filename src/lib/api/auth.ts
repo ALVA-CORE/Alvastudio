@@ -10,6 +10,16 @@ export type ApiUser = {
   role: ApiUserRole;
   is_active: boolean;
   created_at: string;
+  /** False for an intern or annotator an admin has not let in yet. */
+  approved?: boolean;
+  /**
+   * A contributor who signed up while the platform was full.
+   *
+   * True only for them. A pending intern reads `approved: false,
+   * waitlisted: false`, which is what lets the two have different words on
+   * screen — "an admin is reviewing you" is not "there is no room yet".
+   */
+  waitlisted?: boolean;
 };
 
 export type ApiToken = {

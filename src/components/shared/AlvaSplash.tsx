@@ -1,38 +1,54 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { AlvaLogo } from "@/components/auth/AlvaLogo";
-import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
 
 const WORDMARK = "Alvacore";
 
 /** Per character. Fast enough to finish inside a slow boot, slow enough to read. */
-const TYPE_MS = 65;
+const TYPE_MS = 70;
+
+/** How long the glow takes to travel, in ms. Matched by the motion transition. */
+const RISE_MS = 1500;
+/** A breath on the finished lockup before the app replaces it. */
+const SETTLE_MS = 420;
 
 /**
  * Held while the session is being checked.
  *
- * **The glow rises.** It starts low on the screen and travels to the top,
- * where `AlvaTopGlow` sits on every other page — so the splash does not cut
- * to the app, it *becomes* it. Nothing is duplicated to do this: it is the
- * same component, moved.
+ * **The glow is a circle, not a band.** `AlvaTopGlow` is three gradients
+ * anchored to `top-0` with fixed `vh` heights — perfect where it lives,
+ * because its bottom edge is the only one you ever see. Moved up the page it
+ * showed its *top* edge too, and a gradient clipped flat across the screen
+ * reads as a line sweeping past rather than a light source. So this draws its
+ * own: one radial ellipse with no hard edge in any direction, which can be
+ * anywhere on screen and still look like a glow.
  *
- * **The group re-centres as it types.** The logo and the wordmark are one
- * centred flex row, so each character pushes the logo left by half its own
- * width. That is the whole effect — a mark that settles into a lockup rather
- * than a label appearing beside a static icon.
+ * **It travels on a single transform.** `y` as a percentage of the element,
+ * on one absolutely-positioned layer, so the browser composites it rather
+ * than repainting three stacked gradients every frame — that juddering was
+ * the "doesn't move smoothly".
+ *
+ * **It finishes before the app appears.** The glow arrives, the wordmark
+ * lands, and only then does `onDone` fire. A loading screen that is cut off
+ * mid-animation is worse than none: it reads as a glitch on the way in.
  *
  * **It waits before showing.** A boot check is usually one fast request, and
  * a splash that appears and vanishes inside 200ms is a flash, not a brand
- * moment. So nothing paints until the wait has proved itself slow; a quick
- * session check shows the tinted page it always did, and nobody sees this at
- * all. That is the right outcome — this screen exists to cover a wait, not
- * to create one.
+ * moment. Nothing paints until the wait has proved itself slow.
  */
 export function AlvaSplash({
-  /** How long the wait has to last before anything is drawn. */
   delayMs = 220,
+  onDone,
 }: {
+  /** How long the wait has to last before anything is drawn. */
   delayMs?: number;
+  /**
+   * Called once the animation has played out.
+   *
+   * The caller holds the app back until then, so the sequence is never cut
+   * in half by a request that finished early.
+   */
+  onDone?: () => void;
 }) {
   const reduced = useReducedMotion() ?? false;
   const [shown, setShown] = useState(false);
@@ -66,6 +82,16 @@ export function AlvaSplash({
     return () => window.clearInterval(timer);
   }, [shown, reduced]);
 
+  /* The whole sequence, then the handover. Reduced motion still waits a beat
+     rather than flashing a finished lockup for one frame. */
+  useEffect(() => {
+    if (!shown || !onDone) return;
+
+    const total = reduced ? SETTLE_MS : RISE_MS + SETTLE_MS;
+    const timer = window.setTimeout(onDone, total);
+    return () => window.clearTimeout(timer);
+  }, [shown, reduced, onDone]);
+
   if (!shown) {
     /* The old behaviour, unchanged, for every boot fast enough not to need
        this screen: a tinted page so the wrong one is never painted. */
@@ -81,24 +107,34 @@ export function AlvaSplash({
       aria-busy="true"
       aria-label="Loading Alvacore"
     >
+      {/* One layer, one transform. Taller and wider than the viewport so no
+          edge of the ellipse can ever cross into frame. */}
       <motion.div
         aria-hidden
-        className="absolute inset-0"
-        /* Of its own height, which is the viewport — so 82% leaves the
-           brightest part of the gradient filling the bottom of the screen,
-           and 0% is exactly where the glow sits on every other page. */
-        initial={reduced ? false : { y: "82%", opacity: 0.75 }}
-        animate={{ y: "0%", opacity: 1 }}
-        transition={{ duration: 1.45, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <AlvaTopGlow />
-      </motion.div>
+        className="pointer-events-none absolute left-1/2 top-0 h-[150dvh] w-[180vw] -translate-x-1/2"
+        style={{
+          background:
+            "radial-gradient(ellipse 40% 26% at 50% 34%," +
+            "hsl(var(--alva-accent)/0.40) 0%," +
+            "hsl(var(--alva-accent)/0.26) 22%," +
+            "hsl(var(--alva-accent)/0.13) 42%," +
+            "hsl(var(--alva-accent)/0.05) 62%," +
+            "hsl(var(--alva-accent)/0.012) 80%," +
+            "transparent 100%)",
+        }}
+        /* From low on the screen to where the page glow sits: the ellipse's
+           centre ends just above the top edge, which is the shape every
+           other page wears. */
+        initial={reduced ? false : { y: "48%", opacity: 0.55 }}
+        animate={{ y: "-24%", opacity: 1 }}
+        transition={{ duration: RISE_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
+      />
 
       <motion.div
         className="relative flex items-center justify-center gap-3 px-6"
         initial={reduced ? false : { opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        transition={{ duration: 0.55, ease: "easeOut" }}
       >
         <AlvaLogo className="h-12 shrink-0 sm:h-14" />
 

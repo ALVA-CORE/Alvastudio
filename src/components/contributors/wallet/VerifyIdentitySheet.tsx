@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/carousel";
 import { CarouselDots } from "@/components/shared/CarouselDots";
 import { BeamInput } from "@/components/auth/BeamInput";
+import { DateOfBirthField } from "@/components/shared/DateOfBirthField";
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { DocumentCapture } from "@/components/contributors/wallet/DocumentCapture";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -45,13 +46,6 @@ const DETAIL_FIELDS = new Set([
   "last_name",
   "dob",
 ]);
-
-/** `YYYY-MM-DD` for a birthday exactly `years` ago, for the picker's bounds. */
-function birthdayBound(years: number): string {
-  const date = new Date();
-  date.setFullYear(date.getFullYear() - years);
-  return date.toISOString().slice(0, 10);
-}
 
 export type IdentitySubmission = {
   nin: string;
@@ -305,28 +299,29 @@ export function VerifyIdentitySheet({
         className="max-h-[92dvh] overflow-y-auto rounded-t-[28px] border-alva-border bg-alva-card px-4 pb-8 pt-7"
       >
         <SheetHeader className="px-8 text-center sm:text-center">
-          <SheetTitle className="flex items-center justify-center gap-2 text-lg text-foreground">
-            {waiting ? (
-              <RoundedMagnifier size={19} weight="Linear" className="text-amber-300" />
-            ) : null}
-            {title}
-          </SheetTitle>
+          <SheetTitle className="text-lg text-foreground">{title}</SheetTitle>
 
-          {/* One line, or none.
+          {/* Header, then the glyph, then one line.
               The waiting state used to carry four sentences that all said the
-              same thing — the title, a subtitle, a heading under the disc and
-              a body under that. Somebody waiting needs one fact they do not
-              already have, and it is this one. */}
-          {waiting ? null : (
-            <p className="text-sm text-muted-foreground">
-              {step === "document"
+              same thing — title, subtitle, a heading under the disc and a
+              body under that. Somebody waiting needs one fact they do not
+              already have, and the icon does the rest of the work. */}
+          {waiting ? (
+            <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-alva-surface">
+              <RoundedMagnifier size={26} weight="BoldDuotone" className="text-amber-300" />
+            </span>
+          ) : null}
+
+          <p className="text-sm text-muted-foreground">
+            {waiting
+              ? "Your earnings keep adding up while we check."
+              : step === "document"
                 ? "Someone reads this, so the details have to be legible."
                 : /* Said once, plainly, at the top. Somebody can record for
                      weeks without knowing the money cannot move until this
                      is done, and finding out at withdrawal is too late. */
                   "You can record without this, but we can't pay you until it's done."}
-            </p>
-          )}
+          </p>
         </SheetHeader>
 
         {blocked ? (
@@ -335,11 +330,10 @@ export function VerifyIdentitySheet({
             support and we will sort it out.
           </Notice>
         ) : waiting ? (
-          /* No form and no retry button. A review at this stage is a person's
-             decision, and a second submission does not reach them faster. */
-          <p className="pb-2 pt-5 text-center text-sm text-muted-foreground">
-            Your earnings keep adding up while we check.
-          </p>
+          /* Nothing below the header. No form, and no retry button: a review
+             at this stage is a person's decision, and a second submission
+             does not reach them any faster. */
+          <div className="pb-2" />
         ) : available === false ? (
           <Notice
             tone="warn"
@@ -458,17 +452,15 @@ export function VerifyIdentitySheet({
                   Exactly as they appear on your ID.
                 </p>
 
-                <BeamInput
-                  label="Date of birth"
-                  type="date"
-                  /* A date input draws `dd/mm/yyyy` whatever we do, so the
-                     label can never rest inside this one. */
-                  labelLifted
-                  min={birthdayBound(MAX_AGE)}
-                  max={birthdayBound(MIN_AGE)}
+                {/* Three dropdowns, not a calendar. Paging a grid back
+                    thirty years to find a birthday is the wrong control,
+                    and the native date input drew its own placeholder
+                    underneath our floating label. */}
+                <DateOfBirthField
                   value={dob}
-                  onChange={(event) => setDob(event.target.value)}
-                  className="[&::-webkit-calendar-picker-indicator]:invert"
+                  onChange={setDob}
+                  minAge={MIN_AGE}
+                  maxAge={MAX_AGE}
                 />
 
                 <BeamInput

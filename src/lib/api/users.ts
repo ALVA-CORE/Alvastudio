@@ -22,6 +22,15 @@ export type ApiUser = {
   approved: boolean;
   /** @deprecated Alias of `approved`, kept by the API for older clients. */
   intern_approved: boolean;
+  /**
+   * A contributor who signed up while the platform was full.
+   *
+   * True only for them — a pending intern reads `approved: false,
+   * waitlisted: false`. The two need different words on screen: one is
+   * waiting on a judgement, the other on a vacancy, and telling somebody
+   * "we are reviewing you" when nobody is reading anything is a lie.
+   */
+  waitlisted?: boolean;
   created_at: string;
   /**
    * Annotations still on this person's desk: `draft` plus `needs_rework`.

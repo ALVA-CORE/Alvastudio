@@ -168,8 +168,15 @@ export function ContributorOnboardingForm() {
     setFormError(null);
     setSubmitting(true);
 
+    let waitlisted = false;
+
     try {
-      await signup({
+      /* Capacity is not a refusal. A full platform answers `201` with
+         `waitlisted: true`, so the account, the profile and the consent all
+         land exactly as they would otherwise — only the way in is deferred.
+         That flag is the truth about what happened; `signupsOpen` was read
+         before the form was filled in and a place may have gone since. */
+      const account = await signup({
         fullName: values.fullName,
         email: values.email,
         phone: values.phone,
@@ -177,6 +184,7 @@ export function ContributorOnboardingForm() {
         role: "contributor",
         contributorProfile,
       });
+      waitlisted = account.waitlisted === true;
     } catch (error) {
       const block = signInBlock(error);
       if (block) {
@@ -184,13 +192,13 @@ export function ContributorOnboardingForm() {
         return;
       }
 
-      /* Already on the list, and trying again with the same details. That is
-         not a mistake to correct — it is the same answer as the first time,
-         so they get the same sheet rather than a red line implying they
-         typed something wrong. */
-      if (signupsOpen === false && error instanceof ApiError && error.isAlreadyRegistered) {
-        setBlocked("full");
-        return;
+      /* Already on the list, and trying again with the same details. Not a
+         mistake to correct — it is the same answer as the first time, so
+         they get the same sheet rather than a red line implying they typed
+         something wrong. Branched on the API's `code`, not its English. */
+      if (error instanceof ApiError && error.isAlreadyRegistered) {
+        setBlocked(signupsOpen === false ? "full" : null);
+        if (signupsOpen === false) return;
       }
 
       setFormError(signInErrorMessage(error));
@@ -202,10 +210,10 @@ export function ContributorOnboardingForm() {
     /* The account exists now, so the draft has nothing left to protect. */
     draft.clear();
 
-    /* Full: they are signed up and waiting, not turned away. We wanted their
-       details and we have them; what is deferred is the way in. Sending them
-       to a dashboard they cannot load would be the wrong ending. */
-    if (signupsOpen === false) {
+    /* Waiting, not turned away. We wanted their details and we have them.
+       Sending them to a dashboard where every request answers 403 would be
+       the wrong ending to a sign-up that worked. */
+    if (waitlisted) {
       setBlocked("full");
       return;
     }

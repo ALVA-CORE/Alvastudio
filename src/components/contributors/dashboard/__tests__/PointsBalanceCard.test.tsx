@@ -212,7 +212,16 @@ describe("PointsBalanceCard", () => {
 
     await userEvent.type(within(sheet).getByLabelText("First name"), "Ada");
     await userEvent.type(within(sheet).getByLabelText("Last name"), "Obi");
-    await userEvent.type(within(sheet).getByLabelText("Date of birth"), "1990-04-12");
+    /* Three dropdowns rather than a calendar: a birthday thirty years back
+       is one tap per field here and three hundred pages of grid there. */
+    for (const [field, option] of [
+      ["Day of birth", "12"],
+      ["Month of birth", "April"],
+      ["Year of birth", "1990"],
+    ]) {
+      await userEvent.click(within(sheet).getByRole("combobox", { name: field }));
+      await userEvent.click(await screen.findByRole("option", { name: option }));
+    }
     await userEvent.type(
       within(sheet).getByLabelText("National Identity Number"),
       "12345678901"
