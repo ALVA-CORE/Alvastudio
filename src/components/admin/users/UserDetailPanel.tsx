@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import KeyMinimalistic from "@solar-icons/react/security/KeyMinimalistic";
 import UserBlock from "@solar-icons/react/users/UserBlock";
 import UserCheckRounded from "@solar-icons/react/users/UserCheckRounded";
@@ -13,6 +13,7 @@ import {
 } from "@/components/admin/users/ContributorProfileSection";
 import { useUserProfiles } from "@/hooks/useUserProfiles";
 import { useUserActivity } from "@/hooks/useUserActivity";
+import { useUserEmailEntries } from "@/hooks/useUserEmailEntries";
 import { useAuditLog } from "@/hooks/useAuditLog";
 import { UserActivitySection } from "@/components/admin/users/UserActivitySection";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -125,6 +126,18 @@ export function UserDetailPanel({
     hasMore: hasMoreAudit,
     loadMore: loadMoreAudit,
   } = useAuditLog("user", user?.id, open && tab === "audit", "include");
+
+  /* Interleaved with the rest. "A reset was issued, did anything reach
+     them" is two rows next to each other, not two screens — and a reset
+     with no email row beneath it says the API never tried, which is a
+     different fault from one that was refused. */
+  const emailEntries = useUserEmailEntries(user?.id, open && tab === "audit");
+
+  const history = useMemo(
+    () =>
+      [...audit, ...emailEntries].sort((a, b) => b.at.getTime() - a.at.getTime()),
+    [audit, emailEntries]
+  );
   /* The figures this person sees on their own dashboard. An admin reading a
    * contributor should be looking at the same numbers the contributor is. */
 
@@ -426,7 +439,7 @@ export function UserDetailPanel({
         {tab === "audit" ? (
           <>
             <AuditTimeline
-              entries={audit}
+              entries={history}
               emptyMessage={
                 auditLoading ? "Loading." : "Nothing has happened to this account yet."
               }
@@ -448,7 +461,7 @@ export function UserDetailPanel({
                   Load more
                 </TextureButton>
                 <p className="text-xs text-muted-foreground">
-                  Showing {audit.length} of {auditTotal}
+                  Showing {audit.length} of {auditTotal} account events
                 </p>
               </div>
             ) : null}
@@ -459,6 +472,8 @@ export function UserDetailPanel({
             <p className="mt-6 border-t border-alva-border pt-4 text-xs leading-relaxed text-muted-foreground">
               Sign-ins, sign-outs and refused attempts are kept for a year.
               The device is read from the browser; no IP address is recorded.
+              An email row says the mail service accepted it, which is not the
+              same as an inbox receiving it.
             </p>
           </>
         ) : null}
