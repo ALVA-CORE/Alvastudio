@@ -5,7 +5,66 @@ open is listed here.
 
 ## Open
 
-Nothing.
+| # | Ask | Blocks | Priority |
+| --- | --- | --- | --- |
+| 1 | Close sign-ups and sign-ins at a capacity | Holding the platform at a set number of people | **High** |
+
+---
+
+## 1. Close sign-ups and sign-ins at a capacity
+
+We want to stop taking new people once the platform reaches a set number of
+accounts, and reopen later.
+
+**This has to be yours.** We can hide the sign-up form, and we will, but a
+hidden form is not a closed door: `POST /auth/register` is a public route and
+anybody can call it directly. A cap the client enforces is a cap that does
+not exist, so we are not shipping a switch that claims otherwise.
+
+What we need:
+
+```
+GET   /platform/capacity                  (public, unauthenticated)
+  → { open: true, accounts: 412, limit: 500 }
+
+PATCH /platform/capacity   { limit, open }   (admin)
+  → the same shape
+```
+
+- **`open`** is the switch. `limit` is the number it closes at. An admin can
+  close early by setting `open: false`, and reopen the same way, without
+  having to move the limit around.
+- **Public on the read**, because the sign-up page needs it before anybody has
+  an account. It carries no personal data, only three numbers.
+- **`accounts`** is whatever you count towards the cap. Tell us which roles
+  it includes; we only display it.
+
+**And the refusals**, which are the part that matters:
+
+```
+POST /auth/register   → 403 when closed
+POST /auth/login      → 403 when closed, for an account that is not staff
+```
+
+- **A `code` on the body**, please, not just English. We are matching on the
+  message right now (`at capacity`, `registration is closed`) and that breaks
+  the first time somebody rewords it. Something like
+  `{"detail": "...", "code": "at_capacity"}` would be stable.
+- **Staff must still get in while it is closed.** Admins, interns and
+  annotators are how the place keeps running; closing the door on them turns
+  a full platform into an outage.
+
+**One question we cannot answer from here:** when the cap is reached, should
+existing contributors still be able to sign in? We have assumed **yes** —
+they already have accounts and work in progress, and locking them out would
+be a different and much larger decision. Say if that is wrong.
+
+**No email needed.** The screen tells people we have their address and will
+write when a place opens, which is a promise somebody has to keep by hand for
+now. If you would rather it did not say that, tell us and we will change the
+wording.
+
+---
 
 Both asks from 26 Oct are answered in
 [`replies/api-status-2026-10-26.md`](replies/api-status-2026-10-26.md) and

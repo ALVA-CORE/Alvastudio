@@ -33,6 +33,12 @@ import {
 } from "@/data/interns/participants";
 import { useAuth } from "@/lib/auth/context";
 import { useFormDraft } from "@/hooks/useFormDraft";
+import {
+  SignInBlockedSheet,
+  signInBlock,
+  type SignInBlock,
+} from "@/components/auth/SignInBlockedSheet";
+import { useSignupsOpen } from "@/hooks/useSignupsOpen";
 import { signInErrorMessage } from "@/lib/api/signInError";
 import {
   detectMicrophoneLabel,
@@ -57,6 +63,14 @@ export function ContributorOnboardingForm() {
   const [detectingMic, setDetectingMic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState<SignInBlock | null>(null);
+
+  /* Told on arrival, not after nine fields. The API's refusal still backs
+     this up; a check in the browser is one anybody can skip. */
+  const signupsOpen = useSignupsOpen();
+  useEffect(() => {
+    if (signupsOpen === false) setBlocked("full");
+  }, [signupsOpen]);
 
   const form = useForm<ContributorOnboardingValues>({
     resolver: zodResolver(contributorOnboardingSchema),
@@ -162,6 +176,14 @@ export function ContributorOnboardingForm() {
         contributorProfile,
       });
     } catch (error) {
+      /* A full platform is not about them: nothing on the form can be
+         changed to get past it, so it opens a sheet rather than a line
+         under a field that invites another try. */
+      const block = signInBlock(error);
+      if (block) {
+        setBlocked(block);
+        return;
+      }
       setFormError(signInErrorMessage(error));
       return;
     } finally {
@@ -664,6 +686,18 @@ export function ContributorOnboardingForm() {
           Sign in
         </Link>
       </p>
+
+      {/* Not an inline error. A full platform is nothing the form can fix,
+          and a line under a field invites another go at it. */}
+      <SignInBlockedSheet
+        block={blocked}
+        onOpenChange={(open) => {
+          if (!open) setBlocked(null);
+        }}
+        /* Closed means there is nothing behind this sheet to go back to. */
+        dismissLabel={blocked === "full" ? "Back to sign in" : "Got it"}
+        onDismiss={blocked === "full" ? () => navigate("/login") : undefined}
+      />
     </div>
   );
 }

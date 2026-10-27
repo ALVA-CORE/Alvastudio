@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BeamInput } from "@/components/auth/BeamInput";
@@ -16,6 +16,12 @@ import {
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
 import { useFormDraft } from "@/hooks/useFormDraft";
+import {
+  SignInBlockedSheet,
+  signInBlock,
+  type SignInBlock,
+} from "@/components/auth/SignInBlockedSheet";
+import { useSignupsOpen } from "@/hooks/useSignupsOpen";
 import { signInErrorMessage } from "@/lib/api/signInError";
 import { alvaToast } from "@/lib/alva-toast";
 import { normalizePhoneDigits } from "@/lib/participant-validation";
@@ -60,6 +66,15 @@ export function AnnotatorSignupForm() {
 
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [blocked, setBlocked] = useState<SignInBlock | null>(null);
+
+  /* Told on arrival, not after nine fields. The API's refusal still backs
+     this up; a check in the browser is one anybody can skip. */
+  const signupsOpen = useSignupsOpen();
+  useEffect(() => {
+    if (signupsOpen === false) setBlocked("full");
+  }, [signupsOpen]);
+
   const onSubmit = async (values: AnnotatorSignupValues) => {
     setFormError(null);
 
@@ -92,6 +107,15 @@ export function AnnotatorSignupForm() {
         },
       });
     } catch (error) {
+      /* A full platform is not about them: nothing on the form can be
+         changed to get past it, so it opens a sheet rather than a line
+         under a field that invites another try. */
+      const block = signInBlock(error);
+      if (block) {
+        setBlocked(block);
+        return;
+      }
+
       // Most often "email already registered", which the API returns as a 4xx
       // with a usable message.
       setFormError(signInErrorMessage(error));
@@ -287,6 +311,18 @@ export function AnnotatorSignupForm() {
           Sign in
         </Link>
       </p>
+
+      {/* Not an inline error. A full platform is nothing the form can fix,
+          and a line under a field invites another go at it. */}
+      <SignInBlockedSheet
+        block={blocked}
+        onOpenChange={(open) => {
+          if (!open) setBlocked(null);
+        }}
+        /* Closed means there is nothing behind this sheet to go back to. */
+        dismissLabel={blocked === "full" ? "Back to sign in" : "Got it"}
+        onDismiss={blocked === "full" ? () => navigate("/login") : undefined}
+      />
     </div>
   );
 }

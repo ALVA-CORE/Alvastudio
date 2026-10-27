@@ -39,3 +39,30 @@ describe("signInBlock", () => {
     expect(signInBlock(null)).toBeNull();
   });
 });
+
+/**
+ * A full platform is not a refusal of the person.
+ *
+ * It opens the sheet because there is nothing on the form to change: a
+ * different password or a different email will not get them in, and an
+ * inline error under a field invites exactly that.
+ */
+describe("signInBlock, at capacity", () => {
+  it("opens for a platform that is not taking anybody new", () => {
+    expect(signInBlock(new ApiError(403, "Alva Studio is at capacity"))).toBe("full");
+    expect(signInBlock(new ApiError(403, "Registration is closed"))).toBe("full");
+  });
+
+  it("wins over the other 403s, because it is the reason they cannot get in", () => {
+    /* An account can be both unapproved and arriving at a closed door. The
+       closed door is the thing they can do nothing about, so it is what they
+       are told. */
+    expect(
+      signInBlock(new ApiError(403, "Registration is closed, we are at capacity"))
+    ).toBe("full");
+  });
+
+  it("leaves an ordinary 403 alone", () => {
+    expect(signInBlock(new ApiError(403, "You do not have access to that."))).toBeNull();
+  });
+});
