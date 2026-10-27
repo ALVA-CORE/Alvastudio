@@ -68,6 +68,8 @@ export function toQueueItem(
     status: recording.status === "submitted" || recording.status === "in_review"
       ? "pending"
       : "completed",
+    assignedReviewerId: recording.assigned_reviewer_id ?? null,
+    assignedReviewerName: recording.reviewer_name ?? null,
   };
 }
 

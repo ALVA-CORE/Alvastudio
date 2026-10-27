@@ -136,7 +136,7 @@ export function ReviewAudioBar({
               /* Shorter on a phone. 176px is a third of the viewport, and
                  the questions this player exists to answer were below the
                  fold because of it. */
-              height={isMobile ? 96 : 176}
+              height={isMobile ? 46 : 176}
               waveColor="hsl(var(--alva-border))"
               progressColor="#25F07D"
               cursorColor="#25F07D"

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRecording, recordingAudioUrl } from "@/lib/api/recordings";
 import { reviewsForRecording, submitReview } from "@/lib/api/reviews";
+import { ApiError } from "@/lib/api/client";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { toQueueItem } from "@/hooks/useReviewQueue";
 import type { QualityAnswers, ReviewQueueItem, ReviewVerdict } from "@/data/reviewQueue";
@@ -17,6 +18,45 @@ import type { QualityAnswers, ReviewQueueItem, ReviewVerdict } from "@/data/revi
  * The prompt text used to be a third call. `RecordingOut` now carries
  * `prompt_text` and `stimulus_text`, so it comes back with the recording.
  */
+/**
+ * Why a verdict was refused, in words the reviewer can act on.
+ *
+ * The API's own sentence is used wherever it has one, because it knows what
+ * happened and we are guessing. These three statuses get a line of their own
+ * because each has a different next step, and "could not submit" has none:
+ *
+ * - **409** the clip already has a verdict, or has moved on. Nothing to
+ *   retry; the queue has the current state.
+ * - **403** it is not theirs to decide any more, which is what an admin
+ *   reassigning it looks like from here.
+ * - **404** it was deleted while they were working on it.
+ *
+ * The reassurance about their answers stays, because it is true and it is
+ * the first thing somebody worries about.
+ */
+export function submitFailure(cause: unknown): string {
+  if (cause instanceof ApiError) {
+    if (cause.isUnreachable) {
+      return "No connection, so nothing was sent. Your answers are safe here.";
+    }
+
+    const detail = cause.message?.trim();
+
+    if (cause.status === 403) {
+      return detail || "This clip is assigned to somebody else now, so your verdict was not recorded.";
+    }
+    if (cause.status === 409) {
+      return detail || "This clip already has a verdict, so yours was not recorded.";
+    }
+    if (cause.status === 404) {
+      return "This clip is no longer there, so there was nothing to decide.";
+    }
+    if (detail) return detail;
+  }
+
+  return "Could not submit. Your answers are safe here.";
+}
+
 export function useReviewItem(id: string | undefined) {
   const [item, setItem] = useState<ReviewQueueItem | null>(null);
   const [isLoading, setLoading] = useState(Boolean(id));
@@ -109,10 +149,19 @@ export function useReviewItem(id: string | undefined) {
     };
   }, [id]);
 
-  /** Records the verdict. Resolves true only if the API accepted it. */
+  /**
+   * Records the verdict.
+   *
+   * Resolves `null` when the API accepted it, and the reason when it did
+   * not. The reason used to be swallowed: the hook stored it and the page
+   * showed "Could not submit, your answers are safe" whatever had happened,
+   * so a clip reassigned to somebody else, a clip already decided and a
+   * server being down all read identically. The second half of that sentence
+   * was true and the first half told nobody what to do next.
+   */
   const submit = useCallback(
     async (answers: QualityAnswers, verdict: ReviewVerdict) => {
-      if (!id) return false;
+      if (!id) return "This clip is no longer open.";
       setSubmitting(true);
       try {
         await submitReview({
@@ -124,10 +173,9 @@ export function useReviewItem(id: string | undefined) {
           q_natural_intelligible: answers.natural as "yes" | "partial" | "no",
           verdict,
         });
-        return true;
+        return null;
       } catch (cause) {
-        setError(reportApiError(cause, "Could not submit the review."));
-        return false;
+        return submitFailure(cause);
       } finally {
         setSubmitting(false);
       }
