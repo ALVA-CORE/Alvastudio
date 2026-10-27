@@ -7,14 +7,11 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { CarouselDots } from "@/components/shared/CarouselDots";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import { WeeklySessionsChart } from "@/components/interns/dashboard/WeeklySessionsChart";
-import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
 import { AlvaChartEmptyOverlay } from "@/components/shared/states/AlvaChartEmptyOverlay";
-import type {
-  DashboardDataset,
-  DashboardTimeRange,
-} from "@/data/internDashboard";
+import type { DashboardDataset } from "@/data/internDashboard";
 import { Line } from "@/components/dither-kit/area";
 import { LineChart } from "@/components/dither-kit/area-chart";
 import { Grid } from "@/components/dither-kit/grid";
@@ -45,8 +42,6 @@ type InternDashboardChartsProps = {
    * over. So an intern with no sessions saw somebody's invented year.
    */
   dataset: DashboardDataset;
-  timeRange: DashboardTimeRange;
-  onTimeRangeChange: (value: DashboardTimeRange) => void;
   className?: string;
   isEmpty?: boolean;
 };
@@ -88,13 +83,44 @@ function ChartCard({
 
 export function InternDashboardCharts({
   dataset,
-  timeRange,
-  onTimeRangeChange,
   className,
   isEmpty = false,
 }: InternDashboardChartsProps) {
+  const isMobile = useIsMobile();
   const [api, setApi] = useState<CarouselApi>();
   const [active, setActive] = useState(0);
+
+  /**
+   * Advances every five seconds, and stops the moment somebody touches it.
+   *
+   * Permanently, not for a cooldown: once a person has swiped, they are
+   * reading one of these rather than watching all four, and sliding it out
+   * from under them is the thing carousels are disliked for. A pointer down
+   * counts — they do not have to finish the drag.
+   *
+   * It also holds while the tab is hidden, so coming back does not land on
+   * whatever happened to be showing after forty silent rotations.
+   */
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (!api || paused) return;
+
+    const stop = () => setPaused(true);
+    api.on("pointerDown", stop);
+
+    const timer = window.setInterval(() => {
+      if (document.hidden) return;
+      /* `scrollNext` stops at the end without `loop`, so wrap by hand. */
+      if (api.canScrollNext()) api.scrollNext();
+      else api.scrollTo(0);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(timer);
+      api.off("pointerDown", stop);
+    };
+  }, [api, paused]);
 
   useEffect(() => {
     if (!api) return;
@@ -222,38 +248,34 @@ export function InternDashboardCharts({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">Chart range</p>
-        <DashboardTimeFilter value={timeRange} onChange={onTimeRangeChange} />
-      </div>
-
-      {/* A phone swipes through them one at a time, with dots, exactly as
-          the contributor dashboard does. Stacked, four charts are four
-          screens of scrolling before anything else on the page. */}
-      <div className="lg:hidden">
-        <Carousel setApi={setApi} opts={{ align: "start", loop: false }}>
-          <CarouselContent className="-ml-0">
-            {charts.map((chart, index) => (
-              <CarouselItem key={index} className="basis-full pl-0">
-                {chart.node}
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
-        <CarouselDots count={charts.length} active={active} />
-      </div>
-
-      {/* Two rows of five columns on a desktop, as before. */}
-      <div className="hidden lg:grid lg:grid-cols-5 lg:gap-2">
-        {charts.map((chart, index) => (
-          <div
-            key={index}
-            className={chart.span === 3 ? "lg:col-span-3" : "lg:col-span-2"}
-          >
-            {chart.node}
-          </div>
-        ))}
-      </div>
+      {/* Chosen in JS, not with `lg:hidden`. Hiding one layout with CSS
+          still mounts it, so every chart would be built twice — eight charts
+          of work to show four. */}
+      {isMobile ? (
+        <div>
+          <Carousel setApi={setApi} opts={{ align: "start", loop: false }}>
+            <CarouselContent className="-ml-0">
+              {charts.map((chart, index) => (
+                <CarouselItem key={index} className="basis-full pl-0">
+                  {chart.node}
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
+          <CarouselDots count={charts.length} active={active} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-5 gap-2">
+          {charts.map((chart, index) => (
+            <div
+              key={index}
+              className={chart.span === 3 ? "col-span-3" : "col-span-2"}
+            >
+              {chart.node}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

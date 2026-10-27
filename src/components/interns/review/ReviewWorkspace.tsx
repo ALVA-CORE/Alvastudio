@@ -25,16 +25,20 @@ export function ReviewWorkspace({
   isSubmitting,
   readOnly,
 }: ReviewWorkspaceProps) {
+  /* `min-w-0` on the grid and its children: a grid item's default
+     `min-width: auto` lets a wide child — a waveform canvas, a UUID — push
+     its column past the viewport, which is what was dragging the page
+     sideways and taking the fixed bottom nav with it. */
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <ReviewAudioBar
         src={item.audioSrc}
         initialPlaybackTime={playbackTime}
         onPlaybackTimeChange={onPlaybackTimeChange}
       />
 
-      <div className="grid gap-2 lg:grid-cols-2">
-        <ReviewMetadataCard item={item} />
+      <div className="grid min-w-0 gap-2 lg:grid-cols-2">
+        <ReviewMetadataCard item={item} className="min-w-0" />
         <ReviewQualityForm
           answers={answers}
           onChange={onAnswersChange}

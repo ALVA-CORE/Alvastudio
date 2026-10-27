@@ -14,6 +14,15 @@ export type ReviewQueueItem = {
   device: string;
   language: string;
   status: ReviewQueueStatus;
+  /**
+   * Who the clip is assigned to, if anybody.
+   *
+   * Carried so the page can tell "yours to decide" from "somebody else's".
+   * Without it an intern could fill in the whole rubric on a clip that had
+   * been handed to another reviewer and only find out at submit.
+   */
+  assignedReviewerId: string | null;
+  assignedReviewerName: string | null;
   draft?: {
     answers: QualityAnswers;
     notes: string;

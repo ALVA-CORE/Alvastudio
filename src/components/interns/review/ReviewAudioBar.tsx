@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { BeamPlayButton } from "@/components/shared/BeamPlayButton";
 import { SpeedControl } from "@/components/shared/SpeedControl";
 import { formatAudioTime } from "@/hooks/useAudioPlayer";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 type ReviewAudioBarProps = {
@@ -27,6 +28,7 @@ export function ReviewAudioBar({
   const restoredPlaybackRef = useRef(false);
 
   const [isReady, setIsReady] = useState(false);
+  const isMobile = useIsMobile();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -116,8 +118,8 @@ export function ReviewAudioBar({
   };
 
   return (
-    <section className={cn("rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
-      <div className="relative overflow-visible rounded-xl p-[3px]">
+    <section className={cn("min-w-0 rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
+      <div className="relative min-w-0 overflow-visible rounded-xl p-[3px]">
         <BorderBeam
           size="md"
           colorVariant="mono"
@@ -131,7 +133,10 @@ export function ReviewAudioBar({
             <WavesurferPlayer
               key={src}
               url={src}
-              height={176}
+              /* Shorter on a phone. 176px is a third of the viewport, and
+                 the questions this player exists to answer were below the
+                 fold because of it. */
+              height={isMobile ? 46 : 176}
               waveColor="hsl(var(--alva-border))"
               progressColor="#25F07D"
               cursorColor="#25F07D"

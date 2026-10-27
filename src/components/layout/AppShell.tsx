@@ -23,7 +23,12 @@ export function AppShell({ surface = "contributor", children }: AppShellProps) {
     return (
       <div className="min-h-screen bg-background">
         <AnnotatorSidebar />
-        <main data-scroll-root className="min-h-screen">{children}</main>
+        {/* `isolate` puts the page in its own stacking context at z-0, so
+            nothing inside it can climb over the rail. Chart tooltips are
+            `z-50` too and come later in the DOM, which is how the record
+            blob ended up painted over. Dialogs and sheets portal to body,
+            outside this, so they still cover everything. */}
+        <main data-scroll-root className="isolate min-h-screen">{children}</main>
       </div>
     );
   }
@@ -32,7 +37,12 @@ export function AppShell({ surface = "contributor", children }: AppShellProps) {
     return (
       <div className="min-h-screen bg-background">
         <DesktopSidebar />
-        <main className="min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
+        {/* `overflow-x-clip`, not `hidden`: `hidden` on a scroll ancestor
+            makes `position: sticky` stop working inside it, and clip does
+            not. One page overflowing horizontally used to drag the whole
+            document sideways, and the fixed bottom nav stayed anchored to
+            the viewport while the content slid out from under it. */}
+        <main className="min-h-screen isolate overflow-x-clip pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
         <FloatingBottomNav isStaff />
@@ -42,7 +52,7 @@ export function AppShell({ surface = "contributor", children }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <main className="flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+      <main className="isolate flex-1 overflow-x-clip pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
         {children}
       </main>
       <FloatingBottomNav />

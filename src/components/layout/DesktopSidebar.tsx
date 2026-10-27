@@ -44,8 +44,13 @@ export function DesktopSidebar() {
     >
       <div
         className={cn(
+          /* Wide enough for the record blob, at both widths.
+             It is 56px against 22px icons, and the rail's content box was
+             48px collapsed and ~168px expanded — so the blob hung over the
+             right edge and pushed its own label out of the panel and onto
+             the page behind it. */
           "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center py-6 transition-[width] duration-300 ease-out",
-          hovered ? "w-48" : "w-[4.5rem]"
+          hovered ? "w-56" : "w-20"
         )}
       >
         <SidebarRailBlur />

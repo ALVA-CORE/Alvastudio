@@ -41,7 +41,9 @@ export function AnnotatorSidebar() {
       <div
         className={cn(
           "pointer-events-auto absolute left-0 top-0 flex h-full flex-col justify-center py-6 transition-[width] duration-300 ease-out",
-          hovered ? "w-48" : "w-[4.5rem]"
+          /* Matches the intern rail. Both carry a 56px blob against 22px
+             icons, and both were narrower than the blob. */
+          hovered ? "w-56" : "w-20"
         )}
       >
         <SidebarRailBlur />

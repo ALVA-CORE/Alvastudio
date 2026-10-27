@@ -22,6 +22,7 @@ import {
   type ReviewProgressSnapshot,
 } from "@/lib/review-progress";
 import { TextureButton } from "@/components/ui/texture-button";
+import { useAuth } from "@/lib/auth/context";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 
 const EMPTY_ANSWERS: QualityAnswers = {
@@ -73,6 +74,7 @@ function resolveInitialState(item: ReviewQueueItem) {
 }
 
 export default function InternReviewDetailPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   /* The clip itself — recording, prompt text and an authenticated audio URL.
@@ -221,6 +223,18 @@ export default function InternReviewDetailPage() {
   const isDecided =
     item.status === "completed" || Boolean(item.draft?.answers.verdict);
 
+  /**
+   * Assigned to somebody else, so this reviewer cannot decide it.
+   *
+   * The API refuses the verdict, and it used to refuse it at the end: an
+   * intern could answer all four questions on a clip an admin had handed to
+   * another reviewer and learn nothing until submit. Said up front instead,
+   * with the form locked, so the work is never done twice.
+   */
+  const assignedElsewhere = Boolean(
+    item.assignedReviewerId && user?.id && item.assignedReviewerId !== user.id
+  );
+
   const handleSubmit = async () => {
     const verdict = calculateVerdictFromAnswers(answers);
     if (!verdict) return;
@@ -231,9 +245,9 @@ export default function InternReviewDetailPage() {
     /* The verdict goes to the API first. Only once it is accepted do we clear
      * the local draft and move on — otherwise a failed POST would wipe the
      * intern's work and advance to the next clip as if it had landed. */
-    const ok = await submit(finalAnswers, verdict);
-    if (!ok) {
-      alvaToast.error("Could not submit, your answers are safe");
+    const refusal = await submit(finalAnswers, verdict);
+    if (refusal) {
+      alvaToast.error(refusal);
       return;
     }
 
@@ -253,8 +267,8 @@ export default function InternReviewDetailPage() {
   };
 
   return (
-    <DesktopPageShell className="py-4">
-      <div className="space-y-2">
+    <DesktopPageShell className="overflow-x-hidden py-4">
+      <div className="min-w-0 space-y-2">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
@@ -289,13 +303,27 @@ export default function InternReviewDetailPage() {
           </div>
         </div>
 
+        {assignedElsewhere ? (
+          <div role="status" className="rounded-xl bg-amber-500/10 px-4 py-3">
+            <p className="text-sm text-amber-300">
+              {item.assignedReviewerName
+                ? `This clip is ${item.assignedReviewerName}'s to decide`
+                : "This clip is assigned to another reviewer"}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              You can listen to it and read the rubric, but only the reviewer
+              it is assigned to can submit a verdict.
+            </p>
+          </div>
+        ) : null}
+
         <ReviewWorkspace
           item={item}
-          /* Already decided, so the page is the record of a review rather
-             than the form for one. The API refuses a second verdict on the
-             same clip, so an editable form here could only ever end in a
-             refusal after the work of filling it in. */
-          readOnly={isDecided}
+          /* Already decided, or not theirs. Either way the page is the
+             record of a review rather than the form for one, because the API
+             refuses the verdict and an editable form could only ever end in
+             a refusal after the work of filling it in. */
+          readOnly={isDecided || assignedElsewhere}
           answers={answers}
           onAnswersChange={setAnswers}
           playbackTime={playbackTime}
