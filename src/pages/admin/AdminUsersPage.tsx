@@ -61,11 +61,14 @@ export default function AdminUsersPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("accounts");
   const recovery = useRecoveryRequests();
-  /* Held so the handover dialog can show the token a create or a reset
-   * returned. Null while the call is in flight. */
-  const [reset, setReset] = useState<{ name: string; token: string | null } | null>(
-    null
-  );
+  /* The account just created, so the dialog can report whether its
+   * invitation email went out. Set only once the create has returned. */
+  const [reset, setReset] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    token: string;
+  } | null>(null);
 
   const rows = users;
   const isEmpty = rows.length === 0;
@@ -93,10 +96,9 @@ export default function AdminUsersPage() {
    * uses, which is what lands in the dialog below.
    */
   const handleCreate = async (draft: NewUserDraft) => {
-    setReset({ name: draft.fullName, token: null });
     try {
-      const { token } = await create(draft);
-      setReset({ name: draft.fullName, token });
+      const { user, token } = await create(draft);
+      setReset({ id: user.id, name: user.fullName, email: user.email, token });
     } catch (cause) {
       setReset(null);
       const message = reportApiError(cause, "Could not create that account.");
@@ -380,16 +382,21 @@ export default function AdminUsersPage() {
         onSave={handleSave}
       />
 
-      {/* Shown after a create and after a reset: the same handover either
-          way, because both end with a token somebody has to be given. */}
-      <PasswordResetDialog
-        open={reset !== null}
-        onOpenChange={(next) => {
-          if (!next) setReset(null);
-        }}
-        fullName={reset?.name ?? ""}
-        token={reset?.token ?? null}
-      />
+      {/* After a create. The API queues the invitation itself and already
+          minted the token, so this only reports whether the mail went —
+          issuing a second one here would expire the link in their inbox. */}
+      {reset ? (
+        <PasswordResetDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setReset(null);
+          }}
+          userId={reset.id}
+          fullName={reset.name}
+          email={reset.email}
+          existingToken={reset.token}
+        />
+      ) : null}
 
       {/* Creating only — an existing user is edited inside the detail panel. */}
       <CreateUserDialog

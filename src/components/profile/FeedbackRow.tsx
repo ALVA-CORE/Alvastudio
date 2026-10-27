@@ -43,6 +43,26 @@ const MIN_LENGTH = 10;
  * enough to find it.
  */
 export function FeedbackRow({ hideDivider }: { hideDivider?: boolean }) {
+  return (
+    <ProfileActionRow
+      icon={<ChatRoundLike size={20} weight="Outline" />}
+      title="Give feedback"
+      sheetTitle="Give feedback"
+      hideDivider={hideDivider}
+    >
+      <FeedbackForm />
+    </ProfileActionRow>
+  );
+}
+
+/**
+ * The form itself, without the row that opens it.
+ *
+ * Pulled out so the same thing can be reached two ways: found deliberately
+ * on a profile page, or offered once a day by a prompt. One form, so the two
+ * cannot drift into asking different questions.
+ */
+export function FeedbackForm() {
   const { user } = useAuth();
   const location = useLocation();
   const keyboardInset = useKeyboardInset();
@@ -98,12 +118,7 @@ export function FeedbackRow({ hideDivider }: { hideDivider?: boolean }) {
   };
 
   return (
-    <ProfileActionRow
-      icon={<ChatRoundLike size={20} weight="Outline" />}
-      title="Give feedback"
-      sheetTitle="Give feedback"
-      hideDivider={hideDivider}
-    >
+    <>
       {sent ? (
         <div className="py-2 text-center">
           <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-alva-surface">
@@ -201,6 +216,6 @@ export function FeedbackRow({ hideDivider }: { hideDivider?: boolean }) {
           </div>
         </div>
       )}
-    </ProfileActionRow>
+    </>
   );
 }

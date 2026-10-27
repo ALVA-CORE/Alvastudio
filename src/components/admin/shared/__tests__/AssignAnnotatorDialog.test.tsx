@@ -58,10 +58,15 @@ async function rows() {
 }
 
 describe("AssignAnnotatorDialog", () => {
-  it("asks the API for annotators only", async () => {
+  it("asks the API for annotators only, a page at a time", async () => {
+    /* Paged rather than one `limit: 200` call: that is the API's cap, so a
+       single call answers "the first 200" to a picker whose job is to list
+       everybody who could take the work. */
     renderDialog();
     await waitFor(() =>
-      expect(listUsers).toHaveBeenCalledWith({ role: "annotator", limit: 200 })
+      expect(listUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "annotator", offset: 0 })
+      )
     );
   });
 

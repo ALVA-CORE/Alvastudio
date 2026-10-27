@@ -17,6 +17,11 @@ import {
 } from "@/components/ui/form";
 import { useAuth } from "@/lib/auth/context";
 import { useFormDraft } from "@/hooks/useFormDraft";
+import {
+  SignInBlockedSheet,
+  signInBlock,
+  type SignInBlock,
+} from "@/components/auth/SignInBlockedSheet";
 import { signInErrorMessage } from "@/lib/api/signInError";
 import { alvaToast } from "@/lib/alva-toast";
 import { normalizePhoneDigits } from "@/lib/participant-validation";
@@ -54,6 +59,9 @@ export function InternSignupForm() {
 
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [blocked, setBlocked] = useState<SignInBlock | null>(null);
+
+
   const onSubmit = async (values: InternSignupValues) => {
     setFormError(null);
 
@@ -74,6 +82,15 @@ export function InternSignupForm() {
         },
       });
     } catch (error) {
+      /* A full platform is not about them: nothing on the form can be
+         changed to get past it, so it opens a sheet rather than a line
+         under a field that invites another try. */
+      const block = signInBlock(error);
+      if (block) {
+        setBlocked(block);
+        return;
+      }
+
       // Most often "email already registered", which the API returns as a 4xx
       // with a usable message.
       setFormError(signInErrorMessage(error));
@@ -282,6 +299,15 @@ export function InternSignupForm() {
           Sign in
         </Link>
       </p>
+
+      {/* Not an inline error. A full platform is nothing the form can fix,
+          and a line under a field invites another go at it. */}
+      <SignInBlockedSheet
+        block={blocked}
+        onOpenChange={(open) => {
+          if (!open) setBlocked(null);
+        }}
+      />
     </div>
   );
 }

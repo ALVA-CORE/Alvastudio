@@ -113,6 +113,42 @@ export class ApiError extends Error {
     return this.status === 403 && /inactive account/i.test(this.message);
   }
 
+  /**
+   * The platform is not taking new people, or not letting them in.
+   *
+   * A `403` whose detail says the place is full. Not a permissions problem
+   * and not about this person: there is nothing on the form for them to fix,
+   * which is why it opens a sheet rather than a line under a field.
+   *
+   * **Matched on the message, pending a code of its own.** Asked for in
+   * `docs/backend/endpoints-needed.md`; a `code` field on the body would be
+   * better than reading English, and until there is one this falls back to
+   * the generic 403 rather than breaking.
+   */
+  get isAtCapacity(): boolean {
+    return this.status === 403 && /at capacity|registration is closed|we are full/i.test(this.message);
+  }
+
+  /**
+   * This email already has an account.
+   *
+   * Only interesting while the platform is full: somebody on the waiting
+   * list who tries again with the same details should be told they are
+   * already on it, not handed a validation error that reads like a mistake
+   * they made.
+   *
+   * **Matched on the message, pending a code of its own**, like
+   * `isAtCapacity` above. A wrong guess falls back to showing the API's own
+   * sentence, which is correct if unhelpful, so this cannot mislead.
+   */
+  get isAlreadyRegistered(): boolean {
+    return (
+      this.status >= 400 &&
+      this.status < 500 &&
+      /already (registered|exists|taken)|email.*(taken|in use)/i.test(this.message)
+    );
+  }
+
   /** The device has no connection at all. */
   get isOffline(): boolean {
     return this.status === 0 && this.offline;

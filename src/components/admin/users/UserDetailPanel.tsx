@@ -20,8 +20,6 @@ import { DeleteButton } from "@/components/ui/delete-button";
 import { TextureButton } from "@/components/ui/texture-button";
 import { RoleTag } from "@/components/admin/shared/RoleTag";
 import { PasswordResetDialog } from "@/components/admin/users/PasswordResetDialog";
-import { issuePasswordReset } from "@/lib/api/users";
-import { reportApiError } from "@/lib/api/reportApiError";
 import { DeleteUserDialog } from "@/components/admin/users/DeleteUserDialog";
 import {
   AuditTimeline,
@@ -101,8 +99,6 @@ export function UserDetailPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   /* Null while the token is being generated, so the dialog can open at once
    * rather than after a round trip. */
-  const [resetToken, setResetToken] = useState<string | null>(null);
-  const [resetError, setResetError] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
 
   /* Above the `!user` guard below: hooks cannot be conditional, and this
@@ -257,23 +253,11 @@ export function UserDetailPanel({
                   icon={<KeyMinimalistic size={15} weight="Outline" />}
                   label="Reset password"
                   onClick={() => {
-                    setResetToken(null);
-                    setResetError(null);
+                    /* The dialog asks first and sends the email itself. It
+                     * used to issue a token here and print it for the admin
+                     * to pass on by hand, which meant finding a private
+                     * channel to every locked-out person. */
                     setResetOpen(true);
-                    /* The real token. This dialog used to show a made-up
-                     * string shaped like one, which an admin would hand over
-                     * in good faith and which could never redeem.
-                     *
-                     * It matters more than it did: with the mail provider
-                     * refusing every reset email, this is the only way back
-                     * into an account. */
-                    issuePasswordReset(user.id)
-                      .then((issued) => setResetToken(issued.token))
-                      .catch((cause: unknown) =>
-                        setResetError(
-                          reportApiError(cause, "Could not issue a reset token.")
-                        )
-                      );
                   }}
                 />
               ) : null}
@@ -470,10 +454,10 @@ export function UserDetailPanel({
             ) : null}
 
             {/* Said once, at the bottom. A gap in this list means "nobody
-                signed in" inside 90 days and "we no longer know" before it,
+                signed in" inside a year and "we no longer know" before it,
                 and nothing else in the log expires. */}
             <p className="mt-6 border-t border-alva-border pt-4 text-xs leading-relaxed text-muted-foreground">
-              Sign-ins, sign-outs and refused attempts are kept for 90 days.
+              Sign-ins, sign-outs and refused attempts are kept for a year.
               The device is read from the browser; no IP address is recorded.
             </p>
           </>
@@ -495,9 +479,9 @@ export function UserDetailPanel({
       <PasswordResetDialog
         open={resetOpen}
         onOpenChange={setResetOpen}
+        userId={user.id}
         fullName={user.fullName}
-        token={resetToken}
-        error={resetError}
+        email={user.email}
       />
 
       <ConfirmDialog

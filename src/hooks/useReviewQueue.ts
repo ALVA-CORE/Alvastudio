@@ -2,7 +2,7 @@ import { fetchAllPages, fetchAllRows } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import * as reviewsApi from "@/lib/api/reviews";
 import { listRecordings, type ApiRecording } from "@/lib/api/recordings";
-import { listUsers, type ApiUser } from "@/lib/api/users";
+import { listContributors, type ApiContributorRef } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 import { NO_VALUE } from "@/lib/no-value";
@@ -90,11 +90,18 @@ export function useReviewQueue() {
       reviewsApi.reviewQueue(100, true),
       fetchAllRows<ApiRecording>((query) => listRecordings(query)),
       /* Names, not ids. `RecordingOut` carries `contributor_id` and nothing
-       * else, so one list turns every row's id into somebody's name. Failing
-       * here costs the names, not the queue. */
-      fetchAllPages<ApiUser>((query) =>
-        listUsers({ ...query, role: "contributor" })
-      ).catch(() => null),
+       * else, so one list turns every row's id into somebody's name.
+       *
+       * `/users/contributors` rather than `/users?role=contributor`: the
+       * second is admin-only because it returns email, phone and account
+       * state, so a reviewer got a 403 and every name on this screen fell
+       * back to eight characters of a UUID. This one returns an id and a
+       * name and nothing else.
+       *
+       * Failing here still costs the names, not the queue. */
+      fetchAllPages<ApiContributorRef>((query) => listContributors(query)).catch(
+        () => null
+      ),
     ])
       .then(([queue, all, people]) => {
         if (cancelled) return;

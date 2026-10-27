@@ -10,6 +10,7 @@ import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { DashboardTimeFilter } from "@/components/shared/DashboardTimeFilter";
+import { SignupsToggle } from "@/components/admin/overview/SignupsToggle";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { SharePie } from "@/components/admin/shared/SharePie";
@@ -154,7 +155,14 @@ export default function AdminDashboardPage() {
     <DesktopPageShell className="py-4">
       <AdminPageHeader
         id="overview"
-        actions={<DashboardTimeFilter value={range} onChange={setRange} />}
+        actions={
+          <div className="flex items-center gap-2">
+            {/* Closing the door is a platform decision, so it sits with the
+                platform's own screen rather than inside the users table. */}
+            <DashboardTimeFilter value={range} onChange={setRange} />
+            <SignupsToggle />
+          </div>
+        }
       />
 
       {overview.error ? (

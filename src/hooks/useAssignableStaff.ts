@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { listUsers, type ApiUserRole } from "@/lib/api/users";
+import { fetchAllPages } from "@/lib/api/fetchAll";
+import { listUsers, type ApiUser, type ApiUserRole } from "@/lib/api/users";
 
 export type AssignableStaff = {
   id: string;
@@ -32,11 +33,17 @@ export function useAssignableStaff(roles: ApiUserRole[], enabled: boolean) {
     let cancelled = false;
     setLoading(true);
 
-    /* One call per role: `GET /users` filters by a single role, and the two
-     * lists are short enough that paging them together is not worth it. */
+    /* One call per role: `GET /users` filters by a single role.
+     *
+     * Paged, because `limit` caps at 200 and a single call quietly answers
+     * "the first 200" to a picker whose whole job is to list everybody who
+     * could take the work. Short lists today, and a picker that silently
+     * omits the 201st annotator is not a bug anybody would catch. */
     Promise.all(
       key.split(",").map((role) =>
-        listUsers({ role: role as ApiUserRole, limit: 200 })
+        fetchAllPages<ApiUser>((query) =>
+          listUsers({ ...query, role: role as ApiUserRole })
+        )
       )
     )
       .then((pages) => {

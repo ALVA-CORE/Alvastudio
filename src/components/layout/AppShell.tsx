@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { FloatingBottomNav } from "./FloatingBottomNav";
+import { ContributorNudges } from "@/components/contributors/ContributorNudges";
 import { AnnotatorSidebar } from "@/components/annotators/layout/AnnotatorSidebar";
 import { AdminShell } from "@/components/admin/layout/AdminShell";
 
@@ -56,6 +57,11 @@ export function AppShell({ surface = "contributor", children }: AppShellProps) {
         {children}
       </main>
       <FloatingBottomNav />
+
+      {/* Two prompts, both on a timer, both per account. They live at the
+          shell so they follow somebody around the app rather than only
+          firing on the one screen that happens to hold the wallet. */}
+      <ContributorNudges />
     </div>
   );
 }
