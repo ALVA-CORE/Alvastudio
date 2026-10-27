@@ -137,27 +137,43 @@ export function AlvaSplash({
           edge of the ellipse can ever cross into frame. */}
       <motion.div
         aria-hidden
-        /* One layer, one transform, so the browser composites the travel
-           instead of repainting a gradient every frame. Taller and wider
-           than the viewport so no edge of the ellipse can cross into frame
-           and read as a line. */
-        className="pointer-events-none absolute left-1/2 top-0 h-dvh w-[180vw] -translate-x-1/2"
+        /**
+         * A round blob, not a band.
+         *
+         * The previous one was an ellipse sized as a percentage of a layer
+         * nearly three viewports wide, which made it ~350vw across and one
+         * viewport tall. Horizontally that is flat, so all you could see was
+         * its vertical falloff: a soft horizontal line sliding up the
+         * screen. Making it bigger made it flatter.
+         *
+         * So it is a square box with a `circle` gradient, which cannot be
+         * anything but round, sized in `vmin` so it stays round and stays
+         * proportionate on a phone and on a monitor alike.
+         *
+         * Centred with `inset-x-0 mx-auto` and offset by half its height
+         * with a margin. Never a translate: framer animates `y` by writing
+         * `transform`, which replaces the whole property, and a centring
+         * translate would be wiped the moment it started.
+         */
+        className="pointer-events-none absolute inset-x-0 top-0 mx-auto size-[130vmin] rounded-full"
         style={{
+          /* Half the height up, so `y` positions the blob's centre rather
+             than its top edge and the numbers below mean what they say. */
+          marginTop: "-65vmin",
           background:
-            "radial-gradient(ellipse 42% 30% at 50% 50%," +
+            "radial-gradient(circle at 50% 50%," +
             "hsl(var(--alva-accent)/0.42) 0%," +
-            "hsl(var(--alva-accent)/0.27) 20%," +
-            "hsl(var(--alva-accent)/0.14) 40%," +
-            "hsl(var(--alva-accent)/0.055) 60%," +
-            "hsl(var(--alva-accent)/0.014) 80%," +
+            "hsl(var(--alva-accent)/0.30) 18%," +
+            "hsl(var(--alva-accent)/0.17) 34%," +
+            "hsl(var(--alva-accent)/0.08) 50%," +
+            "hsl(var(--alva-accent)/0.03) 66%," +
+            "hsl(var(--alva-accent)/0.008) 82%," +
             "transparent 100%)",
         }}
-        /* Starts centred on the bottom quarter of the screen: the layer is
-           one viewport tall and its gradient centred, so +75% puts the
-           middle of the glow at 75% down. It finishes centred just above the
-           top edge, which is where the glow sits on every other page. */
-        initial={reduced ? false : { y: "75%", opacity: 0.6 }}
-        animate={{ y: "-62%", opacity: 1 }}
+        /* Centre starts low on the screen and finishes just above the top
+           edge, which is where the glow sits on every other page. */
+        initial={reduced ? false : { y: "78vh", opacity: 0.65 }}
+        animate={{ y: "-6vh", opacity: 1 }}
         transition={{ duration: RISE_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
       />
 
@@ -167,11 +183,11 @@ export function AlvaSplash({
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.55, ease: "easeOut" }}
       >
-        <AlvaLogo className="h-9 shrink-0 sm:h-10" />
+        <AlvaLogo className="h-8 shrink-0 sm:h-9" />
 
         {/* The text node carries the name for assistive tech in full from the
             start — a screen reader should not be made to watch it type. */}
-        <span className="flex items-baseline text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+        <span className="flex items-baseline text-lg font-semibold tracking-tight text-foreground sm:text-xl">
           <span aria-hidden>{WORDMARK.slice(0, typed)}</span>
           <span className="sr-only">{WORDMARK}</span>
 

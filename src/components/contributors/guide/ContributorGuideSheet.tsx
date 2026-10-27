@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useState, type ComponentType } from "react";
 import type { IconProps } from "@solar-icons/react/lib/types";
 import VolumeCross from "@solar-icons/react/video/VolumeCross";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
@@ -27,6 +27,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { TextureButton } from "@/components/ui/texture-button";
 import { DistanceArt, TakeShapeArt } from "@/components/contributors/guide/GuideArt";
 import {
+  GUIDE_MODES,
+  ModeSwitcher,
+  type GuideMode,
+} from "@/components/contributors/guide/ModeSwitcher";
+import { ReadProgressClose } from "@/components/contributors/guide/ReadProgressClose";
+import {
   NARRATION_STEPS,
   PROMPT_STEPS,
   REJECTIONS,
@@ -35,7 +41,6 @@ import {
   type GuideStep,
 } from "@/components/contributors/guide/guide-content";
 import { ALVA_LINKS } from "@/lib/links";
-import { cn } from "@/lib/utils";
 
 const ICONS: Record<GuideIcon, ComponentType<IconProps>> = {
   quiet: VolumeCross,
@@ -60,7 +65,8 @@ const ICONS: Record<GuideIcon, ComponentType<IconProps>> = {
   mix: Global,
 };
 
-type Mode = "prompt" | "narration";
+/** Both have to be read, so the halving below is not a magic 2. */
+const MODE_COUNT = GUIDE_MODES.length;
 
 /**
  * How to get a recording approved, in one place.
@@ -109,21 +115,63 @@ export function ContributorGuideSheet({
   mustRead?: boolean;
   onRead?: () => void;
 }) {
-  const [mode, setMode] = useState<Mode>("prompt");
-  const [progress, setProgress] = useState(0);
-  const [reachedEnd, setReachedEnd] = useState(false);
-  const scroller = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<GuideMode>("prompt");
+  /** How far down the current tab they are, 0 to 1. */
+  const [scrolled, setScrolled] = useState(0);
+  /** Tabs read to the bottom. Both have to be in it. */
+  const [finished, setFinished] = useState<GuideMode[]>([]);
+  /**
+   * The scroller, as state rather than a ref.
+   *
+   * A `useRef` plus an effect does not work here. The sheet renders through
+   * a portal whose content mounts in a *later* commit than this component's
+   * first one, so the effect ran, found `null`, and returned, and because
+   * its dependencies never changed again it never ran a second time. The
+   * scroll listener was never attached at all, which is why the ring sat at
+   * zero no matter how far anybody read.
+   *
+   * A callback ref fires exactly when the node arrives, whichever commit
+   * that is, and the state update re-runs the effect with something real.
+   */
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
 
+  /**
+   * Reading is two passes, not one.
+   *
+   * The two tabs hold different rules and only one is ever on screen, so a
+   * scroll to the bottom of the prompt tab is half the guide read, not all
+   * of it. Measuring scroll alone would let somebody finish without ever
+   * seeing the stimuli rules, then be rejected for breaking them.
+   *
+   * So each tab is worth a half, and the one in front of them contributes
+   * its scroll fraction towards its own half.
+   */
+  const current = finished.includes(mode) ? 1 : scrolled;
+  const other = finished.filter((tab) => tab !== mode).length;
+  const raw = (current + other) / MODE_COUNT;
+
+  /**
+   * Never goes backwards.
+   *
+   * Switching to a tab they have not started would otherwise drop the ring
+   * from 70% to 50%, which reads as losing progress for doing the thing
+   * they were asked to do.
+   */
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    setProgress((best) => Math.max(best, raw));
+  }, [raw]);
+
+  const reachedEnd = finished.length === MODE_COUNT;
   const locked = mustRead && !reachedEnd;
 
   /* Measured on scroll and once on open, because a short viewport can be at
      the end before anybody has scrolled at all, and a bar stuck at zero on a
      fully visible page is just wrong. */
   useEffect(() => {
-    if (!open) return;
+    if (!open || !scroller) return;
 
-    const element = scroller.current;
-    if (!element) return;
+    const element = scroller;
 
     const measure = () => {
       const scrollable = element.scrollHeight - element.clientHeight;
@@ -131,11 +179,13 @@ export function ContributorGuideSheet({
       const ratio =
         scrollable <= 4 ? 1 : Math.min(1, element.scrollTop / scrollable);
 
-      setProgress(ratio);
+      setScrolled(ratio);
       /* A couple of pixels of slack: sub-pixel heights and rubber-band
          scrolling mean the last pixel is not always reachable, and a person
          who has read everything should not be held by a rounding error. */
-      if (ratio >= 0.995) setReachedEnd(true);
+      if (ratio >= 0.995) {
+        setFinished((tabs) => (tabs.includes(mode) ? tabs : [...tabs, mode]));
+      }
     };
 
     measure();
@@ -150,11 +200,32 @@ export function ContributorGuideSheet({
       element.removeEventListener("scroll", measure);
       observer.disconnect();
     };
-  }, [open, mode]);
+  }, [open, mode, scroller]);
 
   useEffect(() => {
     if (reachedEnd) onRead?.();
   }, [reachedEnd, onRead]);
+
+  /**
+   * Back to the top on a tab change, so the new content starts where its
+   * reader does rather than part-way down whatever was there before.
+   *
+   * A handler, not an effect on `[mode]`. As an effect it also ran on mount,
+   * *after* the first measure, and reset the fraction to zero — which on a
+   * guide short enough not to scroll meant nothing ever fired again and the
+   * ring sat at zero forever.
+   *
+   * `scrollTop` rather than `scrollTo`, which jsdom does not implement and
+   * which would need guarding anyway.
+   */
+  const selectMode = useCallback(
+    (next: GuideMode) => {
+      setMode(next);
+      setScrolled(0);
+      if (scroller) scroller.scrollTop = 0;
+    },
+    [scroller]
+  );
 
   return (
     <Sheet
@@ -169,7 +240,7 @@ export function ContributorGuideSheet({
       <SheetContent
         side="bottom"
         aria-describedby={undefined}
-        hideClose={locked}
+        hideClose
         onInteractOutside={(event) => locked && event.preventDefault()}
         onEscapeKeyDown={(event) => locked && event.preventDefault()}
         /* Floating, not docked.
@@ -191,34 +262,34 @@ export function ContributorGuideSheet({
           "border-alva-border bg-alva-card sm:mx-auto sm:max-w-lg"
         }
       >
-        {/* The border fills as they scroll.
-            Drawn as an inset ring rather than a bar at the top, so the
-            progress belongs to the panel instead of sitting above its
-            content. Clipped by width, which is one composited property. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-3xl"
-        >
-          <div
-            className="h-full rounded-3xl ring-2 ring-inset ring-alva-accent transition-[width] duration-200 ease-out"
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
-        </div>
+        {/* The close button IS the meter. A separate progress indicator
+            elsewhere makes somebody hunt for the reason this one will not
+            work; here the reason is the button. On a guide opened by hand
+            there is nothing to earn, so it starts full. */}
+        <ReadProgressClose
+          progress={mustRead ? progress : 1}
+          onClose={() => onOpenChange(false)}
+        />
 
-        <SheetHeader className="shrink-0 px-5 pb-3 pt-5 text-left sm:text-left">
+        {/* Only the title is pinned. The two lines under it are an opening,
+            not a heading: they are read once and then they are in the way,
+            and holding them there costs a fifth of a short screen for the
+            whole read. */}
+        <SheetHeader className="shrink-0 px-5 pb-2 pt-5 text-left sm:text-left">
           <SheetTitle className="text-lg text-foreground">
             Getting your recordings approved
           </SheetTitle>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Every clip is checked by a person before it is paid. Here is what
-            they are listening for.
-          </p>
         </SheetHeader>
 
         <div
-          ref={scroller}
+          ref={setScroller}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5"
         >
+          <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+            Every clip is checked by a person before it is paid. Here is what
+            they are listening for.
+          </p>
+
           <Section title="Before you start">
             <Steps steps={SETUP_STEPS} />
             <Figure caption="About one hand-length. Closer distorts, further goes faint.">
@@ -227,38 +298,29 @@ export function ContributorGuideSheet({
           </Section>
 
           <Section title="While you record">
-            {/* Two kinds of recording, one at a time. The switch is visible
-                and labelled rather than a swipe somebody has to discover. */}
-            <div
-              role="tablist"
-              aria-label="Kind of recording"
-              className="mb-3 flex gap-1 rounded-full bg-alva-surface p-1"
-            >
-              <Tab
-                id="prompt"
-                active={mode}
-                onSelect={setMode}
-                icon={TextField}
-                label="Reading sentences"
-              />
-              <Tab
-                id="narration"
-                active={mode}
-                onSelect={setMode}
-                icon={ChatRoundDots}
-                label="Telling stories"
-              />
+            {/* The control itself, not a tab bar.
+                Tabs taught somebody how to use something that only exists
+                in this sheet. This is the control they will actually use,
+                in the shape they will meet it, doing the thing it does:
+                picking Stimuli here shows the stimuli rules, exactly as
+                picking it on the Record page changes what they record. */}
+            <div className="mb-3 rounded-2xl bg-alva-surface px-3.5 py-3">
+              <ModeSwitcher value={mode} onChange={selectMode} />
+              <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
+                On the Record page, this is how you choose what to record.
+                Pick one to see its rules.
+              </p>
             </div>
 
             {mode === "prompt" ? (
-              <div role="tabpanel" aria-label="Reading sentences">
+              <div>
                 <Steps steps={PROMPT_STEPS} />
                 <Figure caption="A beat of quiet at each end. Cut-off starts and ends are the most common rejection.">
                   <TakeShapeArt />
                 </Figure>
               </div>
             ) : (
-              <div role="tabpanel" aria-label="Telling stories">
+              <div>
                 <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
                   You get a topic, something like “Tell us about a time your
                   network failed at the worst moment.” Talk about it the way
@@ -320,7 +382,11 @@ export function ContributorGuideSheet({
                 disabled={!reachedEnd}
                 onClick={() => onOpenChange(false)}
               >
-                {reachedEnd ? "Got it" : "Scroll to the end to continue"}
+                {reachedEnd
+                  ? "Got it"
+                  : finished.includes(mode)
+                    ? `Now read the ${mode === "prompt" ? "Stimuli" : "Prompt reader"} rules`
+                    : "Scroll to the end to continue"}
               </TextureButton>
             </div>
           ) : null}
@@ -328,7 +394,7 @@ export function ContributorGuideSheet({
 
         {/* A nudge, not a control. It fades out once they are moving, since
             by then they know the panel scrolls. */}
-        {locked && progress < 0.08 ? (
+        {locked && progress < 0.06 ? (
           <span
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center"
@@ -341,40 +407,6 @@ export function ContributorGuideSheet({
         ) : null}
       </SheetContent>
     </Sheet>
-  );
-}
-
-function Tab({
-  id,
-  active,
-  onSelect,
-  icon: Icon,
-  label,
-}: {
-  id: Mode;
-  active: Mode;
-  onSelect: (next: Mode) => void;
-  icon: ComponentType<IconProps>;
-  label: string;
-}) {
-  const selected = active === id;
-
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      onClick={() => onSelect(id)}
-      className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-medium transition-colors",
-        selected
-          ? "bg-alva-accent text-alva-bg"
-          : "text-muted-foreground hover:text-foreground"
-      )}
-    >
-      <Icon size={14} weight={selected ? "BoldDuotone" : "Outline"} />
-      {label}
-    </button>
   );
 }
 

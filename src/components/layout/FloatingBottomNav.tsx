@@ -8,6 +8,7 @@ import UserRounded from "@solar-icons/react/users/UserRounded";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { ContributorGuideSheet } from "@/components/contributors/guide/ContributorGuideSheet";
 import { useGuideIntro } from "@/components/contributors/guide/useGuideIntro";
+import { useAuth } from "@/lib/auth/context";
 import { cn } from "@/lib/utils";
 import { alvaAccentTextureClass } from "@/lib/alva-texture";
 
@@ -77,9 +78,15 @@ export function FloatingBottomNav({ isStaff = false }: FloatingBottomNavProps) {
   const items = isStaff ? staffMobileNav : contributorNav;
   const [guideOpen, setGuideOpen] = useState(false);
 
-  /* The one time it opens by itself. Contributors only, and only until it
-     has been read. */
-  const intro = useGuideIntro(!isStaff);
+  /* Contributors only, checked against the account rather than the `isStaff`
+     prop. The prop is about which nav items to draw; this is about whose
+     guide it is, and the two only happen to agree today. An intern never
+     records a prompt or a stimulus, so none of it applies to them. */
+  const { user } = useAuth();
+  const forContributor = !isStaff && user?.role === "contributor";
+
+  /* The one time it opens by itself, and only until it has been read. */
+  const intro = useGuideIntro(forContributor);
 
   useEffect(() => {
     if (intro.due) setGuideOpen(true);
@@ -134,7 +141,7 @@ export function FloatingBottomNav({ isStaff = false }: FloatingBottomNavProps) {
 
           Contributors only. Staff have their own guidance and this one is
           written for somebody recording. */}
-      {!isStaff ? (
+      {forContributor ? (
         <>
           <button
             type="button"

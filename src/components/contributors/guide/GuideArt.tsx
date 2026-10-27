@@ -1,5 +1,5 @@
 /**
- * The two pictures in the guide.
+ * The pictures in the guide.
  *
  * Inline SVG rather than icons, because both show a *relationship* an icon
  * cannot: how far to hold the phone, and what a take looks like end to end.

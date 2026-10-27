@@ -39,10 +39,16 @@ describe("ContributorGuideSheet", () => {
     }
   });
 
-  /* Two kinds of recording, shown one at a time. Nobody doing a prompt read
-     needs the narration rules in front of them, and scrolling past six
-     irrelevant steps is how a guide gets abandoned halfway. */
-  it("shows one recording mode at a time, with a visible switch", async () => {
+  /**
+   * One kind of recording at a time, chosen with the Record page's own
+   * control rather than a tab bar invented for this sheet.
+   *
+   * Picking Stimuli here shows the stimuli rules, exactly as picking it on
+   * the Record page changes what gets recorded. The labels are that page's
+   * too: a guide that renames the thing it explains gives somebody a second
+   * thing to learn.
+   */
+  it("switches the rules from the recording-mode control", async () => {
     const user = userEvent.setup();
     render(<ContributorGuideSheet open onOpenChange={() => {}} />);
     const sheet = screen.getByRole("dialog");
@@ -50,7 +56,10 @@ describe("ContributorGuideSheet", () => {
     expect(within(sheet).getByText(PROMPT_STEPS[0].title)).toBeInTheDocument();
     expect(within(sheet).queryByText(NARRATION_STEPS[0].title)).not.toBeInTheDocument();
 
-    await user.click(within(sheet).getByRole("tab", { name: /Telling stories/ }));
+    await user.click(
+      within(sheet).getByRole("button", { name: /Recording mode, Prompt reader/ })
+    );
+    await user.click(within(sheet).getByRole("option", { name: /Stimuli/ }));
 
     expect(within(sheet).getByText(NARRATION_STEPS[0].title)).toBeInTheDocument();
     expect(within(sheet).queryByText(PROMPT_STEPS[0].title)).not.toBeInTheDocument();
@@ -66,6 +75,44 @@ describe("ContributorGuideSheet", () => {
   });
 
   /**
+   * Reading is two passes.
+   *
+   * The tabs hold different rules and only one is ever on screen, so
+   * scrolling the prompt tab to the bottom is half the guide read. Counting
+   * scroll alone would let somebody finish without ever seeing the stimuli
+   * rules, then be rejected for breaking them.
+   */
+  it("will not count the guide read until both modes have been", async () => {
+    const user = userEvent.setup();
+    render(<ContributorGuideSheet open mustRead onOpenChange={() => {}} />);
+
+    /* jsdom gives every element a zero scroll height, so the scroller
+       reports "nothing to scroll", which the component treats as read. That
+       is the right behaviour for a short screen, and it makes this test
+       about the half that is left: the other mode. */
+    expect(
+      screen.getByRole("button", { name: /Now read the Stimuli rules/ })
+    ).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: /Recording mode, Prompt reader/ })
+    );
+    await user.click(screen.getByRole("option", { name: /Stimuli/ }));
+
+    expect(screen.getByRole("button", { name: "Got it" })).toBeEnabled();
+  });
+
+  /* The close control doubles as the meter, so it has to say where they are
+     rather than looking broken. */
+  it("names how far through it is while it is held shut", () => {
+    render(<ContributorGuideSheet open mustRead onOpenChange={() => {}} />);
+
+    expect(
+      screen.getByRole("button", { name: /Read to the end to close, 50% done/ })
+    ).toBeDisabled();
+  });
+
+  /**
    * The forced read, which only happens when the guide opens itself.
    *
    * Somebody who tapped the button is looking something up and must be able
@@ -77,9 +124,6 @@ describe("ContributorGuideSheet", () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     render(<ContributorGuideSheet open mustRead onOpenChange={onOpenChange} />);
-
-    const close = screen.getByRole("button", { name: /Scroll to the end/ });
-    expect(close).toBeDisabled();
 
     await user.keyboard("{Escape}");
     expect(onOpenChange).not.toHaveBeenCalled();
