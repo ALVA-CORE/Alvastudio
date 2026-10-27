@@ -1,6 +1,31 @@
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 import { cn } from "@/lib/utils";
 
+function Fact({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "mt-0.5 truncate text-sm text-foreground",
+          strong && "font-medium"
+        )}
+        title={value}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 type ReviewMetadataCardProps = {
   item: ReviewQueueItem;
   className?: string;
@@ -8,35 +33,27 @@ type ReviewMetadataCardProps = {
 
 export function ReviewMetadataCard({ item, className }: ReviewMetadataCardProps) {
   return (
-    <section className={cn("rounded-2xl bg-alva-card p-4", className)}>
+    <section className={cn("min-w-0 rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
       <h3 className="text-sm font-semibold text-foreground">Metadata</h3>
 
+      {/* Two abreast on every width. Five one-line facts stacked is five
+          rows of mostly empty space, and on a phone it pushed the prompt and
+          the questions below the fold. */}
       <div className="mt-3 space-y-3">
-        <div>
-          <p className="text-xs text-muted-foreground">Contributor</p>
-          <p className="mt-0.5 text-sm font-medium text-foreground">{item.contributor}</p>
-        </div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+          <Fact label="Contributor" value={item.contributor} strong />
+          <Fact label="Duration" value={item.duration} />
+          <Fact label="Submitted" value={item.submittedAt} />
+          <Fact label="Device" value={item.device} />
+          <Fact label="Language" value={item.language} />
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <p className="text-xs text-muted-foreground">Duration</p>
-            <p className="mt-0.5 text-sm text-foreground">{item.duration}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Submitted</p>
-            <p className="mt-0.5 text-sm text-foreground">{item.submittedAt}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Device</p>
-            <p className="mt-0.5 text-sm text-foreground">{item.device}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Language</p>
-            <p className="mt-0.5 text-sm text-foreground">{item.language}</p>
-          </div>
-          <div>
+          {/* Its own row, and broken mid-string. A 36-character UUID in a
+              half-width cell is what was pushing the page sideways. */}
+          <div className="col-span-2 min-w-0">
             <p className="text-xs text-muted-foreground">Clip ID</p>
-            <p className="mt-0.5 text-sm text-foreground">{item.id}</p>
+            <p className="mt-0.5 break-all font-mono text-xs text-foreground">
+              {item.id}
+            </p>
           </div>
         </div>
 

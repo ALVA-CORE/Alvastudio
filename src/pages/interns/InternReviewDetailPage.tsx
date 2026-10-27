@@ -253,8 +253,8 @@ export default function InternReviewDetailPage() {
   };
 
   return (
-    <DesktopPageShell className="py-4">
-      <div className="space-y-2">
+    <DesktopPageShell className="overflow-x-hidden py-4">
+      <div className="min-w-0 space-y-2">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"

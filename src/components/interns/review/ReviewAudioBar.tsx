@@ -116,8 +116,8 @@ export function ReviewAudioBar({
   };
 
   return (
-    <section className={cn("rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
-      <div className="relative overflow-visible rounded-xl p-[3px]">
+    <section className={cn("min-w-0 rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
+      <div className="relative min-w-0 overflow-visible rounded-xl p-[3px]">
         <BorderBeam
           size="md"
           colorVariant="mono"

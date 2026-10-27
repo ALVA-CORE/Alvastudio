@@ -44,7 +44,7 @@ export function ReviewQualityForm({
   const canSubmit = isRubricComplete(answers) && !isSubmitting && !readOnly;
 
   return (
-    <section className={cn("flex h-full flex-col rounded-2xl bg-alva-card p-4", className)}>
+    <section className={cn("flex h-full min-w-0 flex-col rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
       <h3 className="text-sm font-semibold text-foreground">
         {readOnly ? "Your answers" : "Quality rubric"}
       </h3>
