@@ -8,6 +8,8 @@ open is listed here.
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
 | 1 | Close sign-ups and sign-ins at a capacity | Holding the platform at a set number of people | **High** |
+| 2 | Tell the contributors the identity migration reset | People who were verified finding out at withdrawal | **High** |
+| 3 | An idempotency key on `POST /wallet/identity/documents` | A safe retry after a 502 | Medium |
 
 ---
 
@@ -99,6 +101,12 @@ that claims otherwise.
 
 ---
 
+The document-verification handoff of 27 Oct is wired — see
+[`replies/api-status-2026-10-27-documents.md`](replies/api-status-2026-10-27-documents.md).
+The selfie flow is gone, `POST /wallet/identity/nin` is no longer called from
+anywhere, and the wallet follows `next_action`. Two follow-ups came out of it,
+below.
+
 Both asks from 26 Oct are answered in
 [`replies/api-status-2026-10-26.md`](replies/api-status-2026-10-26.md) and
 wired: `POST/GET/PATCH /feedback`, and sign-ins kept a year.
@@ -115,6 +123,54 @@ show that, and the manual reset on the user panel is the way back in.
 
 ---
 
+## 2. The migration reset verified contributors, and they do not know
+
+> "Existing identity states are reset for document review by the migration…
+> Returning contributors may therefore need to submit a document even if an
+> earlier screen showed their identity as verified."
+
+Our screens now read the new state correctly, so nobody is shown a stale
+"Verified". That is not the problem.
+
+The problem is **when they find out**. Somebody who verified a NIN last week,
+saw "Verified", and has been recording since will next open the wallet to
+withdraw — and be sent back to the start of a flow they already finished, with
+no explanation of what changed. The wallet can say it, but only to somebody
+who opens the wallet, and the people most affected are the ones who stopped
+checking because it was done.
+
+**What we are asking for:** the existing "your identity needs attention" mail
+sent once to every contributor the migration reset, saying the check changed
+and what to do. No new template is needed on our side and no new endpoint —
+this is a one-off send, and we have no way to trigger it.
+
+If you would rather we did it in-app instead, tell us and we will: a one-time
+sheet on next open, worded as a change at our end rather than a failure at
+theirs. Mail is better because it reaches people who are not recording today.
+
+## 3. An idempotency key on the document route
+
+Your own note is the reason:
+
+> "**502:** … The provider may have received a document even when its response
+> was lost."
+
+So a 502 leaves us unable to do the one thing the person will want to do. We
+cannot retry, because a retry may be a second submission of the same ID, which
+your 409 path treats as a duplicate identity needing admin review — turning a
+dropped connection into a support ticket. We currently stop dead, show your
+message, and tell them to reopen the wallet and see where it stands.
+
+An `Idempotency-Key` header, or a client-supplied `submission_id` in the body,
+would make the retry safe: same key inside a window returns the first result
+instead of creating a second review. Then a 502 is a spinner rather than a
+dead end.
+
+**Not blocking.** The current handling is correct, just worse for the person
+on a bad connection, which is most of them.
+
+---
+
 ---
 
 ## On our side, not asks
@@ -125,11 +181,19 @@ show that, and the manual reset on the user panel is the way back in.
 | `session.claim` events | Sent from the claim call, not the workspace, because claiming happens on the way to a session that is not open yet. |
 | `text.edit` payloads | Length only. Keystrokes are collapsed per segment per flush, so a sentence is one row rather than forty. |
 | Leaderboard ties | A podium that reads "1st, 1st, 1st" renders as-is. It is the truth about an early corpus. |
-| Six `identity_status` values | Driven from `next_action` on `GET /wallet` |
+| Six `identity_status` values | Driven from `next_action` on `GET /wallet`, which overrides the status where the two disagree. `await_review` is shown as a wait with no retry button; `await_verification` as a wait whatever the status says. |
 | `*_kobo` vs decimal strings | We use the integers |
 | `X-Total-Count` header | Not reachable from our client, so we pass `?envelope=true` |
-| `POST /wallet/identity/nin` consent | Collected with a checkbox. It is an attestation to a government database check, so we do not send `true` on somebody's behalf. |
-| `selfie_base64` | Now sent. Worth knowing it is `anyOf: [string, null]` and absent from `required`, but the call is refused without it — "A selfie is required so your face can be matched to your ID photo". We read that as required and built a camera step for it; if the schema could say so too, the next person reading it would not have to find out by submitting. A fallback upload covers a blocked camera. Downscaled to 720px JPEG, bare base64, no `data:` prefix. |
+| `consent` on the document route | Still collected with a checkbox, and still never sent on somebody's behalf. It is an attestation, and the wording now says "review the ID document I upload" rather than the database check it used to describe. |
+| `document_content_type` | Images are re-encoded to JPEG through a canvas whatever they arrived as, and the type is declared from that, not from the picked file. A PNG passed through a canvas and still labelled `image/png` would be JPEG bytes under a PNG header. PDFs pass through untouched. |
+| Both sides agreeing | Enforced before the request, where the fix is still a tap on the picker. Because images are always re-encoded, a PNG front and a JPEG back agree without the person being told to convert anything; only a PDF mixed with a photo is refused, and the message names which side. |
+| The 4,194,304-character cap | Images are downscaled to a 1600px long edge, which lands far under it — bigger than the old selfie's 720px on purpose, because a person has to read the document number. A PDF cannot be shrunk in a browser, so an oversized one says "try a photo instead" rather than offering a retry that fails the same way. |
+| Double submission | The submit button is disabled while the request is in flight, and a 409, 410, 502 or 503 replaces the form rather than returning to it. Nothing in our client retries a request automatically — `apiFetch` has no retry at all — so an identity document is never re-uploaded without a person pressing something. |
+| NINs and documents at rest | Held in React state for the life of the sheet and dropped the moment it closes. No draft, no `localStorage`, no analytics, nothing in a URL, nothing logged. The sign-up forms use a draft helper; this sheet deliberately does not. |
+| A 502 on the document route | We stop rather than offer a retry, because your note says the provider may have the document anyway. See ask 3 — an idempotency key would let us do better. |
+| Polling a review | Only while something is pending, only while the tab is in front, every 20s, plus one re-read on return to the tab. One component owns the timer; the other two readers of the wallet on the same screen do not each run one. |
+| `POST /wallet/account` | Called as the first step of the gate when `next_action` says `create_account`, not on page load. It is one tap for the contributor either way. |
+| `POST /wallet/onboarding-link` | Requested on click only, never minted ahead of time. |
 | `/prompts/next` | Unused. A prompt is not used up by being read, so we page the whole active bank locally. |
 | `device_mic` on an upload | Now sent. We read the label off the live audio track, so it is the mic that clip was recorded on rather than the one typed into a profile. Blank where a browser withholds the label, and then omitted rather than guessed. |
 | `GET /wallet/payout-destination` | We were reading it as a single object with an `account_number`. It is a list, and carries `account_last4`, so the wallet shows a masked number and picks the first `is_usable` destination. |
@@ -145,7 +209,8 @@ show that, and the manual reset on the user panel is the way back in.
 | `ethnicity`, `occupation` | Now sent and read back. They were collected at onboarding and discarded. |
 | Redaction | Wired from two places, as an intern meets the problem in two. The confirm checkbox is ticked by a person, never sent for them: untagged speech is not silenced, and no care at our end changes that. The player sits above it so the tick means something. |
 | `consent_blocked` | The workspace shows a banner on open, hides Mark as done, and makes autosave inert. Every write is a 409 while it holds, and an indicator cycling through "saving" and "failed" says nothing the banner has not. |
-| A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. |
+| A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. The same is true of a 410, which means the flow changed under us again and needs to reach us rather than them. |
+| "Submitted" vs "verified" | The success toast shows your `detail` verbatim, which says submitted. Nothing on our side says verified until `identity_status` does. A review is a person reading a document, and the old face match came back in minutes — the wait is the thing most likely to be misread, so the wording is yours rather than ours. |
 | Toasts | Wrap to two lines now, left aligned and smaller. "This payout account is on hold while we r…" was being cut mid-word. |
 | Account recovery | Wired, both ends. `POST /auth/password-reset/request` from the forgot-password page, and an admin queue on the users page for approve and deny. The form says the same thing whatever the email was, because the API does: anything else turns it into a way to find out who has an account here. |
 | Recovery 503s | Shown as sent, on both routes. The forgot-password page prints your sentence under the form instead of its "request sent" screen, and the admin queue's toast carries it instead of a green tick. |

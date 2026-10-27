@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  createOnboardingLink,
+  createWalletAccount,
   listBanks,
   listPayoutDestinations,
   getWallet,
   listEarnings,
   setPayoutDestination,
-  submitNin,
+  submitIdentityDocument as postIdentityDocument,
   withdraw,
   type ApiIdentityStatus,
   type ApiLedgerEntry,
 } from "@/lib/api/wallet";
+import type { IdentitySubmission } from "@/components/contributors/wallet/VerifyIdentitySheet";
 import { reportApiError } from "@/lib/api/reportApiError";
 import {
   EMPTY_WALLET,
@@ -29,13 +32,13 @@ import {
  */
 
 /**
- * Six identity states collapse to three on screen.
+ * Six identity states collapse to four on screen.
  *
  * `link_created` and `submitted` are both "we are checking", because from the
  * contributor's side they are the same wait. `failed` is kept apart from
- * `not_started` on purpose: telling somebody whose NIN was rejected to "verify
- * your identity" sends them round the same loop with no idea it already went
- * wrong once.
+ * `not_started` on purpose: telling somebody whose document was rejected to
+ * "verify your identity" sends them round the same loop with no idea it
+ * already went wrong once.
  */
 const IDENTITY: Record<ApiIdentityStatus, IdentityState> = {
   not_started: "unverified",
@@ -45,6 +48,26 @@ const IDENTITY: Record<ApiIdentityStatus, IdentityState> = {
   failed: "failed",
   unavailable: "unverified",
 };
+
+/**
+ * `next_action` overrides the status where the two can disagree.
+ *
+ * The status describes the last check; the action describes the present. A
+ * submission held for a person to look at reads `await_review` while the
+ * status is still whatever the automated pass concluded, and the review is
+ * the thing the contributor is actually waiting on.
+ */
+function identityFrom(
+  status: ApiIdentityStatus | undefined,
+  action: string | null
+): IdentityState {
+  if (action === "await_review") return "blocked";
+  if (action === "await_verification") return "pending";
+  return IDENTITY[status ?? "not_started"];
+}
+
+/** How often a pending review is re-read while the tab is in front. */
+const POLL_MS = 20_000;
 
 const KIND: Record<string, WalletEntryKind> = {
   prompt_read: "earned",
@@ -85,7 +108,7 @@ function toEntry(api: ApiLedgerEntry): WalletEntry {
   };
 }
 
-export function useWallet() {
+export function useWallet({ watch = false }: { watch?: boolean } = {}) {
   const [wallet, setWallet] = useState<Wallet>(EMPTY_WALLET);
   const [isLoading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,9 +147,13 @@ export function useWallet() {
           inFlightKobo: status.earnings.in_flight_kobo,
           paidKobo: status.earnings.paid_kobo,
           lifetimeKobo: status.earnings.lifetime_kobo,
-          identity: IDENTITY[status.wallet?.identity_status ?? "not_started"],
+          identity: identityFrom(
+            status.wallet?.identity_status,
+            status.next_action
+          ),
           identityDetail:
             status.wallet?.identity_failure_reason ?? status.next_action_detail,
+          nextAction: status.next_action,
           /* The number itself never comes back, only its last four digits,
            * so what is shown is a mask rather than the account. */
           payoutAccount: destination
@@ -154,11 +181,78 @@ export function useWallet() {
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 
+  /**
+   * Watches a review that is still running.
+   *
+   * Document review has no webhook to us and no "it is done" moment the page
+   * would otherwise notice, so a contributor who submitted and stayed on the
+   * dashboard would sit in front of a stale "we are checking" until they
+   * reloaded by hand.
+   *
+   * Three things keep it modest. It only runs while something is actually
+   * pending, it only runs while the tab is in front — a backgrounded phone
+   * polling every twenty seconds is somebody's data allowance — and it
+   * re-reads once on return, which is when the answer has usually arrived.
+   *
+   * Opt-in, because `useWallet` is called from several components on one
+   * screen and they should not each run their own timer. The wallet card
+   * asks for it; the nudges and the profile row do not.
+   */
+  const pending = wallet.identity === "pending" || wallet.identity === "blocked";
+
+  useEffect(() => {
+    if (!watch || !pending) return;
+
+    const timer = window.setInterval(() => {
+      if (!document.hidden) reload();
+    }, POLL_MS);
+
+    const onVisible = () => {
+      if (!document.hidden) reload();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [watch, pending, reload]);
+
   return { wallet, isLoading, error, reload };
+}
+
+/**
+ * Submits an identity document for review.
+ *
+ * Creates the wallet first when the API says there is none — `create_account`
+ * is the step before `verify_identity`, and a document posted without
+ * somewhere to attach it is refused. One tap on the contributor's side
+ * either way.
+ *
+ * The back image is **omitted** rather than sent as null when there is no
+ * second side, because the field is optional and a null is not the same
+ * thing as an absence to a validator.
+ */
+export async function submitIdentityDocument(
+  submission: IdentitySubmission,
+  { needsAccount = false }: { needsAccount?: boolean } = {}
+) {
+  if (needsAccount) await createWalletAccount();
+
+  return postIdentityDocument({
+    nin: submission.nin,
+    consent: submission.consent,
+    first_name: submission.firstName,
+    last_name: submission.lastName,
+    dob: submission.dob,
+    document_content_type: submission.front.contentType,
+    document_base64: submission.front.base64,
+    ...(submission.back ? { document_back_base64: submission.back.base64 } : {}),
+  });
 }
 
 export async function linkPayoutAccount(bankCode: string, accountNumber: string) {
   return setPayoutDestination({ bank_code: bankCode, account_number: accountNumber });
 }
 
-export { submitNin, withdraw };
+export { createOnboardingLink, withdraw };

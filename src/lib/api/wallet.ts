@@ -3,8 +3,8 @@ import { apiFetch } from "./client";
 /**
  * The contributor's wallet.
  *
- * Two things shape every screen that reads this. **A verified NIN is the only
- * route to being paid** — without one there is no payout destination to
+ * Two things shape every screen that reads this. **Identity has to clear
+ * before money can move** — without it there is no payout destination to
  * collect and no eligibility for a run — and **earnings are not immediately
  * payable**: a ledger entry matures through a hold window first, which is the
  * only period in which a mis-credit can still be voided.
@@ -12,6 +12,9 @@ import { apiFetch } from "./client";
  * Hence four buckets rather than a balance. `payable` is what a run would send
  * now; showing one number a contributor cannot withdraw reads as a broken
  * button.
+ *
+ * Identity is checked by **document review** since 27 Oct 2026. The old
+ * NIN-and-selfie call answers 410 and is gone from this module.
  */
 
 export type ApiIdentityStatus =
@@ -53,10 +56,30 @@ export type ApiWalletStatusOut = {
     payouts_capability: string | null;
   } | null;
   earnings: ApiEarnings;
-  /** What the contributor has to do next. Drives the verification gate. */
-  next_action: string | null;
+  /**
+   * What the contributor has to do next, and the thing to follow.
+   *
+   * Not `wallet.status: active`, and not `identity_status` alone: a passed
+   * identity clears the identity gate only, while payout capability, a bank
+   * destination, account blocks and the hold window all still apply. The API
+   * has already weighed those, so this is the one field that knows.
+   *
+   * Typed as a union with a `string` escape so a value we have not met yet
+   * arrives intact rather than being narrowed away.
+   */
+  next_action: ApiNextAction | null;
   next_action_detail: string | null;
 };
+
+export type ApiNextAction =
+  | "create_account"
+  | "verify_identity"
+  | "await_verification"
+  | "await_review"
+  | "add_payout_destination"
+  | "complete_onboarding"
+  | "none"
+  | (string & {});
 
 export const getWallet = () => apiFetch<ApiWalletStatusOut>("/wallet");
 
@@ -99,33 +122,88 @@ export const setPayoutDestination = (body: {
   });
 
 /**
- * Submits a NIN for verification.
+ * How identity can be verified on this deployment.
  *
- * `consent` is required and must be true: the contributor is attesting to a
- * government database check, and the provider rejects the call without it. It
- * is a parameter rather than a constant here on purpose — hardcoding `true`
- * would mean attesting on somebody's behalf, which is the one thing a consent
- * flag must not do. The sheet collects it.
+ * Read before offering the form, because the answer changed under us once
+ * already: `POST /wallet/identity/nin` now answers **410**, `nin_available`
+ * is false, and document review is the only route left. A capability probe
+ * means the next switch shows as "not available right now" rather than as a
+ * filled-in form that is refused on submit.
  *
- * The number is fingerprinted for duplicate detection and never stored in the
- * clear, so nothing comes back but the new state.
+ * Failing to read it is not a reason to block anybody — see the sheet, which
+ * assumes available when this call does not answer.
  */
+export type ApiIdentityMethods = {
+  document_available: boolean;
+  nin_available: boolean;
+  hosted_available: boolean;
+};
+
+export const getIdentityMethods = () =>
+  apiFetch<ApiIdentityMethods>("/wallet/identity/methods");
+
 /**
- * `selfie_base64` is optional in the schema and required in practice.
+ * Creates the wallet itself.
  *
- * Bachs matches the photo against the one on the government NIN record and
- * refuses the call without it, so a submission with only the number comes back
- * "A selfie is required so your face can be matched to your ID photo". Bare
- * base64, no `data:` prefix.
+ * `next_action: "create_account"` is the API saying there is nothing yet to
+ * attach an identity to. It takes no body and is the first step of the gate,
+ * not a setting anybody chooses.
  */
-export const submitNin = (nin: string, consent: boolean, selfieBase64?: string) =>
-  apiFetch<{
-    identity_status: ApiIdentityStatus;
-    detail?: string;
-    verification_url?: string | null;
-  }>("/wallet/identity/nin", {
+export const createWalletAccount = () =>
+  apiFetch<unknown>("/wallet/account", { method: "POST" });
+
+/**
+ * A provider-hosted page to finish setting up.
+ *
+ * Requested **only when somebody clicks**, then redirected to immediately:
+ * these links are short-lived, and one minted on page load is usually dead by
+ * the time it is used.
+ */
+export const createOnboardingLink = () =>
+  apiFetch<{ url: string }>("/wallet/onboarding-link", { method: "POST" });
+
+/**
+ * An identity document, for review.
+ *
+ * This replaces the NIN-and-selfie call, which is now **410**. The difference
+ * is not cosmetic: that was a face match against a government record and came
+ * back in minutes, this is a person reading a document, so the honest thing to
+ * say afterwards is "submitted", never "verified".
+ *
+ * `consent` is required and must be true. It is a parameter rather than a
+ * constant because hardcoding `true` would mean attesting on somebody's
+ * behalf, which is the one thing a consent flag must not do.
+ *
+ * Both images are bare base64, no `data:` prefix, and both sides must be the
+ * type declared in `document_content_type` — see `lib/identity/document.ts`,
+ * which is the only thing that should be building this body.
+ *
+ * Nothing in here is ever stored, logged or put in a draft. The NIN is
+ * fingerprinted server-side and never comes back.
+ */
+export type ApiIdentityDocumentBody = {
+  nin: string;
+  consent: boolean;
+  first_name: string;
+  last_name: string;
+  /** `YYYY-MM-DD`. */
+  dob: string;
+  document_content_type: string;
+  document_base64: string;
+  /** Omitted entirely for a one-sided document, rather than sent as null. */
+  document_back_base64?: string;
+};
+
+export type ApiIdentitySubmission = {
+  status: string;
+  detail: string;
+  verification_url: string | null;
+};
+
+export const submitIdentityDocument = (body: ApiIdentityDocumentBody) =>
+  apiFetch<ApiIdentitySubmission>("/wallet/identity/documents", {
     method: "POST",
-    body: { nin, consent, selfie_base64: selfieBase64 ?? null },
+    body,
   });
 
 /**

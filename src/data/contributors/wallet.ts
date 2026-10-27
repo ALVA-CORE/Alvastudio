@@ -21,11 +21,38 @@ export type WalletEntry = {
 /**
  * Where identity verification has got to.
  *
- * A verified NIN is the only route to being paid: without one there is no
+ * Clearing identity is the only route to being paid: without it there is no
  * payout destination to collect and no eligibility for a run. So this gates
  * the wallet rather than sitting beside it.
+ *
+ * `blocked` is not `failed`. A failed check is something the contributor can
+ * answer by submitting again; a blocked one is a person deciding, and a retry
+ * button would be a lie about what is happening.
  */
-export type IdentityState = "unverified" | "pending" | "verified" | "failed";
+export type IdentityState =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "failed"
+  | "blocked";
+
+/**
+ * The step the API says comes next.
+ *
+ * Carried alongside `identity` rather than folded into it, because the two
+ * answer different questions: `identity` is whether the check has cleared,
+ * this is what to put on the button. A passed check still leaves
+ * `add_payout_destination` or `complete_onboarding` to do.
+ */
+export type WalletNextAction =
+  | "create_account"
+  | "verify_identity"
+  | "await_verification"
+  | "await_review"
+  | "add_payout_destination"
+  | "complete_onboarding"
+  | "none"
+  | (string & {});
 
 export type PayoutAccount = {
   bank: string;
@@ -54,6 +81,15 @@ export type Wallet = {
   identity: IdentityState;
   /** Why it failed, or what to do next. Straight from the API. */
   identityDetail?: string | null;
+  /**
+   * What the API says to do next, followed rather than inferred.
+   *
+   * Payout capability, a bank destination, account blocks and the hold
+   * window all still apply after identity clears, and the API has already
+   * weighed them. Reading `wallet.status === "active"` instead would unlock
+   * a withdrawal that the next call refuses.
+   */
+  nextAction: WalletNextAction | null;
   /** Null until a bank is linked. */
   payoutAccount: PayoutAccount | null;
   entries: WalletEntry[];
@@ -89,6 +125,7 @@ export const MOCK_WALLET: Wallet = {
   paidKobo: 340_860_00,
   lifetimeKobo: 486_320_00,
   identity: "verified",
+  nextAction: "none",
   payoutAccount: {
     bank: "Guaranty Trust Bank",
     accountNumber: "0123456789",
@@ -113,6 +150,7 @@ export const EMPTY_WALLET: Wallet = {
   paidKobo: 0,
   lifetimeKobo: 0,
   identity: "unverified",
+  nextAction: null,
   payoutAccount: null,
   entries: [],
 };

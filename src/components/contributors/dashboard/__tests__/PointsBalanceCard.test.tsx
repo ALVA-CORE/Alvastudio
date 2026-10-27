@@ -63,11 +63,23 @@ vi.mock("@/lib/api/wallet", async () => {
       })),
     })),
     listBanks: vi.fn(async () => [{ code: "057", name: "Zenith Bank" }]),
+    getIdentityMethods: vi.fn(async () => ({
+      document_available: true,
+      nin_available: false,
+      hosted_available: false,
+    })),
+    createWalletAccount: vi.fn(async () => ({})),
+    createOnboardingLink: vi.fn(async () => ({ url: "https://example.test/onboard" })),
     /* The stub moves the state the way the API would, so the refetch the
        component fires after submitting sees the new one. */
-    submitNin: vi.fn(async () => {
+    submitIdentityDocument: vi.fn(async (body) => {
+      submitted = body;
       identity = "submitted";
-      return { identity_status: "submitted" };
+      return {
+        status: "submitted",
+        detail: "Your identity document has been submitted for review.",
+        verification_url: null,
+      };
     }),
     withdraw: vi.fn(async () => ({ id: "run1", status: "in_progress" })),
   };
@@ -76,9 +88,12 @@ vi.mock("@/lib/api/wallet", async () => {
 /** Flipped per test, because the gate is the thing being checked. */
 let identity: string = "passed";
 
+/** The last body the document route received, so the shape can be asserted. */
+let submitted: Record<string, unknown> | null = null;
 
 beforeEach(() => {
   identity = "passed";
+  submitted = null;
 });
 
 describe("PointsBalanceCard", () => {
@@ -180,10 +195,10 @@ describe("PointsBalanceCard", () => {
     expect(screen.queryByRole("button", { name: /Payout/ })).not.toBeInTheDocument();
   });
 
-  /* A verified NIN is the only route to being paid, so it gates the wallet
-   * rather than sitting beside it. The figures stay on screen, blurred:
-   * hiding a contributor's own earnings would punish them for a step nobody
-   * has asked them to take yet. */
+  /* Clearing identity is the only route to being paid, so it gates the
+   * wallet rather than sitting beside it. The figures stay on screen,
+   * blurred: hiding a contributor's own earnings would punish them for a
+   * step nobody has asked them to take yet. */
   it("blurs the money until identity is verified, then clears", async () => {
     identity = "not_started";
     render(<PointsBalanceCard points={0} isEmpty />);
@@ -193,6 +208,10 @@ describe("PointsBalanceCard", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Verify now" }));
     const sheet = await screen.findByRole("dialog");
+
+    await userEvent.type(within(sheet).getByLabelText("First name"), "Ada");
+    await userEvent.type(within(sheet).getByLabelText("Last name"), "Obi");
+    await userEvent.type(within(sheet).getByLabelText("Date of birth"), "1990-04-12");
     await userEvent.type(
       within(sheet).getByLabelText("National Identity Number"),
       "12345678901"
@@ -206,25 +225,62 @@ describe("PointsBalanceCard", () => {
     await userEvent.click(within(sheet).getByRole("checkbox"));
     await userEvent.click(next);
 
-    /* Second step: Bachs matches a photo against the one on the NIN record
-     * and refuses the call without it, so submitting is gated on having one.
-     * The camera cannot run in jsdom, which is exactly why the upload
-     * fallback exists — this drives that path. */
+    /* Second step: the document itself. The front is required and the back
+     * is not, so submitting is gated on the front alone. */
     const submit = within(sheet).getByRole("button", {
-      name: /Submit for checking/,
+      name: /Submit for review/,
     });
     expect(submit).toBeDisabled();
 
-    const file = new File(["jpeg-bytes"], "selfie.jpg", { type: "image/jpeg" });
+    const file = new File(["jpeg-bytes"], "nin-slip.jpg", { type: "image/jpeg" });
     await userEvent.upload(
-      within(sheet).getByTestId("selfie-file") as HTMLInputElement,
+      within(sheet).getByTestId("identity-document-front") as HTMLInputElement,
       file
     );
 
     await waitFor(() => expect(submit).toBeEnabled());
     await userEvent.click(submit);
 
-    expect(await screen.findByText("We're checking your NIN")).toBeInTheDocument();
+    expect(await screen.findByText("We're reviewing your ID")).toBeInTheDocument();
+
+    /* The declared type has to describe the bytes actually sent. Images are
+       re-encoded to JPEG on the way out, whatever went in, so this is a
+       constant rather than the picked file's type. A one-sided document
+       omits the back field entirely rather than sending null. */
+    expect(submitted).toMatchObject({
+      nin: "12345678901",
+      consent: true,
+      first_name: "Ada",
+      last_name: "Obi",
+      dob: "1990-04-12",
+      document_content_type: "image/jpeg",
+    });
+    expect(submitted).not.toHaveProperty("document_back_base64");
+    expect(String(submitted?.document_base64)).not.toContain("data:");
+  });
+
+  /* A review is a person reading a document. There is nothing to press while
+     that happens, and a "check status" button that only reopens the same
+     sentence is a button that does nothing. */
+  it("offers no retry while a review is running", async () => {
+    identity = "submitted";
+    render(<PointsBalanceCard points={0} isEmpty />);
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
+
+    expect(await screen.findByText("We're reviewing your ID")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Verify now/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Check status/ })).not.toBeInTheDocument();
+  });
+
+  /* A failed check is answerable; being sent round the same loop with the
+     same words is how somebody submits the same bad crop three times. */
+  it("says try again after a failed check", async () => {
+    identity = "failed";
+    render(<PointsBalanceCard points={0} isEmpty />);
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
+
+    expect(await screen.findByText("We could not verify your ID")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
   /* Payout is where the bank lives now: the cards are for shuffling, and a

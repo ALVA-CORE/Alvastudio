@@ -3,16 +3,17 @@ import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import { Separator } from "@/components/ui/separator";
 import { VerifyIdentitySheet } from "@/components/contributors/wallet/VerifyIdentitySheet";
-import { submitNin, useWallet } from "@/data/contributors/walletStore";
+import { submitIdentityDocument, useWallet } from "@/data/contributors/walletStore";
 import { alvaToast } from "@/lib/alva-toast";
 import type { IdentityState } from "@/data/contributors/wallet";
 import { cn } from "@/lib/utils";
 
 const LABEL: Record<IdentityState, string> = {
   unverified: "Not verified",
-  pending: "Checking",
+  pending: "Being reviewed",
   verified: "Verified",
   failed: "Could not verify",
+  blocked: "Being reviewed",
 };
 
 const TINT: Record<IdentityState, string> = {
@@ -20,6 +21,7 @@ const TINT: Record<IdentityState, string> = {
   pending: "text-amber-300",
   verified: "text-alva-accent",
   failed: "text-red-400",
+  blocked: "text-amber-300",
 };
 
 /**
@@ -75,11 +77,17 @@ export function IdentityProfileRow({ hideDivider = false }: { hideDivider?: bool
         open={open}
         onOpenChange={setOpen}
         state={wallet.identity}
-        onSubmit={async (nin, consent, selfie) => {
-          await submitNin(nin, consent, selfie);
+        nextAction={wallet.nextAction}
+        detail={wallet.identityDetail}
+        onSubmit={async (submission) => {
+          const { detail } = await submitIdentityDocument(submission, {
+            needsAccount: wallet.nextAction === "create_account",
+          });
           reload();
           setOpen(false);
-          alvaToast.success("NIN submitted, we'll let you know");
+          /* The API's own sentence. It is written for the contributor and it
+             says "submitted", which is the only thing true at this point. */
+          alvaToast.success(detail);
         }}
       />
     </>

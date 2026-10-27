@@ -76,10 +76,10 @@ export function ContributorProfileSection({
 }
 
 const NEXT_ACTION_LABEL: Record<string, string> = {
-  await_review: "Waiting on a review",
+  await_review: "Held for a person to review",
   create_account: "Needs a payout account",
-  await_verification: "Check in progress",
-  verify_identity: "Needs to verify their NIN",
+  await_verification: "ID under review",
+  verify_identity: "Needs to send an ID document",
   add_payout_destination: "Needs a bank account",
   complete_onboarding: "Needs to finish setting up",
   none: "Nothing outstanding",
@@ -92,7 +92,8 @@ const NEXT_ACTION_LABEL: Record<string, string> = {
  * move, which is the question they open this panel to answer.
  *
  * `identity_verified` is the condition, not `identity_status === "passed"`:
- * a NIN can pass and still be held because another account claims it.
+ * a document can pass and still be held because another account claims the
+ * same NIN.
  *
  * `null` means no wallet yet, which is not started rather than failed, and
  * reads differently from a check that went wrong.

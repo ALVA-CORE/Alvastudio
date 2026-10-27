@@ -11,12 +11,17 @@ import { VerifyIdentitySheet } from "@/components/contributors/wallet/VerifyIden
 import { WalletHistorySheet } from "@/components/contributors/dashboard/WalletHistorySheet";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
-import { submitNin, withdraw } from "@/data/contributors/walletStore";
+import {
+  createOnboardingLink,
+  submitIdentityDocument,
+  withdraw,
+} from "@/data/contributors/walletStore";
 import { alvaDarkTexture } from "@/lib/alva-texture";
 import {
   formatWalletNaira,
   type IdentityState,
   type Wallet,
+  type WalletNextAction,
 } from "@/data/contributors/wallet";
 import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
@@ -62,11 +67,29 @@ export function WalletFace({
 
   const verified = wallet.identity === "verified";
   const linked = Boolean(wallet.payoutAccount);
-  const canWithdraw = verified && linked && wallet.balanceKobo > 0;
+
+  /**
+   * A passed check is not a payable account.
+   *
+   * `passed` clears the identity gate and nothing else: payout capability,
+   * the destination, account blocks and the hold window all still apply, and
+   * the API has already weighed them into `next_action`. Reading
+   * `identity === "verified"` alone would light up Withdraw for somebody
+   * whose provider onboarding is half finished, and the call would refuse.
+   */
+  const needsOnboarding = wallet.nextAction === "complete_onboarding";
+  const [opening, setOpening] = useState(false);
+
+  const canWithdraw =
+    verified && linked && !needsOnboarding && wallet.balanceKobo > 0;
 
   return (
     <div className={cn("w-full", className)}>
-      <IdentityGate state={wallet.identity} onStart={() => setVerifyOpen(true)}>
+      <IdentityGate
+        state={wallet.identity}
+        nextAction={wallet.nextAction}
+        onStart={() => setVerifyOpen(true)}
+      >
       <WalletShell
         card={
           <CardStack
@@ -114,11 +137,13 @@ export function WalletFace({
               hint={
                 !verified
                   ? "Verify your identity first"
-                  : !linked
-                    ? "Link a bank first"
-                    : wallet.balanceKobo === 0
-                      ? "Nothing to withdraw yet"
-                      : undefined
+                  : needsOnboarding
+                    ? "Finish setting up your payout account first"
+                    : !linked
+                      ? "Link a bank first"
+                      : wallet.balanceKobo === 0
+                        ? "Nothing to withdraw yet"
+                        : undefined
               }
               onClick={async () => {
                 try {
@@ -140,11 +165,36 @@ export function WalletFace({
               }}
             />
             <WalletAction
-              label="Payout"
+              /* Named for where it goes. A button labelled "Payout" that
+                 throws somebody out to a provider's site is a surprise; one
+                 labelled "Finish" is the step they already know is
+                 outstanding. */
+              label={needsOnboarding ? "Finish" : "Payout"}
               icon={<CardSend size={18} weight="Outline" />}
-              disabled={!verified}
+              disabled={!verified || opening}
               hint={verified ? undefined : "Verify your identity first"}
-              onClick={() => setLinkOpen(true)}
+              onClick={async () => {
+                if (!needsOnboarding) {
+                  setLinkOpen(true);
+                  return;
+                }
+
+                /* Minted on the click and used immediately. These links are
+                   short-lived, so one fetched when the page loaded is
+                   usually dead by the time anybody presses anything. */
+                setOpening(true);
+                try {
+                  const { url } = await createOnboardingLink();
+                  window.location.assign(url);
+                } catch (cause) {
+                  const message = reportApiError(
+                    cause,
+                    "Could not open the setup page."
+                  );
+                  if (message) alvaToast.error(message);
+                  setOpening(false);
+                }
+              }}
             />
             <WalletAction
               label="History"
@@ -181,11 +231,17 @@ export function WalletFace({
         open={verifyOpen}
         onOpenChange={setVerifyOpen}
         state={wallet.identity}
-        onSubmit={async (nin, consent, selfie) => {
-          await submitNin(nin, consent, selfie);
+        nextAction={wallet.nextAction}
+        detail={wallet.identityDetail}
+        onSubmit={async (submission) => {
+          const { detail } = await submitIdentityDocument(submission, {
+            needsAccount: wallet.nextAction === "create_account",
+          });
           onRefresh();
           setVerifyOpen(false);
-          alvaToast.success("NIN submitted, we'll let you know");
+          /* The API's own sentence, which says "submitted" rather than
+             "verified". A review has not happened yet. */
+          alvaToast.success(detail);
         }}
       />
     </div>
@@ -253,19 +309,42 @@ function WalletAction({
  * No panel behind the text either. The blur is heavy enough that nothing
  * underneath competes, and a card floating over a blurred card is one surface
  * too many.
+ *
+ * **Three waits, not one.** A document under review is a person reading it,
+ * which takes longer than the old face match did and has no "check status"
+ * to offer — the button would open a sheet that says the same sentence the
+ * blur already says. So a review gets no button at all, and a failed check
+ * gets "Try again" rather than "Verify now", because being sent round the
+ * same loop with the same words is how somebody submits the same bad crop
+ * three times.
  */
 function IdentityGate({
   state,
+  nextAction,
   onStart,
   children,
 }: {
   state: IdentityState;
+  nextAction: WalletNextAction | null;
   onStart: () => void;
   children: ReactNode;
 }) {
   if (state === "verified") return <>{children}</>;
 
-  const pending = state === "pending";
+  const waiting = state === "pending" || state === "blocked";
+  const failed = state === "failed";
+
+  const heading = waiting
+    ? "We're reviewing your ID"
+    : failed
+      ? "We could not verify your ID"
+      : "Verify your identity";
+
+  const body = waiting
+    ? "A person checks this, so it takes a little longer. Your earnings keep adding up."
+    : failed
+      ? "Have a look at what went wrong and send it again."
+      : "We need to check your ID before any of this can be paid out.";
 
   return (
     <div className="relative">
@@ -278,27 +357,27 @@ function IdentityGate({
           <ShieldCheck
             size={22}
             weight="BoldDuotone"
-            className={pending ? "text-amber-300" : "text-alva-accent"}
+            className={
+              failed ? "text-red-400" : waiting ? "text-amber-300" : "text-alva-accent"
+            }
           />
         </span>
 
-        <p className="mt-3 text-sm font-semibold text-foreground">
-          {pending ? "We're checking your NIN" : "Verify your identity"}
-        </p>
-        <p className="mt-1 max-w-[17rem] text-xs text-muted-foreground">
-          {pending
-            ? "Your earnings keep adding up while we check."
-            : "We need your NIN before any of this can be paid out."}
-        </p>
+        <p className="mt-3 text-sm font-semibold text-foreground">{heading}</p>
+        <p className="mt-1 max-w-[17rem] text-xs text-muted-foreground">{body}</p>
 
-        <TextureButton
-          variant="alva"
-          size="sm"
-          className="mt-3.5 w-auto"
-          onClick={onStart}
-        >
-          {pending ? "Check status" : "Verify now"}
-        </TextureButton>
+        {/* Nothing to press while somebody is reading it. A button that only
+            reopens the same sentence is a button that does nothing. */}
+        {waiting ? null : (
+          <TextureButton
+            variant="alva"
+            size="sm"
+            className="mt-3.5 w-auto"
+            onClick={onStart}
+          >
+            {failed ? "Try again" : nextAction === "create_account" ? "Get started" : "Verify now"}
+          </TextureButton>
+        )}
       </div>
     </div>
   );

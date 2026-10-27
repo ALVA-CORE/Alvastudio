@@ -61,7 +61,10 @@ export function PointsBalanceCard({
   const [face, setFace] = useState<"points" | "wallet">("points");
   const reduced = useReducedMotion() ?? false;
 
-  const { wallet, reload: reloadWallet } = useWallet();
+  /* The one caller that watches: document review finishes without telling
+     the page, and this is the card showing the wait. The nudges and the
+     profile row read the same wallet and must not each run a timer. */
+  const { wallet, reload: reloadWallet } = useWallet({ watch: true });
   const isWallet = face === "wallet";
 
   const formattedPoints = new Intl.NumberFormat("en-NG").format(points);
