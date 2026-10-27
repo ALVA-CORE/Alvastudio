@@ -17,7 +17,7 @@ export function AdminShell({ children }: { children?: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {!isMobile && <AdminSidebar />}
-      <main data-scroll-root className="min-h-screen">
+      <main data-scroll-root className="isolate min-h-screen">
         {isMobile ? <AdminMobileGate /> : children}
       </main>
     </div>

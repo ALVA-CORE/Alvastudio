@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { BeamPlayButton } from "@/components/shared/BeamPlayButton";
 import { SpeedControl } from "@/components/shared/SpeedControl";
 import { formatAudioTime } from "@/hooks/useAudioPlayer";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 type ReviewAudioBarProps = {
@@ -27,6 +28,7 @@ export function ReviewAudioBar({
   const restoredPlaybackRef = useRef(false);
 
   const [isReady, setIsReady] = useState(false);
+  const isMobile = useIsMobile();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -131,7 +133,10 @@ export function ReviewAudioBar({
             <WavesurferPlayer
               key={src}
               url={src}
-              height={176}
+              /* Shorter on a phone. 176px is a third of the viewport, and
+                 the questions this player exists to answer were below the
+                 fold because of it. */
+              height={isMobile ? 96 : 176}
               waveColor="hsl(var(--alva-border))"
               progressColor="#25F07D"
               cursorColor="#25F07D"
