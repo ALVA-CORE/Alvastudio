@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { ApiPage } from "./recordings";
 
 /**
  * Account administration.
@@ -48,6 +49,28 @@ export function listUsers(
   params: { role?: ApiUserRole; email?: string; limit?: number; offset?: number } = {}
 ) {
   return apiFetch<ApiUserPage>("/users", {
+    query: { ...params, envelope: true },
+  });
+}
+
+/** Just an id and a name. Nothing else about the account is even selected. */
+export type ApiContributorRef = { id: string; full_name: string };
+
+/**
+ * Active contributors, for a reviewer's pickers and filters.
+ *
+ * `GET /users?role=contributor` is admin-only, because it carries email,
+ * phone and account state — so an intern's review screen was getting a 403
+ * on it and silently falling back to showing the first eight characters of a
+ * UUID in place of every contributor's name.
+ *
+ * `q` is a plain substring match, so a picker can search on the server
+ * instead of downloading everybody to filter in the browser.
+ */
+export function listContributors(
+  params: { q?: string; limit?: number; offset?: number } = {}
+) {
+  return apiFetch<ApiPage<ApiContributorRef>>("/users/contributors", {
     query: { ...params, envelope: true },
   });
 }

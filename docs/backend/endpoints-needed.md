@@ -1,14 +1,15 @@
 # Endpoints we need
 
-Checked against the live OpenAPI document, 26 Oct 2026. Only what is still
+Checked against the live OpenAPI document, 27 Oct 2026. Only what is still
 open is listed here.
 
 ## Open
 
-| # | Ask | Blocks | Priority |
-| --- | --- | --- | --- |
-| 1 | Feedback from inside the app | The feedback form, and the admin table reading it | Medium |
-| 2 | Sign-in retention past 90 days | Looking into an account months after the fact | Low |
+Nothing.
+
+Both asks from 26 Oct are answered in
+[`replies/api-status-2026-10-26.md`](replies/api-status-2026-10-26.md) and
+wired: `POST/GET/PATCH /feedback`, and sign-ins kept a year.
 
 All five asks from 24 Oct were answered in
 [`replies/api-status-2026-10-24.md`](replies/api-status-2026-10-24.md) and are
@@ -21,81 +22,6 @@ changes when it is done. Until then an approved recovery answers 503 and we
 show that, and the manual reset on the user panel is the way back in.
 
 ---
-
-## 1. Feedback from inside the app
-
-There is a feedback form on every role's profile page now, and a table at the
-foot of the admin dashboard to read what comes in. Neither has anywhere to
-send it: there is no feedback route in the API.
-
-**Until there is, a submit falls back to a prefilled email** to
-`support@alvacoreai.com`. That works, and it is also where it stops being
-useful: nothing is searchable, an admin cannot see it in the app, and nobody
-can tell a bug reported three times from one reported once.
-
-What would settle it:
-
-```
-POST /feedback                       (any signed-in role)
-  { kind, rating, message, page }
-  → the created row
-
-GET  /feedback?status=&limit=&offset=   (admin)
-  → [{ id, user_id, full_name, email, role, kind, rating,
-       message, page, status, created_at }]
-
-PATCH /feedback/{id}   { status }       (admin)
-```
-
-- `kind` is one of `bug`, `idea`, `confusing`, `praise`, `other`. It is a
-  dropdown on our side, so whatever set you prefer is fine as long as it is
-  closed.
-- `rating` is 1 to 5, and **required**. So is the message, at ten characters
-  or more. A star with nothing written is a number that gets read out in a
-  meeting and acted on by nobody; writing with no star leaves the table with
-  a column it cannot sort.
-- `page` is the route they were on, sent by us and never typed. "It does not
-  work" is the commonest bug report there is, and the screen it came from is
-  usually enough to find it.
-- `status` is one of `new`, `reading`, `done`, `wont_fix`, and only an admin
-  changes it. On screen those read New, In progress, Done and Dismissed, and
-  they are the whole of the row menu.
-- `full_name`, `email` and `role` are yours to fill from the token rather than
-  ours to send. We would rather not be the thing deciding whose name goes on a
-  complaint.
-- `?envelope=true` on the list, as everywhere else.
-
-**Rate limiting is worth having**, since this is the one write any signed-in
-person can make with free text in it. A few an hour per account would do.
-
-**No email needed.** The bell is enough, and an admin reading this table is
-doing it deliberately rather than waiting to be told.
-
-## 2. Sign-in retention past 90 days
-
-Sign-ins, sign-outs and refused attempts are deleted after 90 days. Nothing
-else in the audit log expires, so a user's history is complete for every kind
-of event except the one an admin opens it to check.
-
-The case against 90 days is the case somebody actually brings: an account is
-behaving oddly and the question is when it started. Three months is not long
-for that. A contributor who only records in bursts might not sign in for six
-weeks, which makes a 90-day window one or two sessions deep for exactly the
-people whose accounts are least watched.
-
-**We are not asking you to keep them forever**, and we would rather you chose
-the number than we did. **A year** would cover the gap, and anything that
-survives a quarter-end review would help. If there is a reason for 90 we will
-take it: these are the most sensitive rows in the log, and a shorter life for
-them is a defensible policy rather than an oversight.
-
-**What we are not doing is caching them ourselves.** The only storage we have
-is the admin's browser, so a cache there would be one admin's partial copy of
-somebody else's authentication history, editable in devtools and outside
-whatever retention policy applies. A log with holes nobody can see is worse
-than one that ends honestly, and deliberately keeping personal data past its
-deletion date is the thing NDPA is about. If the window moves, it moves on
-your side, where there is one copy of it.
 
 ---
 
@@ -159,6 +85,10 @@ your side, where there is one copy of it.
 | Approval rate | One definition, shared. The dashboard read 0% while the review page read 100% on the same corpus, because one counted hours over the whole corpus and the other counted clips over what had been decided. Both now count **clips**, divided by approved plus rejected, from `recording_status`. A queue with no verdicts says so rather than showing 0%. |
 | Page size | We were sending `limit: 200` and treating the answer as the whole list. Your cap is 200, so "Recordings 200" on the oversight screen was the page size, and the status ring, the approval gauge and the reviewer flow were all computed from whichever 200 came back — which is why a clip approved outside that window never appeared. Every admin list pages to its envelope `total` now. |
 | Focus group speakers | An admin could see a speaker count and nothing else. The participants and the recording both come back from `GET /focus-groups/{id}` and `GET /focus-groups/{id}/audio`, and neither was being read, so a session was approved on a count and the word "uploaded". Both are on the session panel now, consent first. |
+| `GET /users/contributors` | Now used for the reviewer's contributor names. `GET /users?role=contributor` is admin-only, so an intern's review screen was getting a 403 and falling back to eight characters of a UUID in place of every name — silently, because that lookup is deliberately non-fatal. |
+| Feedback routes | Wired. `POST /feedback` from the form, `GET /feedback` for the admin table, `PATCH /feedback/{id}` for the row menu. The mailto fallback stays as a backstop for a 404 and no longer fires. |
+| Stars | Required, 1 to 5, as the ask said. Our "on our side" note calling them optional was out of date, not the API. |
+| Sign-in retention | A year. The copy on the user panel says so. The annotation activity log stays at 90 days, which the annotator profile still says, because it is a different record and 90 days is part of what they agreed to. |
 | Feedback | A form on every profile page: optional stars, a dropdown, the writing, and the route they were on. Submitting tries `POST /feedback` and falls back to a prefilled mail to support when that 404s, so nothing anybody writes is lost waiting for a deploy. See ask 1. |
 | Reset password, in the admin panel | Was offered for annotators and admins only, on the belief that there was no admin-triggered reset for the other roles. `POST /users/{id}/password-reset` takes any account, and while mail is refused it is the only way back in, so it is offered for every role now. |
 | Profile rows | Merged. "Location & accent" into the language profile, since where somebody is from is read to interpret their accent; "Recording setup" into account details; and "Consent & privacy" with "Notifications" into one "Privacy & alerts". |

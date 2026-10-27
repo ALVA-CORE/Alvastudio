@@ -470,10 +470,10 @@ export function UserDetailPanel({
             ) : null}
 
             {/* Said once, at the bottom. A gap in this list means "nobody
-                signed in" inside 90 days and "we no longer know" before it,
+                signed in" inside a year and "we no longer know" before it,
                 and nothing else in the log expires. */}
             <p className="mt-6 border-t border-alva-border pt-4 text-xs leading-relaxed text-muted-foreground">
-              Sign-ins, sign-outs and refused attempts are kept for 90 days.
+              Sign-ins, sign-outs and refused attempts are kept for a year.
               The device is read from the browser; no IP address is recorded.
             </p>
           </>

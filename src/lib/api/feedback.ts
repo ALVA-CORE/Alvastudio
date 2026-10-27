@@ -46,6 +46,8 @@ export type ApiFeedback = {
   /** Which screen they were on. Sent by us, never typed. */
   page: string | null;
   status: FeedbackStatus;
+  /** When an admin last moved it. Null while it is still `new`. */
+  status_changed_at: string | null;
   created_at: string;
 };
 

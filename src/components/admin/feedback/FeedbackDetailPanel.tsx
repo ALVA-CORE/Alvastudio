@@ -119,7 +119,7 @@ export function FeedbackDetailPanel({
         </p>
       </div>
 
-      <DetailGroup title="Where it came from">
+      <DetailGroup title="">
         <DetailField label="Email" value={item.email ?? NO_VALUE} span />
         <DetailField label="Screen" value={item.page ?? NO_VALUE} />
         <DetailField label="Status" value={FEEDBACK_STATUS_LABEL[item.status]} />
