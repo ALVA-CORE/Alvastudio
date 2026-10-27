@@ -1,21 +1,26 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
+import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
-import { FieldBeam } from "@/components/shared/FieldBeam";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import { CarouselDots } from "@/components/shared/CarouselDots";
+import { BeamInput } from "@/components/auth/BeamInput";
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { DocumentCapture } from "@/components/contributors/wallet/DocumentCapture";
 import { TextureButton } from "@/components/ui/texture-button";
-import { alvaFieldClass } from "@/lib/alva-form-styles";
 import type { IdentityState, WalletNextAction } from "@/data/contributors/wallet";
 import { mismatchReason, type EncodedDocument } from "@/lib/identity/document";
 import { getIdentityMethods } from "@/lib/api/wallet";
-import { cn } from "@/lib/utils";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { ApiError } from "@/lib/api/client";
@@ -113,6 +118,8 @@ export function VerifyIdentitySheet({
   const [invalid, setInvalid] = useState<string[]>([]);
   /** Null while unknown. False only when the API says so. */
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [sides, setSides] = useState<CarouselApi>();
+  const [side, setSide] = useState(0);
 
   /**
    * Everything typed is dropped the moment the sheet closes.
@@ -135,6 +142,8 @@ export function VerifyIdentitySheet({
     setSubmitting(false);
     setBlocked(null);
     setInvalid([]);
+    setSide(0);
+    setNudgedToBack(false);
   }, [open]);
 
   /* Asked once per opening, and only to avoid handing somebody a form that
@@ -157,8 +166,14 @@ export function VerifyIdentitySheet({
     };
   }, [open]);
 
-  const pending = state === "pending" || nextAction === "await_verification";
-  const underReview = state === "blocked" || nextAction === "await_review";
+  /* Submitted and held-for-review are the same wait from the contributor's
+     side: somebody is reading it and there is nothing to press. They were
+     two states with two near-identical screens; now they are one. */
+  const waiting =
+    state === "pending" ||
+    state === "blocked" ||
+    nextAction === "await_verification" ||
+    nextAction === "await_review";
 
   const detailsDone =
     consent &&
@@ -168,6 +183,41 @@ export function VerifyIdentitySheet({
     dob.length === 10;
 
   const sidesMismatch = front ? mismatchReason(front, back) : null;
+
+  const onSideChange = useCallback((api: CarouselApi) => {
+    if (api) setSide(api.selectedScrollSnap());
+  }, []);
+
+  useEffect(() => {
+    if (!sides) return;
+
+    onSideChange(sides);
+    sides.on("select", onSideChange);
+    sides.on("reInit", onSideChange);
+
+    return () => {
+      sides.off("select", onSideChange);
+      sides.off("reInit", onSideChange);
+    };
+  }, [sides, onSideChange]);
+
+  /**
+   * Slides to the back once the front is in.
+   *
+   * On capture, not on a timer. A carousel that advances on a clock moves
+   * the file picker out from under a thumb that is already reaching for it,
+   * which is the thing carousels are disliked for. Advancing when the front
+   * is done is the same gesture a person would make next, so it saves a
+   * swipe rather than fighting one — and only the first time, so somebody
+   * who swipes back to retake the front is left alone.
+   */
+  const [nudgedToBack, setNudgedToBack] = useState(false);
+
+  useEffect(() => {
+    if (!sides || !front || nudgedToBack) return;
+    setNudgedToBack(true);
+    sides.scrollTo(1);
+  }, [sides, front, nudgedToBack]);
 
   const submit = async () => {
     if (!front || sidesMismatch) return;
@@ -241,13 +291,11 @@ export function VerifyIdentitySheet({
     }
   };
 
-  const title = underReview
-    ? "Your details are being reviewed"
-    : pending
-      ? "We're reviewing your ID"
-      : step === "document"
-        ? "Add your ID"
-        : "Verify your identity";
+  const title = waiting
+    ? "We're reviewing your ID"
+    : step === "document"
+      ? "Add your ID"
+      : "Verify your identity";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -256,18 +304,29 @@ export function VerifyIdentitySheet({
         aria-describedby={undefined}
         className="max-h-[92dvh] overflow-y-auto rounded-t-[28px] border-alva-border bg-alva-card px-4 pb-8 pt-7"
       >
-        <SheetHeader className="pr-8 text-left">
-          <SheetTitle className="text-xl text-foreground">{title}</SheetTitle>
-          <p className="text-sm text-muted-foreground">
-            {underReview || pending
-              ? "You can close this and carry on recording."
-              : step === "document"
-                ? "A clear photo of your NIN slip or card. Someone reads it, so the details have to be legible."
+        <SheetHeader className="px-8 text-center sm:text-center">
+          <SheetTitle className="flex items-center justify-center gap-2 text-lg text-foreground">
+            {waiting ? (
+              <RoundedMagnifier size={19} weight="Linear" className="text-amber-300" />
+            ) : null}
+            {title}
+          </SheetTitle>
+
+          {/* One line, or none.
+              The waiting state used to carry four sentences that all said the
+              same thing — the title, a subtitle, a heading under the disc and
+              a body under that. Somebody waiting needs one fact they do not
+              already have, and it is this one. */}
+          {waiting ? null : (
+            <p className="text-sm text-muted-foreground">
+              {step === "document"
+                ? "Someone reads this, so the details have to be legible."
                 : /* Said once, plainly, at the top. Somebody can record for
                      weeks without knowing the money cannot move until this
                      is done, and finding out at withdrawal is too late. */
                   "You can record without this, but we can't pay you until it's done."}
-          </p>
+            </p>
+          )}
         </SheetHeader>
 
         {blocked ? (
@@ -275,25 +334,12 @@ export function VerifyIdentitySheet({
             Nothing you have recorded is lost. If this is your own ID, contact
             support and we will sort it out.
           </Notice>
-        ) : underReview ? (
-          /* No form and no retry button. The API is explicit that a review at
-             this stage is a person's decision, and a second submission does
-             not reach them any faster. */
-          <Notice
-            tone="warn"
-            heading="Someone is looking at this"
-            body={detail ?? "We will let you know as soon as there is an answer."}
-          >
-            Your earnings keep adding up in the meantime.
-          </Notice>
-        ) : pending ? (
-          <Notice
-            tone="warn"
-            heading="Submitted, waiting on a result"
-            body={detail ?? "A person reviews this, so it can take a little longer than a machine would."}
-          >
-            Your earnings keep adding up while we check. Nothing is lost.
-          </Notice>
+        ) : waiting ? (
+          /* No form and no retry button. A review at this stage is a person's
+             decision, and a second submission does not reach them faster. */
+          <p className="pb-2 pt-5 text-center text-sm text-muted-foreground">
+            Your earnings keep adding up while we check.
+          </p>
         ) : available === false ? (
           <Notice
             tone="warn"
@@ -324,21 +370,36 @@ export function VerifyIdentitySheet({
 
             {step === "document" ? (
               <>
-                <DocumentCapture
-                  value={front}
-                  onChange={setFront}
-                  label="Front of your ID"
-                  hint="Photo or PDF. All four corners in frame, no glare."
-                  testId="identity-document-front"
-                />
+                {/* Two sides, one slot.
+                    Stacked, they were two large dashed frames filling the
+                    sheet, and the optional one looked as required as the
+                    other. Side by side on a swipe, with the dots saying there
+                    is a second, the front is the thing on screen and the back
+                    is a step away rather than a demand. */}
+                <Carousel setApi={setSides} opts={{ align: "start", loop: false }}>
+                  <CarouselContent className="-ml-0">
+                    <CarouselItem className="basis-full pl-0">
+                      <DocumentCapture
+                        value={front}
+                        onChange={setFront}
+                        label="Front of your ID"
+                        hint="Photo or PDF. All four corners in frame, no glare."
+                        testId="identity-document-front"
+                      />
+                    </CarouselItem>
+                    <CarouselItem className="basis-full pl-0">
+                      <DocumentCapture
+                        value={back}
+                        onChange={setBack}
+                        label="Back of your ID"
+                        hint="Only if your card has something on the back. Skip it otherwise."
+                        testId="identity-document-back"
+                      />
+                    </CarouselItem>
+                  </CarouselContent>
+                </Carousel>
 
-                <DocumentCapture
-                  value={back}
-                  onChange={setBack}
-                  label="Back of your ID (optional)"
-                  hint="Only if your card has something on the back."
-                  testId="identity-document-back"
-                />
+                <CarouselDots count={2} active={side} className="mt-2" />
 
                 {sidesMismatch ? (
                   <p role="alert" className="text-xs text-destructive">
@@ -370,73 +431,55 @@ export function VerifyIdentitySheet({
               </>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Field
-                    id="identity-first-name"
+                {/* `BeamInput` throughout, which is the field this product
+                    uses: the label starts inside the box as the placeholder
+                    and rides up onto the border once there is something to
+                    read. The sign-up forms were already built from it, and a
+                    wallet sheet with its own stacked-label fields read like
+                    a different app. */}
+                <div className="grid grid-cols-2 gap-2">
+                  <BeamInput
                     label="First name"
                     autoComplete="given-name"
-                    value={firstName}
-                    onChange={setFirstName}
                     maxLength={128}
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
                   />
-                  <Field
-                    id="identity-last-name"
+                  <BeamInput
                     label="Last name"
                     autoComplete="family-name"
-                    value={lastName}
-                    onChange={setLastName}
                     maxLength={128}
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
                   />
                 </div>
 
-                <p className="-mt-1.5 text-[11px] text-muted-foreground">
+                <p className="-mt-1 text-center text-[11px] text-muted-foreground">
                   Exactly as they appear on your ID.
                 </p>
 
-                <div>
-                  <label
-                    htmlFor="identity-dob"
-                    className="mb-1.5 block text-xs text-muted-foreground"
-                  >
-                    Date of birth
-                  </label>
-                  <FieldBeam>
-                    <Input
-                      id="identity-dob"
-                      type="date"
-                      /* Bounded rather than validated after the fact: the
-                         API refuses under 18, and a picker that cannot
-                         reach an invalid date says so without an error. */
-                      min={birthdayBound(MAX_AGE)}
-                      max={birthdayBound(MIN_AGE)}
-                      value={dob}
-                      onChange={(event) => setDob(event.target.value)}
-                      className={cn(alvaFieldClass(), "[&::-webkit-calendar-picker-indicator]:invert")}
-                    />
-                  </FieldBeam>
-                </div>
+                <BeamInput
+                  label="Date of birth"
+                  type="date"
+                  /* A date input draws `dd/mm/yyyy` whatever we do, so the
+                     label can never rest inside this one. */
+                  labelLifted
+                  min={birthdayBound(MAX_AGE)}
+                  max={birthdayBound(MIN_AGE)}
+                  value={dob}
+                  onChange={(event) => setDob(event.target.value)}
+                  className="[&::-webkit-calendar-picker-indicator]:invert"
+                />
 
-                <div>
-                  <label
-                    htmlFor="wallet-nin"
-                    className="mb-1.5 block text-xs text-muted-foreground"
-                  >
-                    National Identity Number
-                  </label>
-                  <FieldBeam>
-                    <Input
-                      id="wallet-nin"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      placeholder="11 digits"
-                      value={nin}
-                      onChange={(event) =>
-                        setNin(event.target.value.replace(/\D/g, "").slice(0, NIN_LENGTH))
-                      }
-                      className={alvaFieldClass()}
-                    />
-                  </FieldBeam>
-                </div>
+                <BeamInput
+                  label="National Identity Number"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={nin}
+                  onChange={(event) =>
+                    setNin(event.target.value.replace(/\D/g, "").slice(0, NIN_LENGTH))
+                  }
+                />
 
                 <p className="text-xs text-muted-foreground">
                   Don’t know your NIN? Dial <span className="text-foreground">*346#</span>
@@ -459,7 +502,7 @@ export function VerifyIdentitySheet({
                 <TextureButton
                   variant="alva"
                   size="lg"
-                  className={cn("mt-1")}
+                  className="mt-1"
                   disabled={!detailsDone}
                   onClick={() => setStep("document")}
                 >
@@ -471,40 +514,6 @@ export function VerifyIdentitySheet({
         )}
       </SheetContent>
     </Sheet>
-  );
-}
-
-function Field({
-  id,
-  label,
-  value,
-  onChange,
-  autoComplete,
-  maxLength,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (next: string) => void;
-  autoComplete: string;
-  maxLength: number;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-xs text-muted-foreground">
-        {label}
-      </label>
-      <FieldBeam>
-        <Input
-          id={id}
-          autoComplete={autoComplete}
-          maxLength={maxLength}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={alvaFieldClass()}
-        />
-      </FieldBeam>
-    </div>
   );
 }
 

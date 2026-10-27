@@ -5,16 +5,18 @@ import type { UserRole } from "@/lib/validations/auth";
 import type { AdminNavId } from "@/components/admin/layout/adminNav";
 import type { AdminPermission } from "@/data/admin/users";
 import { canOpenAdminArea } from "@/lib/auth/adminPermissions";
+import { AlvaSplash } from "@/components/shared/AlvaSplash";
 
 /**
  * Held while the session is being verified.
  *
- * Deliberately a bare tinted page rather than a spinner: the wait is a single
- * request and usually imperceptible, so a spinner would flash in and out and
- * read as jank. This just avoids painting the wrong screen.
+ * A bare tinted page for the first fraction of a second, because the wait is
+ * one request and usually imperceptible — anything that flashes in and out
+ * reads as jank. `AlvaSplash` owns that threshold and only draws itself once
+ * the wait has proved slow enough to be worth covering.
  */
 function SessionGate() {
-  return <div className="min-h-screen bg-alva-bg" aria-busy="true" />;
+  return <AlvaSplash />;
 }
 
 export function ProtectedRoute() {

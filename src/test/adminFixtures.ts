@@ -22,16 +22,53 @@ import {
   type RecordingStatus,
 } from "@/data/admin/oversight";
 import {
-  NIGERIAN_NAMES,
   STATES,
   VARIETIES,
-  daysAgo,
   formatDuration,
-  pick,
   relativeDays,
   round1,
-  seeded,
 } from "@/data/admin/shared";
+
+/* ------------------------------------------------------------------ *
+ * The generator itself
+ *
+ * `seeded`, `pick`, `NIGERIAN_NAMES` and `daysAgo` used to live in
+ * `src/data/admin/shared.ts` next to the formatting helpers the admin
+ * screens really do use. That put a deterministic random and a list of
+ * invented people one import away from every one of those screens, which is
+ * exactly how they ended up drawing a seeded year of users once before.
+ * They are fixture machinery, so they live with the fixtures.
+ * ------------------------------------------------------------------ */
+
+export function seeded(seed: number) {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
+
+export function pick<T>(random: () => number, options: readonly T[]): T {
+  return options[Math.floor(random() * options.length)];
+}
+
+export const NIGERIAN_NAMES = [
+  "Chioma Okafor", "Tunde Adeyemi", "Amaka Nwosu", "Ibrahim Bello",
+  "Blessing Uche", "Emeka Duru", "Fatima Sani", "Victor Oghene",
+  "Ngozi Peters", "Suleiman Rabiu", "Grace Etim", "Halima Bashir",
+  "Segun Alabi", "Precious Wills", "Musa Danladi", "Aisha Mohammed",
+  "Chinedu Obi", "Zainab Kabir", "Bola Ogundele", "Joy Effiong",
+] as const;
+
+export function daysAgo(n: number): Date {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - n);
+  return date;
+}
+
+/** "3d ago" / "Yesterday" / "Just now" — the grammar the other tables use. */
+
 import { formatNaira } from "@/data/admin/payments";
 import {
   RUBRIC_QUESTIONS,

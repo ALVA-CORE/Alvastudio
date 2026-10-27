@@ -1,4 +1,3 @@
-import { FOCUS_GROUP_PROMPTS } from "@/data/prompts";
 import { NO_VALUE } from "@/lib/no-value";
 
 /**
@@ -37,84 +36,6 @@ export const ANNOTATION_STATUS_LABELS: Record<AnnotationStatus, string> = {
   completed: "Done",
 };
 
-const STATES = ["Lagos", "FCT", "Rivers", "Kano", "Oyo", "Enugu", "Kaduna", "Delta"];
-
-const INTERNS = [
-  "Tolu A.",
-  "Ngozi E.",
-  "Musa F.",
-  "Blessing T.",
-  "Segun P.",
-  "Halima D.",
-];
-
-const LANGUAGES: AnnotatorSession["language"][] = [
-  "Nigerian Pidgin",
-  "Nigerian English",
-  "Mixed",
-];
-
-const AUDIO_SOURCES = [
-  "/audio/demo-ada.wav",
-  "/audio/demo-kemi.wav",
-  "/audio/demo-tunde.wav",
-  "/audio/demo-ngozi.wav",
-];
-
-const RECORDED_LABELS = [
-  "2h ago",
-  "5h ago",
-  "Yesterday",
-  "2d ago",
-  "3d ago",
-  "4d ago",
-  "1w ago",
-  "2w ago",
-];
-
-function formatDuration(seconds: number) {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
-
-function buildSessions(): AnnotatorSession[] {
-  return Array.from({ length: 27 }, (_, index) => {
-    const status: AnnotationStatus =
-      index < 3 ? "in-progress" : index >= 19 ? "completed" : "not-started";
-
-    // 18–47 min sessions — focus groups run long compared with solo clips.
-    const durationSec = 18 * 60 + ((index * 137) % 1740);
-    const participants = 2 + (index % 3);
-
-    return {
-      id: `fg-${String(index + 1).padStart(3, "0")}`,
-      code: `FG-2026-${String(index + 1).padStart(3, "0")}`,
-      topic: FOCUS_GROUP_PROMPTS[index % FOCUS_GROUP_PROMPTS.length].text,
-      state: STATES[index % STATES.length],
-      participants,
-      // One extra voice on the tape: the intern moderating.
-      speakers: participants + 1,
-      duration: formatDuration(durationSec),
-      durationSec,
-      language: LANGUAGES[index % LANGUAGES.length],
-      recordedBy: INTERNS[index % INTERNS.length],
-      recordedAt: RECORDED_LABELS[index % RECORDED_LABELS.length],
-      recordedAtTs: Date.now() - 1000 * 60 * 60 * (index * 7 + 2),
-      status,
-      tagCount:
-        status === "not-started" ? 0 : status === "in-progress" ? 4 + (index % 9) : 18 + (index % 24),
-      audioSrc: AUDIO_SOURCES[index % AUDIO_SOURCES.length],
-    };
-  });
-}
-
-export const ANNOTATOR_SESSIONS: AnnotatorSession[] = buildSessions();
-
-export function getAnnotatorSessions() {
-  return ANNOTATOR_SESSIONS;
-}
-
 export type AnnotatorSessionMetrics = {
   queued: string;
   queuedTrend: string;
@@ -127,17 +48,15 @@ export type AnnotatorSessionMetrics = {
   periodLabel: string;
 };
 
-export const SESSION_METRICS: AnnotatorSessionMetrics = {
-  queued: "19",
-  queuedTrend: "+6",
-  hoursPending: "9.8h",
-  hoursPendingTrend: "+1.4h",
-  avgSession: "32m",
-  avgSessionTrend: "-3m",
-  speakersCovered: "84",
-  speakersTrend: "+12",
-  periodLabel: "Awaiting annotation",
-};
+/**
+ * What the four cards are counting.
+ *
+ * A label, not a figure. There used to be a `SESSION_METRICS` beside this
+ * holding "19" queued and "9.8h" pending, invented, and the page reached
+ * into it for this one string — leaving eight fabricated numbers sitting one
+ * typo away from a screen an annotator would act on.
+ */
+export const SESSIONS_PERIOD_LABEL = "Awaiting annotation";
 
 export const EMPTY_SESSION_METRICS: AnnotatorSessionMetrics = {
   queued: "0",
@@ -148,7 +67,7 @@ export const EMPTY_SESSION_METRICS: AnnotatorSessionMetrics = {
   avgSessionTrend: "0m",
   speakersCovered: "0",
   speakersTrend: "0",
-  periodLabel: SESSION_METRICS.periodLabel,
+  periodLabel: SESSIONS_PERIOD_LABEL,
 };
 
 export function formatLanguageShort(language: AnnotatorSession["language"]) {

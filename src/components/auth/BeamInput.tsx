@@ -17,6 +17,15 @@ export type BeamInputProps = Omit<ComponentProps<"input">, "placeholder"> & {
   /** Floating hint. Animates from inside the field to just above it. */
   label: string;
   showPasswordToggle?: boolean;
+  /**
+   * Keeps the label up even when the field is empty.
+   *
+   * For the inputs that draw their own placeholder and will not stop:
+   * `type="date"` renders `dd/mm/yyyy` whatever we do, and a label resting
+   * on top of it is two pieces of text in one box. Lifting it permanently
+   * is the only arrangement where both are legible.
+   */
+  labelLifted?: boolean;
 };
 
 /**
@@ -40,6 +49,7 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
       label,
       type = "text",
       showPasswordToggle = false,
+      labelLifted = false,
       value,
       defaultValue,
       onFocus,
@@ -56,6 +66,7 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
     );
 
     const active =
+      labelLifted ||
       focused ||
       filled ||
       Boolean(value !== undefined && String(value).length > 0);

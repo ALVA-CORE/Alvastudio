@@ -1,10 +1,13 @@
 /**
- * The contributor's wallet.
+ * The contributor's wallet: the types and the money formatting.
  *
- * Invented, like the rest of the dashboard's sample data, so the screen can be
- * designed before `/payments/earnings` is wired to it. Shaped the way that
- * endpoint already reports money — kobo, never naira — so swapping it for a
- * fetch is a change of source, not of arithmetic.
+ * Read from `GET /wallet` and `/payments/earnings` by `walletStore`. Money is
+ * kobo throughout, never naira — the API sends the decimals as JSON strings
+ * precisely so nobody floats them, and they are parsed once, at the boundary.
+ *
+ * No sample wallet lives here. The one the suite renders against is in
+ * `src/test/walletFixtures.ts`, which `eslint.config.js` bars from anything
+ * that ships.
  */
 
 export type WalletEntryKind = "earned" | "withdrawal" | "bonus" | "adjustment";
@@ -110,38 +113,6 @@ const NAIRA = new Intl.NumberFormat("en-NG", {
 export function formatWalletNaira(kobo: number) {
   return NAIRA.format(kobo / 100);
 }
-
-function at(dayOffset: number, hour: number, minute: number) {
-  const date = new Date();
-  date.setHours(hour, minute, 0, 0);
-  date.setDate(date.getDate() - dayOffset);
-  return date.getTime();
-}
-
-export const MOCK_WALLET: Wallet = {
-  balanceKobo: 102_010_00,
-  pendingKobo: 18_450_00,
-  inFlightKobo: 25_000_00,
-  paidKobo: 340_860_00,
-  lifetimeKobo: 486_320_00,
-  identity: "verified",
-  nextAction: "none",
-  payoutAccount: {
-    bank: "Guaranty Trust Bank",
-    accountNumber: "0123456789",
-    accountName: "Chioma Okafor",
-  },
-  entries: [
-    { id: "w-1", kind: "earned", label: "12 prompt reads approved", amountKobo: 18_000_00, at: at(0, 14, 6) },
-    { id: "w-2", kind: "bonus", label: "Weekly streak bonus", amountKobo: 2_500_00, at: at(1, 23, 41) },
-    { id: "w-3", kind: "withdrawal", label: "Withdrawal to GTBank", amountKobo: -40_000_00, at: at(3, 9, 18) },
-    { id: "w-4", kind: "earned", label: "8 stimuli narrations approved", amountKobo: 18_000_00, at: at(5, 16, 52) },
-    { id: "w-5", kind: "earned", label: "Focus group session · 42m", amountKobo: 33_600_00, at: at(8, 11, 5) },
-    { id: "w-6", kind: "adjustment", label: "Clip rejected, reversed", amountKobo: -1_500_00, at: at(9, 19, 27) },
-    { id: "w-7", kind: "withdrawal", label: "Withdrawal to GTBank", amountKobo: -25_000_00, at: at(14, 8, 2) },
-    { id: "w-8", kind: "earned", label: "19 prompt reads approved", amountKobo: 28_500_00, at: at(17, 13, 44) },
-  ],
-};
 
 export const EMPTY_WALLET: Wallet = {
   balanceKobo: 0,

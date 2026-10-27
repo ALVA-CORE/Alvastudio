@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import {
   EMPTY_SESSION_METRICS,
-  SESSION_METRICS,
+  SESSIONS_PERIOD_LABEL,
   formatLanguageShort,
   type AnnotatorSession,
 } from "@/data/annotators/sessions";
@@ -72,9 +72,9 @@ export default function AnnotatorSessionsPage() {
   const metrics = isEmpty
     ? EMPTY_SESSION_METRICS
     : {
-        /* Counted, all of it. Nothing is spread in from the seeded set: the
-         * trends have no source, so they are blank rather than invented. */
-        periodLabel: SESSION_METRICS.periodLabel,
+        /* Counted, all of it. The trends have no source, so they are blank
+         * rather than invented. */
+        periodLabel: SESSIONS_PERIOD_LABEL,
         queued: String(pendingCount),
         queuedTrend: "",
         hoursPending: `${(totalSeconds / 3600).toFixed(1)}h`,

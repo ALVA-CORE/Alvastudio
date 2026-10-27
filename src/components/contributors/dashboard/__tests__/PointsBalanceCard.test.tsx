@@ -2,23 +2,24 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PointsBalanceCard } from "../PointsBalanceCard";
-import { MOCK_WALLET, formatWalletNaira } from "@/data/contributors/wallet";
+import { formatWalletNaira } from "@/data/contributors/wallet";
+import { WALLET_FIXTURE } from "@/test/walletFixtures";
 
 /* The wallet reads from the API now. These tests are about the face, not the
- * network, so the three calls behind it are stubbed with the seeded wallet. */
+ * network, so the calls behind it are stubbed with the fixture wallet. */
 vi.mock("@/lib/api/wallet", async () => {
-  const { MOCK_WALLET } = await import("@/data/contributors/wallet");
+  const { WALLET_FIXTURE } = await import("@/test/walletFixtures");
   return {
     getWallet: vi.fn(async () => ({
       wallet: { id: "w1", status: "active", identity_status: identity, identity_failure_reason: null },
       earnings: {
         currency: "NGN",
         held: "0", payable: "0", in_flight: "0", paid: "0",
-        held_kobo: MOCK_WALLET.pendingKobo,
-        payable_kobo: MOCK_WALLET.balanceKobo,
-        in_flight_kobo: MOCK_WALLET.inFlightKobo,
-        paid_kobo: MOCK_WALLET.paidKobo,
-        lifetime_kobo: MOCK_WALLET.lifetimeKobo,
+        held_kobo: WALLET_FIXTURE.pendingKobo,
+        payable_kobo: WALLET_FIXTURE.balanceKobo,
+        in_flight_kobo: WALLET_FIXTURE.inFlightKobo,
+        paid_kobo: WALLET_FIXTURE.paidKobo,
+        lifetime_kobo: WALLET_FIXTURE.lifetimeKobo,
       },
       next_action: null,
       next_action_detail: null,
@@ -30,7 +31,7 @@ vi.mock("@/lib/api/wallet", async () => {
         id: "d1",
         destination_type: "bank_account",
         bank_code: "057",
-        account_name: MOCK_WALLET.payoutAccount?.accountName ?? "Chioma Okafor",
+        account_name: WALLET_FIXTURE.payoutAccount?.accountName ?? "Chioma Okafor",
         account_last4: "6789",
         is_usable: true,
         bachs_destination_id: null,
@@ -49,9 +50,9 @@ vi.mock("@/lib/api/wallet", async () => {
     })),
     listEarnings: vi.fn(async () => ({
       contributor_id: "c1",
-      entry_count: MOCK_WALLET.entries.length,
+      entry_count: WALLET_FIXTURE.entries.length,
       totals: {},
-      entries: MOCK_WALLET.entries.map((entry) => ({
+      entries: WALLET_FIXTURE.entries.map((entry) => ({
         id: entry.id,
         recording_id: "r1",
         unit_type: "prompt_read",
@@ -116,7 +117,7 @@ describe("PointsBalanceCard", () => {
     await waitFor(() =>
       expect(
         screen.getByText(
-          (_, el) => el?.textContent === formatWalletNaira(MOCK_WALLET.balanceKobo),
+          (_, el) => el?.textContent === formatWalletNaira(WALLET_FIXTURE.balanceKobo),
           { selector: "span" }
         )
       ).toBeInTheDocument()
@@ -320,6 +321,6 @@ describe("PointsBalanceCard", () => {
     expect(
       await screen.findByRole("dialog", { name: "Wallet history" })
     ).toBeInTheDocument();
-    expect(screen.getByText(MOCK_WALLET.entries[0].label)).toBeInTheDocument();
+    expect(screen.getByText(WALLET_FIXTURE.entries[0].label)).toBeInTheDocument();
   });
 });
