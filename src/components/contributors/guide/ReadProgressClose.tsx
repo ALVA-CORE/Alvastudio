@@ -1,18 +1,24 @@
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
 import { cn } from "@/lib/utils";
 
-const SIZE = 30;
+const SIZE = 34;
 const STROKE = 2.5;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 /**
- * The close button, which is also the progress meter.
+ * The close button, which is also the scroll progress meter.
  *
- * One control instead of two signals. A separate "you have read 40%"
- * indicator somewhere else on the panel makes somebody hunt for the reason
- * the close button is not working; here the reason *is* the close button.
- * The ring fills, and when it is full the cross appears inside it.
+ * One control instead of two signals. A separate indicator elsewhere makes
+ * somebody hunt for the reason the close button is not working; here the
+ * reason *is* the close button. The ring fills as they read, and when it is
+ * full the cross appears inside it.
+ *
+ * **The track has to be visible.** The first version drew it in
+ * `alva-border` with no arc at all at zero, which on a dark card is nothing
+ * — the button simply was not there, and the only thing anybody could tell
+ * was that the X had gone missing. A filled disc behind it and a track at
+ * `white/15` make it a control before it is a meter.
  *
  * It is a real button throughout, disabled until the ring closes, so a
  * keyboard reader finds it where a close button belongs and is told why it
@@ -41,15 +47,16 @@ export function ReadProgressClose({
       disabled={!complete}
       aria-label={complete ? "Close" : `Read to the end to close, ${percent}% done`}
       className={cn(
-        "absolute right-4 top-4 z-20 grid size-8 place-items-center rounded-full transition-colors",
+        "absolute right-4 top-4 z-30 grid size-9 place-items-center rounded-full",
+        "bg-alva-surface transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alva-accent",
         complete
           ? "text-foreground hover:text-alva-accent"
           : "cursor-default text-muted-foreground"
       )}
     >
-      {/* The ring. Hidden once the cross has taken over, so the two are
-          never both on screen fighting for the same 30 pixels. */}
+      {/* The ring. Faded out once the cross has taken over, so the two are
+          never both competing for the same thirty pixels. */}
       <svg
         aria-hidden
         width={SIZE}
@@ -66,7 +73,7 @@ export function ReadProgressClose({
           cy={SIZE / 2}
           r={RADIUS}
           strokeWidth={STROKE}
-          className="stroke-alva-border"
+          className="stroke-white/15"
         />
         <circle
           cx={SIZE / 2}
@@ -87,7 +94,7 @@ export function ReadProgressClose({
         size={20}
         weight="Outline"
         className={cn(
-          "transition-all duration-300",
+          "relative transition-all duration-300",
           complete ? "scale-100 opacity-100" : "scale-50 opacity-0"
         )}
       />

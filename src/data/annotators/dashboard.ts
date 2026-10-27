@@ -71,7 +71,7 @@ const PERIOD_LABEL: Record<DashboardTimeRange, string> = {
 };
 
 /** The calendar grid at zero. Real dates, so the axis is still true. */
-export const EMPTY_ACTIVITY = (weeks: number): HeatmapColumn[] => {
+const EMPTY_ACTIVITY = (weeks: number): HeatmapColumn[] => {
   const today = new Date();
   const start = new Date(today);
   start.setDate(start.getDate() - weeks * 7 + 1);
@@ -89,7 +89,7 @@ export const EMPTY_ACTIVITY = (weeks: number): HeatmapColumn[] => {
 };
 
 /** Intake through triage to outcome. Indices must stay in sync with `nodes`. */
-export const EMPTY_CLIP_FLOW: SankeyFlow = {
+const EMPTY_CLIP_FLOW: SankeyFlow = {
   nodes: [
     { name: "Lagos", category: "source" },
     { name: "Abuja", category: "source" },
@@ -111,7 +111,7 @@ export const EMPTY_CLIP_FLOW: SankeyFlow = {
   ],
 };
 
-export const EMPTY_TAG_BREAKDOWN: SunburstNode = {
+const EMPTY_TAG_BREAKDOWN: SunburstNode = {
   name: "Tags",
   children: [
     {

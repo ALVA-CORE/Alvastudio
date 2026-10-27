@@ -1,5 +1,3 @@
-import type { HeatmapColumn } from "@/components/charts/heatmap";
-import { round1 } from "./shared";
 
 export type AdminUserRole = "contributor" | "intern" | "annotator" | "admin";
 
@@ -176,45 +174,7 @@ export type AuditEvent = {
   byAdmin?: boolean;
 };
 
-/**
- * A year of daily activity, calendar-shaped.
- *
- * Seeded off the user id so the same person shows the same history every time
- * the panel opens — a heatmap that reshuffles on reopen looks like a bug.
- */
-export function activitySummary(columns: HeatmapColumn[]) {
-  const days = columns
-    .flatMap((column) => column.bins)
-    .filter((bin) => bin.date instanceof Date && (bin.date as Date) <= new Date());
 
-  const total = days.reduce((sum, bin) => sum + (bin.count ?? 0), 0);
-  const activeDays = days.filter((bin) => (bin.count ?? 0) > 0).length;
-
-  /* Longest run of consecutive days with something on them. */
-  let streak = 0;
-  let best = 0;
-  for (const bin of days) {
-    streak = (bin.count ?? 0) > 0 ? streak + 1 : 0;
-    if (streak > best) best = streak;
-  }
-
-  return {
-    total,
-    activeDays,
-    bestStreak: best,
-    perActiveDay: activeDays > 0 ? round1(total / activeDays) : 0,
-  };
-}
-
-export function formatAuditTimestamp(date: Date) {
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 
 
@@ -235,13 +195,3 @@ export type RoleStat = { label: string; value: string; tone?: "accent" | "danger
 
 
 
-/** What the activity tab's headline reads as, per role. */
-export function activityNoun(user: AdminUser) {
-  return user.role === "contributor"
-    ? "recordings"
-    : user.role === "intern"
-      ? "sessions"
-      : user.role === "annotator"
-        ? "segments"
-        : "actions";
-}

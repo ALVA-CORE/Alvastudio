@@ -207,25 +207,19 @@ export function ContributorGuideSheet({
   }, [reachedEnd, onRead]);
 
   /**
-   * Back to the top on a tab change, so the new content starts where its
-   * reader does rather than part-way down whatever was there before.
+   * Switching does not move the page.
    *
-   * A handler, not an effect on `[mode]`. As an effect it also ran on mount,
-   * *after* the first measure, and reset the fraction to zero — which on a
-   * guide short enough not to scroll meant nothing ever fired again and the
-   * ring sat at zero forever.
+   * It used to jump to the top, on the reasoning that new content should
+   * start where its reader does. In practice the switch is itself halfway
+   * down the sheet, so picking a mode threw somebody back above the title
+   * and they had to scroll down again past everything they had just read to
+   * find the control they had just used.
    *
-   * `scrollTop` rather than `scrollTo`, which jsdom does not implement and
-   * which would need guarding anyway.
+   * The scroll position is left alone. The measurement is recomputed by the
+   * `ResizeObserver` when the new content changes the height, so the ring
+   * still describes where they are rather than where they were.
    */
-  const selectMode = useCallback(
-    (next: GuideMode) => {
-      setMode(next);
-      setScrolled(0);
-      if (scroller) scroller.scrollTop = 0;
-    },
-    [scroller]
-  );
+  const selectMode = useCallback((next: GuideMode) => setMode(next), []);
 
   return (
     <Sheet

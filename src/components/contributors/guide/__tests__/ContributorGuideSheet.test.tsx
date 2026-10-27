@@ -139,3 +139,43 @@ describe("ContributorGuideSheet", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
+
+describe("ModeSwitcher", () => {
+  /* It opens and it closes. The demo runs only until it is touched, so
+     after the first press this button is the only thing moving it. */
+  it("toggles open and shut from the trigger", async () => {
+    const user = userEvent.setup();
+    render(<ContributorGuideSheet open onOpenChange={() => {}} />);
+
+    const trigger = screen.getByRole("button", { name: /Recording mode/ });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  /* Picking a mode closes the menu and leaves the scroll position where it
+     was. The control sits halfway down the sheet, so jumping to the top
+     threw somebody above the title and made them scroll back down past
+     everything they had just read to reach the thing they had just used. */
+  it("closes on a pick without moving the page", async () => {
+    const user = userEvent.setup();
+    render(<ContributorGuideSheet open onOpenChange={() => {}} />);
+
+    const sheet = screen.getByRole("dialog");
+    const scroller = sheet.querySelector(".overflow-y-auto") as HTMLElement;
+    scroller.scrollTop = 120;
+
+    await user.click(screen.getByRole("button", { name: /Recording mode/ }));
+    await user.click(screen.getByRole("option", { name: /Stimuli/ }));
+
+    expect(screen.getByRole("button", { name: /Recording mode/ })).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+    expect(scroller.scrollTop).toBe(120);
+  });
+});

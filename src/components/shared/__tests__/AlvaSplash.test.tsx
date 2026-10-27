@@ -58,12 +58,12 @@ describe("AlvaSplash handover", () => {
     expect(onDone).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(1500);
+      vi.advanceTimersByTime(500);
     });
     expect(onDone).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(420);
+      vi.advanceTimersByTime(1000);
     });
     expect(onDone).toHaveBeenCalledOnce();
   });

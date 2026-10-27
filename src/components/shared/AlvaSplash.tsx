@@ -1,40 +1,38 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { AlvaLogo } from "@/components/auth/AlvaLogo";
+import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
 
 const WORDMARK = "Alvacore";
 
 /** Per character. Fast enough to finish inside a slow boot, slow enough to read. */
 const TYPE_MS = 70;
 
-/** How long the glow takes to travel, in ms. Matched by the motion transition. */
-const RISE_MS = 1500;
 /** A breath on the finished lockup before the app replaces it. */
-const SETTLE_MS = 420;
+const SETTLE_MS = 500;
+
+/** The whole sequence, for the caller holding the app behind it. */
+const TOTAL_MS = WORDMARK.length * TYPE_MS + SETTLE_MS;
 
 /**
  * Held while the session is being checked.
  *
- * **The glow is a circle, not a band.** `AlvaTopGlow` is three gradients
- * anchored to `top-0` with fixed `vh` heights — perfect where it lives,
- * because its bottom edge is the only one you ever see. Moved up the page it
- * showed its *top* edge too, and a gradient clipped flat across the screen
- * reads as a line sweeping past rather than a light source. So this draws its
- * own: one radial ellipse with no hard edge in any direction, which can be
- * anywhere on screen and still look like a glow.
+ * **The glow is the one from the sign-in pages**, in the place it sits
+ * there, not moving. It was a travelling blob for a while: the idea was
+ * that the splash would become the app rather than cut to it. In practice a
+ * large soft shape sliding up the screen reads as something loading badly,
+ * and matching the page somebody is about to land on does the same job
+ * without the spectacle. `AlvaTopGlow` is used directly, so the two cannot
+ * drift apart.
  *
- * **It travels on a single transform.** `y` as a percentage of the element,
- * on one absolutely-positioned layer, so the browser composites it rather
- * than repainting three stacked gradients every frame — that juddering was
- * the "doesn't move smoothly".
+ * **The group re-centres as it types.** The logo and the wordmark are one
+ * centred flex row, so each character pushes the logo left by half its own
+ * width. That is the whole effect: a mark settling into a lockup rather
+ * than a label appearing beside a static icon.
  *
- * **It finishes before the app appears.** The glow arrives, the wordmark
- * lands, and only then does `onDone` fire. A loading screen that is cut off
- * mid-animation is worse than none: it reads as a glitch on the way in.
- *
- * **It plays every time.** Every refresh, every first visit, signed in or
- * out. It is the way into the app rather than a progress indicator, so it
- * does not wait to find out whether there is anything to wait for.
+ * **It plays every time**, refresh or first visit, signed in or out. It is
+ * the way into the app rather than a progress indicator, so it does not
+ * wait to find out whether there is anything to wait for.
  */
 export function AlvaSplash({
   delayMs = 0,
@@ -44,30 +42,20 @@ export function AlvaSplash({
   /**
    * How long the wait has to last before anything is drawn.
    *
-   * **Zero now, on purpose.** It used to be 220ms so a fast boot never
-   * flashed a splash it did not need — correct for a loading indicator, and
-   * wrong for this, which is the way into the app. It should be the same on
-   * every refresh and on a first visit, including a signed-out one where
-   * there is no session to check at all. Kept as a parameter because the
-   * threshold behaviour is still a sensible thing to want.
+   * Zero by default. Kept as a parameter because a threshold is still a
+   * sensible thing to want from a loading screen; it is just not what this
+   * one is for.
    */
   delayMs?: number;
   /**
    * Called the moment anything is actually painted.
    *
    * The caller needs this, not just `onDone`. Knowing only when the
-   * animation *ends* leaves no way to tell "it never started" apart from
-   * "it is still running" — so a boot check finishing early looks like the
-   * first, the gate lets go, and the splash is cut off mid-rise. Which is
-   * exactly what happened.
+   * sequence *ends* leaves no way to tell "it never started" apart from
+   * "it is still running".
    */
   onStart?: () => void;
-  /**
-   * Called once the animation has played out.
-   *
-   * The caller holds the app back until then, so the sequence is never cut
-   * in half by a request that finished early.
-   */
+  /** Called once the sequence has played out, so the caller can hand over. */
   onDone?: () => void;
 }) {
   const reduced = useReducedMotion() ?? false;
@@ -79,8 +67,6 @@ export function AlvaSplash({
     return () => window.clearTimeout(timer);
   }, [delayMs]);
 
-  /* Announced from an effect rather than inside the timeout, so it cannot
-     fire during a render the caller is in the middle of. */
   useEffect(() => {
     if (shown) onStart?.();
   }, [shown, onStart]);
@@ -108,13 +94,10 @@ export function AlvaSplash({
     return () => window.clearInterval(timer);
   }, [shown, reduced]);
 
-  /* The whole sequence, then the handover. Reduced motion still waits a beat
-     rather than flashing a finished lockup for one frame. */
   useEffect(() => {
     if (!shown || !onDone) return;
 
-    const total = reduced ? SETTLE_MS : RISE_MS + SETTLE_MS;
-    const timer = window.setTimeout(onDone, total);
+    const timer = window.setTimeout(onDone, reduced ? SETTLE_MS : TOTAL_MS);
     return () => window.clearTimeout(timer);
   }, [shown, reduced, onDone]);
 
@@ -133,57 +116,17 @@ export function AlvaSplash({
       aria-busy="true"
       aria-label="Loading Alvacore"
     >
-      {/* One layer, one transform. Taller and wider than the viewport so no
-          edge of the ellipse can ever cross into frame. */}
-      <motion.div
-        aria-hidden
-        /**
-         * A round blob, not a band.
-         *
-         * The previous one was an ellipse sized as a percentage of a layer
-         * nearly three viewports wide, which made it ~350vw across and one
-         * viewport tall. Horizontally that is flat, so all you could see was
-         * its vertical falloff: a soft horizontal line sliding up the
-         * screen. Making it bigger made it flatter.
-         *
-         * So it is a square box with a `circle` gradient, which cannot be
-         * anything but round, sized in `vmin` so it stays round and stays
-         * proportionate on a phone and on a monitor alike.
-         *
-         * Centred with `inset-x-0 mx-auto` and offset by half its height
-         * with a margin. Never a translate: framer animates `y` by writing
-         * `transform`, which replaces the whole property, and a centring
-         * translate would be wiped the moment it started.
-         */
-        className="pointer-events-none absolute inset-x-0 top-0 mx-auto size-[130vmin] rounded-full"
-        style={{
-          /* Half the height up, so `y` positions the blob's centre rather
-             than its top edge and the numbers below mean what they say. */
-          marginTop: "-65vmin",
-          background:
-            "radial-gradient(circle at 50% 50%," +
-            "hsl(var(--alva-accent)/0.42) 0%," +
-            "hsl(var(--alva-accent)/0.30) 18%," +
-            "hsl(var(--alva-accent)/0.17) 34%," +
-            "hsl(var(--alva-accent)/0.08) 50%," +
-            "hsl(var(--alva-accent)/0.03) 66%," +
-            "hsl(var(--alva-accent)/0.008) 82%," +
-            "transparent 100%)",
-        }}
-        /* Centre starts low on the screen and finishes just above the top
-           edge, which is where the glow sits on every other page. */
-        initial={reduced ? false : { y: "78vh", opacity: 0.65 }}
-        animate={{ y: "-6vh", opacity: 1 }}
-        transition={{ duration: RISE_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
-      />
+      <AlvaTopGlow />
 
       <motion.div
-        className="relative flex items-center justify-center gap-2.5 px-6"
-        initial={reduced ? false : { opacity: 0, scale: 0.96 }}
+        className="relative flex items-center justify-center gap-2 px-6"
+        initial={reduced ? false : { opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.55, ease: "easeOut" }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
       >
-        <AlvaLogo className="h-8 shrink-0 sm:h-9" />
+        {/* Sized to the wordmark's cap height, not to the screen. A mark
+            taller than the word beside it reads as an icon with a caption. */}
+        <AlvaLogo className="h-6 shrink-0 sm:h-7" />
 
         {/* The text node carries the name for assistive tech in full from the
             start — a screen reader should not be made to watch it type. */}

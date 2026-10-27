@@ -85,7 +85,7 @@ export function underCoveredStates(snapshot: CorpusSnapshot, targetHours = 40) {
  * is exactly the right question — the whole job is moving hours from left to
  * right, and the diagram shows where they stop.
  */
-export const CORPUS_FLOW: SankeyFlow = {
+export const EMPTY_CORPUS_FLOW: SankeyFlow = {
   nodes: [
     { name: "Prompt read", category: "source" },
     { name: "Focus group", category: "source" },
@@ -96,25 +96,21 @@ export const CORPUS_FLOW: SankeyFlow = {
     { name: "Flagged", category: "outcome" },
     { name: "Rejected", category: "outcome" },
   ],
+  /* Prompt reads and stimuli go to review; focus groups go to annotation.
+     Indices must stay in sync with `nodes`. */
   links: [
-    // Prompt reads and stimuli go to review; focus groups go to annotation.
-    { source: 0, target: 3, value: 243 },
-    { source: 2, target: 3, value: 74 },
-    { source: 1, target: 4, value: 168 },
+    { source: 0, target: 3, value: 0 },
+    { source: 2, target: 3, value: 0 },
+    { source: 1, target: 4, value: 0 },
 
-    { source: 3, target: 5, value: 241 },
-    { source: 3, target: 6, value: 45 },
-    { source: 3, target: 7, value: 31 },
+    { source: 3, target: 5, value: 0 },
+    { source: 3, target: 6, value: 0 },
+    { source: 3, target: 7, value: 0 },
 
-    { source: 4, target: 5, value: 110 },
-    { source: 4, target: 6, value: 38 },
-    { source: 4, target: 7, value: 20 },
+    { source: 4, target: 5, value: 0 },
+    { source: 4, target: 6, value: 0 },
+    { source: 4, target: 7, value: 0 },
   ],
-};
-
-export const EMPTY_CORPUS_FLOW: SankeyFlow = {
-  nodes: CORPUS_FLOW.nodes,
-  links: CORPUS_FLOW.links.map((link) => ({ ...link, value: 0 })),
 };
 
 

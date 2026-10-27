@@ -73,9 +73,16 @@ export function ModeSwitcher({
     if (reduced) setOpen(true);
   }, [reduced]);
 
-  /* Closes on a click elsewhere, the way a menu is expected to. Only once
-     it is a real menu: while it is demonstrating, a tap anywhere on the
-     sheet would snap it shut mid-beat. */
+  /**
+   * Closes on a click elsewhere, the way a menu is expected to.
+   *
+   * Only once it is a real menu. While it is still demonstrating, a tap
+   * anywhere on the sheet — including a scroll that starts with a finger
+   * down on the text — would snap it shut mid-beat.
+   *
+   * `pointerdown` rather than `click`, so it closes on the way down and not
+   * after a drag that happened to end elsewhere.
+   */
   useEffect(() => {
     if (!touched || !open) return;
 
@@ -83,8 +90,16 @@ export function ModeSwitcher({
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
 
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
+    /* Deferred a frame: the click that opened this is still propagating,
+       and attaching synchronously would let that same event close it. */
+    const timer = window.setTimeout(() => {
+      document.addEventListener("pointerdown", onDown);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("pointerdown", onDown);
+    };
   }, [touched, open]);
 
   const take = () => setTouched(true);
@@ -116,9 +131,11 @@ export function ModeSwitcher({
               aria-haspopup="listbox"
               aria-expanded={open}
               aria-label={`Recording mode, ${active.label}`}
+              /* Opens and closes. The demo stops on the first press, so
+                 from then on this is the only thing moving it. */
               onClick={() => {
                 take();
-                setOpen((value) => !value);
+                setOpen((current) => !current);
               }}
               className="inline-flex h-10 items-center gap-1.5 rounded-full bg-alva-bg px-3 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alva-accent"
             >
