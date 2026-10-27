@@ -159,8 +159,8 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-2">
             {/* Closing the door is a platform decision, so it sits with the
                 platform's own screen rather than inside the users table. */}
-            <SignupsToggle />
             <DashboardTimeFilter value={range} onChange={setRange} />
+            <SignupsToggle />
           </div>
         }
       />

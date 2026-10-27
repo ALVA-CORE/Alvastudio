@@ -22,11 +22,11 @@ export type SignInBlock = "pending" | "suspended" | "full";
  * nothing on the form for them to fix. An inline error line next to a
  * password box invites them to try the password again.
  *
- * "Full" is the third, and it is not about the person at all: the platform
- * has as many accounts as it can take. It gets a sheet rather than a line
- * under a field because there is nothing on the form to change — trying a
- * different password or a different email will not help, and an inline error
- * invites exactly that.
+ * "Full" is the third, and it is not a refusal. The account is made and
+ * everything they typed is kept; what is deferred is the way in, exactly as
+ * an intern waits on approval. It gets a sheet because there is nothing on
+ * the form to change, and an inline error would invite another try at a
+ * thing that worked.
  *
  * Deleted accounts are not here. The API answers a deleted account the same
  * way it answers a typo, deliberately, so that nobody can use the sign-in
@@ -54,9 +54,9 @@ const COPY: Record<
   full: {
     icon: UsersGroupRounded,
     tone: "text-alva-accent",
-    title: "We are full for now",
+    title: "You're on the list",
     detail:
-      "Alva Studio has as many people as it can take at the moment. We have your email and will write to you the moment a place opens up.",
+      "Alva Studio is full right now. Your account is saved, and we'll email you the moment a place opens so you can sign in.",
   },
 };
 
@@ -78,12 +78,12 @@ export function SignInBlockedSheet({
   block: SignInBlock | null;
   onOpenChange: (open: boolean) => void;
   /**
-   * Where dismissing leads, when staying is pointless.
+   * Where dismissing leads, when there is somewhere worth going.
    *
-   * A sign-up page that is closed has nothing behind this sheet: closing it
-   * would drop somebody back onto a form that cannot submit. The sign-in
-   * page is different — the form there is still worth another try with
-   * another account — so it passes nothing and the sheet just closes.
+   * Usually nowhere. A contributor on the waiting list cannot sign in — the
+   * account exists but is not approved, so the sign-in form would refuse
+   * them — and sending them there would be a second dead end after the
+   * first. The sheet just closes.
    */
   onDismiss?: () => void;
   dismissLabel?: string;

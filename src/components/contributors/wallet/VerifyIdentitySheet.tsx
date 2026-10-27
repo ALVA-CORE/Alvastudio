@@ -85,7 +85,10 @@ export function VerifyIdentitySheet({
               ? "This usually takes a few minutes. You can close this and carry on recording."
               : step === "photo"
                 ? "Last step. Your face is matched against the photo on your NIN record."
-                : null}
+                : /* Said once, plainly, at the top. Somebody can record for
+                     weeks without knowing the money cannot move until this
+                     is done, and finding out at withdrawal is too late. */
+                  "You can record without this, but we can't pay you until it's done."}
           </p>
         </SheetHeader>
 

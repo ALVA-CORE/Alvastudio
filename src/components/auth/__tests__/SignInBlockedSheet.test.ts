@@ -43,9 +43,10 @@ describe("signInBlock", () => {
 /**
  * A full platform is not a refusal of the person.
  *
- * It opens the sheet because there is nothing on the form to change: a
- * different password or a different email will not get them in, and an
- * inline error under a field invites exactly that.
+ * The account is made and everything they typed is kept; what is deferred is
+ * the way in. It opens a sheet rather than an inline error because there is
+ * nothing on the form to change, and a line under a field invites another go
+ * at a thing that worked.
  */
 describe("signInBlock, at capacity", () => {
   it("opens for a platform that is not taking anybody new", () => {
@@ -64,5 +65,39 @@ describe("signInBlock, at capacity", () => {
 
   it("leaves an ordinary 403 alone", () => {
     expect(signInBlock(new ApiError(403, "You do not have access to that."))).toBeNull();
+  });
+});
+
+/**
+ * Trying again with the same details is not a mistake to correct.
+ *
+ * Somebody on the waiting list who signs up again gets the same answer as
+ * the first time, so they see the same sheet rather than a red line under
+ * the email field implying they typed something wrong.
+ */
+describe("isAlreadyRegistered", () => {
+  it("recognises the wordings an API uses for a taken email", () => {
+    for (const message of [
+      "Email already registered",
+      "A user with this email already exists",
+      "That email is already taken",
+      "Email is already in use",
+    ]) {
+      expect(new ApiError(400, message).isAlreadyRegistered).toBe(true);
+    }
+  });
+
+  it("leaves ordinary validation alone", () => {
+    expect(new ApiError(422, "Password is too short").isAlreadyRegistered).toBe(false);
+    expect(new ApiError(422, "Enter a valid email").isAlreadyRegistered).toBe(false);
+  });
+
+  it("is never true for a server fault", () => {
+    /* A 500 that happens to say "already" is not a duplicate account, and
+       telling somebody they are on a list they are not on is worse than
+       showing them the error. */
+    expect(
+      new ApiError(500, "already processing").isAlreadyRegistered
+    ).toBe(false);
   });
 });

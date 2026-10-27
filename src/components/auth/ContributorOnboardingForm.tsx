@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
@@ -39,6 +39,7 @@ import {
   type SignInBlock,
 } from "@/components/auth/SignInBlockedSheet";
 import { useSignupsOpen } from "@/hooks/useSignupsOpen";
+import { ApiError } from "@/lib/api/client";
 import { signInErrorMessage } from "@/lib/api/signInError";
 import {
   detectMicrophoneLabel,
@@ -65,12 +66,13 @@ export function ContributorOnboardingForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [blocked, setBlocked] = useState<SignInBlock | null>(null);
 
-  /* Told on arrival, not after nine fields. The API's refusal still backs
-     this up; a check in the browser is one anybody can skip. */
+  /* Contributors only. An intern or an annotator already waits on an admin,
+     so a cap adds nothing to their sign-up — it is contributors who would
+     otherwise walk straight in.
+     
+     This decides how the form ends, not whether it opens: we still want
+     their details, and the API still has the final say. */
   const signupsOpen = useSignupsOpen();
-  useEffect(() => {
-    if (signupsOpen === false) setBlocked("full");
-  }, [signupsOpen]);
 
   const form = useForm<ContributorOnboardingValues>({
     resolver: zodResolver(contributorOnboardingSchema),
@@ -176,14 +178,21 @@ export function ContributorOnboardingForm() {
         contributorProfile,
       });
     } catch (error) {
-      /* A full platform is not about them: nothing on the form can be
-         changed to get past it, so it opens a sheet rather than a line
-         under a field that invites another try. */
       const block = signInBlock(error);
       if (block) {
         setBlocked(block);
         return;
       }
+
+      /* Already on the list, and trying again with the same details. That is
+         not a mistake to correct — it is the same answer as the first time,
+         so they get the same sheet rather than a red line implying they
+         typed something wrong. */
+      if (signupsOpen === false && error instanceof ApiError && error.isAlreadyRegistered) {
+        setBlocked("full");
+        return;
+      }
+
       setFormError(signInErrorMessage(error));
       return;
     } finally {
@@ -192,6 +201,15 @@ export function ContributorOnboardingForm() {
 
     /* The account exists now, so the draft has nothing left to protect. */
     draft.clear();
+
+    /* Full: they are signed up and waiting, not turned away. We wanted their
+       details and we have them; what is deferred is the way in. Sending them
+       to a dashboard they cannot load would be the wrong ending. */
+    if (signupsOpen === false) {
+      setBlocked("full");
+      return;
+    }
+
     navigate("/contributor/dashboard");
   };
 
@@ -673,7 +691,7 @@ export function ContributorOnboardingForm() {
                 className="w-auto"
                 loading={submitting}
               >
-                Create contributor account
+                Create account
               </TextureButton>
             )}
           </div>
@@ -694,9 +712,10 @@ export function ContributorOnboardingForm() {
         onOpenChange={(open) => {
           if (!open) setBlocked(null);
         }}
-        /* Closed means there is nothing behind this sheet to go back to. */
-        dismissLabel={blocked === "full" ? "Back to sign in" : "Got it"}
-        onDismiss={blocked === "full" ? () => navigate("/login") : undefined}
+        /* No way onward. Signing in would refuse them too: the account is
+           made but not approved, so "Back to sign in" would be a second dead
+           end after the first. */
+        dismissLabel={blocked === "full" ? "Got it" : undefined}
       />
     </div>
   );

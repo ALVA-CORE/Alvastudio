@@ -73,7 +73,7 @@ export function SignupsToggle() {
   return (
     <>
       <TextureButton
-        variant={closing ? "minimal" : "alva"}
+        variant="alva"
         size="sm"
         className="w-auto"
         onClick={() => setConfirming(true)}
@@ -91,14 +91,14 @@ export function SignupsToggle() {
         onOpenChange={setConfirming}
         title={closing ? "Close sign-ups?" : "Open sign-ups again?"}
         description={
-          (closing
-            ? "Nobody new will be able to create an account. They will be told the platform is full and that we will write when a place opens. People who already have accounts keep working as normal."
-            : "New people will be able to create accounts again.") +
-          (localOnly
-            ? closing
-              ? " This only takes effect in this browser for now, and the API will still accept a sign-up sent to it directly."
-              : ""
-            : "")
+          closing
+            ? "New contributors can still sign up, but will wait for a place instead of getting in."
+            : "New contributors will be let straight in again."
+        }
+        detail={
+          localOnly && closing
+            ? "Only this browser for now, and the API still accepts a sign-up sent to it directly."
+            : undefined
         }
         confirmLabel={closing ? "Close sign-ups" : "Open sign-ups"}
         onConfirm={() => void apply()}

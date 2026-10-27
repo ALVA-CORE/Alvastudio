@@ -11,58 +11,91 @@ open is listed here.
 
 ---
 
-## 1. Close sign-ups and sign-ins at a capacity
+## 1. A waiting list for contributors when we are full
 
-We want to stop taking new people once the platform reaches a set number of
-accounts, and reopen later.
+We want to hold the platform at a set number of contributors. **Nobody is
+turned away** — we still want their details. They just do not get in until a
+place opens.
 
-**This has to be yours.** We can hide the sign-up form, and we will, but a
-hidden form is not a closed door: `POST /auth/register` is a public route and
-anybody can call it directly. A cap the client enforces is a cap that does
-not exist, so we are not shipping a switch that claims otherwise.
+This is the approval flow you already have for interns and annotators,
+applied to contributors when a cap is on. It is **contributors only**: an
+intern or an annotator already waits on an admin, so a cap adds nothing to
+their sign-up.
 
-What we need:
+**What should happen**
+
+1. Contributor signs up while we are full. **The account is created**, with
+   everything they filled in, and `approved: false`.
+2. They get the "waiting for approval" email straight away, and every admin
+   gets the "an account is waiting" one. Both already exist.
+3. Signing in gets the `403` you already send for an unapproved account, so
+   nothing new is needed on login.
+4. An admin opens the gate, approves them, and **the existing "Your account
+   is approved" email goes out**. They sign in. No new mail template.
+
+So the only new thing is the switch itself, and making register honour it.
+
+**The switch**
 
 ```
-GET   /platform/capacity                  (public, unauthenticated)
+GET   /platform/capacity                     (public, unauthenticated)
   → { open: true, accounts: 412, limit: 500 }
 
-PATCH /platform/capacity   { limit, open }   (admin)
+PATCH /platform/capacity   { open, limit }   (admin)
   → the same shape
 ```
 
-- **`open`** is the switch. `limit` is the number it closes at. An admin can
-  close early by setting `open: false`, and reopen the same way, without
-  having to move the limit around.
-- **Public on the read**, because the sign-up page needs it before anybody has
-  an account. It carries no personal data, only three numbers.
+- **`open`** is the switch an admin flips. `limit` is a number it can close
+  at on its own; either is enough on its own, and an admin can close early by
+  sending `open: false`.
+- **Public on the read.** The sign-up page needs it before anybody has an
+  account. It carries no personal data, only three numbers.
 - **`accounts`** is whatever you count towards the cap. Tell us which roles
   it includes; we only display it.
 
-**And the refusals**, which are the part that matters:
+**What register should do while closed**
 
 ```
-POST /auth/register   → 403 when closed
-POST /auth/login      → 403 when closed, for an account that is not staff
+POST /auth/register, role=contributor, while closed
+  → 201, the account created with approved: false
 ```
 
-- **A `code` on the body**, please, not just English. We are matching on the
-  message right now (`at capacity`, `registration is closed`) and that breaks
-  the first time somebody rewords it. Something like
-  `{"detail": "...", "code": "at_capacity"}` would be stable.
-- **Staff must still get in while it is closed.** Admins, interns and
-  annotators are how the place keeps running; closing the door on them turns
-  a full platform into an outage.
+Not a `403`. We want the person and their data; we are only deferring
+access. Interns and annotators are unaffected either way.
 
-**One question we cannot answer from here:** when the cap is reached, should
-existing contributors still be able to sign in? We have assumed **yes** —
-they already have accounts and work in progress, and locking them out would
-be a different and much larger decision. Say if that is wrong.
+**Two things we would like on the response**, so the screen can tell "you
+are in" from "you are on the list" without guessing:
 
-**No email needed.** The screen tells people we have their address and will
-write when a place opens, which is a promise somebody has to keep by hand for
-now. If you would rather it did not say that, tell us and we will change the
-wording.
+```json
+{ "...": "...", "approved": false, "waitlisted": true }
+```
+
+Without it we infer waitlisted from `approved: false`, which is also true of
+a normal intern sign-up, and the two need different words on screen.
+
+**And a stable `code` on the refusals**, rather than English we have to match
+on. We are currently reading messages for two things:
+
+| What we match | Why we need it |
+| --- | --- |
+| `at capacity`, `registration is closed` | Opens the waiting-list sheet instead of a field error |
+| `already registered`, `already exists`, `already taken` | Somebody already on the list who signs up again gets the same sheet, not a red line implying they mistyped |
+
+Both fall back safely to showing your own sentence, so a reword cannot
+mislead anybody — it just makes the screen less helpful. Something like
+`{"detail": "...", "code": "at_capacity"}` and `code: "email_taken"` would
+settle it.
+
+**Signing in is a dead end for a waitlisted contributor**, which is correct
+and we are not asking you to change it: the account exists and is not
+approved, so your existing `403` refuses them. The sheet therefore offers
+nowhere to go — no "back to sign in", because that would be a second dead
+end after the first.
+
+**Nothing else is enforced client-side.** Until this exists the admin switch
+only reaches the browser it was pressed in, and the confirm dialog says so.
+A door the client closes is not closed, and we are not shipping a control
+that claims otherwise.
 
 ---
 
