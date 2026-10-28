@@ -97,9 +97,19 @@ describe("ContributorGuideSheet", () => {
     const next = screen.getByRole("button", { name: /Now read the Stimuli rules/ });
     expect(next).toBeEnabled();
 
+    /* jsdom has no layout, so `scrollTo` is stubbed to record the ask. What
+       matters is that the panel is the thing told to move — not
+       `scrollIntoView`, which walks up every scrollable ancestor and from
+       inside a portalled fixed dialog moved none of them. */
+    const sheet = screen.getByRole("dialog");
+    const scroller = sheet.querySelector(".overflow-y-auto") as HTMLElement;
+    const scrollTo = vi.fn();
+    scroller.scrollTo = scrollTo as unknown as HTMLElement["scrollTo"];
+
     await user.click(next);
 
     expect(screen.getByText(NARRATION_STEPS[0].title)).toBeInTheDocument();
+    expect(scrollTo).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Got it" })).toBeEnabled();
   });
 

@@ -237,12 +237,45 @@ export function ContributorGuideSheet({
    */
   const otherMode: GuideMode = mode === "prompt" ? "stimuli" : "prompt";
 
+  /**
+   * Switches to the other set of rules and takes them there.
+   *
+   * Two things had to change to make this actually move.
+   *
+   * It no longer scrolls from inside the click handler. `setMode` schedules
+   * a render; a `requestAnimationFrame` queued beside it is racing React's
+   * commit, so it could measure the panel that was about to be replaced. A
+   * flag and an effect run *after* the DOM is the new one, every time.
+   *
+   * And it scrolls the panel rather than calling `scrollIntoView`. That
+   * walks up every scrollable ancestor, which from inside a portalled,
+   * `position: fixed` dialog under Radix's scroll lock is a guess about
+   * which container will move — and the answer was often none of them.
+   * `scrollTo` on the element we mean cannot miss.
+   */
+  const [pendingScroll, setPendingScroll] = useState(false);
+
   const goToOtherRules = useCallback(() => {
     setMode(otherMode);
-    requestAnimationFrame(() => {
-      rules?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setPendingScroll(true);
+  }, [otherMode]);
+
+  useEffect(() => {
+    if (!pendingScroll || !rules || !scroller) return;
+    setPendingScroll(false);
+
+    const top =
+      rules.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop;
+
+    scroller.scrollTo({
+      top: Math.max(0, top - 8),
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
     });
-  }, [otherMode, rules]);
+  }, [pendingScroll, rules, scroller, mode]);
 
   return (
     <Sheet
@@ -395,10 +428,13 @@ export function ContributorGuideSheet({
             </div>
           </Section>
 
-          {/* Only on the forced read. Reaching it is what releases the hold,
-              so it has to be the last thing in the scroller, and it says so
-              rather than leaving somebody to guess why nothing closes. */}
-          {mustRead ? (
+          {/* On the forced read it is the thing that releases the hold, so
+              it has to be the last thing in the scroller and has to say why
+              nothing is closing. On a guide somebody opened themselves there
+              is nothing to release, but "you have read one half, here is the
+              other" is worth saying either way — so it still appears once a
+              mode is finished, just never as a disabled instruction. */}
+          {mustRead || finished.includes(mode) ? (
             <div className="mt-5 border-t border-alva-border pt-4">
               {/* Three jobs, because there are three states and each one
                   has a different next step. The middle one used to be a
@@ -406,7 +442,7 @@ export function ContributorGuideSheet({
               <TextureButton
                 variant="alva"
                 size="lg"
-                disabled={!reachedEnd && !finished.includes(mode)}
+                disabled={mustRead && !reachedEnd && !finished.includes(mode)}
                 onClick={reachedEnd ? () => onOpenChange(false) : goToOtherRules}
               >
                 {reachedEnd
