@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
+import ShieldCross from "@solar-icons/react/security/ShieldCross";
 import RoundedMagnifier from "@solar-icons/react/search/RoundedMagnifier";
 import {
   Sheet,
@@ -242,9 +243,7 @@ export function VerifyIdentitySheet({
         /* 410 means the flow changed under us again. Saying "try again"
            would be a lie, and this one needs to reach us, not them. */
         if (cause.status === 410) {
-          setBlocked(
-            "This way of verifying is no longer in use. Contact support and we will sort it out."
-          );
+          setBlocked("This way of verifying is no longer in use. Contact support.");
           return;
         }
 
@@ -253,9 +252,10 @@ export function VerifyIdentitySheet({
            risk a duplicate submission, so it stops here and the refreshed
            wallet decides what happens next. */
         if (cause.status === 502) {
-          setBlocked(
-            `${cause.message} We are checking whether it went through — reopen this in a moment to see where it stands.`
-          );
+          /* The API's sentence alone. Ours added a second one saying to
+             reopen the sheet, which is what somebody does anyway and which
+             pushed the whole thing past three lines. */
+          setBlocked(cause.message);
           return;
         }
 
@@ -316,7 +316,7 @@ export function VerifyIdentitySheet({
             {waiting
               ? "Your earnings keep adding up while we check."
               : step === "document"
-                ? "Someone reads this, so the details have to be legible."
+                ? "A person reads this. Keep it legible."
                 : /* Said once, plainly, at the top. Somebody can record for
                      weeks without knowing the money cannot move until this
                      is done, and finding out at withdrawal is too late. */
@@ -325,10 +325,11 @@ export function VerifyIdentitySheet({
         </SheetHeader>
 
         {blocked ? (
-          <Notice tone="bad" heading="We cannot take this submission" body={blocked}>
-            Nothing you have recorded is lost. If this is your own ID, contact
-            support and we will sort it out.
-          </Notice>
+          /* One sentence under the heading, and nothing after it.
+             This used to carry the API's whole paragraph plus two lines of
+             our own reassurance, which on a phone was eight lines of text
+             under a disc — more to read at the worst moment to be reading. */
+          <Notice tone="bad" heading="We cannot take this submission" body={blocked} />
         ) : waiting ? (
           /* Nothing below the header. No form, and no retry button: a review
              at this stage is a person's decision, and a second submission
@@ -509,34 +510,42 @@ export function VerifyIdentitySheet({
   );
 }
 
-/** The sheet's one non-form state: a disc, a line, and what to do about it. */
+/**
+ * The sheet's one non-form state: a disc, a heading, and one short line.
+ *
+ * The line is clamped to three lines rather than trusted to be short. The
+ * body is often the API's own sentence, which we do not control and which
+ * can run long — and a wall of grey text under a red shield is the thing
+ * somebody skips at exactly the moment they need to read it.
+ *
+ * A cross for a refusal, a tick for a wait. The same shield wearing a tick
+ * above "We cannot take this submission" was the glyph contradicting the
+ * sentence directly under it.
+ */
 function Notice({
   tone,
   heading,
   body,
-  children,
 }: {
   tone: "bad" | "warn";
   heading: string;
   body: string;
-  children?: React.ReactNode;
 }) {
+  const Icon = tone === "bad" ? ShieldCross : ShieldCheck;
+
   return (
     <div className="mt-6 flex flex-col items-center py-4 text-center">
       <span className="flex size-14 items-center justify-center rounded-full bg-alva-surface">
-        <ShieldCheck
+        <Icon
           size={26}
           weight="BoldDuotone"
           className={tone === "bad" ? "text-destructive" : "text-amber-300"}
         />
       </span>
       <p className="mt-3 text-sm font-medium text-foreground">{heading}</p>
-      <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">{body}</p>
-      {children ? (
-        <p className="mt-3 max-w-xs text-xs leading-relaxed text-muted-foreground">
-          {children}
-        </p>
-      ) : null}
+      <p className="mt-1 line-clamp-3 max-w-xs text-xs leading-relaxed text-muted-foreground">
+        {body}
+      </p>
     </div>
   );
 }

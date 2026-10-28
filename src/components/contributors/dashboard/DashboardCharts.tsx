@@ -29,6 +29,7 @@ import {
   EMPTY_WEEKLY_SESSIONS,
 } from "@/data/contributors/dashboard";
 import { CarouselDots } from "@/components/shared/CarouselDots";
+import { useCarouselAutoplay } from "@/components/shared/useCarouselAutoplay";
 import { cn } from "@/lib/utils";
 
 const pieConfig = {
@@ -156,37 +157,7 @@ export function DashboardCharts({
     setActiveSlide(carouselApi.selectedScrollSnap());
   }, []);
 
-  /**
-   * Advances every five seconds, and stops the moment somebody touches it.
-   *
-   * Permanently, not for a cooldown: once a person has swiped, they are
-   * reading one of these rather than watching all three, and sliding it out
-   * from under them is the thing carousels are disliked for. A pointer down
-   * is enough to count — they do not have to complete the drag.
-   *
-   * It also stops while the tab is hidden, so coming back does not land on
-   * whatever happened to be showing after forty silent rotations.
-   */
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (!api || paused) return;
-
-    const stop = () => setPaused(true);
-    api.on("pointerDown", stop);
-
-    const timer = window.setInterval(() => {
-      if (document.hidden) return;
-      /* `scrollNext` stops at the end without `loop`, so wrap by hand. */
-      if (api.canScrollNext()) api.scrollNext();
-      else api.scrollTo(0);
-    }, 5000);
-
-    return () => {
-      window.clearInterval(timer);
-      api.off("pointerDown", stop);
-    };
-  }, [api, paused]);
+  useCarouselAutoplay(api);
 
   useEffect(() => {
     if (!api) return;

@@ -8,7 +8,8 @@ open is listed here.
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
 | 1 | Tell the contributors the identity migration reset | People who were verified finding out at withdrawal | **High** |
-| 2 | An idempotency key on `POST /wallet/identity/documents` | A safe retry after a 502 | Medium |
+| 2 | Scope `GET /recordings` to the caller for a non-admin | An intern seeing every other intern's assigned work | **High** |
+| 3 | An idempotency key on `POST /wallet/identity/documents` | A safe retry after a 502 | Medium |
 
 ---
 
@@ -37,7 +38,29 @@ If you would rather we did it in-app instead, tell us and we will: a one-time
 sheet on next open, worded as a change at our end rather than a failure at
 theirs. Mail is better because it reaches people who are not recording today.
 
-## 2. An idempotency key on the document route
+## 2. `GET /recordings` shows an intern everybody's work
+
+An intern calling `GET /recordings` gets **every recording on the platform**,
+including clips allocated to other interns. The review queue merges that list
+with `/reviews/queue?mine` to show somebody their own history, so until today
+a colleague's open desk appeared in their queue, marked only by a banner on
+the detail page saying they could not submit a verdict on it.
+
+The intern leads do not want that visible, and we agree: it is a wasted tap
+and a colleague's workload on show at the same time.
+
+**We have filtered it client-side** to rows that are unassigned or assigned
+to the caller, so the screen is right now. That is a courtesy, not a
+boundary: the rows still travel to the browser and anybody with a network tab
+can read them, names and all.
+
+**What we are asking for:** `GET /recordings` returns, for an intern, only
+recordings assigned to them or unassigned. Admins keep the full list. If you
+would rather add a parameter than change the default, `?mine=true` works for
+us and we will send it — but the default is what a curious person gets, so
+scoping the default is the one that actually closes it.
+
+## 3. An idempotency key on the document route
 
 Your own note is the reason:
 
@@ -79,7 +102,7 @@ on a bad connection, which is most of them.
 | The 4,194,304-character cap | Images are downscaled to a 1600px long edge, which lands far under it — bigger than the old selfie's 720px on purpose, because a person has to read the document number. A PDF cannot be shrunk in a browser, so an oversized one says "try a photo instead" rather than offering a retry that fails the same way. |
 | Double submission | The submit button is disabled while the request is in flight, and a 409, 410, 502 or 503 replaces the form rather than returning to it. Nothing in our client retries a request automatically — `apiFetch` has no retry at all — so an identity document is never re-uploaded without a person pressing something. |
 | NINs and documents at rest | Held in React state for the life of the sheet and dropped the moment it closes. No draft, no `localStorage`, no analytics, nothing in a URL, nothing logged. The sign-up forms use a draft helper; this sheet deliberately does not. |
-| A 502 on the document route | We stop rather than offer a retry, because your note says the provider may have the document anyway. See ask 2 — an idempotency key would let us do better. |
+| A 502 on the document route | We stop rather than offer a retry, because your note says the provider may have the document anyway. See ask 3 — an idempotency key would let us do better. |
 | Polling a review | Only while something is pending, only while the tab is in front, every 20s, plus one re-read on return to the tab. One component owns the timer; the other two readers of the wallet on the same screen do not each run one. |
 | `POST /wallet/account` | Called as the first step of the gate when `next_action` says `create_account`, not on page load. It is one tap for the contributor either way. |
 | `POST /wallet/onboarding-link` | Requested on click only, never minted ahead of time. |

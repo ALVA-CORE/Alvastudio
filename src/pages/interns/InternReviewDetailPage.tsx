@@ -226,10 +226,12 @@ export default function InternReviewDetailPage() {
   /**
    * Assigned to somebody else, so this reviewer cannot decide it.
    *
-   * The API refuses the verdict, and it used to refuse it at the end: an
-   * intern could answer all four questions on a clip an admin had handed to
-   * another reviewer and learn nothing until submit. Said up front instead,
-   * with the form locked, so the work is never done twice.
+   * A backstop now rather than the main defence. The queue no longer carries
+   * a colleague's clips at all, so reaching this page with one means a deep
+   * link from before the filter, or a row that arrived while an assignment
+   * was changing. Either way the form stays locked: the API refuses the
+   * verdict, and it used to refuse it at the end, after all four questions
+   * had been answered.
    */
   const assignedElsewhere = Boolean(
     item.assignedReviewerId && user?.id && item.assignedReviewerId !== user.id
@@ -302,20 +304,6 @@ export default function InternReviewDetailPage() {
             </BorderBeam>
           </div>
         </div>
-
-        {assignedElsewhere ? (
-          <div role="status" className="rounded-xl bg-amber-500/10 px-4 py-3">
-            <p className="text-sm text-amber-300">
-              {item.assignedReviewerName
-                ? `This clip is ${item.assignedReviewerName}'s to decide`
-                : "This clip is assigned to another reviewer"}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              You can listen to it and read the rubric, but only the reviewer
-              it is assigned to can submit a verdict.
-            </p>
-          </div>
-        ) : null}
 
         <ReviewWorkspace
           item={item}
