@@ -28,6 +28,10 @@ function has(kind: string, ...needles: string[]) {
 
 function contributorCategory(kind: string): NotificationCategory {
   if (kind === "earning") return "payout";
+  /* `identity` arrived with the 27 Oct document-review change. It carries no
+     id to link to, so the row opens the wallet, which is where the thing it
+     is asking for happens. */
+  if (kind === "identity") return "identity";
   if (has(kind, "approved", "accepted")) return "review-accepted";
   if (has(kind, "rejected", "rework", "not_approved")) return "review-rejected";
   if (has(kind, "recording", "submission", "submitted")) return "submission-received";
@@ -60,7 +64,7 @@ function staffCategory(kind: string): InternNotificationCategory {
 }
 
 /** "Today, 8:45 AM" for anything from today, "12 Oct, 8:45 AM" before that. */
-export function formatNotificationTime(iso: string) {
+function formatNotificationTime(iso: string) {
   const date = new Date(iso);
   const time = date.toLocaleTimeString(undefined, {
     hour: "numeric",

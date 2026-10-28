@@ -24,14 +24,14 @@ const SELECT_BASE =
   "rounded-xl border border-transparent bg-alva-surface text-foreground shadow-none " +
   "focus:border-alva-border focus:outline-none focus:ring-0";
 
-export const alvaInputClass = cn(
+const alvaInputClass = cn(
   "h-10 placeholder:text-muted-foreground",
   FIELD_BASE
 );
 
-export const alvaSelectTriggerClass = cn("h-10", SELECT_BASE);
+const alvaSelectTriggerClass = cn("h-10", SELECT_BASE);
 
-export const alvaAuthSelectTriggerClass = cn("h-12", SELECT_BASE);
+const alvaAuthSelectTriggerClass = cn("h-12", SELECT_BASE);
 
 export function alvaFieldClass(hasError?: boolean) {
   return cn(alvaInputClass, hasError && "border-red-400/60");

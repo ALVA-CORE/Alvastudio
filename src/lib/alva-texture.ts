@@ -16,7 +16,7 @@ export function alvaAccentTexture(cnMerge?: string) {
  * The sheen is a `::before`, which paints over non-positioned children, so put
  * the contents in their own `relative z-[1]` wrapper.
  */
-export const alvaDarkTextureClass =
+const alvaDarkTextureClass =
   "relative overflow-hidden bg-alva-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_1px_2px_rgba(0,0,0,0.55)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-[radial-gradient(circle_at_30%_0%,rgba(255,255,255,0.12),transparent_62%)]";
 
 export function alvaDarkTexture(cnMerge?: string) {

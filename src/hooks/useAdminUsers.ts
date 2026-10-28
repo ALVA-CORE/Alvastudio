@@ -31,7 +31,7 @@ const OUTPUT_LABEL: Record<AdminUserRole, string> = {
  * column, so the real figures are read in the panel from
  * `GET /dashboard/{role}/{id}` instead.
  */
-export function fromApiUser(api: ApiUser): AdminUser {
+function fromApiUser(api: ApiUser): AdminUser {
   const created = new Date(api.created_at);
 
   return {

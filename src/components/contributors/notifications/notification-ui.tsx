@@ -26,6 +26,9 @@ const CATEGORY_ICONS: Record<
   ReactNode
 > = {
   payout: <Wallet size={18} weight="Bold" />,
+  /* A shield, like everywhere else identity appears, so the row and the
+     wallet it opens are recognisably about the same thing. */
+  identity: <ShieldWarning size={18} weight="Bold" />,
   announcement: <Letter size={18} weight="Bold" />,
   leaderboard: <CupStar size={18} weight="Bold" />,
 };

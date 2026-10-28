@@ -55,7 +55,7 @@ function segmentText(tokens: ApiToken[], from: number, to: number): string {
  * positional: the palette has to be stable across reloads or every region in
  * the waveform changes colour when the page is refreshed.
  */
-export function toSpeakers(participants: ApiParticipant[]): Speaker[] {
+function toSpeakers(participants: ApiParticipant[]): Speaker[] {
   return participants.map((participant, index) => ({
     id: participant.id,
     label: participant.label,
@@ -134,7 +134,7 @@ function toNonSpeech(segments: ApiSegment[]): NonSpeechMark[] {
   return marks;
 }
 
-export function toSegments(
+function toSegments(
   apiSegments: ApiSegment[],
   tokens: ApiToken[],
   speakers: Speaker[]

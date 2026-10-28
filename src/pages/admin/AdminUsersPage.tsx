@@ -7,6 +7,10 @@ import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
+import { IdentityRecheckTable } from "@/components/admin/users/IdentityRecheckTable";
+import { useIdentityRecheck } from "@/hooks/useIdentityRecheck";
+import Letter from "@solar-icons/react/messages/Letter";
+import Refresh from "@solar-icons/react/arrows/Refresh";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
@@ -33,10 +37,22 @@ import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
 
-type Tab = "accounts" | "recovery";
+type Tab = "accounts" | "recovery" | "identity";
 
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | AccountStatus;
+
+/**
+ * How many are in a tab, beside its name.
+ *
+ * Nothing at zero. "Account recovery (0)" is a number nobody needs and it
+ * makes three tabs read as a dashboard; the count is only interesting when
+ * there is something in it.
+ */
+function Count({ value }: { value: number }) {
+  if (value === 0) return null;
+  return <span className="ml-1 tabular-nums text-muted-foreground">({value})</span>;
+}
 
 export default function AdminUsersPage() {
   const {
@@ -60,6 +76,11 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("accounts");
+
+  /* Lifted out of the table so the tab can carry the count and the tab row
+     can carry the action. Not fetched until the tab is opened: it is a
+     one-off clean-up, not something every admin needs on every visit. */
+  const recheck = useIdentityRecheck(tab === "identity");
   const recovery = useRecoveryRequests();
   /* The account just created, so the dialog can report whether its
    * invitation email went out. Set only once the create has returned. */
@@ -284,29 +305,57 @@ export default function AdminUsersPage() {
         value={tab}
         onValueChange={(value) => setTab(value as Tab)}
       >
-        <TabsList className="h-9 rounded-full bg-alva-surface p-1">
-          <TabsTrigger
-            value="accounts"
-            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-          >
-            Accounts
-          </TabsTrigger>
-          <TabsTrigger
-            value="recovery"
-            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-          >
-            <span className="flex items-center gap-2">
-              Account recovery
-              {/* People waiting, not a total. A queue with somebody in it
-                  should say so without being opened. */}
-              {recovery.rows.length > 0 ? (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500/20 px-1.5 text-[10px] font-semibold text-amber-300">
-                  {recovery.rows.length}
-                </span>
-              ) : null}
-            </span>
-          </TabsTrigger>
-        </TabsList>
+        {/* The tabs and the one action that belongs to the open tab, on a
+            line. A Refresh floating above the table read as belonging to the
+            page rather than to the list under it. */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList className="h-9 rounded-full bg-alva-surface p-1">
+            <TabsTrigger
+              value="accounts"
+              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+            >
+              Accounts <Count value={rows.length} />
+            </TabsTrigger>
+            <TabsTrigger
+              value="recovery"
+              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+            >
+              Account recovery <Count value={recovery.rows.length} />
+            </TabsTrigger>
+            <TabsTrigger
+              value="identity"
+              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+            >
+              ID recheck <Count value={recheck.rows.length} />
+            </TabsTrigger>
+          </TabsList>
+
+          {tab === "identity" ? (
+            recheck.untold.length > 0 ? (
+              <TextureButton
+                variant="alva"
+                size="sm"
+                className="w-auto shrink-0"
+                loading={recheck.isSending}
+                onClick={() => recheck.setConfirming(true)}
+              >
+                <Letter size={15} weight="Outline" />
+                Email {recheck.untold.length}{" "}
+                {recheck.untold.length === 1 ? "person" : "people"}
+              </TextureButton>
+            ) : (
+              <TextureButton
+                variant="minimal"
+                size="sm"
+                className="w-auto shrink-0"
+                onClick={recheck.reload}
+              >
+                <Refresh size={15} weight="Outline" />
+                Refresh
+              </TextureButton>
+            )
+          ) : null}
+        </div>
 
         <TabsContent value="accounts" className="mt-2">
         <AlvaDataTable
@@ -369,6 +418,10 @@ export default function AdminUsersPage() {
 
         <TabsContent value="recovery" className="mt-2">
           <RecoveryRequestsTable {...recovery} />
+        </TabsContent>
+
+        <TabsContent value="identity" className="mt-2">
+          <IdentityRecheckTable recheck={recheck} />
         </TabsContent>
       </Tabs>
 

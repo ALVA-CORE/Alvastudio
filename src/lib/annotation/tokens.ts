@@ -25,11 +25,6 @@ export type Tokenization = {
   spanTarget: SpanTarget;
 };
 
-export const DEFAULT_TOKENIZATION: Tokenization = {
-  conventionId: "whitespace_v1",
-  spanTarget: "transcript_verbatim",
-};
-
 export type Token = {
   /** Document-global index. */
   index: number;

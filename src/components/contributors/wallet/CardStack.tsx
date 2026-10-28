@@ -22,7 +22,7 @@ export type StackCard = {
  * ------------------------------------------------------------------------- */
 /* Short on purpose. At 0.85 the back card cleared the top of the tile and ran
  * under the fixed header, where it could not be tapped at all. */
-export const PEEK_REM = 0.6;
+const PEEK_REM = 0.6;
 const INSET_REM = 0.55;
 
 /** How far the front card rises out of the pocket when it is tapped. */

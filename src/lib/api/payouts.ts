@@ -107,3 +107,39 @@ export const listDuplicateFlags = (status = "open", limit = 50) =>
   apiFetch<ApiDuplicateFlag[]>("/payouts/duplicate-flags", {
     query: { status, limit },
   });
+
+/**
+ * Emails the contributors whose identity check the 27 Oct migration reset.
+ *
+ * They verified a NIN, saw "Verified", and kept recording. The check behind
+ * that no longer counts, and the wallet can only tell somebody who opens the
+ * wallet — the people most affected are the ones who stopped looking because
+ * it was done. Their next withdrawal would be the first they heard of it.
+ *
+ * A preview by default. `apply` queues the mail, one per person, and is safe
+ * to repeat: `notified` says who already has one, and the list is checked
+ * again at send time so anybody who submits a document in the meantime drops
+ * off it.
+ *
+ * `503` means email is not configured, and is a refusal rather than a quiet
+ * success — the one failure mode that would otherwise look like it worked.
+ */
+export type ApiIdentityRecheckRow = {
+  user_id: string;
+  full_name: string;
+  email: string;
+  /** Already emailed by an earlier run. */
+  notified: boolean;
+};
+
+export const identityRecheck = (apply = false) =>
+  apiFetch<{
+    /** False on a preview: nothing was sent. */
+    applied: boolean;
+    count: number;
+    queued: number;
+    contributors: ApiIdentityRecheckRow[];
+  }>("/payouts/identity-recheck", {
+    method: "POST",
+    query: apply ? { apply: true } : undefined,
+  });

@@ -1,87 +1,23 @@
 # Endpoints we need
 
-Checked against the live OpenAPI document, 27 Oct 2026. Only what is still
-open is listed here.
+Checked against the live OpenAPI document, 28 Oct 2026.
 
 ## Open
 
-| # | Ask | Blocks | Priority |
-| --- | --- | --- | --- |
-| 1 | Tell the contributors the identity migration reset | People who were verified finding out at withdrawal | **High** |
-| 2 | Scope `GET /recordings` to the caller for a non-admin | An intern seeing every other intern's assigned work | **High** |
-| 3 | An idempotency key on `POST /wallet/identity/documents` | A safe retry after a 502 | Medium |
+**Nothing.** All three asks of 28 Oct are answered in
+[`replies/api-status-2026-10-28.md`](replies/api-status-2026-10-28.md) and
+wired: `POST /payouts/identity-recheck` with its `identity` notification,
+intern scoping on `/recordings` and `/reviews`, and a document retry that is
+safe without an idempotency key.
 
----
+One answer worth repeating back. **We do not call `POST /wallet/sync`**, from
+anywhere, so the gap you flagged — contributors whose old identity claim was
+cleared by a sync and who are therefore invisible to the recheck list — is
+empty for us. Nobody is missed.
 
-## 1. The migration reset verified contributors, and they do not know
-
-> "Existing identity states are reset for document review by the migration…
-> Returning contributors may therefore need to submit a document even if an
-> earlier screen showed their identity as verified."
-
-Our screens now read the new state correctly, so nobody is shown a stale
-"Verified". That is not the problem.
-
-The problem is **when they find out**. Somebody who verified a NIN last week,
-saw "Verified", and has been recording since will next open the wallet to
-withdraw — and be sent back to the start of a flow they already finished, with
-no explanation of what changed. The wallet can say it, but only to somebody
-who opens the wallet, and the people most affected are the ones who stopped
-checking because it was done.
-
-**What we are asking for:** the existing "your identity needs attention" mail
-sent once to every contributor the migration reset, saying the check changed
-and what to do. No new template is needed on our side and no new endpoint —
-this is a one-off send, and we have no way to trigger it.
-
-If you would rather we did it in-app instead, tell us and we will: a one-time
-sheet on next open, worded as a change at our end rather than a failure at
-theirs. Mail is better because it reaches people who are not recording today.
-
-## 2. `GET /recordings` shows an intern everybody's work
-
-An intern calling `GET /recordings` gets **every recording on the platform**,
-including clips allocated to other interns. The review queue merges that list
-with `/reviews/queue?mine` to show somebody their own history, so until today
-a colleague's open desk appeared in their queue, marked only by a banner on
-the detail page saying they could not submit a verdict on it.
-
-The intern leads do not want that visible, and we agree: it is a wasted tap
-and a colleague's workload on show at the same time.
-
-**We have filtered it client-side** to rows that are unassigned or assigned
-to the caller, so the screen is right now. That is a courtesy, not a
-boundary: the rows still travel to the browser and anybody with a network tab
-can read them, names and all.
-
-**What we are asking for:** `GET /recordings` returns, for an intern, only
-recordings assigned to them or unassigned. Admins keep the full list. If you
-would rather add a parameter than change the default, `?mine=true` works for
-us and we will send it — but the default is what a curious person gets, so
-scoping the default is the one that actually closes it.
-
-## 3. An idempotency key on the document route
-
-Your own note is the reason:
-
-> "**502:** … The provider may have received a document even when its response
-> was lost."
-
-So a 502 leaves us unable to do the one thing the person will want to do. We
-cannot retry, because a retry may be a second submission of the same ID, which
-your 409 path treats as a duplicate identity needing admin review — turning a
-dropped connection into a support ticket. We currently stop dead, show your
-message, and tell them to reopen the wallet and see where it stands.
-
-An `Idempotency-Key` header, or a client-supplied `submission_id` in the body,
-would make the retry safe: same key inside a window returns the first result
-instead of creating a second review. Then a 502 is a spinner rather than a
-dead end.
-
-**Not blocking.** The current handling is correct, just worse for the person
-on a bad connection, which is most of them.
-
----
+And **`/contributor/dashboard` is the right link** for the email button. The
+wallet is a face on the dashboard card rather than a page of its own, so
+there is no deeper path to point at.
 
 ---
 
@@ -125,6 +61,11 @@ on a bad connection, which is most of them.
 | `waitlisted` | Read at the gate, not discovered a request at a time. A waitlisted contributor's **sign-in succeeds** — the token is issued, nothing throws — so without an explicit check they would land on a dashboard where every call answers 403. Login signs them back out and shows the sheet; a stored token for one is cleared on boot. |
 | The waiting list on the users table | Its own status, "On the waiting list", kept apart from "Pending approval" and tinted neutral rather than amber. Nobody is reviewing them and nothing is overdue — they are queueing, and an amber pill would say an admin was late. |
 | `code` on refusals | `ApiError.code` now carries it and `isAlreadyRegistered` branches on `email_taken` first. The old wording match is kept underneath only for a backend not yet on this version. |
+| `POST /payouts/identity-recheck` | An admin action on the users page. It previews first and names the people on the list, because somebody about to mail a group should see who they are. Repeat runs are safe, so a plain confirm is enough; a 503 shows as a refusal rather than a silent success. |
+| `kind: "identity"` | Its own notification category with a shield, not an announcement. It is the only notification standing between somebody and being paid, and an envelope beside "we have updated our terms" would be the wrong weight. It opens the wallet instead of a detail sheet: it carries no id, and the sheet would only repeat the row before telling them to go there anyway. |
+| Intern scoping | **We removed our client-side filter rather than keeping it.** Ours kept rows assigned to the caller or to nobody, which drops your third group — clips they have written a verdict on that have since moved to somebody else. An intern would have watched their own past work disappear from their history. A redundant filter is harmless; one that disagrees with the server about what "theirs" means is not. |
+| A 502 on the document route | Now a retry rather than a dead end. The reason goes inline above the form and the submit button stays, so the next tap is the retry. A toast would have slid away while they were still reading it. |
+| The retired `409` | "Still being reviewed" is gone from our handling. The other three 409s still replace the form, because none of them has anything to retype. |
 | A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. The same is true of a 410, which means the flow changed under us again and needs to reach us rather than them. |
 | "Submitted" vs "verified" | The success toast shows your `detail` verbatim, which says submitted. Nothing on our side says verified until `identity_status` does. A review is a person reading a document, and the old face match came back in minutes — the wait is the thing most likely to be misread, so the wording is yours rather than ours. |
 | Toasts | Wrap to two lines now, left aligned and smaller. "This payout account is on hold while we r…" was being cut mid-word. |

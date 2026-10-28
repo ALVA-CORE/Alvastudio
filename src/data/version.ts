@@ -23,29 +23,30 @@ export type RoleVersion = {
 
 export const APP_VERSIONS = {
   contributor: {
-    version: "1.5.0",
-    released: "2026-10-27",
+    version: "1.6.0",
+    released: "2026-10-28",
     notes: [
+      "A guide to getting your recordings approved",
+      "Set a new password from the emailed link",
       "Verify with your NIN document instead of a selfie",
-      "The wallet keeps itself up to date while a review runs",
-      "Milestone pay, and a gauge for the next ₦5,000",
-      "Change your own password",
+      "Try again if an ID upload is interrupted",
     ],
   },
   intern: {
-    version: "1.3.0",
-    released: "2026-10-26",
+    version: "1.4.0",
+    released: "2026-10-28",
     notes: [
+      "Your queue shows your work, not the whole team's",
+      "Set a new password from the emailed link",
       "Redact a participant from a session",
       "Record consent without leaving the session",
-      "Change your own password",
-      "Give feedback from your profile",
     ],
   },
   annotator: {
-    version: "1.3.0",
-    released: "2026-10-26",
+    version: "1.3.1",
+    released: "2026-10-28",
     notes: [
+      "Set a new password from the emailed link",
       "Sign up without waiting for an invitation",
       "Workspace blocks writes while consent is missing, and says so",
       "Change your own password",
@@ -53,13 +54,13 @@ export const APP_VERSIONS = {
     ],
   },
   admin: {
-    version: "1.6.0",
-    released: "2026-10-26",
+    version: "1.7.0",
+    released: "2026-10-28",
     notes: [
-      "Per-person activity on a user, from real figures",
-      "Sign-ins and sign-outs in the audit log",
+      "Tell contributors to redo their ID check",
+      "Close sign-ups when the platform is full",
       "Account recovery queue, with real delivery status",
-      "Deleting an account shows what goes with it",
+      "Sign-ins and sign-outs in the audit log",
       "Feedback from every role, in one table",
     ],
   },

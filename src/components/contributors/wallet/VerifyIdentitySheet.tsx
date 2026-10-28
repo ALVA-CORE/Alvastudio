@@ -231,10 +231,13 @@ export function VerifyIdentitySheet({
       });
     } catch (cause) {
       if (cause instanceof ApiError) {
-        /* 409 is a wall, not an error: a review already running, a NIN that
-           is verified and immutable, or a duplicate that needs an admin.
-           None of the three has anything to retype, so the form goes away
-           rather than inviting another go at it. */
+        /* 409 is a wall, not an error: a NIN held by another account, a
+           verified identity being swapped for a different one, or a lost
+           race. None has anything to retype, so the form goes away rather
+           than inviting another go at it.
+
+           "Still being reviewed" used to be a fourth, and is gone since
+           28 Oct — a retry during a review now answers 200 and says so. */
         if (cause.status === 409) {
           setBlocked(cause.message);
           return;
@@ -247,15 +250,21 @@ export function VerifyIdentitySheet({
           return;
         }
 
-        /* 502 is the worst case to get wrong: the provider may well have the
-           document even though its answer was lost. Offering a retry would
-           risk a duplicate submission, so it stops here and the refreshed
-           wallet decides what happens next. */
+        /**
+         * 502 is a retry now, not a dead end.
+         *
+         * It used to stop here. The provider might already have had the
+         * document despite losing its reply, and sending it again risked a
+         * second review on one person. Since 28 Oct a retry asks the
+         * provider where the last attempt got to first: one that arrived
+         * answers 200 and uploads nothing, one that never did is sent.
+         *
+         * So the form stays and the reason goes inline above it, where a
+         * toast would have slid away while they were still reading it and
+         * left a form with no explanation for why it had not gone.
+         */
         if (cause.status === 502) {
-          /* The API's sentence alone. Ours added a second one saying to
-             reopen the sheet, which is what somebody does anyway and which
-             pushed the whole thing past three lines. */
-          setBlocked(cause.message);
+          setInvalid([cause.message]);
           return;
         }
 

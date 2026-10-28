@@ -27,7 +27,7 @@ const PAGE = 50;
  * "By an admin" is the role the actor held AT THE TIME, not now. An intern
  * later promoted does not have their old reviews start reading as an admin's.
  */
-export function toAuditEntries(events: ApiAuditEvent[]): AuditEntry[] {
+function toAuditEntries(events: ApiAuditEvent[]): AuditEntry[] {
   return events.map((event) => ({
     id: event.id,
     label: event.detail,
