@@ -90,15 +90,16 @@ describe("ContributorGuideSheet", () => {
        reports "nothing to scroll", which the component treats as read. That
        is the right behaviour for a short screen, and it makes this test
        about the half that is left: the other mode. */
-    expect(
-      screen.getByRole("button", { name: /Now read the Stimuli rules/ })
-    ).toBeDisabled();
+    /* The footer names the other half and takes them to it. It used to be
+       a disabled button naming a thing it would not take anybody to,
+       leaving them to work out that the answer was a dropdown half a screen
+       above. */
+    const next = screen.getByRole("button", { name: /Now read the Stimuli rules/ });
+    expect(next).toBeEnabled();
 
-    await user.click(
-      screen.getByRole("button", { name: /Recording mode, Prompt reader/ })
-    );
-    await user.click(screen.getByRole("option", { name: /Stimuli/ }));
+    await user.click(next);
 
+    expect(screen.getByText(NARRATION_STEPS[0].title)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Got it" })).toBeEnabled();
   });
 

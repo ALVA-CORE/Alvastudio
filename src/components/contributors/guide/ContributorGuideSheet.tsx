@@ -134,6 +134,8 @@ export function ContributorGuideSheet({
    * that is, and the state update re-runs the effect with something real.
    */
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  /** The rules block, so the footer can scroll somebody to it. */
+  const [rules, setRules] = useState<HTMLDivElement | null>(null);
 
   /**
    * Reading is two passes, not one.
@@ -220,6 +222,27 @@ export function ContributorGuideSheet({
    * still describes where they are rather than where they were.
    */
   const selectMode = useCallback((next: GuideMode) => setMode(next), []);
+
+  /**
+   * Switches to the other set of rules and takes them there.
+   *
+   * The footer used to say "Now read the Stimuli rules" and do nothing,
+   * leaving somebody to work out for themselves that the answer was a
+   * dropdown half a screen above. It changes the mode and scrolls to the
+   * rules, which is the whole of what that sentence was asking for.
+   *
+   * On the frame after, because the rules only exist in the DOM once the
+   * mode has changed: scrolling first would aim at the section that is
+   * about to be replaced.
+   */
+  const otherMode: GuideMode = mode === "prompt" ? "stimuli" : "prompt";
+
+  const goToOtherRules = useCallback(() => {
+    setMode(otherMode);
+    requestAnimationFrame(() => {
+      rules?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [otherMode, rules]);
 
   return (
     <Sheet
@@ -311,6 +334,7 @@ export function ContributorGuideSheet({
               <ModeSwitcher value={mode} onChange={selectMode} />
             </div>
 
+            <div ref={setRules}>
             {mode === "prompt" ? (
               <div>
                 <Steps steps={PROMPT_STEPS} />
@@ -328,6 +352,7 @@ export function ContributorGuideSheet({
                 <Steps steps={NARRATION_STEPS} />
               </div>
             )}
+            </div>
           </Section>
 
           <Section title="Why recordings get rejected">
@@ -375,16 +400,19 @@ export function ContributorGuideSheet({
               rather than leaving somebody to guess why nothing closes. */}
           {mustRead ? (
             <div className="mt-5 border-t border-alva-border pt-4">
+              {/* Three jobs, because there are three states and each one
+                  has a different next step. The middle one used to be a
+                  disabled button naming a thing it would not take them to. */}
               <TextureButton
                 variant="alva"
                 size="lg"
-                disabled={!reachedEnd}
-                onClick={() => onOpenChange(false)}
+                disabled={!reachedEnd && !finished.includes(mode)}
+                onClick={reachedEnd ? () => onOpenChange(false) : goToOtherRules}
               >
                 {reachedEnd
                   ? "Got it"
                   : finished.includes(mode)
-                    ? `Now read the ${mode === "prompt" ? "Stimuli" : "Prompt reader"} rules`
+                    ? `Now read the ${otherMode === "prompt" ? "Prompt reader" : "Stimuli"} rules`
                     : "Scroll to the end to continue"}
               </TextureButton>
             </div>

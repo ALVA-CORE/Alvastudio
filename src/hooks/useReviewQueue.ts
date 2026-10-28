@@ -6,15 +6,18 @@ import { listContributors, type ApiContributorRef } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 import { NO_VALUE } from "@/lib/no-value";
+import { useAuth } from "@/lib/auth/context";
 
 /**
- * The intern review queue.
+ * The intern review queue: their desk, and nobody else's.
  *
- * `/reviews/queue` is unclaimed work; `/recordings?status=` is everything the
- * reviewer can see. Both are merged into the row shape the table already
- * renders so the page's markup does not change.
+ * `/reviews/queue?mine` is what has been allocated to them and still needs a
+ * verdict. `/recordings` is added for history, because a clip leaves that
+ * queue the moment it is decided, and then filtered to rows that are theirs
+ * or unassigned — a colleague's open work is not this intern's business and
+ * should never have been in the list.
  *
- * The recording now carries `prompt_text` and `stimulus_text`, so the queue
+ * The recording carries `prompt_text` and `stimulus_text`, so the queue
  * shows the real prompt rather than an id.
  */
 
@@ -80,6 +83,11 @@ export function useReviewQueue() {
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
+  /* Whose desk this is. Without it every row would read as somebody else's
+     and the queue would come back empty. */
+  const { user } = useAuth();
+  const userId = user?.id;
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -108,8 +116,36 @@ export function useReviewQueue() {
         const names = new Map<string, string>(
           (people?.items ?? []).map((user) => [user.id, user.full_name])
         );
+
+        /**
+         * Only this intern's work, and work nobody has been given.
+         *
+         * `GET /recordings` returns every clip on the platform. It is here
+         * for history — their own decided clips leave the `mine` queue the
+         * moment they are decided — but unfiltered it also carried every
+         * colleague's open desk into this list, where the only thing
+         * marking them was an amber banner on the detail page saying
+         * "somebody else's to decide".
+         *
+         * A banner is not the answer to that. The clip was never theirs to
+         * open, and a list that shows it and then explains why you cannot
+         * act on it is a list that wastes a tap and leaks a colleague's
+         * workload at the same time.
+         *
+         * **This is a courtesy, not a boundary.** The rows still arrive in
+         * the browser and are filtered here, so an intern who opens the
+         * network tab still sees them. The fix is `GET /recordings` scoping
+         * to the caller for a non-admin, which is asked for in
+         * `docs/backend/endpoints-needed.md`.
+         */
+        const mine = (row: ApiRecording) =>
+          !row.assigned_reviewer_id || row.assigned_reviewer_id === userId;
+
         const seen = new Set(queue.map((r) => r.id));
-        const merged = [...queue, ...all.filter((r) => !seen.has(r.id))];
+        const merged = [
+          ...queue,
+          ...all.filter((r) => !seen.has(r.id) && mine(r)),
+        ];
         setItems(merged.map((row) => toQueueItem(row, names)));
         setError(null);
       })
@@ -124,7 +160,7 @@ export function useReviewQueue() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, userId]);
 
   const reload = useCallback(() => setAttempt((v) => v + 1), []);
 
