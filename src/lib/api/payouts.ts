@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { ApiLedgerEntry } from "./wallet";
 
 /**
  * Pay runs.
@@ -233,4 +234,40 @@ export const backPay = (apply = false) =>
   }>("/payments/back-pay", {
     method: "POST",
     query: apply ? { apply: true } : undefined,
+  });
+
+/**
+ * One contributor's ledger, read by an admin.
+ *
+ * `GET /payments/earnings` is the caller's own. This is the same list for
+ * somebody else, and it is what makes a void possible at all: the payments
+ * table is aggregated per contributor, and a void needs the id of a single
+ * entry.
+ */
+export const contributorLedger = (
+  contributorId: string,
+  query: { limit?: number; offset?: number } = {}
+) =>
+  apiFetch<{
+    contributor_id: string;
+    entry_count: number;
+    totals: Record<string, string>;
+    entries: ApiLedgerEntry[];
+  }>(`/payments/earnings/${contributorId}`, { query });
+
+/**
+ * Cancels one earning.
+ *
+ * **The entry stays in the ledger**, voided, with the reason on its notes —
+ * it is an audit record, not a deletion, which is why a reason is required
+ * rather than optional. Three characters minimum, five hundred maximum.
+ *
+ * Only an entry that has not gone anywhere can be voided. One already paid
+ * or in flight is money that has left, and voiding it would make the ledger
+ * disagree with the bank.
+ */
+export const voidLedgerEntry = (entryId: string, reason: string) =>
+  apiFetch<ApiLedgerEntry>(`/payouts/ledger/${entryId}/void`, {
+    method: "POST",
+    body: { reason },
   });

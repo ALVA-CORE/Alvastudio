@@ -16,7 +16,10 @@ import {
   toApiGender,
   toApiVariety,
 } from "./enums";
-import type { ContributorProfileData } from "@/lib/validations/auth";
+import type {
+  ContributorProfileData,
+  InternProfileData,
+} from "@/lib/validations/auth";
 
 /** `ProfileOut` — `docs/backend/api.md` §4. Every field is optional/nullable. */
 export type ApiProfile = {
@@ -86,6 +89,77 @@ export function upsertAnnotatorProfile(
     method: "PUT",
     body: patch,
   });
+}
+
+/**
+ * What an intern covers, and how often they want chasing.
+ *
+ * `GET/PUT /onboarding/intern-profile` existed from the start and was never
+ * called. The sign-up form asked for all three and then kept them in
+ * `localStorage` — so an intern's state and coverage lived in one browser,
+ * vanished on another device, and an admin opening their panel saw nothing
+ * under "What they told us" for a field the intern had definitely filled in.
+ *
+ * `alert_settings` is a free-form object on the API. We keep the three flags
+ * the sign-up form collects and nothing else, so a future setting can be
+ * added without a migration.
+ */
+export type ApiInternProfile = {
+  primary_state?: string | null;
+  coverage_areas?: string[] | null;
+  alert_settings?: Record<string, unknown> | null;
+};
+
+export function getInternProfile(): Promise<ApiInternProfile> {
+  return apiFetch<ApiInternProfile>("/onboarding/intern-profile");
+}
+
+/** A merge, like the other two: only the fields sent are applied. */
+export function upsertInternProfile(
+  patch: ApiInternProfile
+): Promise<ApiInternProfile> {
+  return apiFetch<ApiInternProfile>("/onboarding/intern-profile", {
+    method: "PUT",
+    body: patch,
+  });
+}
+
+/**
+ * `coverage` is one free-text line on the form and a list on the API.
+ *
+ * Split on commas, which is how people type more than one in a single box.
+ * A single area survives the round trip unchanged.
+ */
+export function internProfileToApi(
+  profile: Partial<InternProfileData>
+): ApiInternProfile {
+  return {
+    primary_state: profile.primaryState || null,
+    coverage_areas: profile.coverage
+      ? profile.coverage.split(",").map((area) => area.trim()).filter(Boolean)
+      : null,
+    alert_settings: {
+      quota_alerts: profile.quotaAlerts ?? "weekly",
+      session_reminders: profile.sessionReminders ?? true,
+      review_updates: profile.reviewUpdates ?? true,
+    },
+  };
+}
+
+export function internProfileFromApi(
+  profile: ApiInternProfile
+): Partial<InternProfileData> {
+  const alerts = (profile.alert_settings ?? {}) as Record<string, unknown>;
+  const quota = alerts.quota_alerts;
+
+  return {
+    primaryState: profile.primary_state ?? "",
+    coverage: (profile.coverage_areas ?? []).join(", "),
+    quotaAlerts:
+      quota === "daily" || quota === "off" || quota === "weekly" ? quota : "weekly",
+    sessionReminders: alerts.session_reminders !== false,
+    reviewUpdates: alerts.review_updates !== false,
+  };
 }
 
 export function listConsents(): Promise<ApiConsent[]> {

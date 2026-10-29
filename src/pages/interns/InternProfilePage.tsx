@@ -5,6 +5,7 @@ import UserId from "@solar-icons/react/users/UserId";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/context";
+import { useInternProfile } from "@/hooks/useInternProfile";
 import { INTERN_DEVICE_OPTIONS } from "@/lib/validations/auth";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaTopGlow } from "@/components/shared/AlvaTopGlow";
@@ -25,7 +26,10 @@ export default function InternProfilePage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const firstName = user?.fullName?.split(" ")[0] ?? "User";
-  const profile = user?.internProfile;
+  /* From the API, not from this browser. These three answers used to stop
+     at `localStorage`, so an intern who signed up on their phone saw "Not
+     set" on a laptop for fields they had definitely filled in. */
+  const profile = useInternProfile();
 
   const handleLogout = () => {
     logout();

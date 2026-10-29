@@ -6,55 +6,45 @@ Checked against the live OpenAPI document, 29 Oct 2026.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | A screen is missing, not an endpoint: resolving a duplicate flag | Flagged contributors' pay is frozen with no way to unfreeze it | **High** |
-| 2 | A preview of what upholding a duplicate flag would destroy | An admin deciding without knowing the cost | **High** |
-| 3 | Four field names in the 29 Oct handoff do not match the API | Anybody wiring from the prose rather than the spec | Low |
+| 1 | A preview of what upholding a duplicate flag would destroy | **The resolve screen, which is now the only thing left unbuilt** | **High** |
+| 2 | Four field names in the 29 Oct handoff do not match the API | Anybody wiring from the prose rather than the spec | Low |
 
 The 29 Oct pay terms are wired — see
 [`replies/api-status-2026-10-29.md`](replies/api-status-2026-10-29.md).
 
-## 1. Duplicate flags can be seen but not resolved
+## 1. Let an admin see the damage before upholding, not after
 
-`GET /payouts/duplicate-flags` is wired: the admin dashboard counts open flags
-and says somebody needs attention. `POST /payouts/duplicate-flags/{id}/resolve`
-is **not called from anywhere**, by us.
+**This is now blocking a screen rather than preceding one.** The resolve
+flow is the single piece of the product we have decided not to ship, and it
+is waiting on this one field.
 
-That leaves a one-way door. A flag freezes payouts on the newer account until
-an admin decides, and there is no way in the product to decide. Every flagged
-contributor stays unpaid until somebody calls the API by hand.
+`GET /payouts/duplicate-flags` is wired: the admin dashboard counts open
+flags and says somebody needs attention. `POST /payouts/duplicate-flags/{id}/resolve`
+is **not called from anywhere**, by us — so a flag freezes payouts on the
+newer account and there is no way in the product to decide, which leaves
+every flagged contributor unpaid until somebody calls the API by hand.
 
-**This is ours to build, not yours to change.** It is listed here because it
-is the one place where an endpoint you have shipped has no screen, and because
-upholding a flag is not an ordinary admin action: it closes *every* account
-the flag names, kills their tokens, blocks their wallets and voids every
-unsent earning, with `in_flight_entries` counting what is already gone and
-cannot be called back. That deserves a confirm screen that spells out the
-damage in the admin's own numbers, which is a design pass rather than a
-button, so it is not being bolted on at the end of a pay-terms change.
-
----
-
-## 2. Let an admin see the damage before upholding, not after
+We could ship it today with a worded warning and no figures. We have chosen
+not to, because upholding closes *every* account the flag names, kills their
+tokens, blocks their wallets and voids every unsent earning — and
+`in_flight_entries` counts the part that is already gone and cannot be
+called back. An admin pressing that should know the number first.
 
 `closed_user_ids`, `voided_amount_kobo` and `in_flight_entries` are on
-`DuplicateFlagOut`, and they are null until the flag is resolved. So the only
-way to learn what upholding costs is to uphold it.
+`DuplicateFlagOut` and are null until the flag is resolved. So the only way
+to learn what upholding costs is to uphold it. An admin should be able to
+read
 
-That is backwards for this particular action. It closes every account the flag
-names, kills their tokens, blocks their wallets and voids their unsent
-earnings — and `in_flight_entries` counts the part that is already gone and
-cannot be called back. An admin should be able to read
-
-> this closes 2 accounts and voids ₦41,200, of which ₦8,000 is already on its
-> way
+> this closes 2 accounts and voids ₦41,200, of which ₦8,000 is already on
+> its way
 
 **and then decide.** Reading it afterwards is a receipt, not a choice.
 
 A `?preview=true` on the resolve, or those three fields computed on a single
-`GET /payouts/duplicate-flags/{id}`, would do it. Either one unblocks ask 1:
-we can build the confirm screen around whichever you prefer.
+`GET /payouts/duplicate-flags/{id}`, would do it. Either one and we build the
+screen the same day.
 
-## 3. Four field names in the handoff do not match the API
+## 2. Four field names in the handoff do not match the API
 
 Minor, and we caught them by checking the OpenAPI document rather than
 trusting the prose — but worth saying so the next reader does not lose the
@@ -133,6 +123,11 @@ the spec, or to say plainly that the prose is a summary and the spec wins.
 | `kind: "top_up"` | Labelled "Back-pay at the new rates" in the ledger. Like a milestone it has no `recording_id` or `unit_type`, which is what used to throw. |
 | `unmeasured_narrations` | Shown in the back-pay dialog as its own line. An admin signing off a credit should be able to see how much of it is priced on recorded length rather than speaking time — generous rather than accurate, and their call to make knowingly. |
 | Prompt assignment | Nothing to change: the studio pages `GET /prompts`, which answers a contributor with their held prompts now, so the same call returns the right set. The `409` for a prompt with two readers drops the take and moves on rather than leaving somebody pressing Save against a prompt that will never take it. |
+| `GET/PUT /onboarding/intern-profile` | **Was never called.** The intern sign-up asked for a primary state, a coverage area and an alert preference, and all three stopped at `localStorage` — they lived in one browser, vanished on a second device, and showed as "Not set" to the person who typed them. Saved at sign-up now and read on the profile page. `coverage` is one free-text line for us and a list for you, so it splits on commas. |
+| `GET /payments/earnings/{contributor_id}` | Wired, and it is what makes a void possible: the payments table is aggregated per contributor and a void needs one entry's id. |
+| `POST /payouts/ledger/{id}/void` | An action per entry in the earning panel, offered only on `pending`. Paid and in-flight money has left, and voiding it would make the ledger disagree with the bank rather than correct it. The reason is required because a void with no explanation is an unexplained cut to somebody's pay, and the question asked later is never "how much" but "why". |
+| `POST /wallet/sync` | Still not called, from anywhere. Confirming again because your identity-recheck list depends on it: the gap you flagged is empty for us. |
+| `/prompts/assigned` | Not used. `GET /prompts` already answers a contributor with their held prompts, which is the same set. We are deliberately not showing `reserved_until` or the reader count — a contributor does not need to know a prompt is reserved for them for 24 hours to read it, and it would make a quiet mechanism into a deadline. |
 | A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. The same is true of a 410, which means the flow changed under us again and needs to reach us rather than them. |
 | "Submitted" vs "verified" | The success toast shows your `detail` verbatim, which says submitted. Nothing on our side says verified until `identity_status` does. A review is a person reading a document, and the old face match came back in minutes — the wait is the thing most likely to be misread, so the wording is yours rather than ours. |
 | Toasts | Wrap to two lines now, left aligned and smaller. "This payout account is on hold while we r…" was being cut mid-word. |
