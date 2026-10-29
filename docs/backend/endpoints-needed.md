@@ -1,23 +1,81 @@
 # Endpoints we need
 
-Checked against the live OpenAPI document, 28 Oct 2026.
+Checked against the live OpenAPI document, 29 Oct 2026.
 
 ## Open
 
-**Nothing.** All three asks of 28 Oct are answered in
-[`replies/api-status-2026-10-28.md`](replies/api-status-2026-10-28.md) and
-wired: `POST /payouts/identity-recheck` with its `identity` notification,
-intern scoping on `/recordings` and `/reviews`, and a document retry that is
-safe without an idempotency key.
+| # | Ask | Blocks | Priority |
+| --- | --- | --- | --- |
+| 1 | A screen is missing, not an endpoint: resolving a duplicate flag | Flagged contributors' pay is frozen with no way to unfreeze it | **High** |
+| 2 | A preview of what upholding a duplicate flag would destroy | An admin deciding without knowing the cost | **High** |
+| 3 | Four field names in the 29 Oct handoff do not match the API | Anybody wiring from the prose rather than the spec | Low |
 
-One answer worth repeating back. **We do not call `POST /wallet/sync`**, from
-anywhere, so the gap you flagged — contributors whose old identity claim was
-cleared by a sync and who are therefore invisible to the recheck list — is
-empty for us. Nobody is missed.
+The 29 Oct pay terms are wired — see
+[`replies/api-status-2026-10-29.md`](replies/api-status-2026-10-29.md).
 
-And **`/contributor/dashboard` is the right link** for the email button. The
-wallet is a face on the dashboard card rather than a page of its own, so
-there is no deeper path to point at.
+## 1. Duplicate flags can be seen but not resolved
+
+`GET /payouts/duplicate-flags` is wired: the admin dashboard counts open flags
+and says somebody needs attention. `POST /payouts/duplicate-flags/{id}/resolve`
+is **not called from anywhere**, by us.
+
+That leaves a one-way door. A flag freezes payouts on the newer account until
+an admin decides, and there is no way in the product to decide. Every flagged
+contributor stays unpaid until somebody calls the API by hand.
+
+**This is ours to build, not yours to change.** It is listed here because it
+is the one place where an endpoint you have shipped has no screen, and because
+upholding a flag is not an ordinary admin action: it closes *every* account
+the flag names, kills their tokens, blocks their wallets and voids every
+unsent earning, with `in_flight_entries` counting what is already gone and
+cannot be called back. That deserves a confirm screen that spells out the
+damage in the admin's own numbers, which is a design pass rather than a
+button, so it is not being bolted on at the end of a pay-terms change.
+
+---
+
+## 2. Let an admin see the damage before upholding, not after
+
+`closed_user_ids`, `voided_amount_kobo` and `in_flight_entries` are on
+`DuplicateFlagOut`, and they are null until the flag is resolved. So the only
+way to learn what upholding costs is to uphold it.
+
+That is backwards for this particular action. It closes every account the flag
+names, kills their tokens, blocks their wallets and voids their unsent
+earnings — and `in_flight_entries` counts the part that is already gone and
+cannot be called back. An admin should be able to read
+
+> this closes 2 accounts and voids ₦41,200, of which ₦8,000 is already on its
+> way
+
+**and then decide.** Reading it afterwards is a receipt, not a choice.
+
+A `?preview=true` on the resolve, or those three fields computed on a single
+`GET /payouts/duplicate-flags/{id}`, would do it. Either one unblocks ask 1:
+we can build the confirm screen around whichever you prefer.
+
+## 3. Four field names in the handoff do not match the API
+
+Minor, and we caught them by checking the OpenAPI document rather than
+trusting the prose — but worth saying so the next reader does not lose the
+same half hour. The 29 Oct handoff describes `GET /payments/terms` as
+carrying:
+
+| The handoff said | `PayTermsOut` actually has |
+| --- | --- |
+| `daily_sentence_limit` | `prompt_read_daily_limit` |
+| `daily_narration_seconds` | `narration_daily_seconds` |
+| `max_recording_seconds` | `narration_max_seconds` |
+| `next_cutoff` | `next_run_cutoff` |
+
+And on back-pay, `BackPayOut.contributors` is an **integer count**, with the
+rows in a separate `awards` array. The handoff's "Each row:" wording reads as
+though `contributors` is the list, and a row's id is `contributor_id` rather
+than `user_id`.
+
+None of this is a request to change the API — the spec is the contract and we
+have wired to it. It is a request to generate the handoff's field names from
+the spec, or to say plainly that the prose is a summary and the spec wins.
 
 ---
 
@@ -66,6 +124,15 @@ there is no deeper path to point at.
 | Intern scoping | **We removed our client-side filter rather than keeping it.** Ours kept rows assigned to the caller or to nobody, which drops your third group — clips they have written a verdict on that have since moved to somebody else. An intern would have watched their own past work disappear from their history. A redundant filter is harmless; one that disagrees with the server about what "theirs" means is not. |
 | A 502 on the document route | Now a retry rather than a dead end. The reason goes inline above the form and the submit button stays, so the next tap is the retry. A toast would have slid away while they were still reading it. |
 | The retired `409` | "Still being reviewed" is gone from our handling. The other three 409s still replace the form, because none of them has anything to retype. |
+| `GET /payments/terms` | Read once per session and shared, rather than typed into components. Every number in it has already changed once — ₦1,000 minimum, a 24-hour hold, a 1,000-clip week and milestone pay all went on 29 Oct — and a rate hardcoded in a component is a sentence that stays true on screen after it stops being true in the ledger. |
+| The 2-minute narration cap | **The recorder stops itself.** A take over the cap is refused rather than truncated, so the difference between enforcing this and not is whether somebody loses a take they have already spoken. It stops at `min(max_recording_seconds, remaining_seconds)`, polled rather than timed, because a take can be paused and a timer armed at the start would fire while paused. |
+| Two allowances | Each task's limit closes on its own, so the studio reads whichever one the current mode is counted in. One shared `remaining` would have shut the studio because somebody had used their sentences while a quarter of an hour of narration sat open. |
+| `weekly_*` | Not read anywhere. They are always null now and nothing was left pointing at them. |
+| The pay-day gate | The withdraw button is disabled off-Sunday and under the minimum, with the reason in its hint. Your `409`s are clear and are still the boundary; a refusal arrives *after* a tap on a button that looked ready, and "payments go out on Sundays" is a thing somebody wants before they press rather than after. |
+| `pay` replacing `milestone` | The dashboard gauge now runs from `unpaid_kobo` to `payout_minimum_kobo`. Worth noting the question changed, not just the field: a milestone reset every 500 clips, a balance carries over until it is paid, so the bar stays full once cleared rather than starting again. |
+| `kind: "top_up"` | Labelled "Back-pay at the new rates" in the ledger. Like a milestone it has no `recording_id` or `unit_type`, which is what used to throw. |
+| `unmeasured_narrations` | Shown in the back-pay dialog as its own line. An admin signing off a credit should be able to see how much of it is priced on recorded length rather than speaking time — generous rather than accurate, and their call to make knowingly. |
+| Prompt assignment | Nothing to change: the studio pages `GET /prompts`, which answers a contributor with their held prompts now, so the same call returns the right set. The `409` for a prompt with two readers drops the take and moves on rather than leaving somebody pressing Save against a prompt that will never take it. |
 | A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. The same is true of a 410, which means the flow changed under us again and needs to reach us rather than them. |
 | "Submitted" vs "verified" | The success toast shows your `detail` verbatim, which says submitted. Nothing on our side says verified until `identity_status` does. A review is a person reading a document, and the old face match came back in minutes — the wait is the thing most likely to be misread, so the wording is yours rather than ours. |
 | Toasts | Wrap to two lines now, left aligned and smaller. "This payout account is on hold while we r…" was being cut mid-word. |

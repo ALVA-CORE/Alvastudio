@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SyncMilestonesDialog } from "@/components/admin/payments/SyncMilestonesDialog";
+import { BackPayDialog } from "@/components/admin/payments/BackPayDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
 import {
@@ -207,14 +207,14 @@ export default function AdminPaymentsPage() {
                   Export CSV
                 </DropdownMenuItem>
 
-                {/* One-off: milestone pay replaced per-clip pay, and this
-                    credits the blocks people had already earned. */}
+                {/* One-off: the 29 Oct rates replaced milestone pay, and
+                    this credits the difference on work already approved. */}
                 <DropdownMenuItem
                   className="gap-2 rounded-xl"
                   onSelect={() => setSyncOpen(true)}
                 >
                   <BillList size={15} weight="Outline" />
-                  Back-pay milestones
+                  Back-pay at new rates
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -283,7 +283,7 @@ export default function AdminPaymentsPage() {
 
       <AlvaChartCard
         title="Historic rates"
-        subtitle="What clips paid before milestone pay. Contributors now earn ₦5,000 for every 500 approved clips"
+        subtitle="What clips paid before 29 Oct. Contributors now earn ₦10 a sentence and ₦5,000 per 60 approved minutes of speech"
         className="mt-2"
       >
         {ratesError ? (
@@ -425,7 +425,7 @@ export default function AdminPaymentsPage() {
         </TabsContent>
       </Tabs>
 
-      <SyncMilestonesDialog
+      <BackPayDialog
         open={syncOpen}
         onOpenChange={setSyncOpen}
         onDone={reloadEarnings}

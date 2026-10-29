@@ -16,6 +16,7 @@ import {
   submitIdentityDocument,
   withdraw,
 } from "@/data/contributors/walletStore";
+import { usePaymentTerms } from "@/hooks/usePaymentTerms";
 import { alvaDarkTexture } from "@/lib/alva-texture";
 import {
   formatWalletNaira,
@@ -47,6 +48,18 @@ import { cn } from "@/lib/utils";
  * under the dip.
  * ------------------------------------------------------------------------- */
 const ICON_TOP = "pt-7";
+
+/** ", the next is Sun 1 Nov". Empty when the API has not said. */
+function nextPayDay(iso: string | undefined) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return `, the next is ${date.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })}`;
+}
 export function WalletFace({
   wallet,
   onRefresh,
@@ -80,8 +93,34 @@ export function WalletFace({
   const needsOnboarding = wallet.nextAction === "complete_onboarding";
   const [opening, setOpening] = useState(false);
 
+  /**
+   * Payments happen on Sundays, and only above the minimum.
+   *
+   * Both are the API's rules and it refuses clearly when they are broken.
+   * They are mirrored here because the refusals arrive *after* a tap on a
+   * button that looked ready — and "Payments are made on Sundays" is a
+   * thing somebody wants to know before they press, not after.
+   *
+   * Terms come from `GET /payments/terms` rather than constants. Every
+   * number in this paragraph has already changed once: ₦1,000 minimum, a
+   * 24-hour hold and any-day withdrawals all went on 29 Oct.
+   */
+  const terms = usePaymentTerms();
+
+  /* WAT is UTC+1 and everybody using this is in it, so the local day is the
+     Nigerian day. Null terms mean the rule is unknown, and then the button
+     is left alone for the API to judge. */
+  const isPayDay = terms ? new Date().getDay() === 0 : true;
+  const minimumKobo = terms?.payout_minimum_kobo ?? 0;
+  const underMinimum = wallet.balanceKobo < minimumKobo;
+
   const canWithdraw =
-    verified && linked && !needsOnboarding && wallet.balanceKobo > 0;
+    verified &&
+    linked &&
+    !needsOnboarding &&
+    wallet.balanceKobo > 0 &&
+    isPayDay &&
+    !underMinimum;
 
   return (
     <div className={cn("w-full", className)}>
@@ -107,7 +146,10 @@ export function WalletFace({
               {
                 id: "held",
                 label: "On hold",
-                caption: "Clears once review is done",
+                /* The 24-hour maturing hold ended on 29 Oct. `held` now
+                   means "approved after this Sunday's cutoff", so it is
+                   non-zero only on a Sunday and clears a week later. */
+                caption: "Approved after the cutoff, pays next Sunday",
                 kobo: wallet.pendingKobo,
               },
               {
@@ -143,7 +185,11 @@ export function WalletFace({
                       ? "Link a bank first"
                       : wallet.balanceKobo === 0
                         ? "Nothing to withdraw yet"
-                        : undefined
+                        : underMinimum
+                          ? `${formatWalletNaira(minimumKobo)} minimum, your balance carries over`
+                          : !isPayDay
+                            ? `Payments go out on Sundays${nextPayDay(terms?.next_pay_day)}`
+                            : undefined
               }
               onClick={async () => {
                 try {
@@ -153,9 +199,11 @@ export function WalletFace({
                     `${formatWalletNaira(wallet.balanceKobo)} on the way`
                   );
                 } catch (cause) {
-                  /* 409 twice over: nothing matured above the minimum, or a
-                   * payment is already in flight. The second is "already on
-                   * its way", not an error to retry. */
+                  /* 409 three ways now: the wrong day of the week, a
+                   * balance under the ₦5,000 minimum, or a payment already
+                   * in flight. All three are shown as sent — each names the
+                   * next Sunday or says the balance carries over, which is
+                   * more than a generic line could. */
                   const message = reportApiError(
                     cause,
                     "Could not start that withdrawal."

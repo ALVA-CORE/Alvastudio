@@ -23,13 +23,14 @@ export type RoleVersion = {
 
 export const APP_VERSIONS = {
   contributor: {
-    version: "1.6.0",
-    released: "2026-10-28",
+    version: "2.0.0",
+    released: "2026-10-29",
     notes: [
+      "New pay: ₦10 a sentence, ₦5,000 per hour of speech",
+      "Paid on Sundays, once you pass ₦5,000",
+      "200 sentences and 15 minutes of narration a day",
+      "Narration takes stop themselves at 2 minutes",
       "A guide to getting your recordings approved",
-      "Set a new password from the emailed link",
-      "Verify with your NIN document instead of a selfie",
-      "Try again if an ID upload is interrupted",
     ],
   },
   intern: {
@@ -54,9 +55,10 @@ export const APP_VERSIONS = {
     ],
   },
   admin: {
-    version: "1.7.0",
-    released: "2026-10-28",
+    version: "1.8.0",
+    released: "2026-10-29",
     notes: [
+      "Back-pay everyone at the new rates",
       "Tell contributors to redo their ID check",
       "Close sign-ups when the platform is full",
       "Account recovery queue, with real delivery status",

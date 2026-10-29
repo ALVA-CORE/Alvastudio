@@ -95,12 +95,34 @@ export const syncMilestones = (apply = false) =>
  */
 export type ApiDuplicateFlag = {
   id: string;
+  /** `identity_reuse` or `destination_reuse`. */
   kind: string;
   status: string;
   user_id: string;
   matched_user_id: string | null;
   detail: string | null;
   created_at: string;
+  resolved_at?: string | null;
+  resolved_by_id?: string | null;
+  resolution_notes?: string | null;
+
+  /**
+   * What upholding this flag did, filled in only once it has been.
+   *
+   * Upholding closes **every** account the flag names, the first one
+   * included: deactivated, token dead, wallet blocked, unsent earnings
+   * voided. So an admin pressing it ends more than one person's access and
+   * more than one person's unpaid work.
+   *
+   * `in_flight_entries` is the part that cannot be undone — payments
+   * already on their way, which voiding cannot call back.
+   *
+   * All three are **null in the flag list**, meaning "not computed here"
+   * rather than "none". A zero would be a claim the list has not made.
+   */
+  closed_user_ids?: string[] | null;
+  voided_amount_kobo?: number | null;
+  in_flight_entries?: number | null;
 };
 
 export const listDuplicateFlags = (status = "open", limit = 50) =>
@@ -140,6 +162,75 @@ export const identityRecheck = (apply = false) =>
     queued: number;
     contributors: ApiIdentityRecheckRow[];
   }>("/payouts/identity-recheck", {
+    method: "POST",
+    query: apply ? { apply: true } : undefined,
+  });
+
+/**
+ * The pay terms, as the API applies them.
+ *
+ * Read rather than hardcoded. Every number here has already changed once —
+ * ₦5,000 per 500 clips, a 1,000-clip week, a 24-hour hold and a ₦1,000
+ * minimum all went on 29 Oct — and a rate typed into a component is a
+ * sentence that keeps being true on screen after it stops being true in the
+ * ledger.
+ */
+export type ApiPaymentTerms = {
+  currency: string;
+  sentence_rate_kobo: number;
+  narration_rate_per_hour_kobo: number;
+  payout_minimum_kobo: number;
+  /** `sunday`, as the API words it. */
+  pay_day: string;
+  next_pay_day: string;
+  /** Work approved before this goes in the coming run. */
+  next_run_cutoff: string;
+  prompt_read_daily_limit: number;
+  narration_daily_seconds: number;
+  /** The longest single take, in recorded seconds. */
+  narration_max_seconds: number;
+  /** A pause longer than this is trimmed out of speaking time. */
+  long_pause_seconds: number;
+};
+
+export const paymentTerms = () => apiFetch<ApiPaymentTerms>("/payments/terms");
+
+/**
+ * Re-prices work approved before the new terms, and credits the difference.
+ *
+ * A preview by default. It pays each active contributor's approved work at
+ * the new rates **less everything ever credited to them** — old per-clip pay,
+ * milestones and voids included — so anybody already paid more keeps it and
+ * nobody is paid twice. Safe to run again.
+ *
+ * `unmeasured_narrations` is the honest part: old narrations are measured
+ * from their files, and any that cannot be read are paid on their recorded
+ * length instead of their speaking time. That is generous rather than
+ * accurate, and an admin should be able to see how much of the award it is.
+ */
+export type ApiBackPayRow = {
+  contributor_id: string;
+  full_name: string;
+  approved_sentences: number;
+  approved_narration_seconds: number;
+  /** Paid on recorded length because the audio could not be measured. */
+  unmeasured_narrations: number;
+  owed: string;
+  already_credited: string;
+  award: string;
+  award_kobo: number;
+};
+
+export const backPay = (apply = false) =>
+  apiFetch<{
+    applied: boolean;
+    /** A **count**, not the rows. The rows are `awards`. */
+    contributors: number;
+    awards: ApiBackPayRow[];
+    total_award: string;
+    total_award_kobo: number;
+    currency: string;
+  }>("/payments/back-pay", {
     method: "POST",
     query: apply ? { apply: true } : undefined,
   });

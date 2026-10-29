@@ -26,7 +26,7 @@ const PALETTE = [
 /**
  * What clips used to pay, per unit.
  *
- * Read-only since milestone pay replaced per-clip pay: `PUT /payments/rates`
+ * Read-only since the 29 Oct rates replaced per-clip pay: `PUT /payments/rates`
  * still answers, but the number it stores no longer prices anything. An
  * editable field that changes nothing is worse than no field, so the editing
  * is gone and the card says what these are.

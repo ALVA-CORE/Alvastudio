@@ -7,29 +7,42 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TextureButton } from "@/components/ui/texture-button";
-import { syncMilestones } from "@/lib/api/payouts";
+import { backPay, type ApiBackPayRow } from "@/lib/api/payouts";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
 import { NO_VALUE } from "@/lib/no-value";
 
 type Preview = {
+  /* `contributors` is a count and `awards` holds the rows. Named apart
+     because reading one as the other is silent: `.length` on a number is
+     `undefined`, which renders as nothing rather than as an error. */
   contributors: number;
+  awards: ApiBackPayRow[];
   total_award: string;
   currency: string;
 };
 
 /**
- * Back-pays the milestones contributors reached before milestone pay shipped.
+ * Re-prices work approved before the 29 Oct rates and credits the difference.
  *
- * A one-off, but one that moves money, so it previews before it credits: the
- * route is a preview unless `apply` is set, and this shows what that preview
- * says before offering the button that spends it.
+ * This was milestone back-pay. Milestones ended; the route stayed and
+ * changed what it does, and `POST /payments/milestones/sync` is now a
+ * deprecated alias of `POST /payments/back-pay` that returns the new shape.
+ * So the dialog had to move with it or it would have been reading fields
+ * that no longer arrive.
  *
- * Running it twice is safe — a second run finds nothing due — so a plain
- * confirm is enough. The 24-hour hold still applies before anything credited
- * here can be withdrawn.
+ * It moves money, so it previews before it credits. Each contributor's
+ * approved work is priced at the new rates **less everything ever credited
+ * to them** — old per-clip pay, milestones and voids included — so anybody
+ * already paid more keeps it and nobody is paid twice. Safe to run again.
+ *
+ * `unmeasured_narrations` is the number worth showing. Old narrations are
+ * measured from their audio, and any that cannot be read are paid on their
+ * recorded length rather than their speaking time. That is generous rather
+ * than accurate, and an admin signing this off should be able to see how
+ * much of it is a guess.
  */
-export function SyncMilestonesDialog({
+export function BackPayDialog({
   open,
   onOpenChange,
   onDone,
@@ -49,7 +62,7 @@ export function SyncMilestonesDialog({
     setPreview(null);
     setError(null);
 
-    syncMilestones(false)
+    backPay(false)
       .then((result) => {
         if (!cancelled) setPreview(result);
       })
@@ -64,12 +77,17 @@ export function SyncMilestonesDialog({
 
   const nothingDue = preview?.contributors === 0;
 
+  /* How much of the award is priced on recorded length instead of speaking
+     time, because the audio could not be read. */
+  const unmeasured =
+    preview?.awards.reduce((sum, row) => sum + row.unmeasured_narrations, 0) ?? 0;
+
   const apply = async () => {
     setApplying(true);
     setError(null);
 
     try {
-      const result = await syncMilestones(true);
+      const result = await backPay(true);
       alvaToast.success(
         `${result.currency} ${result.total_award} credited to ${result.contributors} contributors`
       );
@@ -91,15 +109,16 @@ export function SyncMilestonesDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
             <BillList size={20} weight="BoldDuotone" className="text-alva-accent" />
-            Back-pay milestones
+            Back-pay at the new rates
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Credits the blocks of 500 approved clips contributors had already
-            reached before milestone pay started. Anything they were paid per
-            clip is subtracted, so nothing is paid twice.
+            Re-prices every contributor's approved work at the rates that
+            started on 29 Oct, less everything they have already been paid.
+            Anybody who was paid more keeps it, and running this twice
+            credits nothing the second time.
           </p>
 
           <div className="grid grid-cols-2 gap-2">
@@ -116,6 +135,15 @@ export function SyncMilestonesDialog({
               </p>
             </div>
           </div>
+
+          {unmeasured > 0 ? (
+            <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-300">
+              {unmeasured} {unmeasured === 1 ? "narration" : "narrations"} could
+              not be measured, so {unmeasured === 1 ? "it is" : "they are"} paid
+              on recorded length rather than speaking time. That pays slightly
+              over, never under.
+            </p>
+          ) : null}
 
           {nothingDue ? (
             <p className="text-xs text-muted-foreground">

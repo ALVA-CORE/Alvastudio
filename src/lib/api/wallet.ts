@@ -213,9 +213,14 @@ export const submitIdentityDocument = (body: ApiIdentityDocumentBody) =>
  * admin run uses, deliberately, so it cannot become a weaker second route to
  * the same money.
  *
- * Expect **409** twice over: nothing matured above the minimum, or a payment
- * to this person already in flight. The second is "already on its way" rather
- * than an error to retry, which is what stops a double tap sending twice.
+ * **Sundays only since 29 Oct.** Any other day answers `409` naming the next
+ * one. The minimum is ₦5,000, and a balance under it carries over rather
+ * than being lost — which the refusal says, so it is shown as sent.
+ *
+ * Expect `409` three ways now: the wrong day, under the minimum, or a
+ * payment to this person already in flight. The last is "already on its way"
+ * rather than an error to retry, which is what stops a double tap sending
+ * twice.
  */
 export const withdraw = () =>
   apiFetch<{ id: string; status: string }>("/wallet/withdrawals", {
@@ -228,8 +233,14 @@ export type ApiLedgerEntry = {
    * `milestone` is an award for a block of 500 approved clips; `clip` is the
    * old per-clip pay, which still exists on older rows and still pays out.
    */
-  kind?: "milestone" | "clip";
-  /** 1 = 500 clips, 2 = 1,000. Null on a per-clip row. */
+  /**
+   * `recording` is the pay-per-approval earning introduced on 29 Oct, and
+   * `top_up` is back-pay for work approved before those rates. `clip` and
+   * `milestone` are history: they still exist on older rows and still pay
+   * out, so neither can be dropped from this union.
+   */
+  kind?: "recording" | "top_up" | "milestone" | "clip";
+  /** @deprecated 1 = 500 clips, 2 = 1,000. Only on historical rows. */
   milestone_number?: number | null;
   /** Null on a milestone award: it is not about one recording. */
   recording_id: string | null;

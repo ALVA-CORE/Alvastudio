@@ -16,6 +16,17 @@ export type ApiRecording = {
   device_mic: string | null;
   status: ApiRecordingStatus;
   assigned_reviewer_id: string | null;
+  /**
+   * Speaking time, in seconds, which is what narration is paid on.
+   *
+   * Leading and trailing silence is trimmed, and so is any pause over a
+   * second; breaths and gaps between words count. So this is always shorter
+   * than `duration_seconds` and is the number a contributor is paid for.
+   *
+   * **Null for a recording made before 29 Oct** that has not been measured
+   * since — not zero. A zero would say somebody said nothing.
+   */
+  speech_seconds?: number | null;
   reviewed_at: string | null;
   created_at: string;
   /**
@@ -32,6 +43,16 @@ export type ApiRecording = {
 
 /** Six hours, which is the API's ceiling on any duration it stores. */
 export const MAX_DURATION_SECONDS = 21_600;
+
+/**
+ * The longest narration take the API accepts, in recorded seconds.
+ *
+ * A fallback only. `quota.narration.max_recording_seconds` is the real
+ * number and the recorder uses it; this is what it stops at when the quota
+ * call has not answered yet, because the alternative is recording two
+ * minutes of somebody's voice into a `422`.
+ */
+export const NARRATION_MAX_SECONDS = 120;
 
 export function isSendableDuration(value: number | undefined): value is number {
   return (
@@ -138,24 +159,57 @@ export const recordingAudioUrl = (id: string) =>
   apiFetchBlobUrl(`/recordings/${id}/audio`);
 
 /**
- * How much a contributor may still upload.
+ * How much a contributor may still record today.
  *
- * 200 a day and 1,000 a week, on Nigerian calendar periods: the day resets at
- * midnight WAT and the week on Monday. Worth checking **before** recording —
- * a refusal at upload would throw away a clip somebody has just spoken.
+ * **Two allowances since 29 Oct, one per task, each closing on its own.**
+ * Prompt Reader is counted in sentences, Stimuli Narration in *speaking*
+ * seconds — silence trimmed — so the two cannot share a number. Both reset
+ * at midnight WAT. There is no weekly limit any more.
  *
- * Every upload counts, whatever the review says afterwards.
+ * Worth reading **before** recording: a refusal at upload throws away a clip
+ * somebody has just spoken, and every upload counts whatever the review says
+ * afterwards.
  */
+export type ApiTaskQuota = {
+  limit: number;
+  used: number;
+  remaining: number;
+  resets_at: string;
+};
+
+export type ApiNarrationQuota = {
+  limit_seconds: number;
+  used_seconds: number;
+  remaining_seconds: number;
+  /**
+   * The longest single take the API will accept, in recorded seconds.
+   *
+   * A longer one is **refused**, not truncated: `422` and the take is gone.
+   * So the recorder stops itself at the smaller of this and what is left of
+   * today, and a take capped that way always fits — speaking time is never
+   * longer than the recording it came from.
+   */
+  max_recording_seconds: number;
+  resets_at: string;
+};
+
 export type ApiRecordingQuota = {
+  /** Sentences. */
+  prompt_read: ApiTaskQuota;
+  /** Speaking seconds. */
+  narration: ApiNarrationQuota;
+
+  /* ---- The flat fields, which now describe Prompt Reader only ---- */
   daily_limit: number;
   daily_used: number;
   daily_remaining: number;
   daily_resets_at: string;
-  weekly_limit: number;
-  weekly_used: number;
-  weekly_remaining: number;
-  weekly_resets_at: string;
-  /** The smaller of the two allowances. This is the number that matters. */
+  /** Always null since 29 Oct. There is no weekly limit. */
+  weekly_limit: number | null;
+  weekly_used: number | null;
+  weekly_remaining: number | null;
+  weekly_resets_at: string | null;
+  /** Prompt Reader's remaining sentences. Narration has its own. */
   remaining: number;
   available_again_at: string | null;
 };

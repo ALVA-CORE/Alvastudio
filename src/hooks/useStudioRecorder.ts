@@ -36,7 +36,22 @@ function extensionFor(mimeType: string): string {
   return base.split("/")[1] ?? "webm";
 }
 
-export function useStudioRecorder() {
+export function useStudioRecorder({
+  /**
+   * Stop the take by itself at this many seconds. Null for no limit.
+   *
+   * Narration needs it: since 29 Oct a take over
+   * `quota.narration.max_recording_seconds` is **refused**, not truncated,
+   * so a contributor who talks for 2:05 loses the whole thing to a `422`.
+   * The recorder stopping itself at the line is the difference between a
+   * take that is saved and a take that never existed.
+   *
+   * The caller passes the smaller of that cap and what is left of today's
+   * narration time: a take capped that way always fits, because speaking
+   * time is never longer than the recording it came from.
+   */
+  maxSeconds = null,
+}: { maxSeconds?: number | null } = {}) {
   const [phase, setPhase] = useState<RecorderPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [hasBlob, setHasBlob] = useState(false);
@@ -152,6 +167,41 @@ export function useStudioRecorder() {
   }, []);
 
   /**
+   * Ends the take on its own at the limit.
+   *
+   * Polled rather than set as one timeout, because the take can be paused:
+   * a timer armed at start would fire while paused and cut a take that had
+   * not actually reached the limit. `getDuration` already banks elapsed
+   * time across pauses, so asking it four times a second is both simpler
+   * and correct.
+   *
+   * It stops at the line rather than refusing to start near it. Somebody
+   * forty seconds from their daily limit should get forty seconds of take,
+   * not a disabled button.
+   */
+  const [autoStopped, setAutoStopped] = useState(false);
+
+  useEffect(() => {
+    if (phase !== "recording" || maxSeconds == null || maxSeconds <= 0) return;
+
+    const timer = window.setInterval(() => {
+      const elapsed =
+        elapsedRef.current +
+        (startedAtRef.current === null
+          ? 0
+          : (Date.now() - startedAtRef.current) / 1000);
+
+      if (elapsed >= maxSeconds) {
+        setAutoStopped(true);
+        mediaRecorderRef.current?.stop();
+        mediaRecorderRef.current = null;
+      }
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [phase, maxSeconds]);
+
+  /**
    * Holds the take without ending it.
    *
    * `MediaRecorder.pause` keeps the chunks already gathered and stops adding
@@ -251,6 +301,7 @@ export function useStudioRecorder() {
 
     blobRef.current = null;
     durationRef.current = 0;
+    setAutoStopped(false);
     elapsedRef.current = 0;
     startedAtRef.current = null;
     chunksRef.current = [];
@@ -288,6 +339,8 @@ export function useStudioRecorder() {
     getFilename: () => `recording.${extensionFor(mimeTypeRef.current)}`,
     /** Seconds of wall-clock recording, measured rather than decoded. */
     getDuration: () => durationRef.current,
+    /** The take ended because it hit the limit, not because they stopped it. */
+    autoStopped,
     /**
      * The microphone the take was recorded on, as the browser named it.
      *
