@@ -1,4 +1,4 @@
-# Endpoints we need
+# What we need from the backend
 
 Checked against the live OpenAPI document, 29 Oct 2026.
 
@@ -6,50 +6,51 @@ Checked against the live OpenAPI document, 29 Oct 2026.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | A preview of what upholding a duplicate flag would destroy | **The resolve screen, which is now the only thing left unbuilt** | **High** |
-| 2 | Four field names in the 29 Oct handoff do not match the API | Anybody wiring from the prose rather than the spec | Low |
+| 1 | Let us see what upholding a duplicate flag would destroy, before it does | An admin deciding blind on an irreversible action | **High** |
+| 2 | Generate the handoff's field names from the spec | The next person wiring from prose | Low |
 
-The 29 Oct pay terms are wired — see
-[`replies/api-status-2026-10-29.md`](replies/api-status-2026-10-29.md).
+Everything else is wired. `POST /payouts/duplicate-flags/{id}/resolve` now
+has a screen — Admin → Users → **Duplicates** — so nothing is unbuilt on our
+side waiting on you.
+
+---
 
 ## 1. Let an admin see the damage before upholding, not after
 
-**This is now blocking a screen rather than preceding one.** The resolve
-flow is the single piece of the product we have decided not to ship, and it
-is waiting on this one field.
-
-`GET /payouts/duplicate-flags` is wired: the admin dashboard counts open
-flags and says somebody needs attention. `POST /payouts/duplicate-flags/{id}/resolve`
-is **not called from anywhere**, by us — so a flag freezes payouts on the
-newer account and there is no way in the product to decide, which leaves
-every flagged contributor unpaid until somebody calls the API by hand.
-
-We could ship it today with a worded warning and no figures. We have chosen
-not to, because upholding closes *every* account the flag names, kills their
-tokens, blocks their wallets and voids every unsent earning — and
-`in_flight_entries` counts the part that is already gone and cannot be
-called back. An admin pressing that should know the number first.
-
 `closed_user_ids`, `voided_amount_kobo` and `in_flight_entries` are on
-`DuplicateFlagOut` and are null until the flag is resolved. So the only way
-to learn what upholding costs is to uphold it. An admin should be able to
-read
+`DuplicateFlagOut`, and they are null until the flag is resolved. So the only
+way to learn what upholding costs is to uphold it.
+
+**We have shipped it anyway**, because leaving flagged contributors unpaid
+while we waited was the worse of the two. The confirm names both accounts and
+spells out all three consequences in words:
+
+> Both accounts are turned off and their sign-ins stop working.
+> Both wallets are blocked and every unpaid earning is voided.
+> Any payment already on its way cannot be called back.
+
+Then it reports the real figures from your answer, afterwards.
+
+That ordering is the problem. An admin should be able to read
 
 > this closes 2 accounts and voids ₦41,200, of which ₦8,000 is already on
 > its way
 
-**and then decide.** Reading it afterwards is a receipt, not a choice.
+**and then decide.** Reading it afterwards is a receipt, not a choice — and
+this is the one action in the product that cannot be undone and that takes
+somebody's unpaid work with it.
 
-A `?preview=true` on the resolve, or those three fields computed on a single
-`GET /payouts/duplicate-flags/{id}`, would do it. Either one and we build the
-screen the same day.
+**What would fix it:** `?preview=true` on the resolve, returning the same
+three fields without doing anything. Or those fields computed on a single
+`GET /payouts/duplicate-flags/{id}`. Either one and the confirm shows real
+numbers the same day.
 
-## 2. Four field names in the handoff do not match the API
+## 2. Generate the handoff's field names from the spec
 
-Minor, and we caught them by checking the OpenAPI document rather than
-trusting the prose — but worth saying so the next reader does not lose the
-same half hour. The 29 Oct handoff describes `GET /payments/terms` as
-carrying:
+Minor, and we caught it by checking the OpenAPI document rather than trusting
+the prose — but it cost half an hour and would have shipped a silent bug.
+
+The 29 Oct handoff describes `GET /payments/terms` as carrying:
 
 | The handoff said | `PayTermsOut` actually has |
 | --- | --- |
@@ -58,117 +59,12 @@ carrying:
 | `max_recording_seconds` | `narration_max_seconds` |
 | `next_cutoff` | `next_run_cutoff` |
 
-And on back-pay, `BackPayOut.contributors` is an **integer count**, with the
+And on back-pay, `BackPayOut.contributors` is an **integer count** with the
 rows in a separate `awards` array. The handoff's "Each row:" wording reads as
-though `contributors` is the list, and a row's id is `contributor_id` rather
-than `user_id`.
+though `contributors` is the list — we wired it that way first, and
+`.length` on a number is `undefined`, which renders as nothing rather than as
+an error. A row's id is `contributor_id`, not `user_id`.
 
-None of this is a request to change the API — the spec is the contract and we
-have wired to it. It is a request to generate the handoff's field names from
-the spec, or to say plainly that the prose is a summary and the spec wins.
-
----
-
-## On our side, not asks
-
-| Item | Our handling |
-| --- | --- |
-| Upload quota | `GET /recordings/quota` is read before recording, so a refusal never discards a clip somebody has just spoken. 429 is handled with its `Retry-After`. |
-| `session.claim` events | Sent from the claim call, not the workspace, because claiming happens on the way to a session that is not open yet. |
-| `text.edit` payloads | Length only. Keystrokes are collapsed per segment per flush, so a sentence is one row rather than forty. |
-| Leaderboard ties | A podium that reads "1st, 1st, 1st" renders as-is. It is the truth about an early corpus. |
-| Six `identity_status` values | Driven from `next_action` on `GET /wallet`, which overrides the status where the two disagree. `await_review` is shown as a wait with no retry button; `await_verification` as a wait whatever the status says. |
-| `*_kobo` vs decimal strings | We use the integers |
-| `X-Total-Count` header | Not reachable from our client, so we pass `?envelope=true` |
-| `consent` on the document route | Still collected with a checkbox, and still never sent on somebody's behalf. It is an attestation, and the wording now says "review the ID document I upload" rather than the database check it used to describe. |
-| `document_content_type` | Images are re-encoded to JPEG through a canvas whatever they arrived as, and the type is declared from that, not from the picked file. A PNG passed through a canvas and still labelled `image/png` would be JPEG bytes under a PNG header. PDFs pass through untouched. |
-| Both sides agreeing | Enforced before the request, where the fix is still a tap on the picker. Because images are always re-encoded, a PNG front and a JPEG back agree without the person being told to convert anything; only a PDF mixed with a photo is refused, and the message names which side. |
-| The 4,194,304-character cap | Images are downscaled to a 1600px long edge, which lands far under it — bigger than the old selfie's 720px on purpose, because a person has to read the document number. A PDF cannot be shrunk in a browser, so an oversized one says "try a photo instead" rather than offering a retry that fails the same way. |
-| Double submission | The submit button is disabled while the request is in flight, and a 409, 410, 502 or 503 replaces the form rather than returning to it. Nothing in our client retries a request automatically — `apiFetch` has no retry at all — so an identity document is never re-uploaded without a person pressing something. |
-| NINs and documents at rest | Held in React state for the life of the sheet and dropped the moment it closes. No draft, no `localStorage`, no analytics, nothing in a URL, nothing logged. The sign-up forms use a draft helper; this sheet deliberately does not. |
-| A 502 on the document route | We stop rather than offer a retry, because your note says the provider may have the document anyway. See ask 3 — an idempotency key would let us do better. |
-| Polling a review | Only while something is pending, only while the tab is in front, every 20s, plus one re-read on return to the tab. One component owns the timer; the other two readers of the wallet on the same screen do not each run one. |
-| `POST /wallet/account` | Called as the first step of the gate when `next_action` says `create_account`, not on page load. It is one tap for the contributor either way. |
-| `POST /wallet/onboarding-link` | Requested on click only, never minted ahead of time. |
-| `/prompts/next` | Unused. A prompt is not used up by being read, so we page the whole active bank locally. |
-| `device_mic` on an upload | Now sent. We read the label off the live audio track, so it is the mic that clip was recorded on rather than the one typed into a profile. Blank where a browser withholds the label, and then omitted rather than guessed. |
-| `GET /wallet/payout-destination` | We were reading it as a single object with an `account_number`. It is a list, and carries `account_last4`, so the wallet shows a masked number and picks the first `is_usable` destination. |
-| `english_fluency` | Now sent and read back. It had nowhere to go when the onboarding form was built. |
-| Duration bounds | We drop a duration that is negative, infinite, NaN or over six hours rather than sending one that would be refused. A recorder left running in a background tab can produce one, and losing the take to a 422 is worse than losing the figure. |
-| `device_mic` length | Truncated to 255, the column width. A virtual device can carry a long label. |
-| The message guard is gone | We were pattern-matching "Bachs" at our boundary. Your 4xx and 5xx text is shown as sent now. |
-| Reassigning finished work | The button is gone for a submitted, approved or rejected annotation rather than offered and refused with a 409. |
-| Assign pickers | Filter on active AND approved. An unapproved annotator cannot do the work they would be handed. |
-| Session `state` | Read from the session's own field. We used to take the commonest state among the participants, which read Ogun for a Lagos session with a room from Ogun. |
-| Demographic charts | The pyramid counts speakers on the intern and annotator dashboards, and hours on the corpus page, since a focus-group file holds several voices. |
-| Clip approval axis | Labelled "Clips approved", not "Quality", per your caution. A higher share of approvals is not by itself better reviewing. |
-| `ethnicity`, `occupation` | Now sent and read back. They were collected at onboarding and discarded. |
-| Redaction | Wired from two places, as an intern meets the problem in two. The confirm checkbox is ticked by a person, never sent for them: untagged speech is not silenced, and no care at our end changes that. The player sits above it so the tick means something. |
-| `consent_blocked` | The workspace shows a banner on open, hides Mark as done, and makes autosave inert. Every write is a 409 while it holds, and an indicator cycling through "saving" and "failed" says nothing the banner has not. |
-| `accepting` vs `open` | We read `accepting` everywhere. Folding "an admin closed it" and "the limit is reached" into one field was more than we asked for and it removed the one place we would otherwise have reimplemented your rule. |
-| `waitlisted` | Read at the gate, not discovered a request at a time. A waitlisted contributor's **sign-in succeeds** — the token is issued, nothing throws — so without an explicit check they would land on a dashboard where every call answers 403. Login signs them back out and shows the sheet; a stored token for one is cleared on boot. |
-| The waiting list on the users table | Its own status, "On the waiting list", kept apart from "Pending approval" and tinted neutral rather than amber. Nobody is reviewing them and nothing is overdue — they are queueing, and an amber pill would say an admin was late. |
-| `code` on refusals | `ApiError.code` now carries it and `isAlreadyRegistered` branches on `email_taken` first. The old wording match is kept underneath only for a backend not yet on this version. |
-| `POST /payouts/identity-recheck` | An admin action on the users page. It previews first and names the people on the list, because somebody about to mail a group should see who they are. Repeat runs are safe, so a plain confirm is enough; a 503 shows as a refusal rather than a silent success. |
-| `kind: "identity"` | Its own notification category with a shield, not an announcement. It is the only notification standing between somebody and being paid, and an envelope beside "we have updated our terms" would be the wrong weight. It opens the wallet instead of a detail sheet: it carries no id, and the sheet would only repeat the row before telling them to go there anyway. |
-| Intern scoping | **We removed our client-side filter rather than keeping it.** Ours kept rows assigned to the caller or to nobody, which drops your third group — clips they have written a verdict on that have since moved to somebody else. An intern would have watched their own past work disappear from their history. A redundant filter is harmless; one that disagrees with the server about what "theirs" means is not. |
-| A 502 on the document route | Now a retry rather than a dead end. The reason goes inline above the form and the submit button stays, so the next tap is the retry. A toast would have slid away while they were still reading it. |
-| The retired `409` | "Still being reviewed" is gone from our handling. The other three 409s still replace the form, because none of them has anything to retype. |
-| `GET /payments/terms` | Read once per session and shared, rather than typed into components. Every number in it has already changed once — ₦1,000 minimum, a 24-hour hold, a 1,000-clip week and milestone pay all went on 29 Oct — and a rate hardcoded in a component is a sentence that stays true on screen after it stops being true in the ledger. |
-| The 2-minute narration cap | **The recorder stops itself.** A take over the cap is refused rather than truncated, so the difference between enforcing this and not is whether somebody loses a take they have already spoken. It stops at `min(max_recording_seconds, remaining_seconds)`, polled rather than timed, because a take can be paused and a timer armed at the start would fire while paused. |
-| Two allowances | Each task's limit closes on its own, so the studio reads whichever one the current mode is counted in. One shared `remaining` would have shut the studio because somebody had used their sentences while a quarter of an hour of narration sat open. |
-| `weekly_*` | Not read anywhere. They are always null now and nothing was left pointing at them. |
-| The pay-day gate | The withdraw button is disabled off-Sunday and under the minimum, with the reason in its hint. Your `409`s are clear and are still the boundary; a refusal arrives *after* a tap on a button that looked ready, and "payments go out on Sundays" is a thing somebody wants before they press rather than after. |
-| `pay` replacing `milestone` | The dashboard gauge now runs from `unpaid_kobo` to `payout_minimum_kobo`. Worth noting the question changed, not just the field: a milestone reset every 500 clips, a balance carries over until it is paid, so the bar stays full once cleared rather than starting again. |
-| `kind: "top_up"` | Labelled "Back-pay at the new rates" in the ledger. Like a milestone it has no `recording_id` or `unit_type`, which is what used to throw. |
-| `unmeasured_narrations` | Shown in the back-pay dialog as its own line. An admin signing off a credit should be able to see how much of it is priced on recorded length rather than speaking time — generous rather than accurate, and their call to make knowingly. |
-| Prompt assignment | Nothing to change: the studio pages `GET /prompts`, which answers a contributor with their held prompts now, so the same call returns the right set. The `409` for a prompt with two readers drops the take and moves on rather than leaving somebody pressing Save against a prompt that will never take it. |
-| `GET/PUT /onboarding/intern-profile` | **Was never called.** The intern sign-up asked for a primary state, a coverage area and an alert preference, and all three stopped at `localStorage` — they lived in one browser, vanished on a second device, and showed as "Not set" to the person who typed them. Saved at sign-up now and read on the profile page. `coverage` is one free-text line for us and a list for you, so it splits on commas. |
-| `GET /payments/earnings/{contributor_id}` | Wired, and it is what makes a void possible: the payments table is aggregated per contributor and a void needs one entry's id. |
-| `POST /payouts/ledger/{id}/void` | An action per entry in the earning panel, offered only on `pending`. Paid and in-flight money has left, and voiding it would make the ledger disagree with the bank rather than correct it. The reason is required because a void with no explanation is an unexplained cut to somebody's pay, and the question asked later is never "how much" but "why". |
-| `POST /wallet/sync` | Still not called, from anywhere. Confirming again because your identity-recheck list depends on it: the gap you flagged is empty for us. |
-| `/prompts/assigned` | Not used. `GET /prompts` already answers a contributor with their held prompts, which is the same set. We are deliberately not showing `reserved_until` or the reader count — a contributor does not need to know a prompt is reserved for them for 24 hours to read it, and it would make a quiet mechanism into a deadline. |
-| A duplicate NIN | The 409 replaces the form rather than flashing a toast. Retyping cannot fix it, so there is nothing to go back to. The same is true of a 410, which means the flow changed under us again and needs to reach us rather than them. |
-| "Submitted" vs "verified" | The success toast shows your `detail` verbatim, which says submitted. Nothing on our side says verified until `identity_status` does. A review is a person reading a document, and the old face match came back in minutes — the wait is the thing most likely to be misread, so the wording is yours rather than ours. |
-| Toasts | Wrap to two lines now, left aligned and smaller. "This payout account is on hold while we r…" was being cut mid-word. |
-| Account recovery | Wired, both ends. `POST /auth/password-reset/request` from the forgot-password page, and an admin queue on the users page for approve and deny. The form says the same thing whatever the email was, because the API does: anything else turns it into a way to find out who has an account here. |
-| Recovery 503s | Shown as sent, on both routes. The forgot-password page prints your sentence under the form instead of its "request sent" screen, and the admin queue's toast carries it instead of a green tick. |
-| The reset link, after an approval | The toast now reads `GET /users/{id}/emails` rather than the 200. A `failed` row says the email was refused and points the admin at the manual reset; `sent` says sent, not delivered. This is the screen that spent three weeks telling admins a link had gone out while every one of them was being refused. |
-| Emails | We send none and add none. The list in §1 of your 24 Oct reply is what we build around: no in-app message claims an email was sent except the recovery one above, which now reads the delivery record. Templates are still coming to us to style. |
-| Milestone pay | The progress bar sits on the contributor's points card: points are not money, and money arrives in ₦5,000 steps. Ledger rows handle a null `recording_id` and `unit_type` — reading `unit_type` blindly threw on the first award. |
-| The rate editor | Read-only now, titled "Historic rates", with the milestone terms in the subtitle. A field that changes nothing is worse than no field. |
-| Back-pay | In a menu on the payments header rather than a third button beside Run payment. Previews, then credits. |
-| Password change | Sends them to sign in on the 200, rather than waiting to be thrown out by a 401 on whatever they tap next. |
-| History tabs | All four read `GET /audit`, with `sign_ins` left at its default, so they are unchanged by the new actions. |
-| Sign-ins | In the audit log, not beside it. One list, `sign_ins=include`, interleaved: "signed in on a new device" followed by "password changed" is a story you can only read if the two are in the same timeline. The filter that used to narrow to sign-ins is gone, and so is the reason for it — the tab pages now, so a year of sign-ins can no longer push a password change off the end of a fixed fetch. The 90-day retention is stated on the tab, since a gap means two different things either side of that line. See ask 2. |
-| `POST /auth/logout` | Called from the sign-out button, and not awaited. The token is stateless, so dropping it is what ends the session; a sign-out must not fail because the network did. `everywhere` is not wired to anything yet — we have no screen where somebody would reach for it. |
-| A deleted account signing in | We show nothing specific, because a deleted account answers exactly as a typo does. That is the right call and we are not asking you to change it. Approval-pending and deactivated both get their own screen, since those two are safe to name. |
-| The activity log | No longer a switch. It is on, locked, and the copy says what is recorded rather than thanking anybody for agreeing to it. |
-| Deleting an account | The bin opened a confirm pair with no words on it, on a hard delete. It now opens a dialog built from `GET /users/{id}/deletion-preview`, which your description already said to call first, and offers deactivating as the reversible alternative. |
-| The Activity tab | Refilled from `GET /users/{id}/activity`. Every noun on it comes from your `unit` rather than a lookup on our side, and the outcome figures are printed as sent. The heatmap pins each UTC day to the same-numbered local day: parsed as a timestamp, `2026-10-24` is the 23rd west of Greenwich, and a calendar a day out does not look broken. |
-| A 401 | Signs the person out and sends them to login. Every screen used to render its own red box about credentials with a Retry that could not work. |
-| Invented history | Removed. Four History tabs were reconstructing events with made-up timestamps. They now show only what you measure, with a line saying the list is partial. |
-| Seeded fallbacks | Cleared. A dashboard with no response shows zeroes, never a sample: these are figures about one person's own work. The seeded sets are reachable only from demo mode. |
-| Remember me | Entirely ours, nothing needed from you. Ticked keeps the token in localStorage, unticked in sessionStorage, so it only decides whether the token outlives the tab. How long the token is valid stays yours. |
-| Sign-up drafts | All three sign-up forms keep their answers across a refresh, in localStorage. Password fields are excluded and never written. |
-| `RegisterIn.role` | We were downgrading `annotator` to `contributor` before sending, left over from when there was no annotator sign-up. Now sent as-is. |
-| iOS Safari mp4/AAC | The type comes from `MediaRecorder.mimeType`, with a matching extension. |
-| Mock data | Gone, and barred. Demo mode, the seeded datasets behind it and the `alva-dev-ui-state` switch are deleted. Every generated row now lives in `src/test`, which an ESLint rule stops shipping code from importing, so a screen with no data shows zeroes rather than a sample. The ones that were still live: the intern charts drew a fixture on a live page, two dashboards fell back to a seeded year when a request failed, and two pages ran a timer that pretended to be a fetch. |
-| `stuck_*` counts | Relabelled. "217 recordings await a verdict" read as the whole pending queue and disagreed with the review page's own total; your `stuck_*` figures count only what has waited past `STUCK_AFTER_DAYS`. It says "have waited too long" now. |
-| Reviewer answers | The admin panel was generating them from a seeded random keyed on the recording id: an approved clip got four yeses, an unreviewed one got four yeses under the heading "Reviewer answers", and a rejection got a roll of the dice. So an admin read a named intern's judgement the intern had never made. They come from the `q_*` fields on `GET /reviews` now, and a clip with no verdict says nobody has reviewed it. |
-| `GET /reviews/recording/{id}` | Now used. It has been in the API the whole time and nothing was calling it, so an intern reopening a review they had submitted saw an empty rubric unless the draft happened to still be in that browser. |
-| A submitted review | Read-only on the intern side. The radios show what they chose, disabled, and there is no Submit button: your API refuses a second verdict on the same recording, so an editable form could only ever end in a refusal after the work of filling it in. |
-| Approval rate | One definition, shared. The dashboard read 0% while the review page read 100% on the same corpus, because one counted hours over the whole corpus and the other counted clips over what had been decided. Both now count **clips**, divided by approved plus rejected, from `recording_status`. A queue with no verdicts says so rather than showing 0%. |
-| Page size | We were sending `limit: 200` and treating the answer as the whole list. Your cap is 200, so "Recordings 200" on the oversight screen was the page size, and the status ring, the approval gauge and the reviewer flow were all computed from whichever 200 came back — which is why a clip approved outside that window never appeared. Every admin list pages to its envelope `total` now. |
-| Focus group speakers | An admin could see a speaker count and nothing else. The participants and the recording both come back from `GET /focus-groups/{id}` and `GET /focus-groups/{id}/audio`, and neither was being read, so a session was approved on a count and the word "uploaded". Both are on the session panel now, consent first. |
-| `GET /users/contributors` | Now used for the reviewer's contributor names. `GET /users?role=contributor` is admin-only, so an intern's review screen was getting a 403 and falling back to eight characters of a UUID in place of every name — silently, because that lookup is deliberately non-fatal. |
-| Feedback routes | Wired. `POST /feedback` from the form, `GET /feedback` for the admin table, `PATCH /feedback/{id}` for the row menu. The mailto fallback stays as a backstop for a 404 and no longer fires. |
-| Stars | Required, 1 to 5, as the ask said. Our "on our side" note calling them optional was out of date, not the API. |
-| Sign-in retention | A year. The copy on the user panel says so. The annotation activity log stays at 90 days, which the annotator profile still says, because it is a different record and 90 days is part of what they agreed to. |
-| Feedback | A form on every profile page: optional stars, a dropdown, the writing, and the route they were on. Submitting tries `POST /feedback` and falls back to a prefilled mail to support when that 404s, so nothing anybody writes is lost waiting for a deploy. See ask 1. |
-| Reset password, in the admin panel, again | It now emails them. `POST /users/{id}/password-reset` queues the mail itself ("a reset email is queued when Resend is configured"), so the admin confirms, we send, and we report delivery from `GET /users/{id}/emails`. The token is shown **only** when the email did not go, with the reason, because an admin whose mail is down and who is shown nothing has a locked-out colleague and no way to help. Creating an account does not re-issue: `POST /users` already minted one and queued the invitation, and a second token would expire the link already in their inbox. |
-| Reset password, in the admin panel | Was offered for annotators and admins only, on the belief that there was no admin-triggered reset for the other roles. `POST /users/{id}/password-reset` takes any account, and while mail is refused it is the only way back in, so it is offered for every role now. |
-| Profile rows | Merged. "Location & accent" into the language profile, since where somebody is from is read to interpret their accent; "Recording setup" into account details; and "Consent & privacy" with "Notifications" into one "Privacy & alerts". |
-| Notification rows | The old ones read "Review updates: On" and similar, written into the page as strings with nothing behind them. They are sentences now, saying what the bell carries and what the inbox does, per §1 of your 24 Oct reply. |
-| A version number | At the foot of each profile page, one per role rather than one for the app: the roles ship on different clocks, and a contributor told their app moved because the admin surface did is reading somebody else's news. |
-| `GET /banks` | Nothing changed on our side for the cache. The empty picker is gone either way: an empty list was already being shown as a failure rather than as no banks. |
+No API change wanted: the spec is the contract and we have wired to it. Just
+generate the field names in the handoff from the spec, or say plainly that
+the prose is a summary and the spec wins.

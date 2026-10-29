@@ -8,6 +8,8 @@ import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { IdentityRecheckTable } from "@/components/admin/users/IdentityRecheckTable";
+import { DuplicateFlagsTable } from "@/components/admin/users/DuplicateFlagsTable";
+import { useDuplicateFlags } from "@/hooks/useDuplicateFlags";
 import { useIdentityRecheck } from "@/hooks/useIdentityRecheck";
 import Letter from "@solar-icons/react/messages/Letter";
 import Refresh from "@solar-icons/react/arrows/Refresh";
@@ -37,7 +39,7 @@ import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
 
-type Tab = "accounts" | "recovery" | "identity";
+type Tab = "accounts" | "recovery" | "identity" | "duplicates";
 
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | AccountStatus;
@@ -81,6 +83,11 @@ export default function AdminUsersPage() {
      can carry the action. Not fetched until the tab is opened: it is a
      one-off clean-up, not something every admin needs on every visit. */
   const recheck = useIdentityRecheck(tab === "identity");
+
+  /* Counted whenever the page is open, not only on its own tab: an open
+     flag is somebody not being paid, and a tab nobody clicks would hide
+     that. The rows themselves are only read once the tab is opened. */
+  const duplicates = useDuplicateFlags(true);
   const recovery = useRecoveryRequests();
   /* The account just created, so the dialog can report whether its
    * invitation email went out. Set only once the create has returned. */
@@ -328,6 +335,12 @@ export default function AdminUsersPage() {
             >
               ID recheck <Count value={recheck.rows.length} />
             </TabsTrigger>
+            <TabsTrigger
+              value="duplicates"
+              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+            >
+              Duplicates <Count value={duplicates.flags.length} />
+            </TabsTrigger>
           </TabsList>
 
           {tab === "identity" ? (
@@ -422,6 +435,10 @@ export default function AdminUsersPage() {
 
         <TabsContent value="identity" className="mt-2">
           <IdentityRecheckTable recheck={recheck} />
+        </TabsContent>
+
+        <TabsContent value="duplicates" className="mt-2">
+          <DuplicateFlagsTable active={tab === "duplicates"} users={rows} />
         </TabsContent>
       </Tabs>
 

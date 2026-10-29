@@ -126,6 +126,30 @@ export type ApiDuplicateFlag = {
   in_flight_entries?: number | null;
 };
 
+/**
+ * Decides a flag.
+ *
+ * `uphold: false` dismisses it — the hold comes off and both accounts carry
+ * on, which is the safe direction and the one most flags take.
+ *
+ * `uphold: true` is the other kind of action entirely: **every account the
+ * flag names is closed**, the first one included. Deactivated, tokens dead,
+ * wallets blocked, every unsent earning voided. The answer carries
+ * `closed_user_ids`, `voided_amount_kobo` and `in_flight_entries` — what it
+ * did, after it has done it.
+ *
+ * `notes` is recorded on the flag either way, and is what the next admin
+ * reads instead of guessing why.
+ */
+export const resolveDuplicateFlag = (
+  flagId: string,
+  body: { uphold: boolean; notes?: string }
+) =>
+  apiFetch<ApiDuplicateFlag>(`/payouts/duplicate-flags/${flagId}/resolve`, {
+    method: "POST",
+    body,
+  });
+
 export const listDuplicateFlags = (status = "open", limit = 50) =>
   apiFetch<ApiDuplicateFlag[]>("/payouts/duplicate-flags", {
     query: { status, limit },
