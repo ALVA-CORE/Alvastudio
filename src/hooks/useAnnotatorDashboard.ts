@@ -18,7 +18,7 @@ import { NON_SPEECH_COLOR, tagColor, tagFamily, tagLabel } from "@/lib/annotatio
  * padded backwards to a Sunday boundary so week columns line up with real
  * weeks rather than with wherever the range happened to start.
  */
-export function toHeatmapColumns(daily: ApiDailyActivity[]): HeatmapColumn[] {
+function toHeatmapColumns(daily: ApiDailyActivity[]): HeatmapColumn[] {
   if (daily.length === 0) return [];
 
   const points = daily
@@ -80,7 +80,7 @@ const RANGE_DAYS: Record<DashboardTimeRange, number> = {
  * slivers, and an annotator who has tagged nothing gets no node at all, which
  * the card reads as its empty state.
  */
-export function toTagSunburst(breakdown: ApiTagBreakdown | undefined): SunburstNode {
+function toTagSunburst(breakdown: ApiTagBreakdown | undefined): SunburstNode {
   const families: { kind: SpanKind; counts: Record<string, number> }[] = [
     { kind: "language", counts: breakdown?.by_language ?? {} },
     { kind: "disfluency", counts: breakdown?.by_disfluency ?? {} },

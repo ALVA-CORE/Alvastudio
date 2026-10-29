@@ -143,7 +143,7 @@ export default function ContributorProfilePage() {
         <PrivacyAlertsRow
           alerts={[
             "A clip of yours approved, rejected or flagged",
-            "Points credited, and each ₦5,000 milestone",
+            "Points credited, and what each approval paid",
             "A withdrawal paid or refused",
           ]}
         />

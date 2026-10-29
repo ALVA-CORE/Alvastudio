@@ -20,7 +20,9 @@ import { ApiError, getToken, onUnauthorized } from "@/lib/api/client";
 import {
   profileToApi,
   recordConsent,
+  internProfileToApi,
   upsertAnnotatorProfile,
+  upsertInternProfile,
   upsertProfile,
   type ApiAnnotatorProfile,
 } from "@/lib/api/onboarding";
@@ -251,6 +253,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await recordConsent({ accepted: true });
       } catch {
         /* Non-fatal: the account exists and the form data stays cached locally. */
+      }
+    }
+
+    /* Where an intern works and how often they want chasing. It used to
+     * stop at `localStorage`, so it lived in one browser and an admin
+     * reading their panel saw nothing. Same rule: a failure here must not
+     * fail the signup, because the account is already real. */
+    if (payload.internProfile) {
+      try {
+        await upsertInternProfile(internProfileToApi(payload.internProfile));
+      } catch {
+        /* Non-fatal, and recoverable from the profile page. */
       }
     }
 

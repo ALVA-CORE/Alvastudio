@@ -80,27 +80,34 @@ const KIND: Record<string, WalletEntryKind> = {
 /**
  * One line of the ledger.
  *
- * A milestone award has no `recording_id` and no `unit_type`: it is paid for
- * reaching 500 approved clips, not for one clip. Reading `unit_type` blindly
- * threw on the first award.
+ * Four kinds now. `recording` is pay for one approved clip and `top_up` is
+ * back-pay for work approved before the 29 Oct rates; `milestone` and `clip`
+ * are history that still pays out, so neither can be dropped.
+ *
+ * Neither a milestone nor a top-up has a `recording_id` or a `unit_type` —
+ * they are not about one clip — so reading `unit_type` blindly threw on the
+ * first award.
  */
 function toEntry(api: ApiLedgerEntry): WalletEntry {
   const naira = Number(api.amount);
   const milestone = api.kind === "milestone";
+  const topUp = api.kind === "top_up";
 
   return {
     id: api.id,
     kind:
       api.payout_status === "paid"
         ? "withdrawal"
-        : milestone
+        : milestone || topUp
           ? "bonus"
           : (KIND[api.unit_type ?? ""] ?? "earned"),
     label:
       api.notes ??
-      (milestone
-        ? `Milestone ${api.milestone_number ?? ""}`.trim()
-        : (api.unit_type ?? "Earned").replace(/_/g, " ")),
+      (topUp
+        ? "Back-pay at the new rates"
+        : milestone
+          ? `Milestone ${api.milestone_number ?? ""}`.trim()
+          : (api.unit_type ?? "Earned").replace(/_/g, " ")),
     /* Money is kobo everywhere in this client. The decimals are JSON strings
      * precisely so nobody floats them, so they are parsed once, here. */
     amountKobo: Math.round((Number.isFinite(naira) ? naira : 0) * 100),

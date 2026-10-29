@@ -8,7 +8,11 @@ import Play from "@solar-icons/react/video/Play";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { useApiResource } from "@/hooks/useApiResource";
 import { listPrompts, listStimuli } from "@/lib/api/catalog";
-import { recordingQuota } from "@/lib/api/recordings";
+import {
+  recordingQuota,
+  NARRATION_MAX_SECONDS,
+  type ApiRecordingQuota,
+} from "@/lib/api/recordings";
 import { submitPromptRead, submitStimulus } from "@/lib/api/recordings";
 import { ApiError } from "@/lib/api/client";
 import { useStudioRecorder } from "@/hooks/useStudioRecorder";
@@ -32,13 +36,30 @@ import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBea
  * `available_again_at` is a WAT instant, so a plain local time is right: the
  * limit resets at midnight in Nigeria and everybody using this is there.
  */
-function quotaMessage(quota: { available_again_at: string | null } | null) {
-  if (!quota?.available_again_at) return "Daily upload limit reached";
-  const when = new Date(quota.available_again_at);
-  return `Upload limit reached, back at ${when.toLocaleTimeString(undefined, {
+function reopensAt(at: string | null | undefined) {
+  if (!at) return "";
+  const when = new Date(at);
+  return `, back at ${when.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
   })}`;
+}
+
+/**
+ * Why they cannot record, in the words of the task they are on.
+ *
+ * Two allowances since 29 Oct, counted in different units: sentences for
+ * Prompt Reader, speaking minutes for narration. One shared "upload limit
+ * reached" would be wrong about at least one of them, and the whole point
+ * is that the other task is still open.
+ */
+function quotaMessage(quota: ApiRecordingQuota | null, mode: StudioMode) {
+  if (mode === "stimuli") {
+    return `Today's 15 minutes of narration are used${reopensAt(quota?.narration?.resets_at)}`;
+  }
+  return `Today's sentences are read${reopensAt(
+    quota?.prompt_read?.resets_at ?? quota?.available_again_at
+  )}`;
 }
 
 const MODE_LABEL: Record<Exclude<StudioMode, "focus">, string> = {
@@ -51,18 +72,25 @@ export default function ContributorStudioPage() {
   const isMobile = useIsMobile();
   const isStaff = isStaffRole(user?.role);
   const [mode, setMode] = useState<Exclude<StudioMode, "focus">>("prompt");
-  const recorder = useStudioRecorder();
 
   const [isSaving, setSaving] = useState(false);
 
-  /* The whole active bank, not one card.
+  /**
+   * The prompts handed to this contributor, paged locally.
    *
-   * `/prompts/next` hands out the contributor's next UNREAD item and stops
-   * once they have worked through the bank. That is the wrong model here: a
-   * prompt is not consumed by being read, and twelve prompts in the bank
-   * should be twelve prompts every contributor can record, not twelve
-   * recordings shared between everybody. So the studio reads the bank and
-   * pages through it locally. */
+   * This used to read the whole bank on the reasoning that a prompt is not
+   * consumed by being read. **That stopped being true on 29 Oct**: each
+   * prompt now has two places, is reserved for whoever holds it for 24
+   * hours, and a third contributor trying to read it is refused.
+   *
+   * `GET /prompts` answers a contributor with their own held prompts now,
+   * so the same call returns the right set without a change here — it tops
+   * itself up to twenty, and never more than they can still read today.
+   * An empty bank means every prompt has its two readers, or they have read
+   * today's allowance.
+   *
+   * Stimuli are not capped and still page the whole list.
+   */
   const fetchBank = useCallback(
     () =>
       mode === "stimuli"
@@ -81,7 +109,54 @@ export default function ContributorStudioPage() {
    * take somebody has just recorded, which is the one failure worth a round
    * trip to avoid. */
   const { data: quota, reload: reloadQuota } = useApiResource(recordingQuota, []);
-  const outOfQuota = quota != null && quota.remaining <= 0;
+  /**
+   * Each task closes on its own.
+   *
+   * Reading one `remaining` for both would shut the studio because
+   * somebody had used their sentences, while a quarter of an hour of
+   * narration sat open.
+   */
+  const outOfQuota =
+    quota != null &&
+    (mode === "stimuli"
+      ? (quota.narration?.remaining_seconds ?? 0) <= 0
+      : (quota.prompt_read?.remaining ?? quota.remaining) <= 0);
+
+  /**
+   * How long this take may run, in recorded seconds.
+   *
+   * The smaller of the API's per-take cap and what is left of today, because
+   * a take over either is refused rather than truncated and the recording is
+   * lost. Null for prompt reading, which is counted in sentences and has no
+   * length limit.
+   *
+   * `NARRATION_MAX_SECONDS` covers the moment before the quota call answers:
+   * the alternative is letting somebody talk for two minutes into a 422.
+   */
+  const takeLimit =
+    mode !== "stimuli"
+      ? null
+      : Math.max(
+          1,
+          Math.min(
+            quota?.narration?.max_recording_seconds ?? NARRATION_MAX_SECONDS,
+            quota?.narration?.remaining_seconds ?? NARRATION_MAX_SECONDS
+          )
+        );
+
+  const recorder = useStudioRecorder({ maxSeconds: takeLimit });
+
+  /* The recorder ends a narration take by itself at the limit. Said once,
+     when it happens, because otherwise the take simply stops and looks like
+     a fault. */
+  useEffect(() => {
+    if (!recorder.autoStopped) return;
+    alvaToast.show(
+      takeLimit && takeLimit < (quota?.narration?.max_recording_seconds ?? 120)
+        ? "That is all of today's narration time. The take was saved."
+        : "A narration take can be 2 minutes. The take was saved."
+    );
+  }, [recorder.autoStopped, takeLimit, quota]);
 
   /* A take in progress, or one recorded and not yet saved. Moving card
    * discards the recording, so the stack is locked until they finish, retake
@@ -142,6 +217,7 @@ export default function ContributorStudioPage() {
     alvaToast.success("Take saved, tap play to review", <Stop size={14} weight="Bold" />);
   };
 
+
   const handlePrimary = async () => {
     /* No card means no `prompt_id` to submit against, so a take recorded here
        could never be uploaded — it used to be allowed, then failed at Save
@@ -152,7 +228,7 @@ export default function ContributorStudioPage() {
     }
 
     if (outOfQuota && recorder.phase === "idle") {
-      alvaToast.show(quotaMessage(quota), { variant: "default" });
+      alvaToast.show(quotaMessage(quota, mode), { variant: "default" });
       return;
     }
 
@@ -223,10 +299,25 @@ export default function ContributorStudioPage() {
       alvaToast.success("Clip sent for review", <Diskette size={14} weight="Bold" />);
       reloadQuota();
       recorder.discardRecording();
-      /* Move on, but keep the prompt in the bank. A prompt is not used up by
-         being read, and the same one is recordable by everybody else. */
       setIndex((value) => value + 1);
     } catch (cause) {
+      /**
+       * A prompt with both its places taken.
+       *
+       * Since 29 Oct each prompt has two readers and no more. The take is
+       * already recorded when this lands, so moving to the next card and
+       * keeping the audio would be wrong in the other direction — the clip
+       * cannot be attached to anything. Dropping it and moving on is the
+       * honest outcome, said plainly, rather than leaving somebody pressing
+       * Save on a prompt that will never accept it.
+       */
+      if (cause instanceof ApiError && cause.status === 409) {
+        alvaToast.show(cause.message, { variant: "default" });
+        recorder.discardRecording();
+        setIndex((value) => value + 1);
+        return;
+      }
+
       alvaToast.error(
         cause instanceof ApiError ? cause.message : "Could not upload the clip."
       );
@@ -299,7 +390,7 @@ export default function ContributorStudioPage() {
           playbackElement={recorder.playbackElement}
           disabled={(!card || outOfQuota) && recorder.phase === "idle"}
           disabledLabel={
-            outOfQuota ? quotaMessage(quota) : "Nothing to record right now"
+            outOfQuota ? quotaMessage(quota, mode) : "Nothing to record right now"
           }
         />
         )}

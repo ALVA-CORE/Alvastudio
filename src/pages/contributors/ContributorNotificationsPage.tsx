@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import ArrowLeft from "@solar-icons/react/arrows/ArrowLeft";
 import Tuning2 from "@solar-icons/react/settings/Tuning2";
 import Bell from "@solar-icons/react/notifications/Bell";
@@ -44,6 +44,7 @@ const SORT_LABELS: Record<NotificationSort, string> = {
 export default function ContributorNotificationsPage() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<NotificationSort>("newest");
+  const navigate = useNavigate();
   const [selected, setSelected] = useState<ContributorNotification | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -66,9 +67,20 @@ export default function ContributorNotificationsPage() {
   /* Opening one is the only thing that counts as reading it. Landing on the
    * page is not: a list of twelve unread is the reason someone came. */
   const handleOpen = (notification: ContributorNotification) => {
+    if (!notification.read) void markOneRead(notification.id);
+
+    /* Identity goes straight to the wallet instead of opening a sheet.
+       It carries no id to look anything up with, and the sheet would only
+       repeat the sentence already on the row before asking them to go to
+       the wallet anyway — which is the one place the thing it wants can
+       actually be done. */
+    if (notification.category === "identity") {
+      navigate("/contributor/dashboard");
+      return;
+    }
+
     setSelected(notification);
     setSheetOpen(true);
-    if (!notification.read) void markOneRead(notification.id);
 
     /* The notification carries a verdict but not what it was a verdict on, so
      * the clip is fetched on open rather than for every row in the list. The

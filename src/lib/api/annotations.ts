@@ -309,38 +309,7 @@ export function submitAnnotation(id: string) {
   return apiFetch<ApiAnnotationDocument>(`/annotations/${id}/submit`, { method: "POST" });
 }
 
-/* ------------------------------------------------------------------ *
- * Language codes
- *
- * The annotations API uses ISO 639-3 (`yor`, `eng`) where the rest of the
- * product uses 639-1 (`yo`, `en`). Mapped here rather than at call sites.
- * ------------------------------------------------------------------ */
 
-const TO_API_LANGUAGE: Record<string, ApiAnnotationLanguage> = {
-  yo: "yor",
-  ha: "hau",
-  ig: "ibo",
-  pcm: "pcm",
-  en: "eng",
-  und: "und",
-};
-
-const FROM_API_LANGUAGE: Record<string, string> = {
-  yor: "yo",
-  hau: "ha",
-  ibo: "ig",
-  pcm: "pcm",
-  eng: "en",
-  und: "und",
-};
-
-export function toApiLanguage(code: string): ApiAnnotationLanguage {
-  return TO_API_LANGUAGE[code] ?? "und";
-}
-
-export function fromApiLanguage(code: string): string {
-  return FROM_API_LANGUAGE[code] ?? "und";
-}
 
 /**
  * The clip, as a blob URL.

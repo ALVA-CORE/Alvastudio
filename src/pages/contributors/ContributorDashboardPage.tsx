@@ -72,7 +72,7 @@ export default function ContributorDashboardPage() {
                 : undefined
             }
             weekly={live ? toWeeklySessions(live.daily_activity) : undefined}
-            milestone={live?.milestone}
+            pay={live?.pay ?? undefined}
           />
 
           <QualityProgressBar

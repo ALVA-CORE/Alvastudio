@@ -29,6 +29,7 @@ import {
   EMPTY_WEEKLY_SESSIONS,
 } from "@/data/contributors/dashboard";
 import { CarouselDots } from "@/components/shared/CarouselDots";
+import { formatWalletNaira } from "@/data/contributors/wallet";
 import { useCarouselAutoplay } from "@/components/shared/useCarouselAutoplay";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,17 @@ const barConfig = {
 } satisfies ChartConfig;
 
 const RADIAN = Math.PI / 180;
+
+/** "Sun 1 Nov". The date the API gives, in the words a person would use. */
+function payDayLabel(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "on Sunday";
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
 
 type PieLabelProps = {
   cx?: number;
@@ -124,19 +136,28 @@ export function DashboardCharts({
   isEmpty = false,
   mix,
   weekly,
-  milestone,
+  pay,
 }: {
   className?: string;
   isEmpty?: boolean;
   /** From `/dashboard/contributor`. Omit and the seeded shape is drawn. */
   mix?: { type: string; value: number; fill: string }[];
   weekly?: { day: string; sessions: number }[];
-  /** Adds a third slide. Omitted where there is no milestone to show. */
-  milestone?: {
-    clips_per_milestone: number;
-    clips_to_next: number;
-    amount_per_milestone: string;
-    currency: string;
+  /**
+   * Adds a third slide: how close the balance is to being paid.
+   *
+   * This was milestone progress — clips until the next ₦5,000 award. That
+   * ended on 29 Oct, and the question it answered changed with it. A
+   * milestone reset every 500 clips; a balance carries over until it is
+   * paid, so the bar now runs from what they have earned to the minimum
+   * payout and stays full once it is cleared.
+   */
+  pay?: {
+    unpaid_kobo: number;
+    payout_minimum_kobo: number;
+    next_run_kobo: number;
+    to_minimum_kobo: number;
+    next_pay_day: string;
   } | null;
 }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -320,26 +341,30 @@ export function DashboardCharts({
               </ChartContainer>
             </ChartSlide>
           </CarouselItem>
-          {milestone && milestone.clips_per_milestone > 0 ? (
+          {pay ? (
             <CarouselItem className="basis-full pl-0">
               <ChartSlide title="Next payout">
                 <div className="mx-auto aspect-[4/3] w-full max-h-[240px]">
                   <ApprovalGauge
-                    value={Math.min(
-                      100,
-                      Math.round(
-                        ((milestone.clips_per_milestone - milestone.clips_to_next) /
-                          milestone.clips_per_milestone) *
-                          100
-                      )
-                    )}
-                    label={`${milestone.clips_to_next} clips to go`}
+                    value={
+                      pay.payout_minimum_kobo > 0
+                        ? Math.min(
+                            100,
+                            Math.round((pay.unpaid_kobo / pay.payout_minimum_kobo) * 100)
+                          )
+                        : 0
+                    }
+                    label={
+                      pay.next_run_kobo > 0
+                        ? `${formatWalletNaira(pay.next_run_kobo)} on the way`
+                        : `${formatWalletNaira(pay.to_minimum_kobo)} to go`
+                    }
                   />
                 </div>
                 <p className="mt-1 text-center text-[11px] text-muted-foreground">
-                  {milestone.currency === "NGN" ? "₦" : `${milestone.currency} `}
-                  {Number(milestone.amount_per_milestone).toLocaleString()} every{" "}
-                  {milestone.clips_per_milestone} approved clips
+                  {pay.next_run_kobo > 0
+                    ? `Paid ${payDayLabel(pay.next_pay_day)}`
+                    : `${formatWalletNaira(pay.payout_minimum_kobo)} minimum, paid on Sundays`}
                 </p>
               </ChartSlide>
             </CarouselItem>
@@ -347,7 +372,7 @@ export function DashboardCharts({
         </CarouselContent>
       </Carousel>
 
-      <CarouselDots count={milestone ? 3 : 2} active={activeSlide} />
+      <CarouselDots count={pay ? 3 : 2} active={activeSlide} />
     </section>
   );
 }

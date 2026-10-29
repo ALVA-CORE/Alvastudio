@@ -9,6 +9,15 @@ export type NotificationCategory =
   | "review-rejected"
   | "submission-received"
   | "payout"
+  /**
+   * Their identity check needs redoing.
+   *
+   * Its own category rather than an announcement: it is the only
+   * notification that stands between somebody and being paid, and it stays
+   * until they act on it. An envelope beside "we have updated our terms"
+   * would be the wrong weight entirely.
+   */
+  | "identity"
   | "announcement"
   | "leaderboard";
 

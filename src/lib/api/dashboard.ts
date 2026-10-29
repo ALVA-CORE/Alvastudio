@@ -44,11 +44,42 @@ export type ApiContributorDashboard = {
    * Null wherever `payment` is, for example when an intern looks at a
    * contributor.
    */
+  /** @deprecated Always null since 29 Oct. Read `pay` instead. */
   milestone: ApiMilestoneProgress | null;
+  /**
+   * What their work is worth and when it is paid.
+   *
+   * Replaces milestone pay. The progress that matters is no longer "clips
+   * until the next ₦5,000 award" but "balance until the ₦5,000 minimum
+   * payout", which is a different question with a different answer: the
+   * first reset every 500 clips, this one carries over until it is paid.
+   *
+   * Null for an intern looking at somebody's dashboard, like `payment`.
+   */
+  pay: ApiPayBlock | null;
   /** How many decided clips the median is over. */
   decided_in_window: number;
 };
 
+export type ApiPayBlock = {
+  approved_sentences: number;
+  approved_narration_seconds: number;
+  currency: string;
+  sentence_rate_kobo: number;
+  narration_rate_per_hour_kobo: number;
+  /** Everything approved work is worth, paid or not. */
+  work_value_kobo: number;
+  /** The balance. What has not been paid out yet. */
+  unpaid_kobo: number;
+  payout_minimum_kobo: number;
+  next_pay_day: string;
+  /** What the coming Sunday sends. Zero while the balance is under the minimum. */
+  next_run_kobo: number;
+  /** How far short of the minimum, when `next_run_kobo` is zero. */
+  to_minimum_kobo: number;
+};
+
+/** @deprecated Milestone pay ended on 29 Oct. */
 export type ApiMilestoneProgress = {
   approved_clips: number;
   clips_per_milestone: number;
