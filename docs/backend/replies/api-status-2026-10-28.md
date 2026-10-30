@@ -1,7 +1,7 @@
 # Frontend handoff — 28 Oct asks
 
 Received 28 Oct 2026. All three wired the same day; what we did with each is
-in [`endpoints-needed.md`](../endpoints-needed.md) under "On our side".
+in [`our-handling.md`](../our-handling.md).
 
 ---
 
