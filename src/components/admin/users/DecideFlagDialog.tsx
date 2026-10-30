@@ -13,7 +13,11 @@ import { FieldBeam } from "@/components/shared/FieldBeam";
 import { TextureButton } from "@/components/ui/texture-button";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import { formatWalletNaira } from "@/data/contributors/wallet";
-import type { ApiDuplicateFlag } from "@/lib/api/payouts";
+import {
+  getDuplicateFlag,
+  type ApiDuplicateFlag,
+  type ApiUpholdPreview,
+} from "@/lib/api/payouts";
 import { alvaToast } from "@/lib/alva-toast";
 
 type Decision = {
@@ -30,12 +34,16 @@ type Decision = {
  * — deactivated, tokens dead, wallets blocked, every unsent earning voided
  * — and payments already on their way cannot be called back.
  *
- * **It warns in words rather than figures, and that is a compromise.**
- * `voided_amount_kobo` and `in_flight_entries` only exist *after* the
- * resolve, so there is no number to show beforehand. We have asked for a
- * preview; until it lands, the honest thing is to name both accounts, say
- * plainly what will happen to them, and report the real cost the moment it
- * is known. It is listed in `docs/backend/endpoints-needed.md`.
+ * **It shows the cost before the decision, not after.** `if_upheld` on
+ * `GET /payouts/duplicate-flags/{id}` runs the same calculation the uphold
+ * runs and changes nothing, so the admin reads the real amount and then
+ * chooses. It used to warn in words and report figures afterwards, which is
+ * a receipt rather than a choice.
+ *
+ * Read when this opens, not with the list: the figures are what the uphold
+ * would do *at that moment*, and money moves. The words stay as a fallback
+ * for a preview that will not load — a confirm with no warning at all would
+ * be worse than one with no numbers.
  *
  * A note is required on both. The next admin reading this flag should find
  * a reason rather than guess at one, and that is as true of "these are
@@ -61,10 +69,41 @@ export function DecideFlagDialog({
   onDone: () => void;
 }) {
   const [notes, setNotes] = useState("");
+  const [preview, setPreview] = useState<ApiUpholdPreview | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
     if (open) setNotes("");
   }, [open, decision?.flag.id]);
+
+  /* Only for an uphold, and only once the dialog is open. Dismissing
+     destroys nothing, so there is nothing to price. */
+  useEffect(() => {
+    if (!open || !decision?.uphold) {
+      setPreview(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingPreview(true);
+
+    getDuplicateFlag(decision.flag.id)
+      .then((flag) => {
+        if (!cancelled) setPreview(flag.if_upheld ?? null);
+      })
+      .catch(() => {
+        /* The worded warning below still stands. A confirm that will not
+           open because a figure could not be fetched is worse than one
+           without the figure. */
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPreview(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, decision?.uphold, decision?.flag.id]);
 
   if (!decision) return null;
 
@@ -87,13 +126,13 @@ export function DecideFlagDialog({
        there is no number to show — see the ask in endpoints-needed.md. */
     const closed = result.closed_user_ids?.length ?? 0;
     const voided = result.voided_amount_kobo ?? 0;
-    const inFlight = result.in_flight_entries ?? 0;
+    const inFlight = result.in_flight_kobo ?? 0;
 
     alvaToast.error(
       `${closed || 2} ${closed === 1 ? "account" : "accounts"} closed, ` +
         `${formatWalletNaira(voided)} voided` +
         (inFlight > 0
-          ? `. ${inFlight} ${inFlight === 1 ? "payment was" : "payments were"} already on the way and could not be stopped.`
+          ? `. ${formatWalletNaira(inFlight)} was already on its way and could not be stopped.`
           : ".")
     );
   };
@@ -117,24 +156,58 @@ export function DecideFlagDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Named, both of them. An admin closing two accounts should be
-            reading who, not a flag id. */}
+        {/* Named, both of them, with what each one loses. An admin closing
+            two accounts should be reading who and how much, not a flag id. */}
         <div className="rounded-xl bg-alva-surface px-3.5 py-3">
           <p className="text-xs text-muted-foreground">
             Flagged for: <span className="text-foreground">{flag.kindLabel}</span>
           </p>
-          <ul className="mt-2 space-y-1">
-            <li className="text-sm text-foreground">{flag.who}</li>
-            <li className="text-sm text-foreground">{flag.matched}</li>
+
+          <ul className="mt-2 space-y-1.5">
+            {preview
+              ? preview.accounts.map((account) => (
+                  <li key={account.user_id} className="flex items-baseline gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                      {account.full_name}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {formatWalletNaira(account.unpaid_kobo)} unpaid
+                    </span>
+                  </li>
+                ))
+              : [flag.who, flag.matched].map((name) => (
+                  <li key={name} className="text-sm text-foreground">
+                    {name}
+                  </li>
+                ))}
           </ul>
         </div>
 
         {uphold ? (
-          <ul className="space-y-1 rounded-xl bg-red-500/10 px-3.5 py-3 text-xs leading-relaxed text-red-400">
-            <li>Both accounts are turned off and their sign-ins stop working.</li>
-            <li>Both wallets are blocked and every unpaid earning is voided.</li>
-            <li>Any payment already on its way cannot be called back.</li>
-          </ul>
+          <div className="space-y-2 rounded-xl bg-red-500/10 px-3.5 py-3 text-xs leading-relaxed text-red-400">
+            {/* The figure first, in one sentence, because it is the thing
+                being decided. The list under it says what else happens. */}
+            {preview ? (
+              <p className="text-sm font-medium">
+                Closes {preview.accounts.length}{" "}
+                {preview.accounts.length === 1 ? "account" : "accounts"} and voids{" "}
+                {formatWalletNaira(preview.voided_amount_kobo)}.
+                {preview.in_flight_kobo > 0
+                  ? ` ${formatWalletNaira(preview.in_flight_kobo)} more is already on its way and cannot be called back.`
+                  : ""}
+              </p>
+            ) : loadingPreview ? (
+              <p className="text-sm font-medium">Working out what this costs…</p>
+            ) : null}
+
+            <ul className="space-y-1">
+              <li>Both accounts are turned off and their sign-ins stop working.</li>
+              <li>Both wallets are blocked and every unpaid earning is voided.</li>
+              {preview?.in_flight_kobo ? null : (
+                <li>Any payment already on its way cannot be called back.</li>
+              )}
+            </ul>
+          </div>
         ) : null}
 
         <div>

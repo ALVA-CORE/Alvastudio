@@ -304,6 +304,33 @@ export function deleteSegment(annotationId: string, segmentId: string) {
   });
 }
 
+/**
+ * What the annotation was made from.
+ *
+ * Carries `waveform_peaks`: the real amplitude envelope of the session
+ * audio, measured server-side. The timeline used to draw a *synthesised*
+ * one from a hash of each segment id — a speech-shaped curve that looked
+ * right and matched nothing, on a screen where people read the waveform to
+ * find speech boundaries.
+ *
+ * Null when the audio has not been measured. Then the timeline draws flat
+ * bars rather than inventing a shape, because a wrong waveform is worse
+ * than no waveform here.
+ */
+export type ApiAnnotationSource = {
+  session_id: string;
+  topic: string | null;
+  language_variety: string | null;
+  duration_seconds: number | null;
+  participants: unknown[];
+  /** One value per bucket, 0..1, across the whole recording. */
+  waveform_peaks: number[] | null;
+};
+
+export function getAnnotationSource(id: string) {
+  return apiFetch<ApiAnnotationSource>(`/annotations/${id}/source`);
+}
+
 /** Hands the annotation back for review. */
 export function submitAnnotation(id: string) {
   return apiFetch<ApiAnnotationDocument>(`/annotations/${id}/submit`, { method: "POST" });

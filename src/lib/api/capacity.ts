@@ -47,9 +47,3 @@ export const setCapacityOpen = (open: boolean) =>
     body: { open },
   });
 
-/** `null` removes the cap. A negative number or one over 2^31-1 is a 422. */
-export const setCapacityLimit = (limit: number | null) =>
-  apiFetch<PlatformCapacity>("/platform/capacity", {
-    method: "PATCH",
-    body: { limit },
-  });

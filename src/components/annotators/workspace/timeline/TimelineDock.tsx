@@ -280,9 +280,17 @@ const SpeakerHeader = memo(function SpeakerHeader({
 export type TimelineDockProps = {
   src: string;
   className?: string;
+  /**
+   * The recording's measured waveform, from `GET /annotations/{id}/source`.
+   *
+   * One array for the whole session; each clip draws the slice covering its
+   * own seconds. Null when the audio has not been measured, and then clips
+   * draw flat bars rather than a guessed shape.
+   */
+  peaks?: number[] | null;
 };
 
-export function TimelineDock({ src, className }: TimelineDockProps) {
+export function TimelineDock({ src, className, peaks = null }: TimelineDockProps) {
   const store = useAnnotationStore();
   const actions = useAnnotationActions();
   const { error, retry } = useTransport({ src });
@@ -896,6 +904,8 @@ export function TimelineDock({ src, className }: TimelineDockProps) {
                     <TimelineClip
                       key={segment.id}
                       segment={segment}
+                      peaks={peaks}
+                      durationSeconds={duration}
                       color={speaker.color}
                       pps={pps}
                       isSelected={selectedSegmentIds.includes(segment.id)}

@@ -1,73 +1,68 @@
 /**
- * Per-clip waveform envelopes.
+ * The slice of the session's waveform that belongs to one segment.
  *
- * These are SYNTHESISED, not decoded. The seeded demo audio is 9–14 seconds
- * while the sessions it stands in for run 18–47 minutes, so there is no real
- * signal to slice per segment. Rather than draw a flat rectangle, each clip gets a
- * deterministic speech-shaped envelope derived from its segment id — stable across
- * renders, distinct between clips, and honest about being a placeholder.
+ * These are **measured**, not invented. `GET /annotations/{id}/source`
+ * carries `waveform_peaks` — the real amplitude envelope of the recording,
+ * one value per bucket across its whole length — and a segment's bars are
+ * the part of that array covering its own seconds.
  *
- * REPLACE WITH: server-side peak extraction. A real pipeline emits a peaks file
- * alongside the audio (one normalised value per N samples); `segmentPeaks` then
- * becomes a slice of that array between the segment's start and end. Nothing else
- * in the timeline changes — it only ever consumes `number[]` in 0..1.
+ * It used to synthesise a speech-shaped curve from a hash of the segment
+ * id: stable, distinct per clip, and matching nothing. That is a bad lie to
+ * tell on this screen in particular, because annotators read the waveform
+ * to find where speech starts and stops.
+ *
+ * **No peaks means flat bars**, not a guessed shape. The audio has not been
+ * measured, and a wrong waveform is worse than an obviously empty one.
  */
 
-function hashString(value: string): number {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+/** What a flat bar looks like: low, even, clearly not a reading. */
+const FLAT = 0.12;
+
+export function segmentPeaks({
+  peaks,
+  durationSeconds,
+  start,
+  end,
+  sampleCount,
+}: {
+  /** The whole recording's envelope, or null when unmeasured. */
+  peaks: number[] | null | undefined;
+  /** The whole recording's length, which maps seconds onto the array. */
+  durationSeconds: number | null | undefined;
+  /** This segment's bounds, in seconds. */
+  start: number;
+  end: number;
+  sampleCount: number;
+}): number[] {
+  const count = Math.max(1, Math.round(sampleCount));
+
+  if (!peaks?.length || !durationSeconds || durationSeconds <= 0) {
+    return new Array(count).fill(FLAT);
   }
-  return hash >>> 0;
-}
 
-function seededRandom(seed: number) {
-  let state = seed >>> 0 || 1;
-  return () => {
-    state = (state * 1664525 + 1013904223) % 4294967296;
-    return state / 4294967296;
-  };
-}
+  const perSecond = peaks.length / durationSeconds;
+  const from = Math.max(0, Math.floor(start * perSecond));
+  const to = Math.min(peaks.length, Math.ceil(end * perSecond));
 
-const peakCache = new Map<string, number[]>();
+  /* A segment shorter than one bucket, or bounds outside the recording.
+     Flat rather than a slice of nothing. */
+  if (to <= from) return new Array(count).fill(FLAT);
 
-/**
- * A speech-like envelope in 0..1.
- *
- * Speech is syllabic: bursts of energy at roughly 3–6 Hz separated by troughs,
- * riding under a slower phrase-level arc that tapers at both ends. Layering
- * those two rates over light noise reads as a voice at a glance, where uniform
- * noise reads as static.
- */
-export function segmentPeaks(segmentId: string, sampleCount: number): number[] {
-  const key = `${segmentId}:${sampleCount}`;
-  const cached = peakCache.get(key);
-  if (cached) return cached;
+  const span = to - from;
 
-  const random = seededRandom(hashString(segmentId));
-  // Syllable rate and phase vary per clip so no two look alike.
-  const syllableRate = 2.6 + random() * 3.4;
-  const phase = random() * Math.PI * 2;
-  const energy = 0.55 + random() * 0.4;
+  return Array.from({ length: count }, (_, index) => {
+    /* Each bar is the loudest point in the stretch it covers, which is what
+       a waveform shows — averaging would flatten every peak into the
+       silence around it. */
+    const lo = from + Math.floor((index / count) * span);
+    const hi = Math.max(lo + 1, from + Math.floor(((index + 1) / count) * span));
 
-  const peaks = Array.from({ length: sampleCount }, (_, index) => {
-    const t = sampleCount === 1 ? 0.5 : index / (sampleCount - 1);
+    let loudest = 0;
+    for (let i = lo; i < hi && i < peaks.length; i += 1) {
+      const value = peaks[i];
+      if (Number.isFinite(value) && value > loudest) loudest = value;
+    }
 
-    // Phrase arc — quick attack, slow decay, so clips do not look symmetric.
-    const attack = Math.min(1, t / 0.06);
-    const release = Math.min(1, (1 - t) / 0.12);
-    const arc = Math.min(attack, release);
-
-    // Syllabic modulation, rectified so troughs sit near zero.
-    const syllable = Math.abs(Math.sin(phase + t * Math.PI * 2 * syllableRate));
-
-    const noise = 0.72 + random() * 0.28;
-    const value = arc * (0.28 + syllable * 0.72) * noise * energy;
-
-    return Math.max(0.04, Math.min(1, value));
+    return Math.min(1, Math.max(FLAT, loudest));
   });
-
-  peakCache.set(key, peaks);
-  return peaks;
 }

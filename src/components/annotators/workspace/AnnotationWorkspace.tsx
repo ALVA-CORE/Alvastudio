@@ -37,6 +37,13 @@ type AnnotationWorkspaceProps = {
    * 409 on their first save. Their work is kept either way.
    */
   consentBlocked?: boolean;
+  /**
+   * The recording's measured waveform, from `GET /annotations/{id}/source`.
+   *
+   * Fetched by the page, which holds the annotation id, and passed down
+   * rather than read per clip: it is one array for the whole session.
+   */
+  peaks?: number[] | null;
   /** Flushes the pending autosave. Wired to ⌘S and the header's Retry. */
   onFlushSave?: () => void;
   /** Hands the finished annotation to a reviewer. */
@@ -46,6 +53,7 @@ type AnnotationWorkspaceProps = {
 export function AnnotationWorkspace({
   session,
   consentBlocked = false,
+  peaks = null,
   onFlushSave,
   onSubmit,
 }: AnnotationWorkspaceProps) {
@@ -139,7 +147,7 @@ export function AnnotationWorkspace({
             <TranscriptEditor className="h-full" />
           </div>
 
-          <TimelineDock src={session.audioSrc} className="shrink-0" />
+          <TimelineDock src={session.audioSrc} peaks={peaks} className="shrink-0" />
         </div>
 
         <SessionMetaSidebar

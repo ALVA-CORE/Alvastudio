@@ -21,6 +21,15 @@ const BARS_PER_100PX = 22;
 export type TimelineClipProps = {
   segment: Segment;
   color: string;
+  /**
+   * The recording's measured waveform, or null when it has not been.
+   *
+   * Passed down rather than fetched per clip: it is one array for the whole
+   * session and every clip reads a slice of it.
+   */
+  peaks: number[] | null;
+  /** The whole recording's length, which maps a clip's seconds onto `peaks`. */
+  durationSeconds: number;
   /** Pixels per second. */
   pps: number;
   isSelected: boolean;
@@ -74,16 +83,32 @@ function snap(value: number, points: number[], toleranceSeconds: number): number
   return best;
 }
 
-function ClipWaveform({ segment, width }: { segment: Segment; width: number }) {
+function ClipWaveform({
+  segment,
+  width,
+  peaks,
+  durationSeconds,
+}: {
+  segment: Segment;
+  width: number;
+  peaks: number[] | null;
+  durationSeconds: number;
+}) {
   const barCount = Math.max(4, Math.round((width / 100) * BARS_PER_100PX));
-  const peaks = segmentPeaks(segment.id, barCount);
+  const bars = segmentPeaks({
+    peaks,
+    durationSeconds,
+    start: segment.start,
+    end: segment.end,
+    sampleCount: barCount,
+  });
 
   return (
     <div
       aria-hidden
       className="pointer-events-none absolute inset-x-1 inset-y-0 flex items-center gap-px overflow-hidden"
     >
-      {peaks.map((peak, index) => (
+      {bars.map((peak, index) => (
         <span
           key={index}
           className="min-w-px flex-1 rounded-full bg-current"
@@ -97,6 +122,8 @@ function ClipWaveform({ segment, width }: { segment: Segment; width: number }) {
 function TimelineClipImpl({
   segment,
   color,
+  peaks,
+  durationSeconds,
   pps,
   isSelected,
   isDimmed,
@@ -271,7 +298,14 @@ function TimelineClipImpl({
         boxShadow: isSelected ? `inset 0 0 0 1.5px ${color}` : `inset 0 0 0 1px color-mix(in srgb, ${color} 45%, transparent)`,
       }}
     >
-      {width > 12 ? <ClipWaveform segment={segment} width={width} /> : null}
+      {width > 12 ? (
+        <ClipWaveform
+          segment={segment}
+          width={width}
+          peaks={peaks}
+          durationSeconds={durationSeconds}
+        />
+      ) : null}
 
       {/* Tag dots, inside the clip's top-right corner. One per family present,
           so a glance across the track says which clips carry annotation without

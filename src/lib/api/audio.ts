@@ -49,12 +49,6 @@ function upload<T>(path: string, file: File, extra: Record<string, string> = {})
   return apiFetch<T>(path, { method: "POST", form });
 }
 
-export const analyseAudio = (file: File) =>
-  upload<ApiAudioQc>("/audio/analyze", file);
-
-export const transcribeAudio = (file: File) =>
-  upload<ApiTranscription>("/audio/transcribe", file);
-
 /** `prompt` turns on relevance scoring; without it `embedding_score` is null. */
 export const scoreAudio = (file: File, prompt?: string) =>
   upload<ApiQualityScore>("/audio/quality-score", file, prompt ? { prompt } : {});
