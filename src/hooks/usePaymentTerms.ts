@@ -42,8 +42,3 @@ export function usePaymentTerms(): ApiPaymentTerms | null {
   return terms;
 }
 
-/** Test seam: the cache is module state and outlives a render. */
-export function __resetPaymentTerms() {
-  cached = null;
-  inFlight = null;
-}

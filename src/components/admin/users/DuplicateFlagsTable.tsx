@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import MenuDots from "@solar-icons/react/ui/MenuDots";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import UserBlock from "@solar-icons/react/users/UserBlock";
@@ -57,6 +57,21 @@ export function DuplicateFlagsTable({
   const [deciding, setDeciding] = useState<{ flag: FlagRow; uphold: boolean } | null>(
     null
   );
+
+  /**
+   * The dialog opens after the menu has closed, not during.
+   *
+   * Radix locks the page behind an open overlay with `pointer-events: none`
+   * on `<body>`, and restores what it found when it closes. Opening the
+   * dialog from inside `onSelect` means the dialog records the *menu's*
+   * lock as the thing to restore — so when the dialog closes it writes
+   * `none` back, and the whole page is dead to the mouse until a reload.
+   * Only the sidebar stays clickable, because it sits in its own layer.
+   *
+   * `onCloseAutoFocus` fires once the menu has finished closing, which
+   * makes this ordering deterministic rather than a race with a timer.
+   */
+  const pending = useRef<{ flag: FlagRow; uphold: boolean } | null>(null);
 
   const name = (id: string | null) => {
     if (!id) return NO_VALUE;
@@ -136,7 +151,12 @@ export function DuplicateFlagsTable({
         })}
         renderRowActions={(row) => (
           <div className="flex justify-end">
-            <DropdownMenu>
+            <DropdownMenu
+              onOpenChange={(open) => {
+                if (!open) return;
+                pending.current = null;
+              }}
+            >
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
@@ -151,17 +171,32 @@ export function DuplicateFlagsTable({
               {/* Dismiss first, and it is the safe one: the hold comes off
                   and both accounts carry on. Upholding is destructive and
                   irreversible, so it sits second and in red. */}
-              <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuContent
+                align="end"
+                className="w-52"
+                onCloseAutoFocus={(event) => {
+                  if (!pending.current) return;
+                  /* Focus would otherwise return to the trigger behind the
+                     dialog that is about to open. */
+                  event.preventDefault();
+                  setDeciding(pending.current);
+                  pending.current = null;
+                }}
+              >
                 <DropdownMenuItem
                   className="gap-2"
-                  onSelect={() => setDeciding({ flag: row, uphold: false })}
+                  onSelect={() => {
+                    pending.current = { flag: row, uphold: false };
+                  }}
                 >
                   <CheckCircle size={15} weight="Outline" />
                   Not a duplicate
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="gap-2 text-red-400 focus:text-red-400"
-                  onSelect={() => setDeciding({ flag: row, uphold: true })}
+                  onSelect={() => {
+                    pending.current = { flag: row, uphold: true };
+                  }}
                 >
                   <UserBlock size={15} weight="Outline" />
                   Close both accounts

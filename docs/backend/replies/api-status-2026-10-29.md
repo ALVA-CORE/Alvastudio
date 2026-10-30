@@ -4,6 +4,9 @@ Received 29 Oct 2026. Wired the same day.
 
 ## What we did with it
 
+Earlier handoffs' notes are in [`our-handling.md`](../our-handling.md).
+Asks are in [`endpoints-needed.md`](../endpoints-needed.md), never here.
+
 | Item | Our handling |
 | --- | --- |
 | `GET /payments/terms` | Read once per session and shared, rather than typed into components. Every number in it has already changed once, and a rate hardcoded in a component is a sentence that stays true on screen after it stops being true in the ledger. |
@@ -15,7 +18,7 @@ Received 29 Oct 2026. Wired the same day.
 | `kind: "top_up"` | Labelled "Back-pay at the new rates" in the ledger. Like a milestone it has no `recording_id` or `unit_type`, which is what used to throw. |
 | `unmeasured_narrations` | Its own line in the back-pay dialog. An admin signing off a credit should see how much is priced on recorded length rather than speaking time. |
 | Prompt assignment | Nothing to change: the studio pages `GET /prompts`, which answers a contributor with their held prompts. The `409` for a prompt with two readers drops the take and moves on. We deliberately do not show `reserved_until` or the reader count — it would turn a quiet mechanism into a deadline. |
-| `POST /payouts/duplicate-flags/{id}/resolve` | **Now has a screen**: Admin → Users → Duplicates. Dismiss is offered first and is the safe direction; upholding is red, requires a written reason, and spells out all three consequences before the button. See the open ask — we want the figures *before* rather than after. |
+| `POST /payouts/duplicate-flags/{id}/resolve` | **Now has a screen**: Admin → Users → Duplicates. Dismiss is offered first and is the safe direction; upholding is red, requires a written reason, and spells out all three consequences before the button. The preview landed on 30 Oct, so the figures now show before the decision. |
 | `POST /payouts/ledger/{id}/void` | An action per entry in the earning panel's Earnings tab, offered only on `pending`. Paid and in-flight money has left, and voiding it would make the ledger disagree with the bank. The reason is required: the question asked later is never "how much" but "why". |
 | `GET /payments/earnings/{contributor_id}` | Wired, and it is what makes a void possible: the payments table is aggregated per contributor and a void needs one entry's id. |
 | `GET/PUT /onboarding/intern-profile` | **Was never called.** The intern sign-up asked for a primary state, a coverage area and an alert preference, and all three stopped at `localStorage` — they lived in one browser and showed as "Not set" to the person who typed them. Saved at sign-up now and read on the profile page. |

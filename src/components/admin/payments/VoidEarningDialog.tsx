@@ -103,9 +103,6 @@ export function VoidEarningDialog({
           </FieldBeam>
           {/* The contributor is not shown this, but the next admin is, and so
               is anybody auditing the ledger a year from now. */}
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Recorded on the entry. Write it for whoever reads this later.
-          </p>
         </div>
 
         <div className="flex gap-2">

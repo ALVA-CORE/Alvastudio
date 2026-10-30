@@ -33,27 +33,10 @@ export type CatalogQuery = {
   offset?: number;
 };
 
-/**
- * The next unread item for this contributor.
- *
- * Returns 404 with "No unread prompts available" once they have worked through
- * the bank — an ordinary end state, not an error, so callers should treat it as
- * "queue empty" rather than surfacing it as a failure.
- */
-export const nextPrompt = () => apiFetch<ApiPrompt>("/prompts/next");
-export const nextStimulus = () => apiFetch<ApiPrompt>("/stimuli/next");
-
 export const listPrompts = (query: CatalogQuery = {}) =>
   apiFetch<ApiPrompt[]>("/prompts", { query });
 export const listStimuli = (query: CatalogQuery = {}) =>
   apiFetch<ApiPrompt[]>("/stimuli", { query });
-
-export const getPrompt = (id: string) => apiFetch<ApiPrompt>(`/prompts/${id}`);
-export const getStimulus = (id: string) => apiFetch<ApiPrompt>(`/stimuli/${id}`);
-
-/* ------------------------------------------------------------------ *
- * Admin: the whole bank, and writes
- * ------------------------------------------------------------------ */
 
 export type CatalogPage = {
   items: ApiPrompt[];

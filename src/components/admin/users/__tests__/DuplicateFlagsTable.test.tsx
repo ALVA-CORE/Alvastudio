@@ -7,9 +7,12 @@ import type { AdminUser } from "@/data/admin/users";
 const list = vi.fn();
 const resolve = vi.fn();
 
+const getFlag = vi.fn();
+
 vi.mock("@/lib/api/payouts", () => ({
   listDuplicateFlags: (status: string, limit: number) => list(status, limit),
   resolveDuplicateFlag: (id: string, body: unknown) => resolve(id, body),
+  getDuplicateFlag: (id: string) => getFlag(id),
 }));
 
 const USERS = [
@@ -28,12 +31,33 @@ const FLAG = {
 };
 
 beforeEach(() => {
-  /* Radix locks the page behind an open dialog with `pointer-events: none`
-     on the body, and unmounting the tree does not put it back — so the next
-     test finds every button unclickable. */
-  document.body.style.pointerEvents = "";
-
   list.mockReset().mockResolvedValue([FLAG]);
+  getFlag.mockReset().mockResolvedValue({
+    ...FLAG,
+    if_upheld: {
+      accounts: [
+        {
+          user_id: "u1",
+          full_name: "Ada Obi",
+          email: "ada@example.com",
+          unpaid_kobo: 33_200_00,
+          in_flight_kobo: 8_000_00,
+          in_flight_entries: 1,
+        },
+        {
+          user_id: "u2",
+          full_name: "A. Obi",
+          email: "a@example.com",
+          unpaid_kobo: 8_000_00,
+          in_flight_kobo: 0,
+          in_flight_entries: 0,
+        },
+      ],
+      voided_amount_kobo: 41_200_00,
+      in_flight_kobo: 8_000_00,
+      in_flight_entries: 1,
+    },
+  });
   resolve.mockReset().mockResolvedValue({
     ...FLAG,
     status: "upheld",
@@ -66,6 +90,37 @@ describe("DuplicateFlagsTable", () => {
     expect(await screen.findAllByText("Ada Obi")).not.toHaveLength(0);
     expect(screen.getAllByText("A. Obi")).not.toHaveLength(0);
     expect(screen.getAllByText("Same NIN")).not.toHaveLength(0);
+  });
+
+  /* Dismissing destroys nothing, so there is nothing to price and no
+     reason to ask the API what it would cost. */
+  it("does not price a dismissal", async () => {
+    const user = userEvent.setup();
+    table();
+    await openMenu(user);
+    await user.click(await screen.findByRole("menuitem", { name: /Not a duplicate/ }));
+
+    await screen.findByRole("dialog");
+    expect(getFlag).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A confirm that will not open because a figure could not be fetched is
+   * worse than one without the figure, so the worded warning stays as the
+   * fallback.
+   */
+  it("still warns in words when the preview fails", async () => {
+    const user = userEvent.setup();
+    getFlag.mockRejectedValue(new Error("network"));
+    table();
+    await openMenu(user);
+    await user.click(await screen.findByRole("menuitem", { name: /Close both accounts/ }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/cannot be called back/i)).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Close both accounts" })
+    ).toBeInTheDocument();
   });
 
   /* Dismissing takes a hold off and both people carry on. It is the safe
@@ -103,8 +158,16 @@ describe("DuplicateFlagsTable", () => {
     await user.click(await screen.findByRole("menuitem", { name: /Close both accounts/ }));
 
     const dialog = await screen.findByRole("dialog");
+
+    /* The figure, before the decision. It used to warn in words and report
+       the amount afterwards, which is a receipt rather than a choice. */
+    expect(
+      await within(dialog).findByText(/Closes 2 accounts and voids ₦41,200\.00/)
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/₦8,000\.00 more is already on its way/)
+    ).toBeInTheDocument();
     expect(within(dialog).getByText(/every unpaid earning is voided/i)).toBeInTheDocument();
-    expect(within(dialog).getByText(/cannot be called back/i)).toBeInTheDocument();
 
     const confirm = within(dialog).getByRole("button", { name: "Close both accounts" });
     expect(confirm).toBeDisabled();
@@ -118,5 +181,34 @@ describe("DuplicateFlagsTable", () => {
         notes: "Same person",
       })
     );
+  });
+});
+
+/**
+ * The page must still be clickable after the dialog closes.
+ *
+ * Radix locks the page behind an open overlay with `pointer-events: none`
+ * on `<body>`. Opening the dialog from inside a menu item's `onSelect` made
+ * the dialog record the *menu's* lock as the thing to restore, so closing
+ * the dialog wrote `none` back and killed the whole page until a reload.
+ *
+ * This test previously passed only because it reset the style by hand in
+ * `beforeEach` — the workaround hid the bug rather than catching it.
+ */
+describe("the page after the dialog closes", () => {
+  it("gives pointer events back", async () => {
+    const user = userEvent.setup();
+    table();
+
+    await openMenu(user);
+    await user.click(await screen.findByRole("menuitem", { name: /Close both accounts/ }));
+    await screen.findByRole("dialog");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+    expect(document.body.style.pointerEvents).not.toBe("none");
   });
 });

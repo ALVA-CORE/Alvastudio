@@ -17,6 +17,7 @@ import type { AnnotatorSession } from "@/data/annotators/sessions";
 import type { TranscriptDoc } from "@/lib/annotation/types";
 import { useSessionTranscript } from "@/hooks/useSessionTranscript";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAnnotationWaveform } from "@/hooks/useAnnotationSource";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
 
@@ -35,10 +36,13 @@ import { alvaToast } from "@/lib/alva-toast";
 function WorkspaceBody({
   session,
   consentBlocked,
+  peaks,
   onSubmit,
 }: {
   session: AnnotatorSession;
   consentBlocked: boolean;
+  /** The recording's measured waveform, or null when it has not been. */
+  peaks: number[] | null;
   onSubmit: () => Promise<void>;
 }) {
   const { flush } = useAutosaveControls();
@@ -58,6 +62,7 @@ function WorkspaceBody({
     <AnnotationWorkspace
       session={session}
       consentBlocked={consentBlocked}
+      peaks={peaks}
       onFlushSave={handleFlush}
       onSubmit={handleSubmit}
     />
@@ -70,6 +75,14 @@ export default function AnnotatorWorkspacePage() {
   const navigate = useNavigate();
   const { resource, reload, save, submit, claim } = useSessionTranscript(sessionId);
   const [isClaiming, setClaiming] = useState(false);
+
+  /* The measured waveform, read once per annotation. The timeline used to
+     synthesise one per clip from a hash of the segment id — a speech-shaped
+     curve that matched nothing, on the screen where people read a waveform
+     to find where speech starts. */
+  const peaks = useAnnotationWaveform(
+    resource.status === "ready" ? resource.annotationId : undefined
+  );
 
   const handleSave = useCallback((doc: TranscriptDoc) => save(doc), [save]);
 
@@ -153,6 +166,7 @@ export default function AnnotatorWorkspacePage() {
       <WorkspaceBody
         session={resource.session}
         consentBlocked={resource.consentBlocked}
+        peaks={peaks}
         onSubmit={submit}
       />
     </AnnotationProvider>

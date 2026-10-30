@@ -55,7 +55,7 @@ type NotificationIconBadgeProps = {
   className?: string;
 };
 
-export function NotificationIconBadge({ icon, className }: NotificationIconBadgeProps) {
+function NotificationIconBadge({ icon, className }: NotificationIconBadgeProps) {
   return (
     <BorderBeam
       size="pulse-inner"

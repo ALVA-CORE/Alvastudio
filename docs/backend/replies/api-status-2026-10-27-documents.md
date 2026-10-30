@@ -2,7 +2,7 @@
 
 Received 27 Oct 2026. Wired the same day. The backend's handoff is reproduced
 below unchanged; what we did with it is in
-[`endpoints-needed.md`](../endpoints-needed.md) under "On our side".
+[`our-handling.md`](../our-handling.md).
 
 ---
 

@@ -123,8 +123,48 @@ export type ApiDuplicateFlag = {
    */
   closed_user_ids?: string[] | null;
   voided_amount_kobo?: number | null;
+  in_flight_kobo?: number | null;
   in_flight_entries?: number | null;
+
+  /**
+   * What upholding would do, worked out without doing it.
+   *
+   * Only on `GET /payouts/duplicate-flags/{id}`, and only while the flag is
+   * open. Null in the list, and null once resolved.
+   *
+   * Read it when the confirm opens, not earlier: these are the figures as
+   * they stand at that moment, and money moves.
+   */
+  if_upheld?: ApiUpholdPreview | null;
 };
+
+export type ApiUpholdAccount = {
+  user_id: string;
+  full_name: string;
+  email: string;
+  /** Earned, not sent. Upholding voids this. */
+  unpaid_kobo: number;
+  /** Already on its way. Upholding cannot call it back. */
+  in_flight_kobo: number;
+  in_flight_entries: number;
+};
+
+/**
+ * Two separate totals, not one.
+ *
+ * `voided_amount_kobo` is money the uphold destroys. `in_flight_kobo` is
+ * money it cannot reach. Adding them would overstate what the admin is
+ * deciding and understate what is already lost.
+ */
+export type ApiUpholdPreview = {
+  accounts: ApiUpholdAccount[];
+  voided_amount_kobo: number;
+  in_flight_kobo: number;
+  in_flight_entries: number;
+};
+
+export const getDuplicateFlag = (flagId: string) =>
+  apiFetch<ApiDuplicateFlag>(`/payouts/duplicate-flags/${flagId}`);
 
 /**
  * Decides a flag.

@@ -21,7 +21,7 @@ export type RoleVersion = {
   notes: string[];
 };
 
-export const APP_VERSIONS = {
+const APP_VERSIONS = {
   contributor: {
     version: "2.0.0",
     released: "2026-10-29",
