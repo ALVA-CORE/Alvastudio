@@ -36,15 +36,43 @@ this one — nothing was wrong in your text. **The fix is on our side**: we
 write types from `/openapi.json`, and where a handoff describes a field in
 words we look the name up rather than guess it.
 
-## One question, on something unrelated
+## ElevenLabs
 
-An ElevenLabs API key has been added on your side. Nothing in
-`/openapi.json` changed for it: `POST /audio/transcribe` still returns
-`{transcript, speech_detected, duration_seconds, trimmed_duration_seconds,
-sample_rate}` — a flat string, no speakers, no word timings.
+An `ELEVENLABS_API_KEY` was added to the **frontend** `.env`. It does
+nothing there and should be removed: Vite only exposes variables prefixed
+`VITE_`, so our build never reads it. That is the lucky outcome — had it
+been named `VITE_ELEVENLABS_API_KEY` it would have been compiled into the
+JavaScript and readable by anyone who opened the browser's devtools, on a
+key that bills per use. **The key belongs in the backend environment only.**
+The browser must never hold it, so every ElevenLabs call has to be yours.
 
-The annotator workspace needs **diarized** output: who spoke, and from when
-to when. Is ElevenLabs meant to provide that, and if so, will it arrive as
-new fields on `TranscriptionResult`, as pre-filled segments on the
-annotation, or as a new route? We are not building against it until the
-shape exists in the spec.
+Nothing in `/openapi.json` changed for it. `POST /audio/transcribe` still
+returns `{transcript, speech_detected, duration_seconds,
+trimmed_duration_seconds, sample_rate}` — a flat string, no speakers, no
+timings.
+
+**Three questions before we build anything.**
+
+1. **Which ElevenLabs product, and for what?** Scribe (speech-to-text with
+   diarization) is the one that fits the annotator workspace. Text-to-speech
+   and audio isolation also exist and we cannot see a use for either here —
+   see the warning below.
+
+2. **If it is Scribe, how does the output reach us?** New fields on
+   `TranscriptionResult`, pre-filled segments on the annotation, or a new
+   route? `AnnotationTokenOut` already carries `start_sec`/`end_sec`, so
+   word timings have somewhere to go; speakers do not.
+
+3. **Who maps diarized speakers to real people?** `SegmentOut.participant_id`
+   points at an actual participant the intern logged. Scribe returns
+   anonymous `speaker_0`, `speaker_1`. Something has to join the two — the
+   backend guessing, or the annotator choosing once per speaker. We would
+   build the second, but only if that is the intent.
+
+**A warning about audio isolation.** If the plan is to run it over
+contributor recordings, please do not without talking to us first. Reviewers
+reject clips for background noise, and interns are told to record in a quiet
+room — cleaning the audio afterwards would hide the fault the review exists
+to catch and would change the corpus from "how Nigerians actually sound" to
+"how Nigerians sound after processing". Isolation on a *copy*, for ASR
+accuracy only, is a different and reasonable thing.

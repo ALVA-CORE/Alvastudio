@@ -123,5 +123,16 @@ describe("EarningDetailPanel", () => {
     await waitFor(() =>
       expect(voidEntry).toHaveBeenCalledWith("e1", "Duplicate upload")
     );
+
+    /* The void dialog opens on top of the panel, and both lock the page
+       with `pointer-events: none` on the body. The body staying locked here
+       is correct — the panel is still open and still modal. What must not
+       happen is the panel itself going dead, which is how the same clash
+       presented in the duplicate-flags menu. */
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Why")).not.toBeInTheDocument()
+    );
+    await user.click(screen.getByRole("button", { name: "Summary" }));
+    expect(screen.getByText("Work counted")).toBeInTheDocument();
   });
 });

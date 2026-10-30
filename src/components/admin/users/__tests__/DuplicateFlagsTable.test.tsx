@@ -31,11 +31,6 @@ const FLAG = {
 };
 
 beforeEach(() => {
-  /* Radix locks the page behind an open dialog with `pointer-events: none`
-     on the body, and unmounting the tree does not put it back — so the next
-     test finds every button unclickable. */
-  document.body.style.pointerEvents = "";
-
   list.mockReset().mockResolvedValue([FLAG]);
   getFlag.mockReset().mockResolvedValue({
     ...FLAG,
@@ -186,5 +181,34 @@ describe("DuplicateFlagsTable", () => {
         notes: "Same person",
       })
     );
+  });
+});
+
+/**
+ * The page must still be clickable after the dialog closes.
+ *
+ * Radix locks the page behind an open overlay with `pointer-events: none`
+ * on `<body>`. Opening the dialog from inside a menu item's `onSelect` made
+ * the dialog record the *menu's* lock as the thing to restore, so closing
+ * the dialog wrote `none` back and killed the whole page until a reload.
+ *
+ * This test previously passed only because it reset the style by hand in
+ * `beforeEach` — the workaround hid the bug rather than catching it.
+ */
+describe("the page after the dialog closes", () => {
+  it("gives pointer events back", async () => {
+    const user = userEvent.setup();
+    table();
+
+    await openMenu(user);
+    await user.click(await screen.findByRole("menuitem", { name: /Close both accounts/ }));
+    await screen.findByRole("dialog");
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+    expect(document.body.style.pointerEvents).not.toBe("none");
   });
 });

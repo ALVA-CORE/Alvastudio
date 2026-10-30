@@ -227,9 +227,6 @@ export function DecideFlagDialog({
               className={alvaFieldClass()}
             />
           </FieldBeam>
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Recorded on the flag. The next admin reads this instead of guessing.
-          </p>
         </div>
 
         <div className="flex gap-2">
