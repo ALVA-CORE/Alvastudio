@@ -167,7 +167,8 @@ export default function AdminUsersPage() {
         );
       }
       setExportPhase({ kind: "done" });
-      window.setTimeout(() => setExportPhase({ kind: "idle" }), 1800);
+      /* Long enough for the fill to land, wobble, and show the check. */
+      window.setTimeout(() => setExportPhase({ kind: "idle" }), 2600);
     } catch (cause) {
       setExportPhase({ kind: "idle" });
       const message = reportApiError(cause, "Could not export users.");

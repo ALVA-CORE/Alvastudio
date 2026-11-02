@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { bankRowsToCsv, parseBankCsv } from "../bankCsv";
+import {
+  BANK_IMPORT_MAX_ROWS,
+  BatchImportError,
+  bankRowsToCsv,
+  importInBatches,
+  parseBankCsv,
+  type BankCsvRow,
+} from "../bankCsv";
 
 describe("parseBankCsv", () => {
   it("skips a header row", () => {
@@ -91,5 +98,57 @@ describe("bankRowsToCsv", () => {
         "Wetin dey,nigerian_pidgin,",
       ].join("\r\n")
     );
+  });
+});
+
+/* jsdom's File has no `.text()`. */
+const readText = (file: File) =>
+  new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsText(file);
+  });
+
+describe("importInBatches", () => {
+  const rows = (count: number): BankCsvRow[] =>
+    Array.from({ length: count }, (_, index) => ({
+      text: `Prompt ${index}`,
+      variety: "Nigerian Pidgin" as const,
+      line: index + 2,
+    }));
+
+  /* The route refuses a file over its limit, so 60,000 rows go as twelve. */
+  it("splits a bank over the route's limit and adds the results up", async () => {
+    const sizes: number[] = [];
+    const result = await importInBatches(rows(BANK_IMPORT_MAX_ROWS * 2 + 10), async (file) => {
+      const lines = (await readText(file)).split("\r\n").length - 1;
+      sizes.push(lines);
+      return { added: lines, skipped: 0, failed: 0 };
+    });
+    expect(sizes).toEqual([BANK_IMPORT_MAX_ROWS, BANK_IMPORT_MAX_ROWS, 10]);
+    expect(result).toMatchObject({ added: BANK_IMPORT_MAX_ROWS * 2 + 10, batches: 3, sent: 3 });
+  });
+
+  it("puts a failure back on its line in the person's file", async () => {
+    let call = 0;
+    const result = await importInBatches(rows(BANK_IMPORT_MAX_ROWS + 5), async () => {
+      call += 1;
+      return call === 2
+        ? { added: 4, skipped: 0, failed: 1, failures: [{ line: 3, reason: "text is blank" }] }
+        : { added: BANK_IMPORT_MAX_ROWS, skipped: 0, failed: 0 };
+    });
+    /* Batch two, second row: overall row 5001, on line 5003 of the file. */
+    expect(result.firstFailure).toEqual({ line: BANK_IMPORT_MAX_ROWS + 3, reason: "text is blank" });
+  });
+
+  it("says how far it got when a batch throws", async () => {
+    let call = 0;
+    const error = await importInBatches(rows(BANK_IMPORT_MAX_ROWS * 3), async () => {
+      call += 1;
+      if (call === 2) throw new Error("502");
+      return { added: BANK_IMPORT_MAX_ROWS, skipped: 0, failed: 0 };
+    }).catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(BatchImportError);
+    expect((error as BatchImportError).progress).toMatchObject({ sent: 1, batches: 3 });
   });
 });

@@ -35,8 +35,10 @@ import {
   bankCategory,
 } from "@/data/admin/prompts";
 import { alvaToast } from "@/lib/alva-toast";
+import { BatchImportError, importInBatches } from "@/lib/admin/bankCsv";
 import { useBank } from "@/hooks/useBank";
 import { reportApiError } from "@/lib/api/reportApiError";
+import { ApiError } from "@/lib/api/client";
 
 type ActiveFilter = "all" | "active" | "retired";
 
@@ -358,22 +360,26 @@ export default function AdminPromptsPage() {
         onOpenChange={setImportOpen}
         kind={kind}
         onImport={async (file, sent) => {
+          /* In batches the route will take. A 60,000-row file is otherwise
+             refused whole for being over its 5,000-row limit. */
           try {
-            const result = await importCsv(kind, file);
+            const result = await importInBatches(
+              sent,
+              (batch) => importCsv(kind, batch),
+              file.name
+            );
             /* The server reports all three outcomes. Saying only how many
                landed hides the rows that silently did not, and a duplicate
                is not the same news as a row that failed. */
-            const parts = [`${result.added} added`];
-            if (result.skipped > 0) parts.push(`${result.skipped} already in the bank`);
+            const parts = [`${result.added.toLocaleString()} added`];
+            if (result.skipped > 0) {
+              parts.push(`${result.skipped.toLocaleString()} already in the bank`);
+            }
             if (result.failed > 0) {
-              /* The server numbers the rewritten file, header first. Its
-                 line 2 is the first row sent, which carries the line it
-                 sat on in the person's own file. */
-              const first = result.failures?.[0];
-              const line = first ? sent[first.line - 2]?.line : undefined;
+              const first = result.firstFailure;
               parts.push(
-                `${result.failed} failed${
-                  first ? ` (${line ? `line ${line}: ` : ""}${first.reason})` : ""
+                `${result.failed.toLocaleString()} failed${
+                  first ? ` (line ${first.line}: ${first.reason})` : ""
                 }`
               );
             }
@@ -381,7 +387,23 @@ export default function AdminPromptsPage() {
             if (result.failed > 0) alvaToast.error(message);
             else alvaToast.success(message);
           } catch (cause) {
-            report(cause, "Could not import that file.");
+            if (cause instanceof BatchImportError && cause.progress.sent > 0) {
+              /* Not through `report`: it would swap this for the server's
+                 message, and how far it got is the part worth keeping. */
+              const { progress } = cause;
+              const why =
+                cause.cause instanceof ApiError ? `${cause.cause.message} ` : "";
+              alvaToast.error(
+                `${why}Stopped after ${progress.sent} of ${progress.batches} batches ` +
+                  `(${progress.added.toLocaleString()} added). Import the same file ` +
+                  `again to finish: rows already in the bank are skipped.`
+              );
+            } else {
+              report(
+                cause instanceof BatchImportError ? cause.cause : cause,
+                "Could not import that file."
+              );
+            }
           }
         }}
       />

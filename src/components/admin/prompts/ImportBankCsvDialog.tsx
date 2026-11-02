@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import NumberFlow from "@number-flow/react";
 import Upload from "@solar-icons/react/arrows-action/Upload";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
 import {
@@ -23,6 +24,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BankCsvPreviewTable } from "@/components/admin/prompts/BankCsvPreviewTable";
 
 type View = "table" | "text";
+
+/**
+ * Rolls up from zero when it first appears, then rolls between values as the
+ * text is edited. NumberFlow animates changes, not first paint, so it starts
+ * at 0 and is handed the real number a frame later.
+ */
+function CountUp({ value }: { value: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setShown(value));
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <NumberFlow value={shown} className="tabular-nums" />;
+}
 
 /**
  * Load a bank from a spreadsheet.
@@ -130,28 +145,50 @@ export function ImportBankCsvDialog({
 
           {/* Two views of one thing. Text is where a paste goes and where a
               stray quote is easiest to spot; the table is what will actually
-              be imported, and where a picked file lands. */}
-          {/* Nothing to tabulate once the text is cleared, so it falls back
-              to where the next paste goes. */}
+              be imported, and where a picked file lands. Nothing to tabulate
+              once the text is cleared, so it falls back to Text. */}
           <Tabs
             value={raw.trim() ? view : "text"}
             onValueChange={(value) => setView(value as View)}
           >
-            <TabsList className="h-9 rounded-full bg-alva-surface p-1">
-              <TabsTrigger
-                value="table"
-                disabled={!raw.trim()}
-                className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-              >
-                Table
-              </TabsTrigger>
-              <TabsTrigger
-                value="text"
-                className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
-              >
-                Text
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <TabsList className="h-9 rounded-full bg-alva-surface p-1">
+                <TabsTrigger
+                  value="table"
+                  disabled={!raw.trim()}
+                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+                >
+                  Table
+                </TabsTrigger>
+                <TabsTrigger
+                  value="text"
+                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+                >
+                  Text
+                </TabsTrigger>
+              </TabsList>
+
+              {/* The verdict, beside the views it describes. Which lines
+                  were skipped, and why, is in the table. */}
+              {raw.trim() ? (
+                <p className="flex items-center gap-3 text-sm" aria-live="polite">
+                  <span className="text-foreground">
+                    <CountUp value={parsed.rows.length} />{" "}
+                    {parsed.rows.length === 1 ? "row" : "rows"} ready
+                  </span>
+                  {parsed.problems.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setView("table")}
+                      className="inline-flex items-center gap-1 rounded-full text-xs text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                    >
+                      <DangerTriangle size={14} weight="BoldDuotone" aria-hidden />
+                      <CountUp value={parsed.problems.length} /> skipped
+                    </button>
+                  ) : null}
+                </p>
+              ) : null}
+            </div>
 
             <TabsContent value="table" className="mt-3">
               <BankCsvPreviewTable rows={parsed.rows} problems={parsed.problems} />
@@ -177,30 +214,6 @@ export function ImportBankCsvDialog({
             </TabsContent>
           </Tabs>
 
-          {raw.trim() ? (
-            <div className="rounded-xl bg-alva-surface p-3">
-              <p className="text-sm text-foreground">
-                <span className="tabular-nums">{parsed.rows.length}</span>{" "}
-                {parsed.rows.length === 1 ? "row" : "rows"} ready
-              </p>
-
-              {parsed.skipped.length > 0 ? (
-                <div className="mt-2 flex items-start gap-2">
-                  <DangerTriangle
-                    size={15}
-                    weight="BoldDuotone"
-                    className="mt-0.5 shrink-0 text-amber-300"
-                  />
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {parsed.skipped.length}{" "}
-                    {parsed.skipped.length === 1 ? "line" : "lines"} skipped,{" "}
-                    {parsed.skipped.slice(0, 3).join("; ")}
-                    {parsed.skipped.length > 3 ? "…" : ""}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-alva-border px-6 py-4">
@@ -235,7 +248,7 @@ export function ImportBankCsvDialog({
               }
             }}
           >
-            Add {parsed.rows.length || ""} {noun}
+            Add {parsed.rows.length ? parsed.rows.length.toLocaleString() : ""} {noun}
           </TextureButton>
         </div>
       </DialogContent>
