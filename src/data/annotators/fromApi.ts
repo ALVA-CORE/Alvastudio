@@ -55,14 +55,40 @@ function segmentText(tokens: ApiToken[], from: number, to: number): string {
  * positional: the palette has to be stable across reloads or every region in
  * the waveform changes colour when the page is refreshed.
  */
-function toSpeakers(participants: ApiParticipant[]): Speaker[] {
-  return participants.map((participant, index) => ({
+/**
+ * The people in the room, plus any Scribe voice nobody has named yet.
+ *
+ * A pre-filled draft arrives with `participant_id` null on every segment and
+ * a `speaker_label` instead. Without an entry per label there is nothing for
+ * those segments to belong to, and they all fall onto the first
+ * participant — which collapses every voice in the room into one person and
+ * throws away the only thing diarization was for.
+ *
+ * So an unlinked label becomes its own speaker, named "Voice 1", "Voice 2".
+ * Not "Speaker 1": the room already has speakers, and these are the ones
+ * still waiting to be told who they are.
+ */
+function toSpeakers(
+  participants: ApiParticipant[],
+  unlinkedLabels: string[] = []
+): Speaker[] {
+  const people: Speaker[] = participants.map((participant, index) => ({
     id: participant.id,
     label: participant.label,
     name: participant.label,
     role: participant.role === "moderator" ? "moderator" : "participant",
     color: SPEAKER_PALETTE[index % SPEAKER_PALETTE.length],
   }));
+
+  const voices: Speaker[] = unlinkedLabels.map((label, index) => ({
+    id: label,
+    label,
+    name: `Voice ${index + 1}`,
+    role: "participant" as const,
+    color: SPEAKER_PALETTE[(people.length + index) % SPEAKER_PALETTE.length],
+  }));
+
+  return [...people, ...voices];
 }
 
 function toSpans(segments: ApiSegment[]): AnnotationSpan[] {
@@ -146,9 +172,13 @@ function toSegments(
       id: segment.id,
       start: startSecond(tokens, segment.start_token),
       end: endSecond(tokens, segment.end_token),
-      /* A segment with nobody on it is still a segment. Dropping it would
+      /* Linked first, then the Scribe voice it came from, then the
+       * fallback. Reading `participant_id` alone put every pre-filled
+       * segment on the first participant.
+       *
+       * A segment with nobody on it is still a segment: dropping it would
        * lose the annotator's work over a missing attribution. */
-      speakerId: segment.participant_id ?? fallbackSpeaker,
+      speakerId: segment.participant_id ?? segment.speaker_label ?? fallbackSpeaker,
       text: segmentText(tokens, segment.start_token, segment.end_token),
     }))
     .sort((a, b) => a.start - b.start);
@@ -158,9 +188,20 @@ export function toTranscriptDoc(
   api: ApiAnnotationDocument,
   participants: ApiParticipant[]
 ): TranscriptDoc {
-  const speakers = toSpeakers(participants);
   const tokens = api.tokens ?? [];
   const segments = api.segments ?? [];
+
+  /* Every Scribe voice that still has no name, in the order the segments
+     introduce them, so "Voice 1" is the first one heard. */
+  const unlinked = [
+    ...new Set(
+      segments
+        .filter((segment) => !segment.participant_id && segment.speaker_label)
+        .map((segment) => segment.speaker_label as string)
+    ),
+  ];
+
+  const speakers = toSpeakers(participants, unlinked);
 
   return {
     sessionId: api.session_id,

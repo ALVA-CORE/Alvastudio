@@ -7,10 +7,6 @@ import type {
   ApiPidginFluency,
 } from "./enums";
 import {
-  fromApiAgeBracket,
-  fromApiFluency,
-  fromApiGender,
-  fromApiVariety,
   toApiAgeBracket,
   toApiFluency,
   toApiGender,
@@ -50,10 +46,6 @@ export type ApiConsent = {
   notes: string | null;
   accepted_at: string;
 };
-
-export function getProfile(): Promise<ApiProfile> {
-  return apiFetch<ApiProfile>("/onboarding/profile");
-}
 
 /**
  * `PUT /onboarding/profile` — a MERGE, not a replace.
@@ -212,20 +204,3 @@ export function profileToApi(profile: Partial<ContributorProfileData>): ApiProfi
   };
 }
 
-export function profileFromApi(profile: ApiProfile): Partial<ContributorProfileData> {
-  return {
-    ageBracket: fromApiAgeBracket(profile.age_bracket),
-    gender: fromApiGender(profile.gender) as ContributorProfileData["gender"],
-    stateOfOrigin: profile.state_of_origin ?? "",
-    nativeLanguages: (profile.native_languages ?? []).join(", "),
-    pidginFluency: fromApiFluency(profile.pidgin_fluency) as ContributorProfileData["pidginFluency"],
-    englishFluency: fromApiFluency(profile.english_fluency) as ContributorProfileData["englishFluency"],
-    ethnicity: profile.ethnicity ?? undefined,
-    occupation: profile.occupation ?? undefined,
-    homeLanguages: (profile.home_languages ?? []).join(", "),
-    preferredVariety: fromApiVariety(
-      profile.preferred_language_variety
-    ) as ContributorProfileData["preferredVariety"],
-    detectedMicLabel: profile.device_mic ?? undefined,
-  };
-}

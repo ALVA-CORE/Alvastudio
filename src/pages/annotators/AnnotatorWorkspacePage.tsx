@@ -18,6 +18,7 @@ import type { TranscriptDoc } from "@/lib/annotation/types";
 import { useSessionTranscript } from "@/hooks/useSessionTranscript";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAnnotationWaveform } from "@/hooks/useAnnotationSource";
+import type { ApiDraftTranscript } from "@/lib/api/annotations";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
 
@@ -37,12 +38,22 @@ function WorkspaceBody({
   session,
   consentBlocked,
   peaks,
+  transcript,
+  participants,
+  onReload,
+  onLink,
   onSubmit,
 }: {
   session: AnnotatorSession;
   consentBlocked: boolean;
   /** The recording's measured waveform, or null when it has not been. */
   peaks: number[] | null;
+  transcript: ApiDraftTranscript | null;
+  participants: { id: string; label: string }[];
+  onReload: () => void;
+  onLink: (
+    links: { speaker_label: string; participant_id: string | null }[]
+  ) => Promise<string | null>;
   onSubmit: () => Promise<void>;
 }) {
   const { flush } = useAutosaveControls();
@@ -63,6 +74,10 @@ function WorkspaceBody({
       session={session}
       consentBlocked={consentBlocked}
       peaks={peaks}
+      transcript={transcript}
+      participants={participants}
+      onReloadTranscript={onReload}
+      onLinkSpeakers={onLink}
       onFlushSave={handleFlush}
       onSubmit={handleSubmit}
     />
@@ -73,7 +88,8 @@ export default function AnnotatorWorkspacePage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { resource, reload, save, submit, claim } = useSessionTranscript(sessionId);
+  const { resource, reload, save, submit, claim, linkSpeakers } =
+    useSessionTranscript(sessionId);
   const [isClaiming, setClaiming] = useState(false);
 
   /* The measured waveform, read once per annotation. The timeline used to
@@ -167,6 +183,12 @@ export default function AnnotatorWorkspacePage() {
         session={resource.session}
         consentBlocked={resource.consentBlocked}
         peaks={peaks}
+        transcript={resource.transcript}
+        participants={resource.doc.speakers
+          .filter((speaker) => speaker.role !== "participant" || !speaker.id.startsWith("speaker_"))
+          .map((speaker) => ({ id: speaker.id, label: speaker.name ?? speaker.label }))}
+        onReload={reload}
+        onLink={linkSpeakers}
         onSubmit={submit}
       />
     </AnnotationProvider>

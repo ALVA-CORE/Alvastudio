@@ -38,6 +38,17 @@ export type ApiSegment = {
   id: string;
   annotation_id: string;
   participant_id: string | null;
+  /**
+   * Which voice Scribe heard, on a pre-filled draft.
+   *
+   * `speaker_0`, `speaker_1`, … A label is one voice in **one session**, not
+   * a person: `speaker_0` in two sessions are two different people. So it
+   * arrives with `participant_id` null, and stays that way until an
+   * annotator says who it is.
+   *
+   * Null on a segment the annotator made themselves.
+   */
+  speaker_label?: string | null;
   start_token: number;
   end_token: number;
   language_spans: ApiLanguageSpan[];
@@ -56,7 +67,51 @@ export type ApiToken = {
   end_sec: number | null;
 };
 
+/** `pending` and `processing` both mean "on its way"; nothing to show yet. */
+export type ApiTranscriptStatus = "pending" | "processing" | "done" | "failed";
+
+export type ApiTranscriptSpeaker = {
+  speaker_label: string;
+  /** Set once an annotator has linked this voice to somebody. */
+  participant_id: string | null;
+  /**
+   * Who the API thinks it is, from the intern's live speaker tagging.
+   *
+   * A suggestion and nothing more: live tagging is approximate and two
+   * labels can suggest the same person. It is pre-selected in the picker and
+   * never applied on anybody's behalf.
+   */
+  suggested_participant_id: string | null;
+  segment_count: number;
+  seconds: number;
+};
+
+/**
+ * The session's draft transcript, from ElevenLabs Scribe.
+ *
+ * Null when the session has none. The four statuses are not four shades of
+ * the same thing:
+ *
+ * - `pending`/`processing` — on its way, minutes for a long session.
+ *   Nothing is pushed, so the document has to be re-read to see it land.
+ * - `done` with `prefilled_at` set — this draft was filled from it.
+ * - `done` with `prefilled_at` null — a transcript exists but the annotator
+ *   had already started, so it was not applied. **A started draft is never
+ *   overwritten**, and there is no route that would apply it later.
+ * - `failed` — gave up. An admin can queue the session again.
+ */
+export type ApiDraftTranscript = {
+  status: ApiTranscriptStatus | null;
+  /** What Scribe detected, NOT the session's `language_variety`. */
+  language_code: string | null;
+  language_probability: number | null;
+  prefilled_at: string | null;
+  speakers: ApiTranscriptSpeaker[];
+};
+
 export type ApiAnnotationDocument = {
+  /** The session's draft transcript. Null when there is none. */
+  transcript?: ApiDraftTranscript | null;
   /**
    * Somebody in the session has withdrawn their consent.
    *
@@ -329,6 +384,30 @@ export type ApiAnnotationSource = {
 
 export function getAnnotationSource(id: string) {
   return apiFetch<ApiAnnotationSource>(`/annotations/${id}/source`);
+}
+
+/**
+ * Says who each Scribe voice is.
+ *
+ * Sets `participant_id` on **every** segment carrying that label, in one
+ * call, which is the whole point: a voice is identified once rather than
+ * segment by segment. `null` unlinks. Labels left out are untouched.
+ *
+ * `participant_id` is required on each entry, so an unlink sends `null`
+ * rather than omitting the field.
+ *
+ * Refusals: 400 a participant not in this session, 403 not the annotator
+ * holding the draft, 409 submitted/approved or consent withdrawn, 422 a
+ * label no segment carries or one sent twice.
+ */
+export function linkSpeakers(
+  id: string,
+  links: { speaker_label: string; participant_id: string | null }[]
+) {
+  return apiFetch<ApiAnnotationDocument>(`/annotations/${id}/speakers`, {
+    method: "PUT",
+    body: { links },
+  });
 }
 
 /** Hands the annotation back for review. */

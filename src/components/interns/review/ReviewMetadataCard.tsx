@@ -46,6 +46,11 @@ export function ReviewMetadataCard({ item, className }: ReviewMetadataCardProps)
           <Fact label="Submitted" value={item.submittedAt} />
           <Fact label="Device" value={item.device} />
           <Fact label="Language" value={item.language} />
+          {/* Beside the language, because auto-next moves between clips
+              without the table in view — and the rubric question "does it
+              match the prompt" means something different for a prompt read
+              than for a narration. */}
+          <Fact label="Type" value={item.mode} />
 
           {/* Its own row, and broken mid-string. A 36-character UUID in a
               half-width cell is what was pushing the page sideways. */}

@@ -170,20 +170,6 @@ export const redactParticipant = (
     { method: "POST", body: { confirm_turns_complete: confirmTurnsComplete } }
   );
 
-/** Corrects a session's recorded state. The session's intern, or an admin. */
-export const updateSession = (
-  sessionId: string,
-  /* `target_participants` is admin-only: interns are scored against it, so
-   * lowering their own would raise their own score. A refused request changes
-   * nothing, including any `state` sent alongside it, so the two are sent
-   * separately. */
-  patch: { state?: string | null; target_participants?: number }
-) =>
-  apiFetch<ApiSession>(`/focus-groups/${sessionId}`, {
-    method: "PATCH",
-    body: patch,
-  });
-
 export const createSession = (payload: {
   topic: string;
   topic_id?: string;
@@ -211,18 +197,6 @@ export const setParticipantConsent = (
     `/focus-groups/${sessionId}/participants/${participantId}`,
     { method: "PATCH", body }
   );
-
-/**
- * Removes a participant logged by mistake.
- *
- * Refused with 409 once the session has audio: their voice is in the
- * recording by then, and deleting them would delete the record of whether
- * they agreed with it. Record a decision instead.
- */
-export const removeParticipant = (sessionId: string, participantId: string) =>
-  apiFetch<void>(`/focus-groups/${sessionId}/participants/${participantId}`, {
-    method: "DELETE",
-  });
 
 export const addParticipant = (sessionId: string, participant: ApiParticipantIn) =>
   apiFetch<ApiParticipant>(`/focus-groups/${sessionId}/participants`, {
@@ -256,16 +230,35 @@ export function uploadSessionAudio(
 export const sessionAudioUrl = (sessionId: string) =>
   apiFetchBlobUrl(`/focus-groups/${sessionId}/audio`);
 
-export const addTurn = (
-  sessionId: string,
-  turn: { participant_id: string; start_time: number; end_time: number }
-) =>
-  apiFetch<ApiSpeakerTurn>(`/focus-groups/${sessionId}/turns`, {
-    method: "POST",
-    body: turn,
-  });
-
 export const listTurns = (sessionId: string, participantId?: string) =>
   apiFetch<ApiSpeakerTurn[]>(`/focus-groups/${sessionId}/turns`, {
     query: { participant_id: participantId },
+  });
+
+/**
+ * Queues old sessions for a draft transcript.
+ *
+ * New audio is queued automatically; this is for sessions recorded before
+ * the feature was switched on, and for ones that failed.
+ *
+ * A preview unless `apply` is set. It only takes sessions with audio, with
+ * every speaker's consent, with no transcript done or running, and **with no
+ * annotation work begun** — a started draft is never filled, so transcribing
+ * it would be paid for and unused.
+ *
+ * `audio_seconds` is what ElevenLabs bills on, which is the number an admin
+ * is really approving. `503` means the feature is switched off.
+ */
+export const backfillTranscripts = (apply = false) =>
+  apiFetch<{
+    applied: boolean;
+    sessions: number;
+    session_ids: string[];
+    /** What ElevenLabs bills on. */
+    audio_seconds: number;
+    unmeasured_sessions: number;
+    previously_failed: number;
+  }>("/focus-groups/transcripts/backfill", {
+    method: "POST",
+    query: apply ? { apply: true } : undefined,
   });

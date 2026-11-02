@@ -41,12 +41,52 @@ function cumulativeHours(daily: ApiDailyHours[]) {
   });
 }
 
-/** `{key: hours}` into the `{label, hours}` every chart on these pages takes. */
+/**
+ * `{key: count}` into the `{label, hours}` shape the charts take.
+ *
+ * **The API's `by_*` maps hold integer COUNTS, not hours.** `by_session_type`
+ * and `by_status` count clips; `by_language_variety` counts clips plus
+ * focus-group sessions. We read all three as hours for weeks, which is why
+ * the cards said 2.8 hours while the donut beside them said 1,198 — and why
+ * the two donuts disagreed by exactly one, the one focus-group session that
+ * `by_language_variety` counts and `by_session_type` does not.
+ *
+ * `hours` is the field name the chart components take; what it carries is
+ * whatever the caller measured. Only pass counts here when the chart says
+ * it is showing counts.
+ */
 function toSlices(
   record: Record<string, number>,
   labels: Record<string, string>
 ): CorpusSlice[] {
   return Object.entries(record)
+    .map(([key, value]) => ({
+      label: labels[key] ?? key.replace(/_/g, " "),
+      hours: round1(value),
+    }))
+    .filter((slice) => slice.hours > 0)
+    .sort((a, b) => b.hours - a.hours);
+}
+
+/**
+ * Real hours per type, and per status, from the one field that has them.
+ *
+ * `by_type_status` is the joint and carries `hours` on every cell, so
+ * summing it one way gives hours per collection type and the other way gives
+ * hours per review status. The marginals next to it are counts.
+ */
+function hoursBy(
+  cells: ApiTypeStatusCell[],
+  pick: (cell: ApiTypeStatusCell) => string,
+  labels: Record<string, string>
+): CorpusSlice[] {
+  const totals = new Map<string, number>();
+  for (const cell of cells) {
+    const key = pick(cell);
+    totals.set(key, (totals.get(key) ?? 0) + cell.hours);
+  }
+
+  return [...totals.entries()]
     .map(([key, hours]) => ({
       label: labels[key] ?? key.replace(/_/g, " "),
       hours: round1(hours),
@@ -129,9 +169,15 @@ export function useCorpus() {
           approvedHours: round1(summary.approved_hours),
           contributors: summary.contributors,
           sessions: summary.focus_group_sessions,
+          /* Counts, not hours: no endpoint splits hours by language. The
+             chart says so rather than mislabelling them. */
           byVariety: toSlices(summary.by_language_variety, VARIETY_LABEL),
-          byStatus: toSlices(summary.by_status, STATUS_LABEL),
-          byType: toSlices(summary.by_session_type, TYPE_LABEL),
+          byStatus: hoursBy(summary.by_type_status, (cell) => cell.status, STATUS_LABEL),
+          byType: hoursBy(
+            summary.by_type_status,
+            (cell) => cell.session_type,
+            TYPE_LABEL
+          ),
           byState: states.states
             .filter((row) => row.hours > 0)
             .map((row) => ({ label: row.state, hours: round1(row.hours) }))
