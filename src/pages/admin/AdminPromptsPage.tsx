@@ -357,17 +357,29 @@ export default function AdminPromptsPage() {
         open={importOpen}
         onOpenChange={setImportOpen}
         kind={kind}
-        onImport={async (file) => {
+        onImport={async (file, sent) => {
           try {
             const result = await importCsv(kind, file);
             /* The server reports all three outcomes. Saying only how many
-               landed hides the rows that silently did not. */
-            const skipped = result.skipped + result.failed;
-            alvaToast.success(
-              skipped > 0
-                ? `${result.added} added, ${skipped} skipped`
-                : `${result.added} added`
-            );
+               landed hides the rows that silently did not, and a duplicate
+               is not the same news as a row that failed. */
+            const parts = [`${result.added} added`];
+            if (result.skipped > 0) parts.push(`${result.skipped} already in the bank`);
+            if (result.failed > 0) {
+              /* The server numbers the rewritten file, header first. Its
+                 line 2 is the first row sent, which carries the line it
+                 sat on in the person's own file. */
+              const first = result.failures?.[0];
+              const line = first ? sent[first.line - 2]?.line : undefined;
+              parts.push(
+                `${result.failed} failed${
+                  first ? ` (${line ? `line ${line}: ` : ""}${first.reason})` : ""
+                }`
+              );
+            }
+            const message = parts.join(", ");
+            if (result.failed > 0) alvaToast.error(message);
+            else alvaToast.success(message);
           } catch (cause) {
             report(cause, "Could not import that file.");
           }

@@ -27,6 +27,7 @@ import {
   FLUENCY_OPTIONS,
   PREFERRED_VARIETY_OPTIONS,
   RECORDING_DEVICE_OPTIONS,
+  REFERRAL_SOURCE_OPTIONS,
 } from "@/data/contributors/onboarding";
 import {
   AGE_BRACKET_OPTIONS,
@@ -96,6 +97,8 @@ export function ContributorOnboardingForm() {
       recordingDevice: undefined,
       detectedDeviceLabel: "",
       detectedMicLabel: "",
+      referralSource: undefined,
+      referralSourceDetail: "",
       confirmAge18: false,
       consentRecording: false,
       consentNdpa: false,
@@ -164,6 +167,8 @@ export function ContributorOnboardingForm() {
       recordingDevice: values.recordingDevice as ContributorProfileData["recordingDevice"],
       detectedDeviceLabel: values.detectedDeviceLabel || undefined,
       detectedMicLabel: values.detectedMicLabel || undefined,
+      referralSource: values.referralSource,
+      referralSourceDetail: values.referralSourceDetail || undefined,
     };
 
     setFormError(null);
@@ -589,6 +594,44 @@ export function ContributorOnboardingForm() {
 
           {step === 5 && (
             <div className="space-y-3">
+              {/* Before the consents, not after: it is the one question here
+                  with a choice in it, and it reads as part of signing up
+                  rather than one more box to tick. */}
+              <FormField
+                control={form.control}
+                name="referralSource"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormControl>
+                      <AlvaSelect
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        label="How did you hear about Alva?"
+                        options={[...REFERRAL_SOURCE_OPTIONS]}
+                        hasError={Boolean(fieldState.error)}
+                        size={AUTH_FIELD_SIZE}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("referralSource") === "other" ? (
+                <FormField
+                  control={form.control}
+                  name="referralSourceDetail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <BeamInput label="Where? (optional)" maxLength={120} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+
               <FormField
                 control={form.control}
                 name="confirmAge18"

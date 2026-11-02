@@ -10,7 +10,12 @@ import {
 import { TextureButton } from "@/components/ui/texture-button";
 import { FieldBeam } from "@/components/shared/FieldBeam";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
-import { parseBankCsv, BANK_CSV_TEMPLATE } from "@/lib/admin/bankCsv";
+import {
+  bankRowsToCsv,
+  parseBankCsv,
+  BANK_CSV_TEMPLATE,
+  type BankCsvRow,
+} from "@/lib/admin/bankCsv";
 import type { BankKind } from "@/data/admin/prompts";
 import { downloadCsv } from "@/lib/download-csv";
 import { cn } from "@/lib/utils";
@@ -33,18 +38,20 @@ export function ImportBankCsvDialog({
   onOpenChange: (open: boolean) => void;
   kind: BankKind;
   /**
-   * Handed the file, not the parsed rows.
+   * Handed a file, but not the one the person picked.
    *
-   * `POST /{bank}/import` takes the CSV and does its own validation, including
-   * duplicate detection against the existing bank, which a client parse cannot
-   * see. The preview above is still worth having — it catches a wrong file
-   * before it is sent — but the server's answer is the one that counts.
+   * `POST /{bank}/import` wants `text,language_variety,category` with the
+   * API's enum values, and refuses a whole file over a header called
+   * `variety`. So the rows the preview found are rewritten into that shape
+   * and sent instead. The server still does its own validation, including
+   * duplicate detection against the existing bank, and its answer is the
+   * one that counts.
    */
-  onImport: (file: File) => Promise<void> | void;
+  onImport: (file: File, rows: BankCsvRow[]) => Promise<void> | void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [raw, setRaw] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
   const noun = kind === "prompt" ? "prompts" : "stimuli";
@@ -52,7 +59,7 @@ export function ImportBankCsvDialog({
 
   const readFile = async (picked: File | undefined) => {
     if (!picked) return;
-    setFile(picked);
+    setFileName(picked.name);
     setRaw(await picked.text());
   };
 
@@ -62,7 +69,7 @@ export function ImportBankCsvDialog({
       onOpenChange={(next) => {
         if (!next) {
           setRaw("");
-          setFile(null);
+          setFileName(null);
           setSending(false);
         }
         onOpenChange(next);
@@ -77,10 +84,13 @@ export function ImportBankCsvDialog({
         <div className="shrink-0 border-b border-alva-border px-6 pb-4 pt-6">
           <DialogTitle className="text-xl text-foreground">Import {noun}</DialogTitle>
           <DialogDescription className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            One per line. Columns are <span className="text-foreground">text</span>,{" "}
+            One per line, with a header row naming{" "}
+            <span className="text-foreground">text</span>,{" "}
             <span className="text-foreground">variety</span> and{" "}
-            <span className="text-foreground">category</span>. The last two are
-            optional and fall back to Pidgin and Everyday life.
+            <span className="text-foreground">category</span>, in any order.
+            Variety can be written as &ldquo;Nigerian English&rdquo; or just
+            &ldquo;Pidgin&rdquo;, and is Pidgin when left blank. Category is
+            optional.
           </DialogDescription>
         </div>
 
@@ -168,13 +178,17 @@ export function ImportBankCsvDialog({
             variant="alva"
             size="sm"
             className="w-auto"
-            disabled={parsed.rows.length === 0 || !file}
+            disabled={parsed.rows.length === 0}
             loading={sending}
             onClick={async () => {
-              if (!file) return;
               setSending(true);
               try {
-                await onImport(file);
+                await onImport(
+                  new File([bankRowsToCsv(parsed.rows)], fileName ?? `${noun}.csv`, {
+                    type: "text/csv",
+                  }),
+                  parsed.rows
+                );
                 onOpenChange(false);
               } finally {
                 /* Without this, a throw from `onImport` leaves the button

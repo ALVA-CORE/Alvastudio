@@ -17,6 +17,8 @@ import { CorpusGrowthChart } from "@/components/admin/overview/CorpusGrowthChart
 import { CorpusFlowChart } from "@/components/admin/overview/CorpusFlowChart";
 import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import { CorpusFunnel } from "@/components/admin/shared/CorpusFunnel";
+import { ReferralSourcesChart } from "@/components/admin/corpus/ReferralSourcesChart";
+import { toReferralSlices } from "@/data/admin/referrals";
 import {
   EMPTY_CORPUS,
   EMPTY_CORPUS_DEMOGRAPHICS,
@@ -39,6 +41,11 @@ export default function AdminCorpusPage() {
   const corpus = !data ? EMPTY_CORPUS : data;
 
   const gaps = underCoveredStates(corpus);
+  const referrals = useMemo(
+    () => toReferralSlices(raw?.referral_sources),
+    [raw?.referral_sources]
+  );
+  const referralsUnknown = raw?.referral_sources?.unknown ?? 0;
 
   /**
    * Age brackets crossed with gender, for the pyramid.
@@ -175,19 +182,53 @@ export default function AdminCorpusPage() {
       {/* `daily_hours` gives the curve its time axis and `by_type_status` gives
           the flow its real joint. Both keep their frames when a corpus is
           empty: an empty chart says there is nothing, a missing one says
-          nothing at all. */}
-      <AlvaChartCard
-        title="Corpus growth"
-        subtitle="Cumulative hours collected"
-        className="mt-2 h-[25rem]"
-        emptyMessage={
-          corpus.growth.length === 0
-            ? { title: "No audio yet", description: "Nothing has been collected." }
-            : undefined
-        }
-      >
-        <CorpusGrowthChart data={corpus.growth} />
-      </AlvaChartCard>
+          nothing at all.
+
+          Who is arriving sits beside how much they have recorded. The ring
+          is square and the curve wants width, so the ring takes a third. */}
+      <div className="mt-2 grid gap-2 lg:grid-cols-3">
+        {/* Asked once, on the consent step of contributor sign-up. Everyone
+            from before the question sits in `unknown`, which is counted in
+            the subtitle rather than drawn as a wedge: it is not a channel. */}
+        <AlvaChartCard
+          title="How contributors found us"
+          subtitle={
+            referralsUnknown > 0
+              ? `Contributors by channel · ${referralsUnknown.toLocaleString()} signed up before we asked`
+              : "Contributors by channel, from sign-up"
+          }
+          className="h-[25rem]"
+          emptyMessage={
+            referrals.length === 0
+              ? raw?.referral_sources === undefined
+                ? {
+                    title: "Not reported yet",
+                    description:
+                      "Sign-up asks the question; the corpus summary does not return the answers yet.",
+                  }
+                : {
+                    title: "No answers yet",
+                    description: "Nobody has signed up since the question was added.",
+                  }
+              : undefined
+          }
+        >
+          <ReferralSourcesChart slices={referrals} />
+        </AlvaChartCard>
+
+        <AlvaChartCard
+          title="Corpus growth"
+          subtitle="Cumulative hours collected"
+          className="h-[25rem] lg:col-span-2"
+          emptyMessage={
+            corpus.growth.length === 0
+              ? { title: "No audio yet", description: "Nothing has been collected." }
+              : undefined
+          }
+        >
+          <CorpusGrowthChart data={corpus.growth} />
+        </AlvaChartCard>
+      </div>
 
       {/* The flow needs the width — it is four columns of nodes with labels —
           so the state list rides alongside it in the third it does not use. */}
