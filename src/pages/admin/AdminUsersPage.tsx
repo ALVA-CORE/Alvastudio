@@ -3,7 +3,6 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import ShieldUser from "@solar-icons/react/security/ShieldUser";
 import AddCircle from "@solar-icons/react/ui/AddCircle";
-import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
@@ -36,7 +35,12 @@ import {
   type AdminUserRole,
 } from "@/data/admin/users";
 import { alvaToast } from "@/lib/alva-toast";
-import { downloadCsv, toCsv } from "@/lib/download-csv";
+import { downloadCsv } from "@/lib/download-csv";
+import { fetchProfilesFor, usersToCsv } from "@/lib/admin/usersExport";
+import {
+  ExportProgressButton,
+  type ExportPhase,
+} from "@/components/shared/ExportProgressButton";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
@@ -56,21 +60,6 @@ type StatusFilter = "all" | AccountStatus;
 function Count({ value }: { value: number }) {
   if (value === 0) return null;
   return <span className="ml-1 tabular-nums text-muted-foreground">({value})</span>;
-}
-
-/** One row per account, in the order an admin reads them. */
-function usersToCsv(users: AdminUser[]) {
-  return toCsv(
-    ["full_name", "email", "phone", "role", "status", "joined"],
-    users.map((user) => [
-      user.fullName,
-      user.email,
-      user.phone,
-      ROLE_LABELS[user.role] ?? user.role,
-      STATUS_LABEL[accountStatus(user)],
-      new Date(user.createdAt).toISOString().slice(0, 10),
-    ])
-  );
 }
 
 export default function AdminUsersPage() {
@@ -95,6 +84,7 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("accounts");
+  const [exportPhase, setExportPhase] = useState<ExportPhase>({ kind: "idle" });
 
   /* Lifted out of the table so the tab can carry the count and the tab row
      can carry the action. Not fetched until the tab is opened: it is a
@@ -147,6 +137,40 @@ export default function AdminUsersPage() {
     } catch (cause) {
       setReset(null);
       const message = reportApiError(cause, "Could not create that account.");
+      if (message) alvaToast.error(message);
+    }
+  };
+
+  /**
+   * Every profile for the accounts in view, then one CSV.
+   *
+   * Snapshotted: a filter changed mid-export would otherwise pair one list's
+   * profiles with another list's rows.
+   */
+  const handleExport = async () => {
+    const users = filtered;
+    setExportPhase({ kind: "running", done: 0, total: users.length });
+    try {
+      const { profiles, failed } = await fetchProfilesFor(users, (done) =>
+        setExportPhase({ kind: "running", done, total: users.length })
+      );
+      downloadCsv(
+        `alva-users-${new Date().toISOString().slice(0, 10)}.csv`,
+        usersToCsv(users, profiles)
+      );
+      /* The button says it worked. A toast only when part of it did not. */
+      if (failed > 0) {
+        alvaToast.error(
+          `${failed} profile${failed === 1 ? "" : "s"} could not be read and ${
+            failed === 1 ? "is" : "are"
+          } blank in the export`
+        );
+      }
+      setExportPhase({ kind: "done" });
+      window.setTimeout(() => setExportPhase({ kind: "idle" }), 1800);
+    } catch (cause) {
+      setExportPhase({ kind: "idle" });
+      const message = reportApiError(cause, "Could not export users.");
       if (message) alvaToast.error(message);
     }
   };
@@ -263,24 +287,11 @@ export default function AdminUsersPage() {
             {/* What the filters show, not every account. Filtering to
                 contributors and then exporting is the usual reason to be
                 here, and an export that ignored the filter would surprise. */}
-            <TextureButton
-              variant="minimal"
-              size="sm"
-              className="w-auto"
+            <ExportProgressButton
+              phase={exportPhase}
               disabled={filtered.length === 0}
-              onClick={() => {
-                downloadCsv(
-                  `alva-users-${new Date().toISOString().slice(0, 10)}.csv`,
-                  usersToCsv(filtered)
-                );
-                alvaToast.success(
-                  `Exported ${filtered.length} ${filtered.length === 1 ? "user" : "users"}`
-                );
-              }}
-            >
-              <Upload size={15} weight="Outline" />
-              Export CSV
-            </TextureButton>
+              onClick={handleExport}
+            />
             {/* Recovery is not self-serve: somebody asks, an admin decides,
                 and the API emails the link. Without a way in here the
                 requests arrived nowhere. */}

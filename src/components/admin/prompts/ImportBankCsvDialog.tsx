@@ -19,6 +19,10 @@ import {
 import type { BankKind } from "@/data/admin/prompts";
 import { downloadCsv } from "@/lib/download-csv";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BankCsvPreviewTable } from "@/components/admin/prompts/BankCsvPreviewTable";
+
+type View = "table" | "text";
 
 /**
  * Load a bank from a spreadsheet.
@@ -52,6 +56,7 @@ export function ImportBankCsvDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [raw, setRaw] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [view, setView] = useState<View>("text");
   const [sending, setSending] = useState(false);
 
   const noun = kind === "prompt" ? "prompts" : "stimuli";
@@ -61,6 +66,7 @@ export function ImportBankCsvDialog({
     if (!picked) return;
     setFileName(picked.name);
     setRaw(await picked.text());
+    setView("table");
   };
 
   return (
@@ -70,6 +76,7 @@ export function ImportBankCsvDialog({
         if (!next) {
           setRaw("");
           setFileName(null);
+          setView("text");
           setSending(false);
         }
         onOpenChange(next);
@@ -77,7 +84,7 @@ export function ImportBankCsvDialog({
     >
       <DialogContent
         className={cn(
-          "flex max-h-[85vh] max-w-xl flex-col gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
+          "flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
           "[&>button]:hidden"
         )}
       >
@@ -121,24 +128,54 @@ export function ImportBankCsvDialog({
             </button>
           </div>
 
-          <div>
-            <label htmlFor="bank-csv" className="block text-xs text-muted-foreground">
-              Or paste it here
-            </label>
-            <FieldBeam className="mt-1.5">
-              <textarea
-                id="bank-csv"
-                rows={7}
-                value={raw}
-                onChange={(event) => setRaw(event.target.value)}
-                className={cn(
-                  alvaFieldClass(),
-                  "block h-auto w-full resize-none px-3 py-2.5 font-mono text-xs leading-relaxed focus-visible:border-transparent"
-                )}
-                placeholder={BANK_CSV_TEMPLATE}
-              />
-            </FieldBeam>
-          </div>
+          {/* Two views of one thing. Text is where a paste goes and where a
+              stray quote is easiest to spot; the table is what will actually
+              be imported, and where a picked file lands. */}
+          {/* Nothing to tabulate once the text is cleared, so it falls back
+              to where the next paste goes. */}
+          <Tabs
+            value={raw.trim() ? view : "text"}
+            onValueChange={(value) => setView(value as View)}
+          >
+            <TabsList className="h-9 rounded-full bg-alva-surface p-1">
+              <TabsTrigger
+                value="table"
+                disabled={!raw.trim()}
+                className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+              >
+                Table
+              </TabsTrigger>
+              <TabsTrigger
+                value="text"
+                className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+              >
+                Text
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="table" className="mt-3">
+              <BankCsvPreviewTable rows={parsed.rows} problems={parsed.problems} />
+            </TabsContent>
+
+            <TabsContent value="text" className="mt-3">
+              <label htmlFor="bank-csv" className="sr-only">
+                CSV text
+              </label>
+              <FieldBeam>
+                <textarea
+                  id="bank-csv"
+                  rows={9}
+                  value={raw}
+                  onChange={(event) => setRaw(event.target.value)}
+                  className={cn(
+                    alvaFieldClass(),
+                    "block h-auto w-full resize-none px-3 py-2.5 font-mono text-xs leading-relaxed focus-visible:border-transparent"
+                  )}
+                  placeholder={`Or paste it here\n\n${BANK_CSV_TEMPLATE}`}
+                />
+              </FieldBeam>
+            </TabsContent>
+          </Tabs>
 
           {raw.trim() ? (
             <div className="rounded-xl bg-alva-surface p-3">

@@ -17,6 +17,7 @@ the other document points here.
 | --- | --- | --- | --- |
 | 1 | Hours split by language variety | A corpus chart that can only show counts | Low |
 | 2 | Store "how did you hear about us", and count it on the corpus summary | The corpus page's "How contributors found us" card | Medium |
+| 3 | One request for every user's profile | The users CSV export makes one request per person | Low |
 
 Everything else is wired, including the 1 Nov Scribe handoff. The three asks
 of 30 Oct are closed: the ElevenLabs key is yours alone, Scribe's shape is in
@@ -82,4 +83,25 @@ until it is there, so there is nothing to coordinate on release.
 **Nice to have, not blocking:** the `other` free-text answers with counts,
 like `unmatched_states` on coverage, so we can see whether a new channel
 deserves its own option.
+
+---
+
+## 3. Bulk profiles for the users export
+
+The users page exports a CSV with each account and everything we hold on
+them: the onboarding profile, the intern and annotator profiles, and identity
+status. The only source is `GET /users/{id}/profiles`, so an export is one
+request per person, six at a time. That is a few seconds for a few hundred
+people and a few minutes for a few thousand.
+
+**What would fix it:** either of these.
+
+- `GET /users/profiles?ids=…` (or `?role=&approved=`, matching `GET /users`),
+  returning a list of what `/users/{id}/profiles` returns now.
+- `GET /users/export.csv` with the same filters as `GET /users`, if you would
+  rather own the columns. We would want the ones we export today: account
+  fields, every `profile` field, `intern_profile`, `annotator_profile`, and
+  `identity_verified` / `identity_status` / `wallet_status`.
+
+**Not urgent.** The export is correct as it stands, only slow at scale.
 

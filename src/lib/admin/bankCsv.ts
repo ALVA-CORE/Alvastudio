@@ -29,10 +29,14 @@ export type BankCsvRow = BankDraft & {
   line: number;
 };
 
+export type BankCsvProblem = { line: number; reason: string };
+
 export type BankCsvResult = {
   rows: BankCsvRow[];
   /** One readable line per rejected row, for the preview. */
   skipped: string[];
+  /** The same rejections, structured, so a table can place them in order. */
+  problems: BankCsvProblem[];
 };
 
 type Column = "text" | "variety" | "category";
@@ -60,10 +64,16 @@ const HEADER_ALIASES: Record<Column, string[]> = {
  */
 export function parseBankCsv(input: string): BankCsvResult {
   const rows: BankCsvRow[] = [];
-  const skipped: string[] = [];
+  const problems: BankCsvProblem[] = [];
+  const reject = (line: number, reason: string) => problems.push({ line, reason });
+  const result = () => ({
+    rows,
+    problems,
+    skipped: problems.map((problem) => `line ${problem.line}: ${problem.reason}`),
+  });
 
   const records = parseCsv(input.replace(/^\ufeff/, ""));
-  if (records.length === 0) return { rows, skipped };
+  if (records.length === 0) return result();
 
   /* A header row names its own columns; it is not data. Without one the
      order is text, variety, category, as in the template. */
@@ -76,27 +86,27 @@ export function parseBankCsv(input: string): BankCsvResult {
 
     const text = (cells[index.text] ?? "").trim();
     if (!text) {
-      skipped.push(`line ${line}: no text`);
+      reject(line, "no text");
       continue;
     }
 
     const rawVariety = index.variety >= 0 ? cells[index.variety] : undefined;
     const variety = matchVariety(rawVariety);
     if (!variety) {
-      skipped.push(`line ${line}: "${rawVariety?.trim()}" is not English or Pidgin`);
+      reject(line, `"${rawVariety?.trim()}" is not English or Pidgin`);
       continue;
     }
 
     const category = index.category >= 0 ? (cells[index.category] ?? "").trim() : "";
     if (category.length > CATEGORY_MAX) {
-      skipped.push(`line ${line}: category is over ${CATEGORY_MAX} characters`);
+      reject(line, `category is over ${CATEGORY_MAX} characters`);
       continue;
     }
 
     rows.push({ text, variety, category: category || undefined, line });
   }
 
-  return { rows, skipped };
+  return result();
 }
 
 const TO_API_VARIETY: Record<Variety, ApiLanguageVariety> = {

@@ -169,6 +169,8 @@ export type ApiUserProfiles = {
     gender?: string | null;
     state_of_origin?: string | null;
     state_of_residence?: string | null;
+    primary_residence_region?: string | null;
+    accent_influence_region?: string | null;
     ethnicity?: string | null;
     occupation?: string | null;
     native_languages?: string[] | null;
@@ -177,6 +179,9 @@ export type ApiUserProfiles = {
     preferred_language_variety?: string | null;
     device_mic?: string | null;
     home_languages?: string[] | null;
+    /** Not returned yet: endpoints-needed #2. */
+    referral_source?: string | null;
+    referral_source_detail?: string | null;
   } | null;
   intern_profile: {
     primary_state?: string | null;
