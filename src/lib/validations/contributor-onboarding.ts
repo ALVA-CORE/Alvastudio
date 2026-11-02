@@ -2,6 +2,7 @@ import { z } from "zod";
 import { isValidNigerianPhone } from "@/lib/participant-validation";
 import {
   FLUENCY_LEVELS,
+  REFERRAL_SOURCE_VALUES,
 } from "@/data/contributors/onboarding";
 
 const ageBracketValues = ["18-24", "25-34", "35-44", "45-54", "55+"] as const;
@@ -53,6 +54,10 @@ export const contributorRecordingStepSchema = z.object({
 });
 
 export const contributorConsentStepSchema = z.object({
+  referralSource: z.enum(REFERRAL_SOURCE_VALUES, {
+    message: "Tell us how you heard about Alva",
+  }),
+  referralSourceDetail: z.string().trim().max(120, "Keep it under 120 characters").optional(),
   confirmAge18: z.boolean().refine((value) => value === true, {
     message: "You must confirm you are 18 or older",
   }),
@@ -83,7 +88,13 @@ export const CONTRIBUTOR_STEP_FIELDS: Record<number, (keyof ContributorOnboardin
     "preferredVariety",
   ],
   4: ["recordingDevice", "detectedDeviceLabel", "detectedMicLabel"],
-  5: ["confirmAge18", "consentRecording", "consentNdpa"],
+  5: [
+    "referralSource",
+    "referralSourceDetail",
+    "confirmAge18",
+    "consentRecording",
+    "consentNdpa",
+  ],
 };
 
 export const CONTRIBUTOR_STEP_SCHEMAS = {

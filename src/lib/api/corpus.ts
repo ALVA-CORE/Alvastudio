@@ -59,6 +59,15 @@ export type ApiCorpusSummary = {
     by_gender: ApiDemographicSlice[];
     by_age_bracket: ApiDemographicSlice[];
   };
+  /**
+   * Contributors by how they heard about Alva, keyed by the sign-up form's
+   * values (`instagram`, `friend_colleague`, …), with `unknown` for anyone
+   * who signed up before the question was asked.
+   *
+   * Asked for, not shipped (endpoints-needed #2). Optional until it is, and
+   * the card says so rather than drawing an empty ring as if nobody answered.
+   */
+  referral_sources?: Record<string, number>;
 };
 
 export type ApiStateCoverage = {

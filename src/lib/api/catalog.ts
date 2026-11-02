@@ -92,7 +92,8 @@ export type ImportResult = {
   added: number;
   skipped: number;
   failed: number;
-  failures?: { row: number; reason: string }[];
+  /** `line` is 1-based and counts the header row of the file sent. */
+  failures?: { line: number; reason: string }[];
 };
 
 /** CSV bulk create. Multipart, so the browser sets the boundary. */

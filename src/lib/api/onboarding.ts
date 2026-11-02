@@ -35,6 +35,16 @@ export type ApiProfile = {
   english_fluency?: ApiPidginFluency | null;
   preferred_language_variety?: ApiLanguageVariety | null;
   device_mic?: string | null;
+  /**
+   * How they heard about Alva. Asked once, at sign-up.
+   *
+   * Not stored by the API yet (see endpoints-needed #2). Pydantic ignores
+   * fields it does not know, so sending it now loses nothing and needs no
+   * second release once the column lands.
+   */
+  referral_source?: string | null;
+  /** Free text, only when `referral_source` is `other`. */
+  referral_source_detail?: string | null;
 };
 
 export type ApiConsent = {
@@ -201,6 +211,11 @@ export function profileToApi(profile: Partial<ContributorProfileData>): ApiProfi
     // The API models the mic as free text, so the detected label is richer than
     // the enum the form collects — send it when we have it.
     device_mic: profile.detectedMicLabel || profile.recordingDevice || undefined,
+    referral_source: profile.referralSource || undefined,
+    referral_source_detail:
+      profile.referralSource === "other"
+        ? profile.referralSourceDetail?.trim() || undefined
+        : undefined,
   };
 }
 

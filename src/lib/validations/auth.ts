@@ -4,6 +4,7 @@ import type {
   FluencyLevel,
   PreferredVariety,
   RecordingDevice,
+  ReferralSource,
 } from "@/data/contributors/onboarding";
 
 export const loginSchema = z.object({
@@ -127,6 +128,9 @@ export type ContributorProfileData = {
   recordingDevice: RecordingDevice;
   detectedDeviceLabel?: string;
   detectedMicLabel?: string;
+  /** Asked at sign-up only. Never shown again, so never read back. */
+  referralSource?: ReferralSource;
+  referralSourceDetail?: string;
 };
 
 export type AuthUser = {

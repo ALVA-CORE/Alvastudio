@@ -3,6 +3,7 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import ShieldUser from "@solar-icons/react/security/ShieldUser";
 import AddCircle from "@solar-icons/react/ui/AddCircle";
+import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
@@ -35,6 +36,7 @@ import {
   type AdminUserRole,
 } from "@/data/admin/users";
 import { alvaToast } from "@/lib/alva-toast";
+import { downloadCsv, toCsv } from "@/lib/download-csv";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
@@ -54,6 +56,21 @@ type StatusFilter = "all" | AccountStatus;
 function Count({ value }: { value: number }) {
   if (value === 0) return null;
   return <span className="ml-1 tabular-nums text-muted-foreground">({value})</span>;
+}
+
+/** One row per account, in the order an admin reads them. */
+function usersToCsv(users: AdminUser[]) {
+  return toCsv(
+    ["full_name", "email", "phone", "role", "status", "joined"],
+    users.map((user) => [
+      user.fullName,
+      user.email,
+      user.phone,
+      ROLE_LABELS[user.role] ?? user.role,
+      STATUS_LABEL[accountStatus(user)],
+      new Date(user.createdAt).toISOString().slice(0, 10),
+    ])
+  );
 }
 
 export default function AdminUsersPage() {
@@ -243,6 +260,27 @@ export default function AdminUsersPage() {
         id="users"
         actions={
           <div className="flex items-center gap-2">
+            {/* What the filters show, not every account. Filtering to
+                contributors and then exporting is the usual reason to be
+                here, and an export that ignored the filter would surprise. */}
+            <TextureButton
+              variant="minimal"
+              size="sm"
+              className="w-auto"
+              disabled={filtered.length === 0}
+              onClick={() => {
+                downloadCsv(
+                  `alva-users-${new Date().toISOString().slice(0, 10)}.csv`,
+                  usersToCsv(filtered)
+                );
+                alvaToast.success(
+                  `Exported ${filtered.length} ${filtered.length === 1 ? "user" : "users"}`
+                );
+              }}
+            >
+              <Upload size={15} weight="Outline" />
+              Export CSV
+            </TextureButton>
             {/* Recovery is not self-serve: somebody asks, an admin decides,
                 and the API emails the link. Without a way in here the
                 requests arrived nowhere. */}
