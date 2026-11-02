@@ -53,16 +53,6 @@ function useWave(progress: MotionValue<number>, amplitude: number, phaseOffset =
   return useTransform(() => wavePath(progress.get(), time.get(), amplitude, phaseOffset));
 }
 
-/** Little bubbles that float off the button when it fills. Offsets in px. */
-const BUBBLES = [
-  { x: -38, y: -18, size: 6, delay: 0 },
-  { x: -14, y: -24, size: 4, delay: 0.05 },
-  { x: 12, y: -22, size: 7, delay: 0.02 },
-  { x: 36, y: -16, size: 5, delay: 0.08 },
-  { x: -26, y: 20, size: 4, delay: 0.06 },
-  { x: 28, y: 20, size: 5, delay: 0.1 },
-];
-
 /**
  * An export button that is its own progress bar.
  *
@@ -72,9 +62,8 @@ const BUBBLES = [
  * fill follows a slow spring, not each step: one profile at a time would
  * otherwise read as a stutter.
  *
- * Once it is full it wobbles like jelly, puffs a few bubbles, lets the
- * white go so the button is back to its own face, and the upload icon
- * morphs into a green check. The caller holds the phase and returns it to
+ * Once it is full it wobbles like jelly, lets the white go so the button
+ * is back to its own face, and the upload icon morphs into a green check. The caller holds the phase and returns it to
  * `idle` after a moment.
  *
  * Not `disabled` while running. That would dim and desaturate the button,
@@ -247,29 +236,6 @@ export function ExportProgressButton({
           {label}
         </motion.span>
       </TextureButton>
-
-      {/* The puff. Drawn outside the button so nothing clips it. */}
-      <AnimatePresence>
-        {full && !reduceMotion
-          ? BUBBLES.map((bubble, index) => (
-              <motion.span
-                key={index}
-                aria-hidden
-                className="pointer-events-none absolute left-1/2 top-1/2 rounded-full border border-alva-accent/70 bg-alva-accent/20"
-                style={{ width: bubble.size, height: bubble.size, marginLeft: -bubble.size / 2, marginTop: -bubble.size / 2 }}
-                initial={{ x: 0, y: 0, scale: 0.2, opacity: 0 }}
-                animate={{
-                  x: bubble.x,
-                  y: bubble.y,
-                  scale: [0.2, 1, 1.15],
-                  opacity: [0, 1, 0],
-                }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.8, delay: bubble.delay, ease: "easeOut" }}
-              />
-            ))
-          : null}
-      </AnimatePresence>
     </motion.span>
   );
 }
