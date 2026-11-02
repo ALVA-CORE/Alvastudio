@@ -319,7 +319,7 @@ export default function AdminDashboardPage() {
         </AlvaChartCard>
         <AlvaChartCard
           title="By variety"
-          subtitle="Hours of each language"
+          subtitle="Clips and sessions in each language"
           className="min-h-[14rem]"
           emptyMessage={
             corpus.byVariety.length === 0
@@ -327,7 +327,7 @@ export default function AdminDashboardPage() {
               : undefined
           }
         >
-          <SharePie slices={corpus.byVariety} centerLabel="total" />
+          <SharePie slices={corpus.byVariety} centerLabel="total" valueSuffix="" />
         </AlvaChartCard>
         <AlvaChartCard
           title="Review funnel"

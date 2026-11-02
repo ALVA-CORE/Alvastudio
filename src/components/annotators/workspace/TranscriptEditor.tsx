@@ -24,7 +24,17 @@ import {
 import { buildTokenIndex, tokensForSegment } from "@/lib/annotation/tokens";
 import type { SpanKind } from "@/lib/annotation/tags";
 import { findActiveSegmentIndex, formatTimecode } from "@/lib/annotation/segments";
-import { MIN_SEGMENT_DURATION, type SegmentId, type Speaker } from "@/lib/annotation/types";
+import {
+  MIN_SEGMENT_DURATION,
+  type SegmentId,
+  type SpeakerId,
+  type Speaker,
+} from "@/lib/annotation/types";
+import {
+  isScribeVoice,
+  useSpeakerLink,
+} from "@/components/annotators/workspace/speaker-link-context";
+import { alvaToast } from "@/lib/alva-toast";
 import { cn } from "@/lib/utils";
 import { TranscriptSegmentRow } from "./TranscriptSegmentRow";
 
@@ -146,6 +156,35 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
 
   const onSeekRef = useRef(onSeek);
   onSeekRef.current = onSeek;
+
+  /**
+   * Picking a speaker means two different things.
+   *
+   * On a hand-made segment it is a local, undoable edit to that one row.
+   * On a **Scribe voice** it is a statement about every segment that voice
+   * covers — "this is Ada, everywhere she speaks" — so it goes to the API
+   * as one link rather than renaming three hundred rows one at a time, and
+   * it is not undoable because it is not a document edit.
+   */
+  const linkSpeaker = useSpeakerLink();
+
+  const handleSpeakerChange = useCallback(
+    (segmentId: SegmentId, speakerId: SpeakerId) => {
+      const segment = segments.find((item) => item.id === segmentId);
+
+      if (linkSpeaker && segment && isScribeVoice(segment.speakerId)) {
+        void linkSpeaker([
+          { speaker_label: segment.speakerId, participant_id: speakerId },
+        ]).then((failure) => {
+          if (failure) alvaToast.error(failure);
+        });
+        return;
+      }
+
+      actions.setSegmentSpeaker(segmentId, speakerId);
+    },
+    [actions, linkSpeaker, segments]
+  );
 
   const handleSeek = useCallback(
     (time: number) => {
@@ -368,7 +407,7 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
                 onSeek={handleSeek}
                 onSelect={actions.selectSegment}
                 onTextChange={actions.setSegmentText}
-                onSpeakerChange={actions.setSegmentSpeaker}
+                onSpeakerChange={handleSpeakerChange}
                 onRenameSpeaker={actions.renameSpeaker}
                 onSplit={actions.splitSegment}
                 onMergeWithPrevious={handleMergeWithPrevious}

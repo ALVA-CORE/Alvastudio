@@ -13,6 +13,9 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { SessionDetailPanel } from "@/components/admin/sessions/SessionDetailPanel";
 import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
+import { TranscriptBackfillDialog } from "@/components/admin/sessions/TranscriptBackfillDialog";
+import { TextureButton } from "@/components/ui/texture-button";
+import ClapperboardText from "@solar-icons/react/video/ClapperboardText";
 import { alvaToast } from "@/lib/alva-toast";
 import type { AdminSession } from "@/data/admin/oversight";
 import { STATES, round1 } from "@/data/admin/shared";
@@ -32,6 +35,7 @@ type StateFilter = string | "all";
 export default function AdminFocusGroupsPage() {
   const { rows: live, isLoading, error, reload } = useAdminSessions();
   const [tab, setTab] = useState<Tab>("all");
+  const [backfillOpen, setBackfillOpen] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [detail, setDetail] = useState<AdminSession | null>(null);
   const [assigning, setAssigning] = useState<AdminSession | null>(null);
@@ -161,7 +165,23 @@ export default function AdminFocusGroupsPage() {
 
   return (
     <DesktopPageShell className="py-4">
-      <AdminPageHeader id="focus-groups" />
+      <AdminPageHeader
+        id="focus-groups"
+        actions={
+          /* A one-off for sessions recorded before transcription existed.
+             It previews before it queues, because ElevenLabs bills on audio
+             length and that is the number being approved. */
+          <TextureButton
+            variant="minimal"
+            size="sm"
+            className="w-auto"
+            onClick={() => setBackfillOpen(true)}
+          >
+            <ClapperboardText size={15} weight="Outline" />
+            Transcribe older
+          </TextureButton>
+        }
+      />
 
       {error ? (
         <div
@@ -274,6 +294,8 @@ export default function AdminFocusGroupsPage() {
       />
         </>
       )}
+      <TranscriptBackfillDialog open={backfillOpen} onOpenChange={setBackfillOpen} />
+
     </DesktopPageShell>
   );
 }

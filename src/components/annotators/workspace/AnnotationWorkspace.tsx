@@ -15,6 +15,9 @@ import {
 import { selectSegments } from "@/lib/annotation/store";
 import { segmentDuration, documentIssueCount } from "@/lib/annotation/segments";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
+import { TranscriptDraftBanner } from "@/components/annotators/workspace/TranscriptDraftBanner";
+import { SpeakerLinkProvider } from "@/components/annotators/workspace/speaker-link-context";
+import type { ApiDraftTranscript } from "@/lib/api/annotations";
 
 /**
  * Assembles the workspace.
@@ -44,6 +47,14 @@ type AnnotationWorkspaceProps = {
    * rather than read per clip: it is one array for the whole session.
    */
   peaks?: number[] | null;
+  /** The session's Scribe draft transcript, or null when it has none. */
+  transcript?: ApiDraftTranscript | null;
+  /** The people in the room, for naming the transcript's voices. */
+  participants?: { id: string; label: string }[];
+  onReloadTranscript?: () => void;
+  onLinkSpeakers?: (
+    links: { speaker_label: string; participant_id: string | null }[]
+  ) => Promise<string | null>;
   /** Flushes the pending autosave. Wired to ⌘S and the header's Retry. */
   onFlushSave?: () => void;
   /** Hands the finished annotation to a reviewer. */
@@ -54,6 +65,10 @@ export function AnnotationWorkspace({
   session,
   consentBlocked = false,
   peaks = null,
+  transcript = null,
+  participants = [],
+  onReloadTranscript,
+  onLinkSpeakers,
   onFlushSave,
   onSubmit,
 }: AnnotationWorkspaceProps) {
@@ -141,10 +156,24 @@ export function AnnotationWorkspace({
 
       <div className="flex min-h-0 flex-1 gap-3 p-3">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {/* Above the transcript, because it is about the whole document:
+              what the draft is, and who its voices are. */}
+          {onLinkSpeakers && onReloadTranscript ? (
+            <TranscriptDraftBanner
+              className="shrink-0"
+              transcript={transcript}
+              participants={participants}
+              onReload={onReloadTranscript}
+              onLink={onLinkSpeakers}
+            />
+          ) : null}
+
           {/* Transcript sits on its own raised panel rather than on the page
               floor, so the editing surface reads as a document. */}
           <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-alva-border bg-alva-card">
-            <TranscriptEditor className="h-full" />
+            <SpeakerLinkProvider onLink={onLinkSpeakers}>
+              <TranscriptEditor className="h-full" />
+            </SpeakerLinkProvider>
           </div>
 
           <TimelineDock src={session.audioSrc} peaks={peaks} className="shrink-0" />

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as annotations from "@/lib/api/annotations";
+import type { ApiDraftTranscript } from "@/lib/api/annotations";
 import { annotationAudioUrl } from "@/lib/api/annotations";
 import { getSession } from "@/lib/api/focusGroups";
 import { sendEvents } from "@/lib/api/annotationEvents";
+import { reportApiError } from "@/lib/api/reportApiError";
 import { toTranscriptDoc } from "@/data/annotators/fromApi";
 import { baselineFrom, saveAnnotation, type Baseline } from "@/data/annotators/toApi";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
@@ -35,6 +37,14 @@ export type TranscriptResource =
       error: null;
       /** The annotation the workspace writes to, as opposed to the session. */
       annotationId: string;
+      /**
+       * The session's Scribe draft transcript, or null when it has none.
+       *
+       * Carried so the workspace can say a transcript is on its way, or
+       * that one arrived too late to be applied, and so the speaker banner
+       * knows which voices still need naming and who the API suggests.
+       */
+      transcript: ApiDraftTranscript | null;
       /**
        * Somebody in the room withdrew, so every write is refused.
        *
@@ -134,6 +144,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
         session,
         doc,
         annotationId: match.id,
+        transcript: document.transcript ?? null,
         consentBlocked: document.consent_blocked === true,
       };
     })()
@@ -179,6 +190,33 @@ export function useSessionTranscript(sessionId: string | undefined) {
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 
   /**
+   * Says who a Scribe voice is, for every segment carrying its label.
+   *
+   * One call per voice rather than per segment, which is both what the API
+   * takes and what the annotator means: they are identifying a voice, not
+   * editing three hundred rows.
+   *
+   * Reloads afterwards rather than patching: the answer is the whole
+   * document with new segment versions, and the local baseline has to move
+   * with it or the next save sends a stale `expected_version`.
+   */
+  const linkSpeakers = useCallback(
+    async (links: { speaker_label: string; participant_id: string | null }[]) => {
+      const id = annotationId.current;
+      if (!id || links.length === 0) return null;
+
+      try {
+        await annotations.linkSpeakers(id, links);
+        setAttempt((value) => value + 1);
+        return null;
+      } catch (cause) {
+        return reportApiError(cause, "Could not save who that was.");
+      }
+    },
+    []
+  );
+
+  /**
    * Writes the document back, one annotation at a time.
    *
    * Saves are serialised through the baseline: each one diffs against what the
@@ -221,5 +259,5 @@ export function useSessionTranscript(sessionId: string | undefined) {
     await annotations.submitAnnotation(id);
   }, []);
 
-  return { resource, reload, save, submit, claim };
+  return { resource, reload, save, submit, claim, linkSpeakers };
 }

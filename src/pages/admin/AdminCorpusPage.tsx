@@ -246,16 +246,20 @@ export default function AdminCorpusPage() {
       <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <AlvaChartCard
           title="By variety"
-          subtitle="Which language was spoken"
+          /* Counts, not hours. No endpoint splits hours by language, and
+             this chart said "1,198h" beside a card reading 2.8 hours for
+             weeks because we read the count as one. */
+          subtitle="Clips and sessions in each language"
           className="min-h-[17rem]"
-        
           emptyMessage={
-            corpus.byVariety.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
+            corpus.byVariety.length === 0
+              ? { title: "Nothing to show", description: "Nothing has been recorded yet." }
+              : undefined
           }
         >
           {/* Two slices of one whole — a donut reads that faster than two
               separate tracks, because the parts sit against each other. */}
-          <SharePie slices={corpus.byVariety} centerLabel="total" />
+          <SharePie slices={corpus.byVariety} centerLabel="total" valueSuffix="" />
         </AlvaChartCard>
         <AlvaChartCard
           title="By collection type"
@@ -263,7 +267,9 @@ export default function AdminCorpusPage() {
           className="min-h-[17rem]"
         
           emptyMessage={
-            corpus.byType.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
+            corpus.byType.length === 0
+              ? { title: "Nothing to show", description: "No clips have been recorded yet." }
+              : undefined
           }
         >
           <VarietyRings slices={corpus.byType} centerLabel="total" />
@@ -274,7 +280,9 @@ export default function AdminCorpusPage() {
           className="min-h-[17rem]"
         
           emptyMessage={
-            corpus.byStatus.length === 0 ? { title: "Nothing to show", description: "The API returns no hours in this split yet." } : undefined
+            corpus.byStatus.length === 0
+              ? { title: "Nothing to show", description: "No clips have been reviewed yet." }
+              : undefined
           }
         >
           <CorpusFunnel slices={corpus.byStatus} />
