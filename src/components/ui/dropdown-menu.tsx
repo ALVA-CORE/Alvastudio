@@ -5,7 +5,22 @@ import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight"
 
 import { cn } from "@/lib/utils"
 
-const DropdownMenu = DropdownMenuPrimitive.Root
+/**
+ * Non-modal unless asked.
+ *
+ * A modal menu locks the page (`pointer-events: none` on <body>) while it is
+ * open. Several of our menu items open a Dialog, which takes the same lock,
+ * and when the menu closes as the dialog opens the two release out of order:
+ * the dialog closes and the page stays dead to clicks until a refresh. A
+ * non-modal menu never takes the lock, and still closes on an outside click
+ * or Escape.
+ */
+function DropdownMenu({
+  modal = false,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  return <DropdownMenuPrimitive.Root modal={modal} {...props} />
+}
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
 

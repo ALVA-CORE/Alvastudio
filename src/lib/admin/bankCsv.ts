@@ -29,10 +29,14 @@ export type BankCsvRow = BankDraft & {
   line: number;
 };
 
+export type BankCsvProblem = { line: number; reason: string };
+
 export type BankCsvResult = {
   rows: BankCsvRow[];
   /** One readable line per rejected row, for the preview. */
   skipped: string[];
+  /** The same rejections, structured, so a table can place them in order. */
+  problems: BankCsvProblem[];
 };
 
 type Column = "text" | "variety" | "category";
@@ -60,10 +64,16 @@ const HEADER_ALIASES: Record<Column, string[]> = {
  */
 export function parseBankCsv(input: string): BankCsvResult {
   const rows: BankCsvRow[] = [];
-  const skipped: string[] = [];
+  const problems: BankCsvProblem[] = [];
+  const reject = (line: number, reason: string) => problems.push({ line, reason });
+  const result = () => ({
+    rows,
+    problems,
+    skipped: problems.map((problem) => `line ${problem.line}: ${problem.reason}`),
+  });
 
   const records = parseCsv(input.replace(/^\ufeff/, ""));
-  if (records.length === 0) return { rows, skipped };
+  if (records.length === 0) return result();
 
   /* A header row names its own columns; it is not data. Without one the
      order is text, variety, category, as in the template. */
@@ -76,27 +86,27 @@ export function parseBankCsv(input: string): BankCsvResult {
 
     const text = (cells[index.text] ?? "").trim();
     if (!text) {
-      skipped.push(`line ${line}: no text`);
+      reject(line, "no text");
       continue;
     }
 
     const rawVariety = index.variety >= 0 ? cells[index.variety] : undefined;
     const variety = matchVariety(rawVariety);
     if (!variety) {
-      skipped.push(`line ${line}: "${rawVariety?.trim()}" is not English or Pidgin`);
+      reject(line, `"${rawVariety?.trim()}" is not English or Pidgin`);
       continue;
     }
 
     const category = index.category >= 0 ? (cells[index.category] ?? "").trim() : "";
     if (category.length > CATEGORY_MAX) {
-      skipped.push(`line ${line}: category is over ${CATEGORY_MAX} characters`);
+      reject(line, `category is over ${CATEGORY_MAX} characters`);
       continue;
     }
 
     rows.push({ text, variety, category: category || undefined, line });
   }
 
-  return { rows, skipped };
+  return result();
 }
 
 const TO_API_VARIETY: Record<Variety, ApiLanguageVariety> = {
@@ -213,4 +223,81 @@ function matchVariety(value: string | undefined): Variety | null {
   if (/\b(english|en|ng en)\b/.test(needle)) return "Nigerian English";
   if (/\b(pidgin|pcm|naija)\b/.test(needle)) return "Nigerian Pidgin";
   return null;
+}
+
+/** The import route refuses a file over this many rows. */
+export const BANK_IMPORT_MAX_ROWS = 5000;
+
+export type BatchedImportResult = {
+  added: number;
+  skipped: number;
+  failed: number;
+  /** The first row the server refused, on its line in the person's file. */
+  firstFailure?: { line: number; reason: string };
+  batches: number;
+  /** Batches that landed before one threw. Equal to `batches` on success. */
+  sent: number;
+};
+
+/**
+ * Sends a bank of any size, in files the import route will take.
+ *
+ * One batch at a time, in order. If one throws, the batches before it have
+ * landed and the error carries how far it got. Re-running the whole file is
+ * then safe: the server skips text it already has, so nothing is doubled.
+ */
+export async function importInBatches(
+  rows: BankCsvRow[],
+  send: (file: File) => Promise<{
+    added: number;
+    skipped: number;
+    failed: number;
+    failures?: { line: number; reason: string }[];
+  }>,
+  name = "bank.csv"
+): Promise<BatchedImportResult> {
+  const total: BatchedImportResult = {
+    added: 0,
+    skipped: 0,
+    failed: 0,
+    batches: Math.ceil(rows.length / BANK_IMPORT_MAX_ROWS),
+    sent: 0,
+  };
+
+  for (let start = 0; start < rows.length; start += BANK_IMPORT_MAX_ROWS) {
+    const batch = rows.slice(start, start + BANK_IMPORT_MAX_ROWS);
+    let result;
+    try {
+      result = await send(new File([bankRowsToCsv(batch)], name, { type: "text/csv" }));
+    } catch (cause) {
+      throw new BatchImportError(total, cause);
+    }
+
+    total.added += result.added;
+    total.skipped += result.skipped;
+    total.failed += result.failed;
+    total.sent += 1;
+
+    /* The server numbers the file it was sent, header first. Its line 2 is
+       this batch's first row, which carries the line it sat on in the
+       person's own file. */
+    const first = result.failures?.[0];
+    if (first && !total.firstFailure) {
+      total.firstFailure = {
+        line: batch[first.line - 2]?.line ?? first.line,
+        reason: first.reason,
+      };
+    }
+  }
+
+  return total;
+}
+
+export class BatchImportError extends Error {
+  constructor(
+    readonly progress: BatchedImportResult,
+    readonly cause: unknown
+  ) {
+    super(`Import stopped after ${progress.sent} of ${progress.batches} batches`);
+  }
 }

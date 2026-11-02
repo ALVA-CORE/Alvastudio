@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import NumberFlow from "@number-flow/react";
 import Upload from "@solar-icons/react/arrows-action/Upload";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
 import {
@@ -19,6 +20,24 @@ import {
 import type { BankKind } from "@/data/admin/prompts";
 import { downloadCsv } from "@/lib/download-csv";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BankCsvPreviewTable } from "@/components/admin/prompts/BankCsvPreviewTable";
+
+type View = "table" | "text";
+
+/**
+ * Rolls up from zero when it first appears, then rolls between values as the
+ * text is edited. NumberFlow animates changes, not first paint, so it starts
+ * at 0 and is handed the real number a frame later.
+ */
+function CountUp({ value }: { value: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setShown(value));
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <NumberFlow value={shown} className="tabular-nums" />;
+}
 
 /**
  * Load a bank from a spreadsheet.
@@ -52,6 +71,7 @@ export function ImportBankCsvDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [raw, setRaw] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [view, setView] = useState<View>("text");
   const [sending, setSending] = useState(false);
 
   const noun = kind === "prompt" ? "prompts" : "stimuli";
@@ -61,6 +81,7 @@ export function ImportBankCsvDialog({
     if (!picked) return;
     setFileName(picked.name);
     setRaw(await picked.text());
+    setView("table");
   };
 
   return (
@@ -70,6 +91,7 @@ export function ImportBankCsvDialog({
         if (!next) {
           setRaw("");
           setFileName(null);
+          setView("text");
           setSending(false);
         }
         onOpenChange(next);
@@ -77,7 +99,7 @@ export function ImportBankCsvDialog({
     >
       <DialogContent
         className={cn(
-          "flex max-h-[85vh] max-w-xl flex-col gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
+          "flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
           "[&>button]:hidden"
         )}
       >
@@ -121,49 +143,77 @@ export function ImportBankCsvDialog({
             </button>
           </div>
 
-          <div>
-            <label htmlFor="bank-csv" className="block text-xs text-muted-foreground">
-              Or paste it here
-            </label>
-            <FieldBeam className="mt-1.5">
-              <textarea
-                id="bank-csv"
-                rows={7}
-                value={raw}
-                onChange={(event) => setRaw(event.target.value)}
-                className={cn(
-                  alvaFieldClass(),
-                  "block h-auto w-full resize-none px-3 py-2.5 font-mono text-xs leading-relaxed focus-visible:border-transparent"
-                )}
-                placeholder={BANK_CSV_TEMPLATE}
-              />
-            </FieldBeam>
-          </div>
+          {/* Two views of one thing. Text is where a paste goes and where a
+              stray quote is easiest to spot; the table is what will actually
+              be imported, and where a picked file lands. Nothing to tabulate
+              once the text is cleared, so it falls back to Text. */}
+          <Tabs
+            value={raw.trim() ? view : "text"}
+            onValueChange={(value) => setView(value as View)}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <TabsList className="h-9 rounded-full bg-alva-surface p-1">
+                <TabsTrigger
+                  value="table"
+                  disabled={!raw.trim()}
+                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+                >
+                  Table
+                </TabsTrigger>
+                <TabsTrigger
+                  value="text"
+                  className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+                >
+                  Text
+                </TabsTrigger>
+              </TabsList>
 
-          {raw.trim() ? (
-            <div className="rounded-xl bg-alva-surface p-3">
-              <p className="text-sm text-foreground">
-                <span className="tabular-nums">{parsed.rows.length}</span>{" "}
-                {parsed.rows.length === 1 ? "row" : "rows"} ready
-              </p>
-
-              {parsed.skipped.length > 0 ? (
-                <div className="mt-2 flex items-start gap-2">
-                  <DangerTriangle
-                    size={15}
-                    weight="BoldDuotone"
-                    className="mt-0.5 shrink-0 text-amber-300"
-                  />
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {parsed.skipped.length}{" "}
-                    {parsed.skipped.length === 1 ? "line" : "lines"} skipped,{" "}
-                    {parsed.skipped.slice(0, 3).join("; ")}
-                    {parsed.skipped.length > 3 ? "…" : ""}
-                  </p>
-                </div>
+              {/* The verdict, beside the views it describes. Which lines
+                  were skipped, and why, is in the table. */}
+              {raw.trim() ? (
+                <p className="flex items-center gap-3 text-sm" aria-live="polite">
+                  <span className="text-foreground">
+                    <CountUp value={parsed.rows.length} />{" "}
+                    {parsed.rows.length === 1 ? "row" : "rows"} ready
+                  </span>
+                  {parsed.problems.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setView("table")}
+                      className="inline-flex items-center gap-1 rounded-full text-xs text-amber-300 transition-colors hover:text-amber-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                    >
+                      <DangerTriangle size={14} weight="BoldDuotone" aria-hidden />
+                      <CountUp value={parsed.problems.length} /> skipped
+                    </button>
+                  ) : null}
+                </p>
               ) : null}
             </div>
-          ) : null}
+
+            <TabsContent value="table" className="mt-3">
+              <BankCsvPreviewTable rows={parsed.rows} problems={parsed.problems} />
+            </TabsContent>
+
+            <TabsContent value="text" className="mt-3">
+              <label htmlFor="bank-csv" className="sr-only">
+                CSV text
+              </label>
+              <FieldBeam>
+                <textarea
+                  id="bank-csv"
+                  rows={9}
+                  value={raw}
+                  onChange={(event) => setRaw(event.target.value)}
+                  className={cn(
+                    alvaFieldClass(),
+                    "block h-auto w-full resize-none px-3 py-2.5 font-mono text-xs leading-relaxed focus-visible:border-transparent"
+                  )}
+                  placeholder={`Or paste it here\n\n${BANK_CSV_TEMPLATE}`}
+                />
+              </FieldBeam>
+            </TabsContent>
+          </Tabs>
+
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-alva-border px-6 py-4">
@@ -198,7 +248,7 @@ export function ImportBankCsvDialog({
               }
             }}
           >
-            Add {parsed.rows.length || ""} {noun}
+            Add {parsed.rows.length ? parsed.rows.length.toLocaleString() : ""} {noun}
           </TextureButton>
         </div>
       </DialogContent>
