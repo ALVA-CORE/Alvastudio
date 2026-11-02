@@ -29,6 +29,12 @@ export type CatalogQuery = {
   language_variety?: ApiLanguageVariety;
   category?: string;
   is_active?: boolean;
+  /**
+   * `true`: only items with at least one recording submitted against them,
+   * even if it was later rejected. `false`: only those with none. Scopes
+   * `items` and `total`, not `bank_total` or `recorded_total`.
+   */
+  recorded?: boolean;
   limit?: number;
   offset?: number;
 };
@@ -40,9 +46,19 @@ export const listStimuli = (query: CatalogQuery = {}) =>
 
 export type CatalogPage = {
   items: ApiPrompt[];
+  /** Rows matching every filter, `recorded` included. What paging stops on. */
   total: number;
   limit: number;
   offset: number;
+  /**
+   * The whole bank under `language_variety`, `category` and `is_active`, but
+   * not `recorded`. So switching between recorded and unrecorded leaves it
+   * where it is. Only with `envelope=true`, and on `/prompts` from the
+   * 2 Nov handoff; absent elsewhere until the API sends it.
+   */
+  bank_total?: number;
+  /** How many of `bank_total` have been recorded at least once. */
+  recorded_total?: number;
 };
 
 /** The bare list puts its count in a header the client cannot read. */

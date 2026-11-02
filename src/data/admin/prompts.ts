@@ -58,22 +58,39 @@ export type BankItem = {
 };
 
 
-/** Headline counts for the bank page, read off the rows it already has. */
-export function bankMetrics(rows: BankItem[]) {
+/**
+ * The headline numbers for one bank.
+ *
+ * From the server for prompts and stimuli, never from the rows on screen:
+ * the bank is thousands deep and a page of it is newest first, so a count
+ * taken off a page reads zero recorded while the recorded ones sit on page
+ * fifty. `null` means the API did not say, which is shown as a dash rather
+ * than as a confident zero.
+ */
+export type BankTotals = {
+  /** Every item, active or retired. */
+  bank: number;
+  active: number;
+  /** Recorded at least once, even if the recording was later rejected. */
+  recorded: number | null;
+  /** Active and never recorded: the ones contributors are not reaching. */
+  neverRecorded: number | null;
+};
+
+export const EMPTY_BANK_TOTALS: BankTotals = {
+  bank: 0,
+  active: 0,
+  recorded: 0,
+  neverRecorded: 0,
+};
+
+/** Topics only. Their bank is small enough to hold whole and count here. */
+export function bankTotalsFromRows(rows: BankItem[]): BankTotals {
   const active = rows.filter((row) => row.isActive);
   return {
-    total: String(rows.length),
-    active: String(active.length),
-    unused: String(active.filter((row) => row.usedByCount === 0).length),
-    recordings: String(
-      rows.reduce((sum, row) => sum + row.usedByCount, 0).toLocaleString()
-    ),
+    bank: rows.length,
+    active: active.length,
+    recorded: rows.filter((row) => row.usedByCount > 0).length,
+    neverRecorded: active.filter((row) => row.usedByCount === 0).length,
   };
 }
-
-export const EMPTY_BANK_METRICS = {
-  total: "0",
-  active: "0",
-  unused: "0",
-  recordings: "0",
-};

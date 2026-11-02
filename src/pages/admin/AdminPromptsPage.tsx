@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Notebook2 from "@solar-icons/react/school/Notebook2";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
@@ -27,8 +27,7 @@ import { CreateBankItemDialog } from "@/components/admin/prompts/CreateBankItemD
 import { ImportBankCsvDialog } from "@/components/admin/prompts/ImportBankCsvDialog";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 import {
-  EMPTY_BANK_METRICS,
-  bankMetrics,
+  EMPTY_BANK_TOTALS,
   type BankItem,
   type BankKind,
   BANK_CATEGORY_LABELS,
@@ -41,6 +40,15 @@ import { reportApiError } from "@/lib/api/reportApiError";
 import { ApiError } from "@/lib/api/client";
 
 type ActiveFilter = "all" | "active" | "retired";
+type RecordedFilter = "all" | "recorded" | "never";
+
+/** Rows per page of the table, and per request for prompts and stimuli. */
+const PAGE_SIZE = 25;
+
+/** A count the API did not give reads as a dash, not as a confident zero. */
+function count(value: number | null) {
+  return value == null ? "—" : value.toLocaleString();
+}
 
 /**
  * The prompt and stimulus banks.
@@ -51,42 +59,63 @@ type ActiveFilter = "all" | "active" | "retired";
  * either unreachable or not worth keeping, and nothing else surfaces that.
  */
 export default function AdminPromptsPage() {
-  const { items, isLoading, error, reload, create, save, retire, importCsv } =
-    useBank();
   /* Three tabs, three banks. Topics used to be prompts wearing a category;
    * they have their own endpoint now, so the tab and the kind are the same
    * thing again. */
   const [kind, setKind] = useState<BankKind>("prompt");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
+  const [recordedFilter, setRecordedFilter] = useState<RecordedFilter>("all");
+  const [page, setPage] = useState(1);
+
+  /* Any change of what is listed starts again from the first page. Page 40
+     of the unrecorded prompts is not page 40 of the recorded ones. Done in
+     the same update, not an effect after it, so the old page is never
+     requested for the new list. */
+  const showKind = (next: BankKind) => {
+    setKind(next);
+    setPage(1);
+  };
+  const showActive = (next: ActiveFilter) => {
+    setActiveFilter(next);
+    setPage(1);
+  };
+  const showRecorded = (next: RecordedFilter) => {
+    setRecordedFilter(next);
+    setPage(1);
+  };
+
+  const {
+    items,
+    total,
+    totals,
+    isLoading,
+    isFetching,
+    error,
+    reload,
+    create,
+    save,
+    retire,
+    importCsv,
+  } = useBank({
+    kind,
+    isActive: activeFilter === "all" ? undefined : activeFilter === "active",
+    /* Topics have no recorded filter on the API, and are not recorded
+       against in the same way. */
+    recorded:
+      kind === "topic" || recordedFilter === "all"
+        ? undefined
+        : recordedFilter === "recorded",
+    page,
+    pageSize: PAGE_SIZE,
+  });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<BankItem | null>(null);
 
-  const rows = items;
-
-  /* Focus group topics are prompts carrying that category, so the tab filters
-   * the prompts bank rather than reading a bank of its own. */
-  const forKind = useMemo(
-    () =>
-      rows.filter((item) => item.kind === kind),
-    [rows, kind]
-  );
-
-  const filtered = useMemo(
-    () =>
-      forKind.filter((item) =>
-        activeFilter === "all"
-          ? true
-          : activeFilter === "active"
-            ? item.isActive
-            : !item.isActive
-      ),
-    [forKind, activeFilter]
-  );
-
-  const isEmpty = rows.length === 0;
-  const metrics = isEmpty ? EMPTY_BANK_METRICS : bankMetrics(forKind);
+  /* From the server, for the whole bank, whatever page the table is on. */
+  const metrics = totals ?? EMPTY_BANK_TOTALS;
+  const serverPaged = kind !== "topic";
 
   const report = (cause: unknown, fallback: string) => {
     const message = reportApiError(cause, fallback);
@@ -198,12 +227,31 @@ export default function AdminPromptsPage() {
         <DropdownMenuCheckboxItem
           key={value}
           checked={activeFilter === value}
-          onCheckedChange={() => setActiveFilter(value)}
+          onCheckedChange={() => showActive(value)}
           onSelect={(event) => event.preventDefault()}
         >
           {value === "all" ? "All" : value === "active" ? "Active only" : "Retired only"}
         </DropdownMenuCheckboxItem>
       ))}
+      {/* Sent to the API as `recorded`, so it covers the whole bank. The
+          headline numbers do not move with it. */}
+      {kind !== "topic" ? (
+        <>
+          <DropdownMenuLabel className="mt-1 text-xs text-muted-foreground">
+            Recordings
+          </DropdownMenuLabel>
+          {(["all", "recorded", "never"] as RecordedFilter[]).map((value) => (
+            <DropdownMenuCheckboxItem
+              key={value}
+              checked={recordedFilter === value}
+              onCheckedChange={() => showRecorded(value)}
+              onSelect={(event) => event.preventDefault()}
+            >
+              {value === "all" ? "All" : value === "recorded" ? "Recorded" : "Never recorded"}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </>
+      ) : null}
     </>
   );
 
@@ -267,34 +315,39 @@ export default function AdminPromptsPage() {
       ) : (
         <>
 
+      {/* `bank_total` and `recorded_total`, not rows counted off a page. A
+          page is newest first and the recorded prompts were on page fifty,
+          which is how these all read zero with nothing lost. The sum of
+          recordings that used to sit here has no server total, so it went
+          with the row counting. */}
       <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           variant="accent"
           title="In this bank"
-          value={metrics.total}
+          value={count(metrics.bank)}
           icon={Notebook2}
         />
         <MetricCard
           title="Active"
-          value={metrics.active}
+          value={count(metrics.active)}
           icon={CheckCircle}
         />
         <MetricCard
-          title="Never recorded"
-          value={metrics.unused}
-          icon={DangerTriangle}
+          title="Recorded"
+          value={count(metrics.recorded)}
+          icon={Microphone3}
         />
         <MetricCard
-          title="Recordings made"
-          value={metrics.recordings}
-          icon={Microphone3}
+          title="Active, never recorded"
+          value={count(metrics.neverRecorded)}
+          icon={DangerTriangle}
         />
       </div>
 
       <Tabs
         className="mt-3"
         value={kind}
-        onValueChange={(value) => setKind(value as BankKind)}
+        onValueChange={(value) => showKind(value as BankKind)}
       >
         <TabsList className="h-9 rounded-full bg-alva-surface p-1">
           <TabsTrigger
@@ -328,12 +381,19 @@ export default function AdminPromptsPage() {
                   ? "Stimulus bank"
                   : "Prompt bank"
             }
-            rows={filtered}
+            rows={items}
             columns={columns}
-            pageSize={10}
+            pageSize={serverPaged ? PAGE_SIZE : 10}
+            isLoading={isFetching}
+            serverPaging={
+              serverPaged ? { total, page, onPageChange: setPage } : undefined
+            }
             searchPlaceholder="Search text or variety"
             searchKeys={["text", "variety"]}
-            activeFilterCount={activeFilter === "active" ? 0 : 1}
+            activeFilterCount={
+              (activeFilter === "active" ? 0 : 1) +
+              (serverPaged && recordedFilter !== "all" ? 1 : 0)
+            }
             filterMenuContent={filterMenu}
             onRowClick={(row) => {
               setEditing(row);
@@ -347,9 +407,13 @@ export default function AdminPromptsPage() {
               icon: <Notebook2 size={20} weight="Outline" />,
               title: `No ${kind === "prompt" ? "prompts" : "stimuli"} here`,
               description:
-                activeFilter === "retired"
-                  ? "Nothing has been retired yet."
-                  : "Add one so contributors have something to record.",
+                serverPaged && recordedFilter === "recorded"
+                  ? "Nothing here has been recorded yet."
+                  : serverPaged && recordedFilter === "never"
+                    ? "Everything here has been recorded at least once."
+                    : activeFilter === "retired"
+                      ? "Nothing has been retired yet."
+                      : "Add one so contributors have something to record.",
             }}
           />
         </TabsContent>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createBankItem,
   createTopic,
@@ -11,11 +11,18 @@ import {
   updateBankItem,
   updateTopic,
   type ApiPrompt,
+  type CatalogQuery,
 } from "@/lib/api/catalog";
+import { fetchAllPages } from "@/lib/api/fetchAll";
 import type { ApiLanguageVariety } from "@/lib/api/enums";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { relativeDays } from "@/data/admin/shared";
-import type { BankItem, BankKind } from "@/data/admin/prompts";
+import {
+  bankTotalsFromRows,
+  type BankItem,
+  type BankKind,
+  type BankTotals,
+} from "@/data/admin/prompts";
 import type { Variety } from "@/data/admin/shared";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 
@@ -54,50 +61,121 @@ function toBankItem(api: ApiPrompt, kind: BankKind): BankItem {
   };
 }
 
+export type BankView = {
+  kind: BankKind;
+  /** Omitted for "all". */
+  isActive?: boolean;
+  /** Prompts and stimuli only. Omitted for "all". */
+  recorded?: boolean;
+  /** 1-based. */
+  page: number;
+  pageSize: number;
+};
+
+type CatalogKind = Exclude<BankKind, "topic">;
+
+const listPage = (kind: CatalogKind, query: CatalogQuery) =>
+  kind === "prompt" ? listPromptsPage(query) : listStimuliPage(query);
+
 /**
- * Both banks, and every write against them.
+ * Headline numbers for a bank, from the server.
  *
- * Prompts and stimuli are two endpoints with one shape, so they are fetched
- * together and held in one list keyed by `kind`. The page switches a tab, not
- * a request.
+ * Two one-row requests. The first gives the whole bank and how much of it is
+ * recorded; the second, scoped to active items, gives the active count and,
+ * subtracted, the active items nobody has recorded. `bank_total` falls back
+ * to `total` where the API does not send it yet (unfiltered, they agree).
  */
-export function useBank() {
+async function fetchTotals(kind: CatalogKind): Promise<BankTotals> {
+  const [all, active] = await Promise.all([
+    listPage(kind, { limit: 1, offset: 0 }),
+    listPage(kind, { limit: 1, offset: 0, is_active: true }),
+  ]);
+  const activeCount = active.bank_total ?? active.total;
+  return {
+    bank: all.bank_total ?? all.total,
+    active: activeCount,
+    recorded: all.recorded_total ?? null,
+    neverRecorded:
+      active.recorded_total == null ? null : activeCount - active.recorded_total,
+  };
+}
+
+/**
+ * One bank, a page at a time, and every write against it.
+ *
+ * Prompts and stimuli are paged by the server: the prompt bank is about ten
+ * thousand deep, newest first, and anything counted or shown from a single
+ * page of it is wrong. Status and recorded filters go to the API with the
+ * page, and the totals come back from it too.
+ *
+ * Topics are a few dozen and have no counts on the API, so they are held
+ * whole and filtered and counted here, as before.
+ */
+export function useBank(view: BankView) {
+  const { kind, isActive, recorded, page, pageSize } = view;
   const [items, setItems] = useState<BankItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totals, setTotals] = useState<BankTotals | null>(null);
+  /* First load of a bank: the page skeleton. A new page of the same bank
+     only refreshes the table. */
   const [isLoading, setLoading] = useState(true);
+  const [isFetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const loadedKind = useRef<BankKind | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const firstForKind = loadedKind.current !== kind;
+    if (firstForKind) setLoading(true);
+    setFetching(true);
 
+    const load = async () => {
+      if (kind === "topic") {
+        const { items: all } = await fetchAllPages((query) => listTopicsPage(query));
+        const rows = all.map((item) => toBankItem(item, "topic"));
+        const shown = rows.filter((row) => isActive == null || row.isActive === isActive);
+        return { rows: shown, total: shown.length, totals: bankTotalsFromRows(rows) };
+      }
 
-    setLoading(true);
+      const [pageResult, nextTotals] = await Promise.all([
+        listPage(kind, {
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          ...(isActive == null ? {} : { is_active: isActive }),
+          ...(recorded == null ? {} : { recorded }),
+        }),
+        fetchTotals(kind),
+      ]);
+      return {
+        rows: pageResult.items.map((item) => toBankItem(item, kind)),
+        total: pageResult.total,
+        totals: nextTotals,
+      };
+    };
 
-    Promise.all([
-      listPromptsPage({ limit: 200 }),
-      listStimuliPage({ limit: 200 }),
-      listTopicsPage({ limit: 200 }),
-    ])
-      .then(([prompts, stimuli, topics]) => {
+    load()
+      .then((result) => {
         if (cancelled) return;
-        setItems([
-          ...prompts.items.map((item) => toBankItem(item, "prompt")),
-          ...stimuli.items.map((item) => toBankItem(item, "stimulus")),
-          ...topics.items.map((item) => toBankItem(item, "topic")),
-        ]);
+        setItems(result.rows);
+        setTotal(result.total);
+        setTotals(result.totals);
         setError(null);
+        loadedKind.current = kind;
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(reportApiError(cause, "Could not load the bank."));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        setLoading(false);
+        setFetching(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [kind, isActive, recorded, page, pageSize, attempt]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 
@@ -120,11 +198,12 @@ export function useBank() {
         ? { target_participants: draft.targetParticipants }
         : {}),
     };
-    const api =
-      kind === "topic" ? await createTopic(body) : await createBankItem(kind, body);
-    setItems((prev) => [toBankItem(api, kind), ...prev]);
+    await (kind === "topic" ? createTopic(body) : createBankItem(kind, body));
+    /* Refetched rather than prepended: the counts move, and on a paged bank
+       the new item belongs on page one, wherever the table is. */
+    reload();
     },
-    []
+    [reload]
   );
 
   const save = useCallback(
@@ -158,11 +237,10 @@ export function useBank() {
    * and drop the row only if it is actually gone.
    */
   const retire = useCallback(async (kind: BankKind, id: string) => {
-    const api = kind === "topic" ? await deleteTopic(id) : await deleteBankItem(kind, id);
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? toBankItem(api, kind) : item))
-    );
-  }, []);
+    await (kind === "topic" ? deleteTopic(id) : deleteBankItem(kind, id));
+    /* The active count moves, and under "Active only" the row should go. */
+    reload();
+  }, [reload]);
 
   /** CSV import is prompts and stimuli only — topics have no import route. */
   const importCsv = useCallback(
@@ -177,5 +255,17 @@ export function useBank() {
     [reload]
   );
 
-  return { items, isLoading, error, reload, create, save, retire, importCsv };
+  return {
+    items,
+    total,
+    totals,
+    isLoading,
+    isFetching,
+    error,
+    reload,
+    create,
+    save,
+    retire,
+    importCsv,
+  };
 }

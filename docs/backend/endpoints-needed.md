@@ -18,6 +18,7 @@ the other document points here.
 | 1 | Hours split by language variety | A corpus chart that can only show counts | Low |
 | 2 | Store "how did you hear about us", and count it on the corpus summary | The corpus page's "How contributors found us" card | Medium |
 | 3 | One request for every user's profile | The users CSV export makes one request per person | Low |
+| 4 | `bank_total` and `recorded_total` on `/stimuli` too | The stimuli "Recorded" cards read as a dash | Low |
 
 Everything else is wired, including the 1 Nov Scribe handoff. The three asks
 of 30 Oct are closed: the ElevenLabs key is yours alone, Scribe's shape is in
@@ -104,4 +105,17 @@ people and a few minutes for a few thousand.
   `identity_verified` / `identity_status` / `wallet_status`.
 
 **Not urgent.** The export is correct as it stands, only slow at scale.
+
+---
+
+## 4. Totals on `/stimuli`
+
+The 2 Nov handoff added `bank_total`, `recorded_total` and `recorded=` to
+`GET /prompts`. The stimuli tab uses the same cards and the same table, so it
+reads them from `/stimuli` too. Until they are there, "In this bank" and
+"Active" fall back to `total`, and "Recorded" and "Active, never recorded"
+show a dash.
+
+**What would fix it:** the same three on `GET /stimuli`. No frontend change
+needed once they are there.
 
