@@ -18,21 +18,54 @@ import type { ApiPage } from "./recordings";
  */
 export async function fetchAllPages<T>(
   page: (query: { limit: number; offset: number }) => Promise<ApiPage<T>>,
-  { pageSize = 200, cap = 5000 }: { pageSize?: number; cap?: number } = {}
+  {
+    pageSize = 200,
+    cap = 5000,
+    concurrency = 6,
+  }: { pageSize?: number; cap?: number; concurrency?: number } = {}
 ): Promise<{ items: T[]; total: number; complete: boolean }> {
   const first = await page({ limit: pageSize, offset: 0 });
-  const items = [...first.items];
   const total = first.total;
+  const want = Math.min(total, cap);
+
+  /* The first page says how many there are, so the rest are asked for side
+     by side, a few at a time, rather than one after another: thirty pages in
+     sequence is thirty round trips of waiting. Each lands in its own slot,
+     so the order is the server's whatever order they answer in. */
+  const offsets: number[] = [];
+  if (first.items.length > 0) {
+    for (let offset = first.items.length; offset < want; offset += pageSize) offsets.push(offset);
+  }
+  const pages: T[][] = new Array(offsets.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < offsets.length) {
+      const slot = next;
+      next += 1;
+      pages[slot] = (await page({ limit: pageSize, offset: offsets[slot] })).items;
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, offsets.length) }, worker));
 
   /* An empty page means the server has nothing more to give, whatever the
-     total says. Without this, a total that overshoots spins forever. */
-  while (items.length < Math.min(total, cap) && first.items.length > 0) {
-    const next = await page({ limit: pageSize, offset: items.length });
-    if (next.items.length === 0) break;
-    items.push(...next.items);
+     total says, so everything after it is dropped. A row that moved between
+     pages while they were being read would otherwise be counted twice, so
+     rows with an id are kept once. */
+  const items: T[] = [...first.items];
+  for (const rows of pages) {
+    if (!rows || rows.length === 0) break;
+    items.push(...rows);
   }
+  const seen = new Set<unknown>();
+  const unique = items.filter((item) => {
+    const id = (item as { id?: unknown } | null)?.id;
+    if (id === undefined) return true;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 
-  return { items, total, complete: items.length >= total };
+  return { items: unique, total, complete: unique.length >= total };
 }
 
 /**

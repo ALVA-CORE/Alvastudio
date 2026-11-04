@@ -143,7 +143,7 @@ export function DuplicateFlagsTable({
         columns={columns}
         pageSize={10}
         isLoading={isLoading}
-        searchPlaceholder="Search a name"
+        searchPlaceholder="Search"
         searchKeys={["who", "matched"]}
         mobilePrimary={(row) => ({
           title: row.who,

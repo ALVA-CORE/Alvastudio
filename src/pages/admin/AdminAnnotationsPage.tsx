@@ -291,7 +291,7 @@ export default function AdminAnnotationsPage() {
           rows={filtered}
           columns={columns}
           pageSize={10}
-          searchPlaceholder="Search annotation, topic or annotator"
+          searchPlaceholder="Search"
           searchKeys={["code", "topic", "annotator"]}
           activeFilterCount={status === "all" ? 0 : 1}
           onRowClick={(row: AdminAnnotation) => setDetail(row)}

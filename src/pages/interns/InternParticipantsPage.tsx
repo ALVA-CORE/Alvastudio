@@ -143,7 +143,7 @@ export default function InternParticipantsPage() {
           rows={tableRows}
           pageSize={8}
           isLoading={isLoading}
-          searchPlaceholder="Search name, state, focus group"
+          searchPlaceholder="Search"
           searchKeys={["nameOrId", "state", "focusGroupSession"]}
           onRowClick={handleRowClick}
           mobilePrimary={(row) => ({

@@ -163,7 +163,7 @@ export function RecoveryRequestsTable({
         rows={isLoading ? [] : rows}
         columns={columns}
         pageSize={10}
-        searchPlaceholder="Search name or email"
+        searchPlaceholder="Search"
         searchKeys={["name", "email"]}
         /* A menu rather than two buttons: approving lets somebody into an
            account, and one deliberate step in front of it is worth having. */

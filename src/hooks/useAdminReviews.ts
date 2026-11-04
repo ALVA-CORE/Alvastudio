@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchAllPages } from "@/lib/api/fetchAll";
+
+/**
+ * Enough for the corpus as it stands and well past it. Still a backstop:
+ * a server reporting a total it will not serve must not request forever.
+ */
+const ALL_ROWS = 50_000;
 import {
   assignReviewer,
   listRecordingsPage,
@@ -75,10 +81,13 @@ export function useAdminReviews() {
        single call was silently answering "the first 200" to a screen whose
        headline figure, status ring and approval gauge are all counts of the
        whole queue. See `fetchAllPages`. */
+    /* Past the default 5,000. The recordings route has no search, so the
+       table can only search, count and filter what is loaded; at the cap it
+       read "of 5,000" with the oldest clips missing from all three. */
     Promise.all([
-      fetchAllPages<ApiRecording>((query) => listRecordingsPage(query)),
+      fetchAllPages<ApiRecording>((query) => listRecordingsPage(query), { cap: ALL_ROWS }),
       fetchAllPages<ApiUser>((query) => listUsers(query)),
-      fetchAllPages<ApiReviewRow>((query) => listReviews(query)),
+      fetchAllPages<ApiReviewRow>((query) => listReviews(query), { cap: ALL_ROWS }),
     ])
       .then(([recordings, users, reviewPage]) => {
         if (cancelled) return;

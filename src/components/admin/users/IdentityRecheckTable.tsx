@@ -119,7 +119,7 @@ export function IdentityRecheckTable({
         columns={columns}
         pageSize={10}
         isLoading={isLoading}
-        searchPlaceholder="Search name or email"
+        searchPlaceholder="Search"
         searchKeys={["full_name", "email"]}
         mobilePrimary={(row) => ({
           title: row.full_name,
