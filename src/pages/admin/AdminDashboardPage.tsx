@@ -29,7 +29,7 @@ import {
 import { EMPTY_CORPUS, EMPTY_CORPUS_FLOW } from "@/data/admin/corpus";
 import { formatHours } from "@/data/admin/shared";
 import type { DashboardTimeRange } from "@/data/internDashboard";
-import { useAdminOverview, cumulative } from "@/hooks/useAdminOverview";
+import { useAdminOverview } from "@/hooks/useAdminOverview";
 import { useCorpus } from "@/hooks/useCorpus";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useRecoveryRequests } from "@/hooks/useRecoveryRequests";
@@ -61,10 +61,11 @@ export default function AdminDashboardPage() {
 
   const isLoading = overview.isLoading || loadingCorpus;
   const corpus = !corpusData ? EMPTY_CORPUS : corpusData;
-  const growth = useMemo(
-    () => cumulative(overview.data?.daily_activity ?? []),
-    [overview.data]
-  );
+  /* Hours, from the corpus summary's `daily_hours`, the same series the
+     corpus page draws. It used to run `daily_activity` up, which counts every
+     recording submitted (rejected and flagged ones too), through a chart that
+     labels its values hours: "1,197 hours" beside a card reading 13.6. */
+  const growth = corpus.growth;
 
   /**
    * The three backlogs the API counts for us.
@@ -217,16 +218,14 @@ export default function AdminDashboardPage() {
 
       <div className="mt-2 grid gap-2 lg:grid-cols-6">
         <AlvaChartCard
-          title="Recordings collected"
-          /* Clips, not hours. This one plots `daily_activity`; the corpus page
-             plots `daily_hours`. Two different measurements, two labels. */
-          subtitle="Running total over the last year"
+          title="Hours collected"
+          subtitle="Running total, the same hours as the cards above"
           className="h-[25rem] lg:col-span-4"
           emptyMessage={
             growth.length === 0
               ? {
                   title: "No audio yet",
-                  description: "The curve starts once the first clip is approved.",
+                  description: "The curve starts once the first clip is recorded.",
                 }
               : undefined
           }

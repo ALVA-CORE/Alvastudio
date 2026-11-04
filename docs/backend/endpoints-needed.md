@@ -17,6 +17,8 @@ the other document points here.
 | --- | --- | --- | --- |
 | 4 | `bank_total` and `recorded_total` on `/stimuli` too | The stimuli "Recorded" cards read as a dash | Low |
 | 5 | `Retry-After` in `Access-Control-Expose-Headers` | The studio cannot read how long a `too_fast` wait is | Medium |
+| 6 | Limited formatting in a communication's body | Emails can only be plain paragraphs | Medium |
+| 7 | Upload a hero image per communication | The composer's image drop shows in the preview only; sent emails carry the brand image | Medium |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -55,3 +57,46 @@ second early try is just refused again.
   `X-Total-Count`.
 - `retry_after_seconds` in the error body, beside `code` and `detail`.
 
+---
+
+## 6. Formatting in a communication's body
+
+The composer's body is a rich-text editor: bold, italic, bullet and numbered
+lists, and links. `body` is plain text on the API, so today the formatting is
+spelled out before it is sent: "• " for a bullet, "1. " for a number,
+"words (https://...)" for a link, and bold and italic dropped. The preview
+shows the formatting as written.
+
+**What would fix it:** an optional `body_format: "markdown"` on
+`CommunicationIn` and `CommunicationPatch`, with the server rendering a fixed
+subset and escaping everything else:
+
+- `**bold**` and `*italic*`
+- `- ` bullet lists and `1. ` numbered lists
+- `[words](https://...)` links, HTTPS only, as for the button
+
+The plain-text part of the email can be the same text with the markup
+removed. We already hold the document as structure, so we would send that
+subset and nothing outside it.
+
+---
+
+## 7. Upload a hero image per communication
+
+The composer has a drag-and-drop image at the top of every email. Today it
+changes the preview only: `CommunicationIn` forbids extra fields, so nothing is
+sent, and every email renders with `hero_for("communication")`.
+
+**What would fix it:**
+
+1. `POST /communications/images` (admin, multipart `file`): takes a PNG, JPEG
+   or WebP up to 5 MB, re-encodes it, stores it where inboxes can fetch it
+   (beside `/static/email/`), and returns `{"id": "...", "url": "https://..."}`.
+   Re-encoding strips anything but pixels; a fixed host means no email ever
+   points at a URL an admin pasted.
+2. An optional `hero_image_id` on `CommunicationIn` and `CommunicationPatch`,
+   used by `render()` in place of the brand image, and returned on the
+   detail. `null` on a patch goes back to the brand image.
+
+The composer already holds the dropped file. Once these exist it uploads on
+drop and sends the id; nothing else on the screen changes.

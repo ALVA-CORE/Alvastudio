@@ -174,7 +174,7 @@ export function RecoveryRequestsTable({
             disabled={busy !== null && busy !== row.id}
             actions={[
               {
-                label: "Approve and email link",
+                label: "Approve & email link",
                 icon: <CheckCircle size={15} weight="Outline" />,
                 onSelect: () => void settle(row, "approve"),
               },

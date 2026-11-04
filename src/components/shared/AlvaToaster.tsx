@@ -47,7 +47,9 @@ export function AlvaToaster() {
   useEffect(() => subscribeToAlvaToasts(setItems), []);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-[200] flex justify-center px-4">
+    /* Marked so a press on a toast is not read as a press outside an open
+       panel (the email composer closes on those). */
+    <div data-alva-toaster className="pointer-events-none fixed inset-x-0 top-4 z-[200] flex justify-center px-4">
       <div className="relative w-full max-w-sm">
         <AnimatePresence initial={false}>
           {items.map((item, index) => (
