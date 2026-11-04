@@ -12,6 +12,12 @@ import { reportApiError } from "@/lib/api/reportApiError";
 /** What became of the link, once an approval has gone through. */
 export type ResetLinkOutcome = ApiEmailDelivery["status"] | "unknown";
 
+/** About ten seconds of asking, which covers the outbox worker's usual lag. */
+const RESET_EMAIL_CHECKS = 5;
+const RESET_EMAIL_INTERVAL_MS = 2500;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export type RecoveryRequest = {
   id: string;
   userId: string;
@@ -98,19 +104,40 @@ export function useRecoveryRequests() {
    * one means the mail was refused, the other that we did not get to ask.
    */
   const approve = useCallback(
-    async (id: string, userId: string): Promise<ResetLinkOutcome> => {
+    async (id: string): Promise<void> => {
       await approvePasswordResetRequest(id);
       drop(id);
-
-      try {
-        const page = await listUserEmails(userId, { limit: 5 });
-        const link = page.items.find((email) => email.kind === "reset_link");
-        return link?.status ?? "unknown";
-      } catch {
-        return "unknown";
-      }
     },
     [drop]
+  );
+
+  /**
+   * What became of the reset email, after giving it a moment.
+   *
+   * Approving puts the email in the API's outbox, and a worker sends it a
+   * moment later. Asking once, straight after the approve call, nearly
+   * always caught it before the worker had: "still queued" every time, which
+   * read like a fault. So this asks a few times over about ten seconds and
+   * answers as soon as the email has left the outbox, one way or the other.
+   * `pending` after that means it really is waiting.
+   */
+  const resetEmailOutcome = useCallback(
+    async (userId: string): Promise<ResetLinkOutcome> => {
+      let outcome: ResetLinkOutcome = "unknown";
+      for (let attempt = 0; attempt < RESET_EMAIL_CHECKS; attempt += 1) {
+        if (attempt > 0) await sleep(RESET_EMAIL_INTERVAL_MS);
+        try {
+          const page = await listUserEmails(userId, { limit: 5 });
+          const link = page.items.find((email) => email.kind === "reset_link");
+          outcome = link?.status ?? "unknown";
+        } catch {
+          outcome = "unknown";
+        }
+        if (outcome !== "pending") return outcome;
+      }
+      return outcome;
+    },
+    []
   );
 
   const deny = useCallback(
@@ -122,6 +149,7 @@ export function useRecoveryRequests() {
   );
 
   return {
+    resetEmailOutcome,
     rows,
     isLoading,
     error,

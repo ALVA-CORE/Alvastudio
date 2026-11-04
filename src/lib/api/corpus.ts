@@ -40,7 +40,15 @@ export type ApiCorpusSummary = {
   contributors: number;
   focus_group_participants: number;
   by_session_type: Record<string, number>;
+  /** A COUNT of clips and focus-group sessions, not hours. */
   by_language_variety: Record<string, number>;
+  /**
+   * Hours per variety, over the same clips and sessions as
+   * `by_language_variety`, measured as `total_hours` is: the values sum to
+   * `total_hours`, give or take rounding to 2 places. Sessions recorded
+   * without a variety are under `unknown`. Since 3 Nov.
+   */
+  hours_by_language_variety?: Record<string, number>;
   by_status: Record<string, number>;
   approved_hours: number;
   unmeasured_rows: number;
@@ -60,14 +68,19 @@ export type ApiCorpusSummary = {
     by_age_bracket: ApiDemographicSlice[];
   };
   /**
-   * Contributors by how they heard about Alva, keyed by the sign-up form's
-   * values (`instagram`, `friend_colleague`, …), with `unknown` for anyone
-   * who signed up before the question was asked.
-   *
-   * Asked for, not shipped (endpoints-needed #2). Optional until it is, and
-   * the card says so rather than drawing an empty ring as if nobody answered.
+   * Contributor accounts per answer to "How did you hear about us?", keyed
+   * by the sign-up form's values. Every contributor account, the waiting
+   * list and deactivated ones included. `unknown` is everyone with no
+   * answer, which is everyone from before the question. Sources nobody
+   * chose are left out. Since 3 Nov.
    */
   referral_sources?: Record<string, number>;
+  /**
+   * The `other` answers in contributors' own words, with counts. Grouped
+   * ignoring case and spacing, shown as the commonest spelling, like
+   * `unmatched_states` on coverage.
+   */
+  referral_other_details?: Record<string, number>;
 };
 
 export type ApiStateCoverage = {

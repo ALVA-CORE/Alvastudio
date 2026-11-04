@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, apiFetch, getToken, setToken } from "../client";
+import { ApiError, apiFetch, getToken, parseRetryAfter, setToken } from "../client";
 
 /**
  * The client's job is to make the backend's two error shapes and its auth
@@ -209,4 +209,23 @@ describe("apiFetch", () => {
     await expect(apiFetch("/health")).resolves.toBeUndefined();
   });
 
+});
+
+describe("upload refusals (3 Nov)", () => {
+  /* The one refusal a later retry fixes. The daily limit is a 429 too, and
+     it has no `code`. */
+  it("tells too_fast from the daily limit by code", () => {
+    expect(new ApiError(429, "Slow down", [], "too_fast").isTooFast).toBe(true);
+    expect(new ApiError(429, "Today's sentences are read").isTooFast).toBe(false);
+    expect(new ApiError(409, "", [], "too_fast").isTooFast).toBe(false);
+  });
+
+  it("reads Retry-After as seconds or as a date", () => {
+    const now = Date.parse("2026-11-04T10:00:00Z");
+    expect(parseRetryAfter("42", now)).toBe(42);
+    expect(parseRetryAfter("Wed, 04 Nov 2026 10:01:30 GMT", now)).toBe(90);
+    expect(parseRetryAfter("Wed, 04 Nov 2026 09:00:00 GMT", now)).toBe(0);
+    expect(parseRetryAfter("soon", now)).toBeNull();
+    expect(parseRetryAfter(null, now)).toBeNull();
+  });
 });

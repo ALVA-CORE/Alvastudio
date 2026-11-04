@@ -8,6 +8,12 @@ import { PeekRating } from "@/components/ui/peek-rating";
 import { TextureButton } from "@/components/ui/texture-button";
 import { useAuth } from "@/lib/auth/context";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useReferralQuestion } from "@/hooks/useReferralQuestion";
+import { BeamInput } from "@/components/auth/BeamInput";
+import {
+  REFERRAL_SOURCE_OPTIONS,
+  type ReferralSource,
+} from "@/data/contributors/onboarding";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
 import {
@@ -74,6 +80,12 @@ export function FeedbackForm() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* Contributors with no answer on file, which is everyone who signed up
+     before sign-up asked. Hidden for anyone who answered there. */
+  const referral = useReferralQuestion(user?.role === "contributor");
+  const [heardFrom, setHeardFrom] = useState<ReferralSource | "">("");
+  const [heardDetail, setHeardDetail] = useState("");
+
   /* Both, not either. A rating with nothing written is a number nobody can
      act on, and writing without one leaves the table unsortable. */
   const ready = rating > 0 && message.trim().length >= MIN_LENGTH;
@@ -88,6 +100,12 @@ export function FeedbackForm() {
 
     setError(null);
     setSending(true);
+
+    /* Saved beside the feedback, not instead of it, and never in its way.
+       If this fails the question is simply offered again next time. */
+    if (referral.needed && heardFrom) {
+      void referral.save(heardFrom, heardDetail).catch(() => undefined);
+    }
 
     try {
       await submitFeedback(draft);
@@ -190,6 +208,26 @@ export function FeedbackForm() {
                 className="w-full resize-none rounded-xl border border-alva-border bg-alva-surface px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-alva-accent focus-visible:outline-none"
               />
             </div>
+
+            {/* Optional: the feedback is what they came to give. */}
+            {referral.needed ? (
+              <>
+                <AlvaSelect
+                  label="How did you hear about Alva? (optional)"
+                  value={heardFrom || undefined}
+                  onValueChange={(next) => setHeardFrom(next as ReferralSource)}
+                  options={[...REFERRAL_SOURCE_OPTIONS]}
+                />
+                {heardFrom === "other" ? (
+                  <BeamInput
+                    label="Where? (optional)"
+                    maxLength={120}
+                    value={heardDetail}
+                    onChange={(event) => setHeardDetail(event.target.value)}
+                  />
+                ) : null}
+              </>
+            ) : null}
 
             {error ? (
               <p role="alert" className="text-xs text-destructive">

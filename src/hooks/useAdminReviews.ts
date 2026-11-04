@@ -153,7 +153,9 @@ function toAdminRecording(
 ): AdminRecording {
   const submitted = new Date(api.created_at);
   const review = reviews.get(api.id);
-  const durationSec = Math.round(api.duration_seconds ?? 0);
+  /* Measured from the stored file where we have it; the browser's figure
+     was never checked. */
+  const durationSec = Math.round(api.measured_duration_seconds ?? api.duration_seconds ?? 0);
 
   return {
     id: api.id,

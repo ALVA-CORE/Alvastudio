@@ -2,12 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminUser } from "@/data/admin/users";
 import type { ApiUserProfiles } from "@/lib/api/users";
 
+const bulk = vi.fn();
+
 vi.mock("@/lib/api/users", () => ({
+  USER_PROFILES_MAX_LIMIT: 2,
+  listUserProfilesPage: (query: unknown) => bulk(query),
   getUserProfiles: vi.fn(async (id: string) => {
     if (id === "broken") throw new Error("500");
     return { user_id: id } as ApiUserProfiles;
   }),
 }));
+
+const { ApiError } = await import("@/lib/api/client");
 
 const { fetchProfilesFor, usersToCsv } = await import("../usersExport");
 
@@ -84,7 +90,51 @@ describe("usersToCsv", () => {
 });
 
 describe("fetchProfilesFor", () => {
+  /* One request per 500 people, not one per person. */
+  it("pages the bulk route and keeps only the accounts in view", async () => {
+    const row = (id: string) => ({
+      user_id: id,
+      role: "contributor",
+      approved: true,
+      profile: null,
+      intern_profile: null,
+      annotator_profile: null,
+      email: `${id}@example.com`,
+      full_name: id,
+      is_active: true,
+      created_at: "2026-11-01T00:00:00Z",
+    });
+    bulk.mockReset().mockImplementation(async ({ offset }: { offset: number }) => ({
+      items: [[row("a"), row("x")], [row("c")]][offset / 2] ?? [],
+      total: 3,
+      limit: 2,
+      offset,
+    }));
+
+    const progress: [number, number][] = [];
+    const { profiles, failed } = await fetchProfilesFor(
+      [user("a"), user("c"), user("gone")],
+      (done, total) => progress.push([done, total])
+    );
+
+    expect(bulk).toHaveBeenCalledTimes(2);
+    /* Everyone in view is a contributor, so the role narrows the request. */
+    expect(bulk).toHaveBeenCalledWith({ role: "contributor", limit: 2, offset: 0 });
+    expect([...profiles.keys()].sort()).toEqual(["a", "c"]);
+    expect(profiles.get("a")).toMatchObject({ user_id: "a", identity: null });
+    expect(failed).toBe(1);
+    expect(progress.at(-1)).toEqual([3, 3]);
+  });
+
+  /* An API from before 3 Nov reads the path as `/users/{id}`. */
+  it("falls back to one request each when the bulk route is missing", async () => {
+    bulk.mockReset().mockRejectedValue(new ApiError(404, "User not found"));
+    const { profiles } = await fetchProfilesFor([user("a"), user("c")]);
+    expect([...profiles.keys()].sort()).toEqual(["a", "c"]);
+  });
+
   it("counts failures without dropping the rest", async () => {
+    bulk.mockReset().mockRejectedValue(new ApiError(404, "User not found"));
     const progress: number[] = [];
     const { profiles, failed } = await fetchProfilesFor(
       [user("a"), user("broken"), user("c")],

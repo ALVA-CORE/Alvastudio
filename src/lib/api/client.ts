@@ -186,6 +186,36 @@ export class ApiError extends Error {
 
   /** @internal set when the browser itself reports no connection. */
   offline = false;
+
+  /**
+   * Seconds to wait, from `Retry-After`, when the response has one and the
+   * browser lets us read it.
+   *
+   * Cross-origin, a browser hides every response header the API does not
+   * list in `Access-Control-Expose-Headers`, and on 4 Nov that list was
+   * `X-Total-Count` alone. So this is null in production until the API adds
+   * it (endpoints-needed #5), and callers need a fallback of their own.
+   */
+  retryAfterSeconds: number | null = null;
+
+  /**
+   * `too_fast`: more recorded audio in the last ten minutes than ten minutes
+   * hold. Retrying later works, unlike every other upload refusal.
+   *
+   * Told from the daily-limit 429 by `code` alone: that one has none.
+   */
+  get isTooFast(): boolean {
+    return this.status === 429 && this.code === "too_fast";
+  }
+}
+
+/** `Retry-After` is seconds or an HTTP date. Anything else is no answer. */
+export function parseRetryAfter(value: string | null, now = Date.now()): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+  const at = Date.parse(trimmed);
+  return Number.isNaN(at) ? null : Math.max(0, Math.ceil((at - now) / 1000));
 }
 
 /**
@@ -437,7 +467,9 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       unauthorizedHandler?.();
     }
 
-    throw parseError(response.status, parsed);
+    const error = parseError(response.status, parsed);
+    error.retryAfterSeconds = parseRetryAfter(response.headers.get("Retry-After"));
+    throw error;
   }
 
   // 204, or any empty body.

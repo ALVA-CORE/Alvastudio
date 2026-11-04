@@ -12,7 +12,14 @@ export type ApiRecording = {
   audio_content_type: string;
   audio_size_bytes: number;
   original_filename: string | null;
+  /** What the browser reported. Never verified; see `measured_duration_seconds`. */
   duration_seconds: number | null;
+  /**
+   * The length measured from the stored file, since 3 Nov. Prefer it to
+   * `duration_seconds` wherever a length is shown. Optional and nullable:
+   * older recordings and older API versions may not have it.
+   */
+  measured_duration_seconds?: number | null;
   device_mic: string | null;
   status: ApiRecordingStatus;
   assigned_reviewer_id: string | null;

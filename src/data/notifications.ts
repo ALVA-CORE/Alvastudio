@@ -143,7 +143,7 @@ export function withRecordingDetail(
   return {
     ...notification,
     prompt: recording.prompt_text ?? recording.stimulus_text ?? notification.prompt,
-    duration: formatDuration(recording.duration_seconds) ?? notification.duration,
+    duration: formatDuration(recording.measured_duration_seconds ?? recording.duration_seconds) ?? notification.duration,
     mode: MODE_LABEL[recording.session_type] ?? recording.session_type,
     device: recording.device_mic ?? notification.device,
   };

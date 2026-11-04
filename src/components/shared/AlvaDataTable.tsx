@@ -56,6 +56,19 @@ type AlvaDataTableProps<T extends { id: string }> = {
   filterMenuContent?: ReactNode;
   activeFilterCount?: number;
   isLoading?: boolean;
+  /**
+   * The server holds the rows and this is one page of them.
+   *
+   * `rows` is then the current page only, and the table stops searching and
+   * sorting: either would act on one page and read as if it covered all of
+   * them, which is how the prompt stats went to zero. The pager counts from
+   * `total`, and asks for a page rather than slicing one.
+   */
+  serverPaging?: {
+    total: number;
+    page: number;
+    onPageChange: (page: number) => void;
+  };
 };
 
 type SortDir = "asc" | "desc";
@@ -84,15 +97,19 @@ export function AlvaDataTable<T extends { id: string }>({
   filterMenuContent,
   activeFilterCount = 0,
   isLoading = false,
+  serverPaging,
 }: AlvaDataTableProps<T>) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
 
-  const sortableColumns = columns.filter((column) => column.sortable !== false && column.sortValue);
+  const sortableColumns = serverPaging
+    ? []
+    : columns.filter((column) => column.sortable !== false && column.sortValue);
 
   const filtered = useMemo(() => {
+    if (serverPaging) return rows;
     const normalized = query.trim().toLowerCase();
     let result = rows;
 
@@ -115,28 +132,34 @@ export function AlvaDataTable<T extends { id: string }>({
     return [...result].sort((a, b) =>
       compareValues(column.sortValue!(a), column.sortValue!(b), sortDir)
     );
-  }, [rows, query, searchKeys, sortKey, sortDir, columns]);
+  }, [rows, query, searchKeys, sortKey, sortDir, columns, serverPaging]);
 
-  const totalPages = pageSize ? Math.max(1, Math.ceil(filtered.length / pageSize)) : 1;
-  const currentPage = Math.min(page, totalPages);
+  const rowCount = serverPaging ? serverPaging.total : filtered.length;
+  const totalPages = pageSize ? Math.max(1, Math.ceil(rowCount / pageSize)) : 1;
+  const currentPage = Math.min(serverPaging ? serverPaging.page : page, totalPages);
+  const goToPage = (next: number) =>
+    serverPaging ? serverPaging.onPageChange(next) : setPage(next);
 
   useEffect(() => {
     setPage(1);
   }, [query, sortKey, sortDir, activeFilterCount]);
 
   const paged = useMemo(() => {
-    if (!pageSize) return filtered;
+    if (!pageSize || serverPaging) return filtered;
     const start = (currentPage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
-  }, [filtered, pageSize, currentPage]);
+  }, [filtered, pageSize, currentPage, serverPaging]);
 
   const rangeStart =
-    filtered.length === 0 ? 0 : (currentPage - 1) * (pageSize ?? filtered.length) + 1;
-  const rangeEnd = pageSize
-    ? Math.min(currentPage * pageSize, filtered.length)
-    : filtered.length;
+    rowCount === 0 ? 0 : (currentPage - 1) * (pageSize ?? rowCount) + 1;
+  const rangeEnd = serverPaging
+    ? rangeStart + Math.max(0, paged.length - 1)
+    : pageSize
+      ? Math.min(currentPage * pageSize, rowCount)
+      : rowCount;
 
   const handleHeaderSort = (key: string) => {
+    if (serverPaging) return;
     const column = columns.find((entry) => entry.key === key);
     if (!column?.sortValue) return;
 
@@ -170,7 +193,8 @@ export function AlvaDataTable<T extends { id: string }>({
         <h2 className="font-display text-lg font-medium tracking-tight text-foreground">
           {title}
         </h2>
-        <div className="flex w-full max-w-md items-center gap-2">
+        <div className="flex w-full max-w-md items-center justify-end gap-2">
+          {serverPaging ? null : (
           <div className="relative min-w-0 flex-1">
             <Magnifier
               size={16}
@@ -185,6 +209,7 @@ export function AlvaDataTable<T extends { id: string }>({
               aria-label={searchPlaceholder}
             />
           </div>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -202,9 +227,11 @@ export function AlvaDataTable<T extends { id: string }>({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 border-alva-border bg-alva-card">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Sort by
-              </DropdownMenuLabel>
+              {sortableColumns.length > 0 && (
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  Sort by
+                </DropdownMenuLabel>
+              )}
               {sortableColumns.map((column) => (
                 <DropdownMenuCheckboxItem
                   key={column.key}
@@ -230,7 +257,7 @@ export function AlvaDataTable<T extends { id: string }>({
               )}
               {filterMenuContent && (
                 <>
-                  <DropdownMenuSeparator />
+                  {sortableColumns.length > 0 && <DropdownMenuSeparator />}
                   {filterMenuContent}
                 </>
               )}
@@ -309,7 +336,7 @@ export function AlvaDataTable<T extends { id: string }>({
                       key={column.key}
                       className={column.key === "_actions" ? "w-12 text-right" : undefined}
                     >
-                      {column.sortValue ? (
+                      {column.sortValue && !serverPaging ? (
                         <button
                           type="button"
                           onClick={() => handleHeaderSort(column.key)}
@@ -366,10 +393,11 @@ export function AlvaDataTable<T extends { id: string }>({
             </Table>
           </div>
 
-          {pageSize && filtered.length > pageSize && (
+          {pageSize && rowCount > pageSize && (
             <div className="flex items-center justify-between gap-3 pt-1">
               <p className="text-xs text-muted-foreground">
-                Showing {rangeStart}–{rangeEnd} of {filtered.length}
+                Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of{" "}
+                {rowCount.toLocaleString()}
               </p>
               <div className="flex items-center gap-1.5">
                 <Button
@@ -378,12 +406,12 @@ export function AlvaDataTable<T extends { id: string }>({
                   className="size-8 rounded-full bg-alva-surface"
                   aria-label="Previous page"
                   disabled={currentPage <= 1}
-                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  onClick={() => goToPage(Math.max(1, currentPage - 1))}
                 >
                   <AltArrowLeft size={16} weight="Outline" />
                 </Button>
                 <span className="min-w-[4.5rem] text-center text-xs font-medium text-foreground">
-                  Page {currentPage} / {totalPages}
+                  Page {currentPage.toLocaleString()} / {totalPages.toLocaleString()}
                 </span>
                 <Button
                   variant="secondary"
@@ -391,7 +419,7 @@ export function AlvaDataTable<T extends { id: string }>({
                   className="size-8 rounded-full bg-alva-surface"
                   aria-label="Next page"
                   disabled={currentPage >= totalPages}
-                  onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                  onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
                 >
                   <AltArrowRight size={16} weight="Outline" />
                 </Button>
