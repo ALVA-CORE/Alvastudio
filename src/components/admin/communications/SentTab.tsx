@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import { RingChart } from "@/components/charts/ring-chart";
@@ -55,8 +55,8 @@ function OutcomeRings({ delivery }: { delivery: ApiDeliveryCounts }) {
           ))}
           <RingCenter
             defaultLabel="sent to"
-            valueClassName="text-foreground"
-            labelClassName="text-[10px] text-muted-foreground"
+            valueClassName="text-sm font-semibold leading-none tabular-nums text-foreground"
+            labelClassName="mt-0.5 text-[9px] leading-none text-muted-foreground"
           />
         </RingChart>
       </div>
@@ -162,13 +162,13 @@ export function SentTab({ version }: { version: number }) {
               <div className="rounded-2xl bg-alva-surface p-4">
                 <OutcomeRings delivery={totals} />
               </div>
-              <ul className="space-y-1">
+              <ul className="divide-y divide-alva-border/70">
                 {rows.map((row) => (
                   <li key={row.id}>
                     <button
                       type="button"
                       onClick={() => setOpenId(row.id)}
-                      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-alva-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-alva-surface/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-alva-accent"
                     >
                       <span
                         className={cn(
@@ -198,6 +198,8 @@ export function SentTab({ version }: { version: number }) {
 }
 
 const PAGE = 50;
+/** The recipients route's largest page. */
+const MAX_PAGE = 200;
 
 function SentDetail({
   row,
@@ -211,17 +213,37 @@ function SentDetail({
   const [delivery, setDelivery] = useState(row.delivery);
   const [people, setPeople] = useState<ApiCommunicationRecipient[]>([]);
   const [total, setTotal] = useState(0);
+  /* How many rows are open. The refresh while it is still sending re-reads
+     this many, not the first page: re-reading one page is what used to
+     close everything "more" had just opened. */
+  const loaded = useRef(PAGE);
 
   useEffect(() => {
     let cancelled = false;
     void getCommunication(row.id)
       .then((detail) => !cancelled && setDelivery(detail.delivery))
       .catch(() => undefined);
-    void listCommunicationRecipients(row.id, { limit: PAGE, offset: 0 })
-      .then((page) => {
+
+    const read = async () => {
+      const rows: ApiCommunicationRecipient[] = [];
+      let count = 0;
+      while (rows.length < loaded.current) {
+        const page = await listCommunicationRecipients(row.id, {
+          limit: Math.min(MAX_PAGE, loaded.current - rows.length),
+          offset: rows.length,
+        });
+        rows.push(...page.items);
+        count = page.total;
+        if (page.items.length === 0 || rows.length >= page.total) break;
+      }
+      return { rows, count };
+    };
+
+    void read()
+      .then(({ rows, count }) => {
         if (cancelled) return;
-        setPeople(page.items);
-        setTotal(page.total);
+        setPeople(rows);
+        setTotal(count);
       })
       .catch(() => undefined);
     return () => {
@@ -231,6 +253,7 @@ function SentDetail({
 
   const more = async () => {
     const page = await listCommunicationRecipients(row.id, { limit: PAGE, offset: people.length });
+    loaded.current = people.length + page.items.length;
     setPeople((prev) => [...prev, ...page.items]);
     setTotal(page.total);
   };
@@ -250,9 +273,9 @@ function SentDetail({
         <OutcomeRings delivery={delivery} />
       </div>
 
-      <ul className="space-y-0.5">
+      <ul className="divide-y divide-alva-border/70">
         {people.map((person) => (
-          <li key={person.id} className="flex items-center gap-3 rounded-xl px-3 py-2">
+          <li key={person.id} className="flex items-center gap-3 px-3 py-2.5">
             <span className={cn("size-2 shrink-0 rounded-full", DOT[person.status])} />
             <span className="min-w-0 flex-1 truncate text-sm text-foreground">
               {person.full_name ?? "—"}

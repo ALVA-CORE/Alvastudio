@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Letter from "@solar-icons/react/messages/Letter";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
 import Plain2 from "@solar-icons/react/messages/Plain2";
+import { BorderBeam } from "border-beam";
 import { TextureButton } from "@/components/ui/texture-button";
 import { ComposeTab } from "@/components/admin/communications/ComposeTab";
 import { SentTab } from "@/components/admin/communications/SentTab";
@@ -17,7 +18,7 @@ import {
   renderEmailHtml,
 } from "@/lib/admin/emailTemplate";
 import { ApiError } from "@/lib/api/client";
-import { alvaDarkTexture } from "@/lib/alva-texture";
+import { toEmailHtml } from "@/lib/admin/richBody";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { AdminPermission } from "@/data/admin/users";
@@ -59,14 +60,35 @@ export function CommsLauncher() {
   const composer = useCommsComposer();
   const directory = useContributorDirectory(allowed && everOpened);
 
+  const panel = useRef<HTMLElement>(null);
+
+  /* Escape, or a press anywhere outside, closes it; what was written stays.
+     The panel's own dropdowns and the toasts render outside it, in portals,
+     so a press on those is not "outside". */
   useEffect(() => {
     if (!open) return;
     setEverOpened(true);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target || panel.current?.contains(target)) return;
+      if (
+        target.closest(
+          '[data-radix-popper-content-wrapper],[role="listbox"],[role="menu"],[data-sonner-toaster],[data-alva-toaster]'
+        )
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
   }, [open]);
 
   const { fields } = composer;
@@ -75,9 +97,12 @@ export function CommsLauncher() {
       renderEmailHtml({
         title: fields.header.trim() || "Header",
         body: fields.body.trim() || "Body",
-        action: (fields.button.trim() && fields.link.trim() && fields.button.trim()) || DEFAULT_ACTION_LABEL,
-        url: (fields.button.trim() && fields.link.trim()) || DEFAULT_ACTION_URL,
+        action: fields.button.trim() || DEFAULT_ACTION_LABEL,
+        url: fields.link.trim() || DEFAULT_ACTION_URL,
         hero: fields.hero ?? COMMUNICATION_HERO,
+        /* The formatting as written. What is sent today is the plain text
+           beside it (endpoints-needed #6). */
+        bodyHtml: fields.body.trim() ? toEmailHtml(fields.bodyDoc) : undefined,
       }),
     [fields]
   );
@@ -124,6 +149,7 @@ export function CommsLauncher() {
       <AnimatePresence initial={false} mode="popLayout">
         {open ? (
           <motion.section
+            ref={panel}
             key="panel"
             layoutId="comms-launcher"
             role="dialog"
@@ -131,7 +157,7 @@ export function CommsLauncher() {
             initial={reduceMotion ? { opacity: 0 } : undefined}
             transition={SPRING}
             style={{ borderRadius: 28 }}
-            className="pointer-events-auto flex h-[min(44rem,calc(100vh-3rem))] w-[26rem] flex-col overflow-hidden border border-alva-border bg-alva-card shadow-[0_24px_80px_-20px_rgba(0,0,0,0.8)]"
+            className="pointer-events-auto flex h-[min(46rem,calc(100vh-3rem))] w-[min(38rem,calc(100vw-3rem))] flex-col overflow-hidden border border-alva-border bg-alva-card shadow-[0_24px_80px_-20px_rgba(0,0,0,0.8)]"
           >
             <motion.div
               initial={{ opacity: 0 }}
@@ -189,7 +215,7 @@ export function CommsLauncher() {
                         loadingContributors={directory.isLoading}
                       />
                     ) : tab === "preview" ? (
-                      <EmailPreviewFrame html={html} className="min-h-[30rem]" />
+                      <EmailPreviewFrame html={html} />
                     ) : (
                       <SentTab version={sentVersion} />
                     )}
@@ -254,24 +280,41 @@ export function CommsLauncher() {
             </motion.div>
           </motion.section>
         ) : (
-          <motion.button
+          /* The beam sits on the button's own border, as on the play
+             buttons. Every wrapper stays `overflow-visible`, or the glow is
+             clipped back to a flat ring. */
+          <motion.div
             key="launcher"
             layoutId="comms-launcher"
-            type="button"
-            aria-label="Email contributors"
-            onClick={() => setOpen(true)}
             transition={SPRING}
-            style={{ borderRadius: 28 }}
+            style={{ borderRadius: 999 }}
             whileHover={reduceMotion ? undefined : { scale: 1.06 }}
             whileTap={reduceMotion ? undefined : { scale: 0.94 }}
-            className={alvaDarkTexture(
-              "pointer-events-auto flex size-14 items-center justify-center border border-alva-border text-foreground shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alva-accent"
-            )}
+            className="pointer-events-auto overflow-visible rounded-full"
           >
-            <span className="relative z-[1]">
-              <Letter size={22} weight="BoldDuotone" />
-            </span>
-          </motion.button>
+            <BorderBeam
+              size="sm"
+              colorVariant="mono"
+              theme="dark"
+              strength={1}
+              duration={2.4}
+              borderRadius={999}
+              className="overflow-visible rounded-full"
+            >
+              {/* The grey textured face every icon button wears. */}
+              <TextureButton
+                variant="icon"
+                size="icon"
+                aria-label="Email contributors"
+                onClick={() => setOpen(true)}
+                className="relative z-[1] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)]"
+              >
+                <span className="flex size-8 items-center justify-center">
+                  <Letter size={22} weight="Bold" className="text-alva-accent" />
+                </span>
+              </TextureButton>
+            </BorderBeam>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

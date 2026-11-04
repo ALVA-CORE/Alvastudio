@@ -78,6 +78,7 @@ export function renderEmailHtml({
   action,
   url,
   hero = COMMUNICATION_HERO,
+  bodyHtml,
 }: {
   /** A sample, as the server's preview uses. Real messages use each name. */
   name?: string;
@@ -86,11 +87,17 @@ export function renderEmailHtml({
   action: string;
   url: string;
   hero?: string;
+  /**
+   * The body already rendered, formatting and all (`toEmailHtml`), for the
+   * preview of what the editor holds. Must be escaped already. Without it the
+   * body is drawn from plain text, exactly as the server does.
+   */
+  bodyHtml?: string;
 }) {
   const paragraphs = bodyParagraphs(body);
   const greeting = `Hi ${name},`;
   const year = new Date().getUTCFullYear();
-  const copy = paragraphs
+  const copy = bodyHtml ?? paragraphs
     .map(
       (p) =>
         `<p class="copy" style="margin:0 0 12px;font-size:15px;line-height:1.6;color:${MUTED};">${escape(p).replace(/\n/g, "<br>")}</p>`

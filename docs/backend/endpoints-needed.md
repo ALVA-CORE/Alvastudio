@@ -61,18 +61,23 @@ second early try is just refused again.
 
 ## 6. Formatting in a communication's body
 
-The Emails screen is asked for as a rich-text editor. `body` is plain text
-today: paragraphs on blank lines, line breaks, and anything else shown as
-text. So bold, links in the copy and lists cannot be offered, because the
-email would show the markup instead.
+The composer's body is a rich-text editor: bold, italic, bullet and numbered
+lists, and links. `body` is plain text on the API, so today the formatting is
+spelled out before it is sent: "• " for a bullet, "1. " for a number,
+"words (https://...)" for a link, and bold and italic dropped. The preview
+shows the formatting as written.
 
-**What would fix it:** a small, safe subset rendered by the server, for
-example Markdown limited to **bold**, *italic*, `[links](https://...)` and
-bullet lists, with everything else still escaped. HTTPS links only, as for
-the button. The plain-text part of the email can keep the source as typed.
+**What would fix it:** an optional `body_format: "markdown"` on
+`CommunicationIn` and `CommunicationPatch`, with the server rendering a fixed
+subset and escaping everything else:
 
-We would send the source as typed and keep the live preview in step with
-whatever subset you choose.
+- `**bold**` and `*italic*`
+- `- ` bullet lists and `1. ` numbered lists
+- `[words](https://...)` links, HTTPS only, as for the button
+
+The plain-text part of the email can be the same text with the markup
+removed. We already hold the document as structure, so we would send that
+subset and nothing outside it.
 
 ---
 

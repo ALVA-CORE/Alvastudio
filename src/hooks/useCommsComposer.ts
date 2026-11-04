@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import type { JSONContent } from "@tiptap/react";
 import {
   createCommunication,
   previewCommunication,
@@ -8,13 +9,20 @@ import {
   type ApiCommunicationDetail,
   type ApiCommunicationDraft,
 } from "@/lib/api/communications";
-import { actionUrlProblem } from "@/lib/admin/emailTemplate";
+import {
+  actionUrlProblem,
+  DEFAULT_ACTION_LABEL,
+  DEFAULT_ACTION_URL,
+} from "@/lib/admin/emailTemplate";
 import { ApiError } from "@/lib/api/client";
 
 export type ComposerFields = {
   /** A data URL. Preview only until the API takes a hero (endpoints-needed #7). */
   hero: string | null;
   header: string;
+  /** The editor's document, formatting and all. */
+  bodyDoc: JSONContent | null;
+  /** That document as plain text: what the API is sent (endpoints-needed #6). */
   body: string;
   button: string;
   link: string;
@@ -22,12 +30,15 @@ export type ComposerFields = {
   selected: string[];
 };
 
+/* The button starts as the default one, written out, so the field always
+   shows where it goes. Left as it is, nothing custom is sent. */
 const EMPTY: ComposerFields = {
   hero: null,
   header: "",
+  bodyDoc: null,
   body: "",
-  button: "",
-  link: "",
+  button: DEFAULT_ACTION_LABEL,
+  link: DEFAULT_ACTION_URL,
   audience: "all_contributors",
   selected: [],
 };
@@ -64,9 +75,7 @@ export function useCommsComposer() {
 
   const valid = useMemo(() => {
     if (!fields.header.trim() || !fields.body.trim()) return false;
-    const button = fields.button.trim();
     const link = fields.link.trim();
-    if (Boolean(button) !== Boolean(link)) return false;
     if (link && actionUrlProblem(link)) return false;
     if (fields.audience === "selected_contributors" && fields.selected.length === 0) return false;
     return true;
@@ -74,15 +83,24 @@ export function useCommsComposer() {
 
   const toDraft = (forPatch: boolean): ApiCommunicationDraft => {
     const chosen = fields.audience === "selected_contributors";
+    /* The API takes both or neither. Either one set means a custom button,
+       with the default standing in for whichever was left empty: new words
+       on the studio link, or the usual words on a new link. */
     const button = fields.button.trim();
     const link = fields.link.trim();
+    const custom =
+      (button !== "" && button !== DEFAULT_ACTION_LABEL) ||
+      (link !== "" && link !== DEFAULT_ACTION_URL);
     return {
       subject: fields.header.trim(),
       body: fields.body.trim(),
       audience: fields.audience,
       ...(chosen ? { recipient_ids: fields.selected } : forPatch ? { recipient_ids: [] } : {}),
-      ...(button && link
-        ? { action_label: button, action_url: link }
+      ...(custom
+        ? {
+            action_label: button || DEFAULT_ACTION_LABEL,
+            action_url: link || DEFAULT_ACTION_URL,
+          }
         : forPatch
           ? { action_label: null, action_url: null }
           : {}),

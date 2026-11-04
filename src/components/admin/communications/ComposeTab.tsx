@@ -6,12 +6,12 @@ import Magnifier from "@solar-icons/react/search/Magnifier";
 import { BeamInput } from "@/components/auth/BeamInput";
 import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
-import { FieldBeam } from "@/components/shared/FieldBeam";
 import { Input } from "@/components/ui/input";
+import { RichBodyEditor } from "@/components/admin/communications/RichBodyEditor";
+import { toPlainText } from "@/lib/admin/richBody";
 import { NIGERIAN_STATES } from "@/data/interns/participants";
 import { COMMUNICATION_LIMITS } from "@/lib/api/communications";
-import { actionUrlProblem } from "@/lib/admin/emailTemplate";
-import { alvaFieldClass } from "@/lib/alva-form-styles";
+import { actionUrlProblem, DEFAULT_ACTION_URL } from "@/lib/admin/emailTemplate";
 import { alvaToast } from "@/lib/alva-toast";
 import type { ComposerFields } from "@/hooks/useCommsComposer";
 import type { DirectoryContributor } from "@/hooks/useContributorDirectory";
@@ -46,20 +46,13 @@ export function ComposeTab({
         onChange={(event) => set("header", event.target.value)}
       />
 
-      <FieldBeam>
-        <textarea
-          aria-label="Body"
-          placeholder="Body"
-          rows={6}
-          value={fields.body}
-          maxLength={COMMUNICATION_LIMITS.body}
-          onChange={(event) => set("body", event.target.value)}
-          className={cn(
-            alvaFieldClass(),
-            "block h-auto min-h-[9rem] w-full resize-none px-3.5 py-3 text-sm leading-relaxed focus-visible:border-transparent"
-          )}
-        />
-      </FieldBeam>
+      <RichBodyEditor
+        value={fields.bodyDoc}
+        onChange={(doc) => {
+          set("bodyDoc", doc);
+          set("body", toPlainText(doc));
+        }}
+      />
 
       <div className="grid grid-cols-[2fr_3fr] gap-2">
         <BeamInput
@@ -69,7 +62,7 @@ export function ComposeTab({
           onChange={(event) => set("button", event.target.value)}
         />
         <BeamInput
-          label="Link"
+          label={fields.link.trim() && fields.link.trim() !== DEFAULT_ACTION_URL ? "Link · changed" : "Link"}
           inputMode="url"
           value={fields.link}
           aria-invalid={Boolean(linkProblem) || undefined}

@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+/* ProseMirror measures the page as it types, and jsdom has no layout. */
+const rect = { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}) };
+const rects = () => Object.assign([rect], { item: () => rect }) as unknown as DOMRectList;
+Range.prototype.getClientRects = rects;
+Range.prototype.getBoundingClientRect = () => rect as DOMRect;
+Element.prototype.getClientRects = rects;
+document.elementFromPoint = () => null;
+
 let permissions: string[] | undefined;
 vi.mock("@/lib/auth/context", () => ({
   useAuth: () => ({ user: { role: "admin", adminPermissions: permissions } }),
@@ -79,7 +87,8 @@ describe("CommsLauncher", () => {
     await userEvent.type(screen.getByLabelText("Header"), "Guidance update");
     await userEvent.click(screen.getByRole("tab", { name: "Preview" }));
     const frame = (await screen.findByTitle("Email preview")) as HTMLIFrameElement;
-    expect(frame.getAttribute("sandbox")).toBe("");
+    /* Readable for the fit, and nothing more: no scripts, forms or popups. */
+    expect(frame.getAttribute("sandbox")).toBe("allow-same-origin");
     expect(frame.srcdoc).toContain("Guidance update");
   });
 
@@ -88,7 +97,8 @@ describe("CommsLauncher", () => {
     render(<CommsLauncher />);
     await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
     await userEvent.type(screen.getByLabelText("Header"), "Guidance update");
-    await userEvent.type(screen.getByLabelText("Body"), "Please read it.");
+    await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
+    await userEvent.keyboard("Please read it.");
 
     await userEvent.click(screen.getByRole("button", { name: /^Send$/ }));
     expect(create).toHaveBeenCalledTimes(1);
@@ -103,5 +113,22 @@ describe("CommsLauncher", () => {
     await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
     await userEvent.click(screen.getByRole("radio", { name: "Choose" }));
     expect(await screen.findByText("Lagos")).toBeInTheDocument();
+  });
+
+  it("closes on a press outside, and keeps what was written", async () => {
+    render(
+      <>
+        <p>Page</p>
+        <CommsLauncher />
+      </>
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    await userEvent.type(screen.getByLabelText("Header"), "Kept");
+
+    await userEvent.click(screen.getByText("Page"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    expect(screen.getByLabelText("Header")).toHaveValue("Kept");
   });
 });
