@@ -46,6 +46,7 @@ export default function AdminCorpusPage() {
     [raw?.referral_sources]
   );
   const referralsUnknown = raw?.referral_sources?.unknown ?? 0;
+  const varietyInHours = raw?.hours_by_language_variety !== undefined;
 
   /**
    * Age brackets crossed with gender, for the pyramid.
@@ -188,13 +189,14 @@ export default function AdminCorpusPage() {
           is square and the curve wants width, so the ring takes a third. */}
       <div className="mt-2 grid gap-2 lg:grid-cols-3">
         {/* Asked once, on the consent step of contributor sign-up. Everyone
-            from before the question sits in `unknown`, which is counted in
-            the subtitle rather than drawn as a wedge: it is not a channel. */}
+            with no answer, which includes everyone from before the question,
+            sits in `unknown`. It is counted in the subtitle rather than drawn
+            as a wedge: it is not a channel. */}
         <AlvaChartCard
           title="How contributors found us"
           subtitle={
             referralsUnknown > 0
-              ? `Contributors by channel · ${referralsUnknown.toLocaleString()} signed up before we asked`
+              ? `Contributors by channel · ${referralsUnknown.toLocaleString()} with no answer`
               : "Contributors by channel, from sign-up"
           }
           className="h-[25rem]"
@@ -213,7 +215,10 @@ export default function AdminCorpusPage() {
               : undefined
           }
         >
-          <ReferralSourcesChart slices={referrals} />
+          <ReferralSourcesChart
+            slices={referrals}
+            otherDetails={raw?.referral_other_details}
+          />
         </AlvaChartCard>
 
         <AlvaChartCard
@@ -287,10 +292,15 @@ export default function AdminCorpusPage() {
       <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <AlvaChartCard
           title="By variety"
-          /* Counts, not hours. No endpoint splits hours by language, and
-             this chart said "1,198h" beside a card reading 2.8 hours for
-             weeks because we read the count as one. */
-          subtitle="Clips and sessions in each language"
+          /* Hours when the API sends them (`hours_by_language_variety`,
+             since 3 Nov), and said to be counts when it does not. This chart
+             once read "1,198h" beside a card saying 2.8 hours, because a
+             count was taken for hours. */
+          subtitle={
+            varietyInHours
+              ? "Hours collected in each language"
+              : "Clips and sessions in each language"
+          }
           className="min-h-[17rem]"
           emptyMessage={
             corpus.byVariety.length === 0
@@ -300,7 +310,11 @@ export default function AdminCorpusPage() {
         >
           {/* Two slices of one whole — a donut reads that faster than two
               separate tracks, because the parts sit against each other. */}
-          <SharePie slices={corpus.byVariety} centerLabel="total" valueSuffix="" />
+          <SharePie
+            slices={corpus.byVariety}
+            centerLabel="total"
+            valueSuffix={varietyInHours ? "h" : ""}
+          />
         </AlvaChartCard>
         <AlvaChartCard
           title="By collection type"

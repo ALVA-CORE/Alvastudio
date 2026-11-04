@@ -165,8 +165,49 @@ export default function ContributorStudioPage() {
   const recordingInProgress = recorder.phase !== "idle";
 
 
-  const items = (bank ?? []).map((entry) => ({ id: entry.id, prompt: entry.text }));
+  /**
+   * Sentences sent this visit, off the stack.
+   *
+   * Since 3 Nov a sentence is read once: a second reading is refused unless
+   * the first was rejected. The stack is paged locally, so a sent card
+   * stayed in it and came round again on a swipe, offering a reading the API
+   * would turn down. Prompts only: a stimulus can be narrated again.
+   */
+  const [sent, setSent] = useState<ReadonlySet<string>>(() => new Set());
+  const markSent = (id: string) =>
+    setSent((prev) => new Set(prev).add(id));
+
+  const items = (bank ?? [])
+    .filter((entry) => mode === "stimuli" || !sent.has(entry.id))
+    .map((entry) => ({ id: entry.id, prompt: entry.text }));
   const total = items.length;
+
+  /**
+   * `too_fast`: uploads are paused until this instant.
+   *
+   * The take is kept and Save waits, because this is the one refusal that a
+   * later retry fixes. `Retry-After` says how long when the browser can read
+   * it; it cannot yet cross-origin (endpoints-needed #5), so a minute stands
+   * in, and a second early try is simply told again.
+   */
+  const [uploadsPausedUntil, setUploadsPausedUntil] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (uploadsPausedUntil == null) return;
+    const timer = window.setInterval(() => {
+      const at = Date.now();
+      setNow(at);
+      if (at >= uploadsPausedUntil) {
+        setUploadsPausedUntil(null);
+        alvaToast.show("You can send your take now", { variant: "default" });
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [uploadsPausedUntil]);
+  const waitSeconds =
+    uploadsPausedUntil == null
+      ? 0
+      : Math.max(0, Math.ceil((uploadsPausedUntil - now) / 1000));
 
   /* Which card is on top. Paging is local now, so swiping does not refetch. */
   /**
@@ -182,8 +223,10 @@ export default function ContributorStudioPage() {
   const card = total > 0 ? items[position] : null;
 
   /* A fresh bank, or a switch between prompts and stimuli, starts at the top
-   * rather than wherever the previous one had been left. */
-  useEffect(() => setIndex(0), [mode, total]);
+   * rather than wherever the previous one had been left. Keyed on the fetch,
+   * not the count: a sent card leaving the stack shortens it, and that should
+   * bring the next card up, not send them back to the first. */
+  useEffect(() => setIndex(0), [mode, bank]);
 
   useEffect(() => {
     if (recorder.error) {
@@ -276,6 +319,7 @@ export default function ContributorStudioPage() {
       alvaToast.error("This take has no prompt to attach to");
       return;
     }
+    if (waitSeconds > 0) return;
 
     setSaving(true);
     try {
@@ -299,8 +343,29 @@ export default function ContributorStudioPage() {
       alvaToast.success("Clip sent for review", <Diskette size={14} weight="Bold" />);
       reloadQuota();
       recorder.discardRecording();
-      setIndex((value) => value + 1);
+      /* A sent sentence leaves the stack, and the next one takes its place
+         at the same position. A stimulus stays, so the stack moves on. */
+      if (mode === "stimuli") setIndex((value) => value + 1);
+      else markSent(card.id);
     } catch (cause) {
+      /* Too much audio in too little time. The only refusal a later retry
+         fixes, so the take stays and Save waits it out. The sentence is
+         the API's own, written for the contributor. */
+      if (cause instanceof ApiError && cause.isTooFast) {
+        setNow(Date.now());
+        setUploadsPausedUntil(Date.now() + (cause.retryAfterSeconds ?? 60) * 1000);
+        alvaToast.show(cause.message, { variant: "default" });
+        return;
+      }
+
+      /* The day's allowance, which has no `code`. The quota decides what
+         the studio shows, so read it again rather than guess. */
+      if (cause instanceof ApiError && cause.status === 429) {
+        reloadQuota();
+        alvaToast.show(cause.message, { variant: "default" });
+        return;
+      }
+
       /**
        * A prompt with both its places taken.
        *
@@ -310,13 +375,24 @@ export default function ContributorStudioPage() {
        * cannot be attached to anything. Dropping it and moving on is the
        * honest outcome, said plainly, rather than leaving somebody pressing
        * Save on a prompt that will never accept it.
+       *
+       * The same goes for `already_read` (they have read it, and it was not
+       * rejected) and `duplicate_audio` (this exact file went up before,
+       * usually a retried upload that had in fact landed). In every case the
+       * sentence is done with, so it leaves the stack.
        */
       if (cause instanceof ApiError && cause.status === 409) {
         alvaToast.show(cause.message, { variant: "default" });
         recorder.discardRecording();
-        setIndex((value) => value + 1);
+        if (mode === "stimuli") setIndex((value) => value + 1);
+        else markSent(card.id);
         return;
       }
+
+      /* `no_speech`, `too_short`, a take over the cap, or audio that would
+         not decode: the take is the problem, and sending it again will not
+         change the answer. It stays so they can hear it, and Retake is
+         beside it. Falls through to the API's sentence below. */
 
       alvaToast.error(
         cause instanceof ApiError ? cause.message : "Could not upload the clip."
@@ -408,6 +484,7 @@ export default function ContributorStudioPage() {
               onRetake={handleRetake}
               onSave={handleSave}
               isSaving={isSaving}
+              waitSeconds={waitSeconds}
             />
           ) : null}
         </AnimatePresence>

@@ -1,4 +1,10 @@
-import { getUserProfiles, type ApiUserProfiles } from "@/lib/api/users";
+import {
+  getUserProfiles,
+  listUserProfilesPage,
+  USER_PROFILES_MAX_LIMIT,
+  type ApiUserProfiles,
+} from "@/lib/api/users";
+import { ApiError } from "@/lib/api/client";
 import { toCsv } from "@/lib/download-csv";
 import {
   ROLE_LABELS,
@@ -9,25 +15,74 @@ import {
 import { REFERRAL_SOURCE_OPTIONS } from "@/data/contributors/onboarding";
 
 /**
- * How many profile requests run at once.
+ * How many per-user requests run at once, on the fallback path only.
  *
- * There is no bulk route (endpoints-needed #3), so an export is one
- * `GET /users/{id}/profiles` per person. Six keeps it to seconds for a few
- * hundred people without queueing every other request on the page behind it.
+ * Six keeps an export to seconds for a few hundred people without queueing
+ * every other request on the page behind it.
  */
 const CONCURRENCY = 6;
+
+type Progress = (done: number, total: number) => void;
 
 /**
  * Every account's profiles, keyed by user id.
  *
- * A request that fails leaves that person out of the map rather than failing
- * the export. Their account row still goes out, with blank profile columns,
- * and the caller reports how many came back empty.
+ * From `GET /users/profiles`, up to 500 a request. Only the role is passed
+ * on, when the accounts in view share one: the page's status filter
+ * (pending, waiting, active, deactivated) has no exact match among the
+ * route's filters, so the rows are matched to `users` by id here instead.
+ *
+ * A person with no row back keeps their account columns and gets blank
+ * profile columns, counted in `failed` so the caller can say so.
+ *
+ * An API without the bulk route (before 3 Nov) answers 404, as the path
+ * reads as `/users/{id}` there. That falls back to one request per person.
  */
 export async function fetchProfilesFor(
   users: AdminUser[],
-  onProgress?: (done: number) => void
+  onProgress?: Progress
 ): Promise<{ profiles: Map<string, ApiUserProfiles>; failed: number }> {
+  try {
+    return await fetchInBulk(users, onProgress);
+  } catch (cause) {
+    if (cause instanceof ApiError && cause.status === 404 && !cause.unreachable) {
+      return fetchOneByOne(users, onProgress);
+    }
+    throw cause;
+  }
+}
+
+async function fetchInBulk(users: AdminUser[], onProgress?: Progress) {
+  const wanted = new Set(users.map((user) => user.id));
+  const roles = new Set(users.map((user) => user.role));
+  const role = roles.size === 1 ? users[0]?.role : undefined;
+
+  const profiles = new Map<string, ApiUserProfiles>();
+  let offset = 0;
+  let total = Infinity;
+
+  while (offset < total) {
+    const page = await listUserProfilesPage({
+      role,
+      limit: USER_PROFILES_MAX_LIMIT,
+      offset,
+    });
+    total = page.total;
+    for (const row of page.items) {
+      if (!wanted.has(row.user_id)) continue;
+      const { email: _email, full_name: _name, is_active: _active, created_at: _at, ...rest } = row;
+      profiles.set(row.user_id, { ...rest, identity: rest.identity ?? null });
+    }
+    /* Stop on `total`, or on an empty page whatever `total` says. */
+    if (page.items.length === 0) break;
+    offset += page.items.length;
+    onProgress?.(Math.min(offset, total), total);
+  }
+
+  return { profiles, failed: users.length - profiles.size };
+}
+
+async function fetchOneByOne(users: AdminUser[], onProgress?: Progress) {
   const profiles = new Map<string, ApiUserProfiles>();
   let failed = 0;
   let done = 0;
@@ -43,7 +98,7 @@ export async function fetchProfilesFor(
         failed += 1;
       }
       done += 1;
-      onProgress?.(done);
+      onProgress?.(done, users.length);
     }
   };
 

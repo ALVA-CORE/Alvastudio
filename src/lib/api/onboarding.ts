@@ -36,14 +36,15 @@ export type ApiProfile = {
   preferred_language_variety?: ApiLanguageVariety | null;
   device_mic?: string | null;
   /**
-   * How they heard about Alva. Asked once, at sign-up.
-   *
-   * Not stored by the API yet (see endpoints-needed #2). Pydantic ignores
-   * fields it does not know, so sending it now loses nothing and needs no
-   * second release once the column lands.
+   * How they heard about Alva. Asked once, at sign-up. Stored since 3 Nov;
+   * a value outside the 15 the form offers is a 422.
    */
   referral_source?: string | null;
-  /** Free text, only when `referral_source` is `other`. */
+  /**
+   * Free text, up to 120 characters, only when `referral_source` is
+   * `other`. Sent with any other source it is a 422, so `profileToApi`
+   * leaves it out; moving the source off `other` clears it at the API.
+   */
   referral_source_detail?: string | null;
 };
 

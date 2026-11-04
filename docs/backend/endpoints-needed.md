@@ -1,6 +1,6 @@
 # What we need from the backend
 
-Checked against the live OpenAPI document, 2 Nov 2026.
+Checked against the live OpenAPI document, 4 Nov 2026.
 
 **Every ask and every open question lives here, and nowhere else.**
 
@@ -15,96 +15,12 @@ the other document points here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 1 | Hours split by language variety | A corpus chart that can only show counts | Low |
-| 2 | Store "how did you hear about us", and count it on the corpus summary | The corpus page's "How contributors found us" card | Medium |
-| 3 | One request for every user's profile | The users CSV export makes one request per person | Low |
 | 4 | `bank_total` and `recorded_total` on `/stimuli` too | The stimuli "Recorded" cards read as a dash | Low |
+| 5 | `Retry-After` in `Access-Control-Expose-Headers` | The studio cannot read how long a `too_fast` wait is | Medium |
 
-Everything else is wired, including the 1 Nov Scribe handoff. The three asks
-of 30 Oct are closed: the ElevenLabs key is yours alone, Scribe's shape is in
-the spec, and audio isolation over the corpus is ruled out in writing.
-
----
-
-## 1. `by_language_variety` has no hours
-
-`CorpusSummary` gives hours three ways — `total_hours`, `daily_hours` and
-`by_type_status` — and none of them splits by language.
-
-`by_language_variety` is a **count**, and it counts clips *and* focus-group
-sessions, so it cannot be converted: one session is not one clip's worth of
-audio.
-
-The corpus page therefore shows "Clips and sessions in each language" where
-every chart beside it is in hours. It is honest but it is the odd one out,
-and language is the split that matters most for this corpus — "how many
-hours of Pidgin do we have" is the question the page exists to answer.
-
-**What would fix it:** hours on that breakdown, or a `language_variety`
-dimension on `by_type_status` so we can sum it ourselves. Either is fine.
-
-**Not urgent.** The chart is correct as it stands; it just answers a smaller
-question than it should.
-
----
-
-## 2. "How did you hear about us?"
-
-Contributor sign-up now asks this on the consent step, and the answer goes
-out on `PUT /onboarding/profile` with the rest of the profile:
-
-```json
-{ "referral_source": "instagram", "referral_source_detail": null }
-```
-
-Pydantic drops fields it does not know, so today the answer is sent and
-lost. Nothing errors.
-
-**What we need:**
-
-1. Two nullable columns on the contributor profile, accepted by
-   `PUT /onboarding/profile`:
-   - `referral_source`, one of `instagram`, `x`, `facebook`, `tiktok`,
-     `linkedin`, `whatsapp`, `youtube`, `telegram`, `friend_colleague`,
-     `alva_team`, `school_university`, `google`, `event`, `news_blog`,
-     `other`. A 422 on anything else is fine.
-   - `referral_source_detail`, free text up to 120 characters, sent only when
-     the source is `other`.
-2. A count on `GET /corpus/summary`:
-   ```json
-   "referral_sources": { "instagram": 41, "friend_colleague": 18, "unknown": 230 }
-   ```
-   Contributors per source, with `unknown` for everyone with no answer
-   (everyone who signed up before the question existed). Zero-count sources
-   can be left out.
-
-The corpus page already reads `referral_sources` and shows "Not reported yet"
-until it is there, so there is nothing to coordinate on release.
-
-**Nice to have, not blocking:** the `other` free-text answers with counts,
-like `unmatched_states` on coverage, so we can see whether a new channel
-deserves its own option.
-
----
-
-## 3. Bulk profiles for the users export
-
-The users page exports a CSV with each account and everything we hold on
-them: the onboarding profile, the intern and annotator profiles, and identity
-status. The only source is `GET /users/{id}/profiles`, so an export is one
-request per person, six at a time. That is a few seconds for a few hundred
-people and a few minutes for a few thousand.
-
-**What would fix it:** either of these.
-
-- `GET /users/profiles?ids=…` (or `?role=&approved=`, matching `GET /users`),
-  returning a list of what `/users/{id}/profiles` returns now.
-- `GET /users/export.csv` with the same filters as `GET /users`, if you would
-  rather own the columns. We would want the ones we export today: account
-  fields, every `profile` field, `intern_profile`, `annotator_profile`, and
-  `identity_verified` / `identity_status` / `wallet_status`.
-
-**Not urgent.** The export is correct as it stands, only slow at scale.
+Numbers are kept when an ask closes, so code comments that cite one stay
+true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
+#3 bulk profiles (see [`replies/api-status-2026-11-03.md`](replies/api-status-2026-11-03.md)).
 
 ---
 
@@ -117,5 +33,25 @@ reads them from `/stimuli` too. Until they are there, "In this bank" and
 show a dash.
 
 **What would fix it:** the same three on `GET /stimuli`. No frontend change
-needed once they are there.
+needed once they are there. Still open on 4 Nov: `/stimuli` takes no
+`recorded` filter and returns no totals.
+
+---
+
+## 5. Let the browser read `Retry-After`
+
+A `too_fast` 429 carries `Retry-After`, and the studio should wait that long
+before the next upload. But the studio is on another origin, and a browser
+hides every response header the API does not list in
+`Access-Control-Expose-Headers`. On 4 Nov that list was `X-Total-Count` alone,
+so the header arrives and JavaScript cannot see it.
+
+Until then the studio waits a minute and lets the contributor try again; a
+second early try is just refused again.
+
+**What would fix it:** either of these.
+
+- `Retry-After` added to `expose_headers` in the CORS middleware, beside
+  `X-Total-Count`.
+- `retry_after_seconds` in the error body, beside `code` and `detail`.
 

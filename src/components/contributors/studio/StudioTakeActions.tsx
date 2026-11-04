@@ -22,6 +22,7 @@ export function StudioTakeActions({
   onSave,
   onDelete,
   isSaving = false,
+  waitSeconds = 0,
   className,
 }: {
   onRetake: () => void;
@@ -29,8 +30,17 @@ export function StudioTakeActions({
   /** Defaults to the same thing Retake does: the take is gone either way. */
   onDelete?: () => void;
   isSaving?: boolean;
+  /**
+   * Uploads are paused for this long (`too_fast`). Save counts it down
+   * instead of offering an upload the API would refuse again. Retake stays:
+   * recording is not what is paused.
+   */
+  waitSeconds?: number;
   className?: string;
 }) {
+  const waiting = waitSeconds > 0;
+  const wait = `${Math.floor(waitSeconds / 60)}:${String(waitSeconds % 60).padStart(2, "0")}`;
+
   return (
     /* Rises into place rather than appearing. It arrives the instant a take
        is finished, directly under a control that has just changed glyph, and
@@ -60,11 +70,16 @@ export function StudioTakeActions({
         <button
           type="button"
           onClick={onSave}
-          disabled={isSaving}
+          disabled={isSaving || waiting}
+          aria-label={waiting ? `Save available in ${wait}` : undefined}
           className="flex items-center gap-2 px-5 text-sm font-semibold text-alva-accent transition-colors hover:bg-alva-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-alva-accent disabled:opacity-50"
         >
           <Diskette size={16} weight="Bold" />
-          {isSaving ? "Saving" : "Save"}
+          {isSaving ? "Saving" : waiting ? (
+            <span className="tabular-nums">Save in {wait}</span>
+          ) : (
+            "Save"
+          )}
         </button>
       </div>
 

@@ -59,8 +59,12 @@ export function toQueueItem(
       names.get(recording.contributor_id) ??
       recording.contributor_id.slice(0, 8),
     mode: MODE[recording.session_type] ?? "Prompt reader",
-    duration: duration(recording.duration_seconds),
-    durationSec: Math.round(recording.duration_seconds ?? 0),
+    /* Measured from the stored file where we have it; the browser's figure
+       was never checked. */
+    duration: duration(recording.measured_duration_seconds ?? recording.duration_seconds),
+    durationSec: Math.round(
+      recording.measured_duration_seconds ?? recording.duration_seconds ?? 0
+    ),
     submittedAt: relative(recording.created_at),
     prompt: recording.prompt_text ?? recording.stimulus_text ?? "",
     audioSrc: `/recordings/${recording.id}/audio`,

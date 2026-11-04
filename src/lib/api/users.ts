@@ -179,7 +179,7 @@ export type ApiUserProfiles = {
     preferred_language_variety?: string | null;
     device_mic?: string | null;
     home_languages?: string[] | null;
-    /** Not returned yet: endpoints-needed #2. */
+    /** Since 3 Nov. Absent from older API versions. */
     referral_source?: string | null;
     referral_source_detail?: string | null;
   } | null;
@@ -210,6 +210,45 @@ export type ApiUserProfiles = {
 
 export function getUserProfiles(id: string) {
   return apiFetch<ApiUserProfiles>(`/users/${id}/profiles`);
+}
+
+/**
+ * One row of `GET /users/profiles`: what `/users/{id}/profiles` returns, with
+ * the account fields beside it. `identity` is optional on this route.
+ */
+export type ApiUserProfilesRow = Omit<ApiUserProfiles, "identity"> & {
+  identity?: ApiUserProfiles["identity"];
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+/** The most rows the bulk route serves per request. */
+export const USER_PROFILES_MAX_LIMIT = 500;
+
+/**
+ * Every user's profiles, a page at a time (admin, since 3 Nov).
+ *
+ * Same filters and order as `GET /users`. A fixed handful of queries per
+ * page at the API, so a few thousand people is a few requests, where the
+ * per-user route was one request each.
+ */
+export function listUserProfilesPage(
+  params: {
+    role?: ApiUserRole;
+    approved?: boolean;
+    email?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+) {
+  return apiFetch<{
+    items: ApiUserProfilesRow[];
+    total: number;
+    limit: number;
+    offset: number;
+  }>("/users/profiles", { query: { ...params, envelope: true } });
 }
 
 /** Somebody who has asked an admin for help getting back into their account. */

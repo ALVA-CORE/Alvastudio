@@ -10,9 +10,9 @@ export type ReferralSlice = { source: string; label: string; contributors: numbe
  *
  * Sorted so the eye goes round from the biggest channel. Sources nobody
  * picked are dropped, because a ring of fifteen wedges with eleven empty is
- * mostly gap. `unknown` holds everyone who signed up before the question
- * existed. It is real but it is not a channel, so it is kept off the chart
- * and the card says how many there are instead.
+ * mostly gap. `unknown` holds everyone with no answer, including everyone
+ * who signed up before the question existed. It is real but it is not a
+ * channel, so it is kept off the chart and the card says how many instead.
  */
 export function toReferralSlices(record: Record<string, number> | undefined): ReferralSlice[] {
   return Object.entries(record ?? {})

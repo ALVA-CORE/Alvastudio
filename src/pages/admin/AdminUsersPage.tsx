@@ -151,8 +151,8 @@ export default function AdminUsersPage() {
     const users = filtered;
     setExportPhase({ kind: "running", done: 0, total: users.length });
     try {
-      const { profiles, failed } = await fetchProfilesFor(users, (done) =>
-        setExportPhase({ kind: "running", done, total: users.length })
+      const { profiles, failed } = await fetchProfilesFor(users, (done, total) =>
+        setExportPhase({ kind: "running", done, total })
       );
       downloadCsv(
         `alva-users-${new Date().toISOString().slice(0, 10)}.csv`,

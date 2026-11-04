@@ -16,6 +16,8 @@ const VARIETY_LABEL: Record<string, string> = {
   nigerian_english: "Nigerian English",
   pidgin: "Nigerian Pidgin",
   english: "Nigerian English",
+  /* Focus-group sessions recorded without a variety. */
+  unknown: "Not recorded",
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -169,9 +171,13 @@ export function useCorpus() {
           approvedHours: round1(summary.approved_hours),
           contributors: summary.contributors,
           sessions: summary.focus_group_sessions,
-          /* Counts, not hours: no endpoint splits hours by language. The
-             chart says so rather than mislabelling them. */
-          byVariety: toSlices(summary.by_language_variety, VARIETY_LABEL),
+          /* Hours since 3 Nov, over the same clips and sessions as the
+             count. The count is the fallback for an API without it, and
+             the page labels whichever it got. */
+          byVariety: toSlices(
+            summary.hours_by_language_variety ?? summary.by_language_variety,
+            VARIETY_LABEL
+          ),
           byStatus: hoursBy(summary.by_type_status, (cell) => cell.status, STATUS_LABEL),
           byType: hoursBy(
             summary.by_type_status,
