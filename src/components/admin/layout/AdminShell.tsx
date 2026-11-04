@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminMobileGate } from "./AdminMobileGate";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CommsLauncher } from "@/components/admin/communications/CommsLauncher";
 
 /**
  * Admin surface wrapper.
@@ -20,6 +21,9 @@ export function AdminShell({ children }: { children?: ReactNode }) {
       <main data-scroll-root className="isolate min-h-screen">
         {isMobile ? <AdminMobileGate /> : children}
       </main>
+      {/* On every admin screen, and kept mounted across them, so an email
+          half-written on one page is still there on the next. */}
+      {!isMobile && <CommsLauncher />}
     </div>
   );
 }

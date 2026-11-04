@@ -24,7 +24,8 @@ export type AdminPermission =
   | "annotations"
   | "focus-groups"
   | "payments"
-  | "audio";
+  | "audio"
+  | "communications";
 
 export const ADMIN_PERMISSIONS: Array<{
   id: AdminPermission;
@@ -39,6 +40,7 @@ export const ADMIN_PERMISSIONS: Array<{
   { id: "focus-groups", label: "Focus groups", detail: "Sessions across all interns" },
   { id: "payments", label: "Payments", detail: "Rates, earnings and payment runs" },
   { id: "audio", label: "Audio QC", detail: "Run the ML scoring tools" },
+  { id: "communications", label: "Emails", detail: "Write to and email contributors" },
 ];
 
 /** What a new admin gets unless the creator says otherwise. */
