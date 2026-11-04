@@ -4,21 +4,8 @@ import { RadialBar } from "@/components/charts/radial-bar";
 import { RadialCenter } from "@/components/charts/radial-center";
 import {
   REFERRAL_SOURCE_OPTIONS,
-  REFERRAL_SOURCE_SHORT_LABEL,
 } from "@/data/contributors/onboarding";
 import type { ReferralSlice } from "@/data/admin/referrals";
-
-/**
- * Drawn under the empty overlay so the card keeps its frame, as the other
- * corpus cards do with theirs. Never shown as data.
- */
-const EMPTY_SLICES: ReferralSlice[] = (
-  ["instagram", "whatsapp", "friend_colleague", "x", "google", "tiktok"] as const
-).map((source, index) => ({
-  source,
-  label: REFERRAL_SOURCE_SHORT_LABEL[source],
-  contributors: 6 - index,
-}));
 
 /** The form's own wording, for the hover readout, where there is room for it. */
 function longLabel(source: string) {
@@ -56,12 +43,23 @@ export function ReferralSourcesChart({
     .sort((a, b) => b[1] - a[1]);
   const shown = others.slice(0, OTHER_SHOWN);
 
+  /* Nothing to draw: a bare ring, so the card keeps its shape under the
+     empty overlay. It used to draw six channels with made-up counts there,
+     and through the overlay that read as real answers. */
+  if (slices.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center" aria-hidden>
+        <div className="aspect-square h-[70%] max-h-60 rounded-full border-[14px] border-alva-surface" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1">
         <RadialChart
           angleType="band"
-          data={slices.length ? slices : EMPTY_SLICES}
+          data={slices}
           xDataKey="label"
           series={SERIES}
           maxValue="auto"

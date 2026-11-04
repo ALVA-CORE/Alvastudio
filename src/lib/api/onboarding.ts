@@ -69,6 +69,11 @@ export function upsertProfile(patch: ApiProfile): Promise<ApiProfile> {
   return apiFetch<ApiProfile>("/onboarding/profile", { method: "PUT", body: patch });
 }
 
+/** The signed-in user's own profile, or `null` if they have never saved one. */
+export function getProfile(): Promise<ApiProfile | null> {
+  return apiFetch<ApiProfile | null>("/onboarding/profile");
+}
+
 /**
  * `AnnotatorProfileOut` — what an annotator is cleared for.
  *

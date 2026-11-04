@@ -1,7 +1,10 @@
 import { useState } from "react";
 import KeyMinimalistic from "@solar-icons/react/security/KeyMinimalistic";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
-import { TextureButton } from "@/components/ui/texture-button";
+import CheckCircle from "@solar-icons/react/ui/CheckCircle";
+import CloseCircle from "@solar-icons/react/ui/CloseCircle";
+import CopyIcon from "@solar-icons/react/ui/Copy";
+import { RowActionsMenu } from "@/components/shared/RowActionsMenu";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type {
@@ -42,10 +45,13 @@ function announce(outcome: ResetLinkOutcome, email: string) {
     );
   }
 
+  /* Still in the outbox after about ten seconds of asking. Not a refusal:
+     the worker that sends it has not got to it yet. */
   if (outcome === "pending") {
-    return alvaToast.show(`Approved. The email to ${email} is still queued.`, {
-      variant: "default",
-    });
+    return alvaToast.show(
+      `Approved. The reset email to ${email} has not left our outbox yet. It usually goes within a few minutes; if they say it never came, use Reset password on their account.`,
+      { variant: "default" }
+    );
   }
 
   if (outcome === "skipped") {
@@ -65,13 +71,15 @@ export function RecoveryRequestsTable({
   reload,
   approve,
   deny,
+  resetEmailOutcome,
 }: {
   rows: RecoveryRequest[];
   isLoading: boolean;
   error: string | null;
   reload: () => void;
-  approve: (id: string, userId: string) => Promise<ResetLinkOutcome>;
+  approve: (id: string) => Promise<void>;
   deny: (id: string) => Promise<void>;
+  resetEmailOutcome: (userId: string) => Promise<ResetLinkOutcome>;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -80,8 +88,15 @@ export function RecoveryRequestsTable({
 
     try {
       if (decision === "approve") {
-        const outcome = await approve(request.id, request.userId);
-        announce(outcome, request.email);
+        await approve(request.id);
+        /* Said at once, then followed up: what became of the email takes a
+           few seconds to know, and the row has already gone. */
+        alvaToast.show(`Approved. Sending a reset link to ${request.email}…`, {
+          variant: "default",
+        });
+        void resetEmailOutcome(request.userId).then((outcome) =>
+          announce(outcome, request.email)
+        );
       } else {
         await deny(request.id);
         alvaToast.show(`Request from ${request.name} declined`, {
@@ -123,38 +138,6 @@ export function RecoveryRequestsTable({
         </span>
       ),
     },
-    {
-      key: "actions",
-      header: "",
-      render: (row: RecoveryRequest) => (
-        <div
-          className="flex items-center justify-end gap-2"
-          /* The row itself opens nothing, but the table still bubbles a
-             click, and a stray Approve is somebody's account. */
-          onClick={(event) => event.stopPropagation()}
-        >
-          <TextureButton
-            variant="minimal"
-            size="sm"
-            className="w-auto"
-            disabled={busy !== null}
-            onClick={() => void settle(row, "deny")}
-          >
-            Decline
-          </TextureButton>
-          <TextureButton
-            variant="alva"
-            size="sm"
-            className="w-auto"
-            loading={busy === row.id}
-            disabled={busy !== null && busy !== row.id}
-            onClick={() => void settle(row, "approve")}
-          >
-            Approve
-          </TextureButton>
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -182,6 +165,38 @@ export function RecoveryRequestsTable({
         pageSize={10}
         searchPlaceholder="Search name or email"
         searchKeys={["name", "email"]}
+        /* A menu rather than two buttons: approving lets somebody into an
+           account, and one deliberate step in front of it is worth having. */
+        renderRowActions={(row: RecoveryRequest) => (
+          <RowActionsMenu
+            label={`Actions for ${row.name}`}
+            busy={busy === row.id}
+            disabled={busy !== null && busy !== row.id}
+            actions={[
+              {
+                label: "Approve and email link",
+                icon: <CheckCircle size={15} weight="Outline" />,
+                onSelect: () => void settle(row, "approve"),
+              },
+              {
+                label: "Copy email",
+                icon: <CopyIcon size={15} weight="Outline" />,
+                onSelect: () => {
+                  void navigator.clipboard
+                    .writeText(row.email)
+                    .then(() => alvaToast.success("Email copied"))
+                    .catch(() => alvaToast.error("Could not copy that"));
+                },
+              },
+              {
+                label: "Decline",
+                icon: <CloseCircle size={15} weight="Outline" />,
+                destructive: true,
+                onSelect: () => void settle(row, "deny"),
+              },
+            ]}
+          />
+        )}
         mobilePrimary={(row: RecoveryRequest) => ({
           title: row.name,
           subtitle: `${row.email} · ${row.requestedLabel}`,
