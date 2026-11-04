@@ -426,7 +426,7 @@ export default function AdminUsersPage() {
           rows={filtered}
           columns={columns}
           pageSize={10}
-          searchPlaceholder="Search name or email"
+          searchPlaceholder="Search"
           searchKeys={["fullName", "email"]}
           activeFilterCount={activeFilterCount}
           onRowClick={(row) => {

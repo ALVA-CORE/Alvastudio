@@ -42,7 +42,7 @@ import { ApiError } from "@/lib/api/client";
 type ActiveFilter = "all" | "active" | "retired";
 type RecordedFilter = "all" | "recorded" | "never";
 
-/** Rows per page of the table, and per request for prompts and stimuli. */
+/** Rows per page to start with, and per request for prompts and stimuli. */
 const PAGE_SIZE = 25;
 
 /** A count the API did not give reads as a dash, not as a confident zero. */
@@ -66,6 +66,7 @@ export default function AdminPromptsPage() {
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
   const [recordedFilter, setRecordedFilter] = useState<RecordedFilter>("all");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   /* Any change of what is listed starts again from the first page. Page 40
      of the unrecorded prompts is not page 40 of the recorded ones. Done in
@@ -106,7 +107,7 @@ export default function AdminPromptsPage() {
         ? undefined
         : recordedFilter === "recorded",
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
   });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -383,12 +384,14 @@ export default function AdminPromptsPage() {
             }
             rows={items}
             columns={columns}
-            pageSize={serverPaged ? PAGE_SIZE : 10}
+            pageSize={serverPaged ? pageSize : 10}
             isLoading={isFetching}
             serverPaging={
-              serverPaged ? { total, page, onPageChange: setPage } : undefined
+              serverPaged
+                ? { total, page, onPageChange: setPage, onPageSizeChange: setPageSize }
+                : undefined
             }
-            searchPlaceholder="Search text or variety"
+            searchPlaceholder="Search"
             searchKeys={["text", "variety"]}
             activeFilterCount={
               (activeFilter === "active" ? 0 : 1) +

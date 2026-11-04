@@ -291,7 +291,6 @@ export default function AdminReviewsPage() {
         <AlvaChartCard
           title="Who is clearing the queue"
           subtitle="Clips each reviewer decided, and how they landed"
-          className="min-h-[18rem]"
         >
           <ReviewerFlowChart
             flow={flow}
@@ -306,7 +305,7 @@ export default function AdminReviewsPage() {
           rows={filtered}
           columns={columns}
           pageSize={10}
-          searchPlaceholder="Search clip, contributor or prompt"
+          searchPlaceholder="Search"
           searchKeys={["code", "contributor", "prompt"]}
           activeFilterCount={status === "all" ? 0 : 1}
           onRowClick={(row: AdminRecording) => setDetail(row)}

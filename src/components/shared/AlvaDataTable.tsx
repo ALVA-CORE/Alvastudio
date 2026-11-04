@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import SortVertical from "@solar-icons/react/arrows/SortVertical";
@@ -23,6 +23,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AlvaSurfaceCard } from "@/components/shared/AlvaSurfaceCard";
+import { FieldBeam } from "@/components/shared/FieldBeam";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AlvaNoResultsState } from "@/components/shared/states/AlvaNoResultsState";
 import { AlvaTableSkeleton } from "@/components/shared/states/AlvaTableSkeleton";
@@ -42,6 +50,10 @@ type AlvaDataTableProps<T extends { id: string }> = {
   rows: T[];
   columns: AlvaTableColumn<T>[];
   searchPlaceholder?: string;
+  /**
+   * Fields to put first. Search covers every field and every column either
+   * way; this no longer narrows it.
+   */
   searchKeys?: (keyof T)[];
   emptyState?: {
     icon: ReactNode;
@@ -68,10 +80,47 @@ type AlvaDataTableProps<T extends { id: string }> = {
     total: number;
     page: number;
     onPageChange: (page: number) => void;
+    /**
+     * Lets the reader change how many rows a page holds. The parent owns
+     * the size here, because it is what goes in the request. Without it the
+     * size is fixed and the picker is not shown.
+     */
+    onPageSizeChange?: (size: number) => void;
   };
 };
 
+/** What a page can hold. The table's own `pageSize` is added if it is not one. */
+const PAGE_SIZES = [10, 25, 50, 100];
+
 type SortDir = "asc" | "desc";
+
+/**
+ * Everything a row can be found by, lower-cased once.
+ *
+ * Every field's value, two levels deep (a reviewer's name inside a nested
+ * object counts), and every column's sort value, which is what a column shows
+ * when its cell is drawn from something other than one field. Values only,
+ * never field names: "status" should not match every row.
+ */
+function searchText<T>(row: T, columns: AlvaTableColumn<T>[]): string {
+  const parts: string[] = [];
+  const collect = (value: unknown, depth: number) => {
+    if (value == null) return;
+    if (typeof value === "string" || typeof value === "number") {
+      parts.push(String(value));
+      return;
+    }
+    if (depth <= 0 || typeof value !== "object") return;
+    for (const inner of Array.isArray(value) ? value : Object.values(value as object)) {
+      collect(inner, depth - 1);
+    }
+  };
+  collect(row, 2);
+  for (const column of columns) {
+    if (column.sortValue) parts.push(String(column.sortValue(row)));
+  }
+  return parts.join(" ").toLowerCase();
+}
 
 function compareValues(a: string | number, b: string | number, dir: SortDir) {
   if (typeof a === "number" && typeof b === "number") {
@@ -87,7 +136,7 @@ export function AlvaDataTable<T extends { id: string }>({
   rows,
   columns,
   searchPlaceholder = "Search",
-  searchKeys,
+  searchKeys: _searchKeys,
   emptyState,
   mobilePrimary,
   renderMobileLeading,
@@ -103,6 +152,14 @@ export function AlvaDataTable<T extends { id: string }>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
+  /* Each row's search text, built once per row object rather than on every
+     keystroke. A reload brings new row objects, and so fresh text. */
+  const haystacks = useRef(new WeakMap<object, string>());
+  /* Client tables own their page size; server tables are told it. */
+  const [ownSize, setOwnSize] = useState(pageSize);
+  useEffect(() => setOwnSize(pageSize), [pageSize]);
+  const size = serverPaging ? pageSize : ownSize;
+  const canResize = Boolean(pageSize) && (!serverPaging || Boolean(serverPaging.onPageSizeChange));
 
   const sortableColumns = serverPaging
     ? []
@@ -114,13 +171,17 @@ export function AlvaDataTable<T extends { id: string }>({
     let result = rows;
 
     if (normalized) {
+      /* Every word has to appear somewhere in the row, in any order: "obi
+         rejected" finds Esther Obi's rejected clips. */
+      const words = normalized.split(/\s+/);
+      const cache = haystacks.current;
       result = rows.filter((row) => {
-        if (searchKeys?.length) {
-          return searchKeys.some((key) =>
-            String(row[key] ?? "").toLowerCase().includes(normalized)
-          );
+        let haystack = cache.get(row);
+        if (haystack === undefined) {
+          haystack = searchText(row, columns);
+          cache.set(row, haystack);
         }
-        return JSON.stringify(row).toLowerCase().includes(normalized);
+        return words.every((word) => haystack.includes(word));
       });
     }
 
@@ -132,10 +193,10 @@ export function AlvaDataTable<T extends { id: string }>({
     return [...result].sort((a, b) =>
       compareValues(column.sortValue!(a), column.sortValue!(b), sortDir)
     );
-  }, [rows, query, searchKeys, sortKey, sortDir, columns, serverPaging]);
+  }, [rows, query, sortKey, sortDir, columns, serverPaging]);
 
   const rowCount = serverPaging ? serverPaging.total : filtered.length;
-  const totalPages = pageSize ? Math.max(1, Math.ceil(rowCount / pageSize)) : 1;
+  const totalPages = size ? Math.max(1, Math.ceil(rowCount / size)) : 1;
   const currentPage = Math.min(serverPaging ? serverPaging.page : page, totalPages);
   const goToPage = (next: number) =>
     serverPaging ? serverPaging.onPageChange(next) : setPage(next);
@@ -145,18 +206,26 @@ export function AlvaDataTable<T extends { id: string }>({
   }, [query, sortKey, sortDir, activeFilterCount]);
 
   const paged = useMemo(() => {
-    if (!pageSize || serverPaging) return filtered;
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, pageSize, currentPage, serverPaging]);
+    if (!size || serverPaging) return filtered;
+    const start = (currentPage - 1) * size;
+    return filtered.slice(start, start + size);
+  }, [filtered, size, currentPage, serverPaging]);
 
   const rangeStart =
-    rowCount === 0 ? 0 : (currentPage - 1) * (pageSize ?? rowCount) + 1;
-  const rangeEnd = serverPaging
-    ? rangeStart + Math.max(0, paged.length - 1)
-    : pageSize
-      ? Math.min(currentPage * pageSize, rowCount)
-      : rowCount;
+    rowCount === 0 ? 0 : (currentPage - 1) * (size ?? rowCount) + 1;
+  /* A new size keeps the first row on screen in view, rather than jumping
+     back to page one. */
+  const resize = (next: number) => {
+    const firstRow = Math.max(0, rangeStart - 1);
+    const nextPage = Math.floor(firstRow / next) + 1;
+    if (serverPaging) {
+      serverPaging.onPageSizeChange?.(next);
+      serverPaging.onPageChange(nextPage);
+    } else {
+      setOwnSize(next);
+      setPage(nextPage);
+    }
+  };
 
   const handleHeaderSort = (key: string) => {
     if (serverPaging) return;
@@ -195,7 +264,8 @@ export function AlvaDataTable<T extends { id: string }>({
         </h2>
         <div className="flex w-full max-w-md items-center justify-end gap-2">
           {serverPaging ? null : (
-          <div className="relative min-w-0 flex-1">
+          <FieldBeam radius={18} className="min-w-0 flex-1 rounded-full">
+          <div className="relative">
             <Magnifier
               size={16}
               weight="Outline"
@@ -205,10 +275,11 @@ export function AlvaDataTable<T extends { id: string }>({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 rounded-full border-0 bg-alva-surface pl-9 text-xs shadow-none placeholder:text-xs focus-visible:ring-1 focus-visible:ring-alva-accent sm:text-sm sm:placeholder:text-sm"
+              className="h-9 rounded-full border-0 bg-alva-surface pl-9 text-xs shadow-none placeholder:text-xs focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-sm sm:placeholder:text-sm"
               aria-label={searchPlaceholder}
             />
           </div>
+          </FieldBeam>
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -267,7 +338,7 @@ export function AlvaDataTable<T extends { id: string }>({
       </div>
 
       {isLoading ? (
-        <AlvaTableSkeleton rows={pageSize ?? 6} columns={Math.min(columns.length, 5)} />
+        <AlvaTableSkeleton rows={Math.min(size ?? 6, 10)} columns={Math.min(columns.length, 5)} />
       ) : isEmpty ? (
         isNoResults ? (
           <AlvaNoResultsState query={query} />
@@ -393,38 +464,15 @@ export function AlvaDataTable<T extends { id: string }>({
             </Table>
           </div>
 
-          {pageSize && rowCount > pageSize && (
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <p className="text-xs text-muted-foreground">
-                Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of{" "}
-                {rowCount.toLocaleString()}
-              </p>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="size-8 rounded-full bg-alva-surface"
-                  aria-label="Previous page"
-                  disabled={currentPage <= 1}
-                  onClick={() => goToPage(Math.max(1, currentPage - 1))}
-                >
-                  <AltArrowLeft size={16} weight="Outline" />
-                </Button>
-                <span className="min-w-[4.5rem] text-center text-xs font-medium text-foreground">
-                  Page {currentPage.toLocaleString()} / {totalPages.toLocaleString()}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="size-8 rounded-full bg-alva-surface"
-                  aria-label="Next page"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
-                >
-                  <AltArrowRight size={16} weight="Outline" />
-                </Button>
-              </div>
-            </div>
+          {size && rowCount > Math.min(size, PAGE_SIZES[0]) && (
+            <TablePager
+              page={currentPage}
+              rowCount={rowCount}
+              totalPages={totalPages}
+              size={size}
+              onPage={goToPage}
+              onSize={canResize ? resize : undefined}
+            />
           )}
         </>
       )}
@@ -448,5 +496,121 @@ export function TruncateCell({
     >
       {children}
     </span>
+  );
+}
+
+
+/**
+ * The foot of a table: how many rows a page holds, where this page sits, and
+ * a way to any page in one step.
+ *
+ * The page number is a field. Type 340 and press Enter, rather than pressing
+ * Next 339 times; the arrows step one.
+ * A number out of range is pulled back to the nearest page, and a field left
+ * empty goes back to the page it was on.
+ */
+function TablePager({
+  page,
+  rowCount,
+  totalPages,
+  size,
+  onPage,
+  onSize,
+}: {
+  page: number;
+  /** Every row there is: the server's total, or all that match the search. */
+  rowCount: number;
+  totalPages: number;
+  size: number;
+  onPage: (page: number) => void;
+  onSize?: (size: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(page));
+  useEffect(() => setDraft(String(page)), [page]);
+
+  const commit = () => {
+    const wanted = Number.parseInt(draft.replace(/[^0-9]/g, ""), 10);
+    if (!Number.isFinite(wanted)) {
+      setDraft(String(page));
+      return;
+    }
+    const next = Math.min(totalPages, Math.max(1, wanted));
+    setDraft(String(next));
+    if (next !== page) onPage(next);
+  };
+
+  const sizes = PAGE_SIZES.includes(size) ? PAGE_SIZES : [...PAGE_SIZES, size].sort((a, b) => a - b);
+  const digits = String(totalPages).length;
+
+  const step = (label: string, target: number, disabled: boolean, icon: ReactNode) => (
+    <Button
+      variant="secondary"
+      size="icon"
+      className="size-8 rounded-full bg-alva-surface"
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onPage(target)}
+    >
+      {icon}
+    </Button>
+  );
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        {onSize ? (
+          <Select value={String(size)} onValueChange={(value) => onSize(Number(value))}>
+            <SelectTrigger
+              aria-label="Rows per page"
+              className="h-8 w-auto gap-1.5 rounded-full border-0 bg-alva-surface px-3 text-xs text-foreground focus:ring-1 focus:ring-alva-accent"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="border-alva-border bg-alva-card">
+              {sizes.map((option) => (
+                <SelectItem key={option} value={String(option)} className="text-xs">
+                  {option} rows
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+        <span className="tabular-nums">of {rowCount.toLocaleString()} rows</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {step("Previous page", Math.max(1, page - 1), page <= 1, <AltArrowLeft size={16} weight="Outline" />)}
+        <label className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+          Page
+          <input
+            value={draft}
+            inputMode="numeric"
+            aria-label={`Page, of ${totalPages.toLocaleString()}`}
+            onChange={(event) => setDraft(event.target.value)}
+            onFocus={(event) => event.target.select()}
+            onBlur={commit}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit();
+              } else if (event.key === "Escape") {
+                setDraft(String(page));
+                event.currentTarget.blur();
+              } else if (event.key === "ArrowUp" && page < totalPages) {
+                event.preventDefault();
+                onPage(page + 1);
+              } else if (event.key === "ArrowDown" && page > 1) {
+                event.preventDefault();
+                onPage(page - 1);
+              }
+            }}
+            style={{ width: `${Math.max(2, digits) + 2}ch` }}
+            className="h-8 rounded-full bg-alva-surface text-center text-xs font-medium tabular-nums text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+          />
+          <span className="tabular-nums">of {totalPages.toLocaleString()}</span>
+        </label>
+        {step("Next page", Math.min(totalPages, page + 1), page >= totalPages, <AltArrowRight size={16} weight="Outline" />)}
+      </div>
+    </div>
   );
 }

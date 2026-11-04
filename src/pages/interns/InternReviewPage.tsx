@@ -176,7 +176,7 @@ export default function InternReviewPage() {
               rows={pendingRows}
               pageSize={8}
               isLoading={isLoading}
-              searchPlaceholder="Search contributors, mode, language"
+              searchPlaceholder="Search"
               searchKeys={["contributor", "mode", "language"]}
               onRowClick={(row) => navigate(`/intern/review/${row.id}`)}
               mobilePrimary={(row) => ({
@@ -198,7 +198,7 @@ export default function InternReviewPage() {
               rows={completedRows}
               pageSize={8}
               isLoading={isLoading}
-              searchPlaceholder="Search contributors, mode, language"
+              searchPlaceholder="Search"
               searchKeys={["contributor", "mode", "language"]}
               onRowClick={(row) => navigate(`/intern/review/${row.id}`)}
               mobilePrimary={(row) => ({

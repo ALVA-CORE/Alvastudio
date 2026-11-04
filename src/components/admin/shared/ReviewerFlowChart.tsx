@@ -43,17 +43,23 @@ export function ReviewerFlowChart({
     );
   }
 
+  /* Tall enough for every reviewer to get a readable band and name: a fixed
+     shape squeezed the bands as the team grew. Grows with the left column
+     and stops before it outgrows a screen. */
+  const reviewers = new Set(graph.links.map((link) => String(link.source))).size;
+  const height = Math.min(900, Math.max(320, reviewers * 56 + 64));
+
   const getNodeColor = (node: { name?: string }) =>
     node.name === "Approved" ? ACCENT : node.name === "Rejected" ? RED : GREY;
 
   return (
-    <div className="flex h-full w-full items-center justify-center">
+    <div className="flex w-full items-center justify-center" style={{ height }}>
       <SankeyChart
         data={graph}
-        aspectRatio="4.2 / 1"
+        aspectRatio="auto"
         nodeWidth={10}
-        nodePadding={10}
-        className="w-full"
+        nodePadding={14}
+        className="h-full w-full"
         margin={{ top: 8, right: 76, bottom: 8, left: 92 }}
       >
         <SankeyLink strokeOpacity={0.36} fadedOpacity={0.07} getNodeColor={getNodeColor} />

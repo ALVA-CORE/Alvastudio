@@ -347,7 +347,7 @@ export default function AdminPaymentsPage() {
           rows={filtered}
           columns={columns}
           pageSize={10}
-          searchPlaceholder="Search contributor"
+          searchPlaceholder="Search"
           searchKeys={["contributor"]}
           activeFilterCount={status === "all" ? 0 : 1}
           onRowClick={(row: Earning) => setDetail(row)}

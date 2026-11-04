@@ -198,7 +198,7 @@ export function FeedbackTable({
         columns={columns}
         isLoading={isLoading}
         pageSize={8}
-        searchPlaceholder="Search name or message"
+        searchPlaceholder="Search"
         searchKeys={["full_name", "message", "email"]}
         onRowClick={(row) => setOpen(row)}
         mobilePrimary={(row: ApiFeedback) => ({
