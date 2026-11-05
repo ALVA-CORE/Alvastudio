@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidNigerianPhone } from "@/lib/participant-validation";
+import { fullNameSchema } from "@/lib/validations/auth";
 import {
   FLUENCY_LEVELS,
   REFERRAL_SOURCE_VALUES,
@@ -10,7 +11,7 @@ const genderValues = ["male", "female", "prefer-not-to-say"] as const;
 
 export const contributorIdentityStepSchema = z
   .object({
-    fullName: z.string().min(2, "Enter your full name"),
+    fullName: fullNameSchema,
     phone: z
       .string()
       .min(11, "Enter an 11-digit Nigerian number")

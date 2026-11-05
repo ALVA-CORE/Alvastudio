@@ -110,10 +110,10 @@ export function CommsLauncher() {
         body: fields.body.trim() || "Body",
         action: fields.button.trim() || DEFAULT_ACTION_LABEL,
         url: fields.link.trim() || DEFAULT_ACTION_URL,
-        hero: fields.hero ?? COMMUNICATION_HERO,
+        hero: heroSrc,
         markdown: Boolean(fields.body.trim()),
       }),
-    [fields]
+    [fields, heroSrc]
   );
 
   if (!allowed) return null;
@@ -166,7 +166,7 @@ export function CommsLauncher() {
             initial={reduceMotion ? { opacity: 0 } : undefined}
             transition={SPRING}
             style={{ borderRadius: 28 }}
-            className="pointer-events-auto flex h-[min(46rem,calc(100vh-3rem))] w-[min(38rem,calc(100vw-3rem))] flex-col overflow-hidden border border-alva-border bg-alva-card shadow-[0_24px_80px_-20px_rgba(0,0,0,0.8)]"
+            className="pointer-events-auto flex h-[min(46rem,calc(100vh-3rem))] w-[min(30rem,calc(100vw-3rem))] flex-col overflow-hidden border border-alva-border bg-alva-card shadow-[0_24px_80px_-20px_rgba(0,0,0,0.8)]"
           >
             <motion.div
               initial={{ opacity: 0 }}

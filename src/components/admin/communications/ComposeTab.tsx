@@ -21,6 +21,16 @@ import { cn } from "@/lib/utils";
 
 const HERO_MAX_BYTES = 5 * 1024 * 1024;
 
+/**
+ * The size of the hero drop area. Edit here.
+ *
+ * Keep the aspect ratio: it is the email's own frame for the hero (512 wide,
+ * at most 220 tall, cropped to fill), so the area crops a picture exactly as
+ * the inbox will. It fills the panel's width; to make it smaller, add a
+ * `max-w-*` and `mx-auto`.
+ */
+const HERO_AREA = "aspect-[512/220] w-full";
+
 const EVERYDAY_KEY = "alva-comms-everyday-image";
 
 /** The uploaded copy of the everyday image, if this browser has made one. */
@@ -126,6 +136,7 @@ export function ComposeTab({
     set("hero", EVERYDAY_HERO);
     set("heroUploading", true);
     set("heroProgress", 0);
+    /* The backend's own URL for it, which allows reads from any origin. */
     fetch(EVERYDAY_HERO)
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status));
@@ -134,7 +145,11 @@ export function ComposeTab({
       .then((blob) => {
         /* Another choice made while it downloaded wins. */
         if (seq !== uploads.current) return;
-        pickHero(new File([blob], "everyday.png", { type: blob.type || "image/png" }), "everyday", EVERYDAY_HERO);
+        pickHero(
+          new File([blob], "everyday.png", { type: blob.type || "image/png" }),
+          "everyday",
+          EVERYDAY_HERO
+        );
       })
       .catch(() => {
         if (seq !== uploads.current) return;
@@ -262,7 +277,8 @@ function HeroDrop({
         take(event.dataTransfer.files?.[0]);
       }}
       className={cn(
-        "relative h-32 overflow-hidden rounded-2xl border transition-colors",
+        HERO_AREA,
+        "relative overflow-hidden rounded-2xl border transition-colors",
         over ? "border-dashed border-alva-accent" : "border-alva-border"
       )}
     >
