@@ -126,13 +126,20 @@ describe("CommsLauncher", () => {
       ).toBe(true)
     );
 
-    await userEvent.type(to, "esther");
+    /* People are in the list before anything is typed. */
+    await userEvent.click(to);
     await userEvent.click(await screen.findByRole("option", { name: /Esther Obi/ }));
-    expect(screen.getByText("Esther Obi")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Esther Obi").some((node) => !node.closest('[role="listbox"]'))
+    ).toBe(true);
 
     /* Backspace on an empty field takes the last chip off. */
     await userEvent.type(to, "{Backspace}");
-    await waitFor(() => expect(screen.queryByText("Esther Obi")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryAllByText("Esther Obi").every((node) => node.closest('[role="listbox"]'))
+      ).toBe(true)
+    );
   });
 
   it("fills Send with the upload while the hero goes up", async () => {
@@ -161,4 +168,37 @@ describe("CommsLauncher", () => {
     await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
     expect(screen.getByLabelText("Header")).toHaveValue("Kept");
   });
+
+  /* The two images the templates already use, or your own, in one place. */
+  it("uploads the everyday image once, and sends no image for the brand one", async () => {
+    localStorage.clear();
+    upload.mockReset().mockResolvedValue({ id: "img-everyday", url: "https://api/x.jpg", width: 1200, height: 600 });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () => new Response(new Blob(["png"], { type: "image/png" }))) as typeof fetch;
+    try {
+      render(<CommsLauncher />);
+      await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+
+      await userEvent.click(screen.getByRole("radio", { name: "Everyday image" }));
+      await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.getByRole("radio", { name: "Everyday image" })).toHaveAttribute("aria-checked", "true")
+      );
+
+      await userEvent.click(screen.getByRole("radio", { name: "Brand image" }));
+      await userEvent.click(screen.getByRole("radio", { name: "Everyday image" }));
+      expect(upload).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(screen.getByRole("radio", { name: "Brand image" }));
+      await userEvent.type(screen.getByLabelText("Header"), "Update");
+      await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
+      await userEvent.keyboard("Read it.");
+      await userEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+      await waitFor(() => expect(create).toHaveBeenCalled());
+      expect((create.mock.calls.at(-1) as unknown[] | undefined)?.[0]).not.toHaveProperty("hero_image_id");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
 });
+

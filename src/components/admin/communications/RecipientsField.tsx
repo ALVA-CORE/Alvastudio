@@ -8,6 +8,7 @@ import { COMMUNICATION_LIMITS } from "@/lib/api/communications";
 import { alvaToast } from "@/lib/alva-toast";
 import type { ComposerFields } from "@/hooks/useCommsComposer";
 import type { DirectoryContributor } from "@/hooks/useContributorDirectory";
+import { alvaAccentTexture } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 type Set_ = <K extends keyof ComposerFields>(key: K, value: ComposerFields[K]) => void;
@@ -17,7 +18,12 @@ type Suggestion =
   | { kind: "state"; key: string; state: string; count: number }
   | { kind: "person"; key: string; person: DirectoryContributor };
 
-const MAX_SUGGESTIONS = 7;
+/**
+ * People drawn in the list at once. More than this and the list asks for a
+ * few more letters instead: thousands of rows in a dropdown is not a list
+ * anyone reads.
+ */
+const PEOPLE_SHOWN = 150;
 /** People chips shown before the rest fold into "+N". */
 const CHIPS_SHOWN = 6;
 
@@ -90,34 +96,53 @@ export function RecipientsField({
     if (ids.join() !== fields.selected.join()) set("selected", ids);
   }, [everyone, contributors, fields.people, fields.states, fields.selected, set]);
 
-  const suggestions = useMemo<Suggestion[]>(() => {
+  /* Everything that can be picked, narrowed by what is typed: Everyone,
+     then every state that has someone in it, then people. */
+  const { suggestions, morePeople } = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const out: Suggestion[] = [];
     if (!everyone && (!needle || "everyone all contributors".includes(needle))) {
       out.push({ kind: "everyone", key: "everyone", count: contributors.length });
     }
-    const states = NIGERIAN_STATES.filter(
+    NIGERIAN_STATES.filter(
       (state) =>
         !fields.states.includes(state) &&
         (perState.get(state) ?? 0) > 0 &&
         (!needle || state.toLowerCase().includes(needle))
     )
       .sort((a, b) => (perState.get(b) ?? 0) - (perState.get(a) ?? 0))
-      .slice(0, needle ? 4 : 3);
-    for (const state of states) {
-      out.push({ kind: "state", key: `state:${state}`, state, count: perState.get(state) ?? 0 });
-    }
-    if (needle) {
-      for (const person of contributors) {
-        if (out.length >= MAX_SUGGESTIONS) break;
-        if (fields.people.includes(person.id)) continue;
-        if (person.name.toLowerCase().includes(needle) || person.email.toLowerCase().includes(needle)) {
-          out.push({ kind: "person", key: person.id, person });
-        }
+      .forEach((state) =>
+        out.push({ kind: "state", key: `state:${state}`, state, count: perState.get(state) ?? 0 })
+      );
+    let people = 0;
+    let more = 0;
+    for (const person of contributors) {
+      if (!everyone && fields.people.includes(person.id)) continue;
+      if (
+        needle &&
+        !person.name.toLowerCase().includes(needle) &&
+        !person.email.toLowerCase().includes(needle)
+      ) {
+        continue;
       }
+      if (people >= PEOPLE_SHOWN) {
+        more += 1;
+        continue;
+      }
+      people += 1;
+      out.push({ kind: "person", key: person.id, person });
     }
-    return out.slice(0, MAX_SUGGESTIONS);
+    return { suggestions: out, morePeople: more };
   }, [query, everyone, contributors, fields.states, fields.people, perState]);
+
+  const list = useRef<HTMLUListElement>(null);
+  /* The highlighted row stays in view as the arrows move through a list
+     longer than the dropdown. */
+  useEffect(() => {
+    list.current
+      ?.querySelector<HTMLElement>(`[data-index="${active}"]`)
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [active]);
 
   useEffect(() => setActive(0), [query]);
 
@@ -177,7 +202,11 @@ export function RecipientsField({
             : null}
           {!everyone
             ? people.map((id) => (
-                <Chip key={id} onRemove={() => commit(fields.people.filter((value) => value !== id), fields.states)}>
+                <Chip
+                  key={id}
+                  icon={initialOf(byId.get(id)?.name ?? "?")}
+                  onRemove={() => commit(fields.people.filter((value) => value !== id), fields.states)}
+                >
                   {byId.get(id)?.name ?? "Contributor"}
                 </Chip>
               ))
@@ -201,6 +230,7 @@ export function RecipientsField({
           aria-expanded={open && suggestions.length > 0}
           aria-controls="comms-to-suggestions"
           aria-autocomplete="list"
+          aria-activedescendant={open && suggestions[active] ? `comms-to-${active}` : undefined}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
@@ -232,46 +262,64 @@ export function RecipientsField({
       <AnimatePresence>
         {open && suggestions.length > 0 ? (
           <motion.ul
+            ref={list}
             id="comms-to-suggestions"
             role="listbox"
+            aria-label="Recipients"
+            /* Pressing the scrollbar or a heading must not blur the field,
+               or the list closes under the pointer. */
+            onMouseDown={(event) => event.preventDefault()}
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.14 }}
-            className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-2xl border border-alva-border bg-alva-card py-1 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.9)]"
+            className="alva-thin-scrollbar absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto overscroll-contain rounded-2xl border border-alva-border bg-alva-card py-1 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.9)]"
           >
-            {suggestions.map((choice, index) => (
-              <li
-                key={choice.key}
-                role="option"
-                aria-selected={index === active}
-                onMouseDown={(event) => event.preventDefault()}
-                onMouseEnter={() => setActive(index)}
-                onClick={() => pick(choice)}
-                className={cn(
-                  "flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm",
-                  index === active ? "bg-alva-surface text-foreground" : "text-foreground/90"
-                )}
-              >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-alva-surface text-muted-foreground">
-                  {choice.kind === "everyone" ? (
-                    <UsersGroupRounded size={13} weight="Bold" />
-                  ) : choice.kind === "state" ? (
-                    <MapPoint size={13} weight="Bold" />
-                  ) : (
-                    <span className="text-[10px] font-semibold">{choice.person.name.slice(0, 1)}</span>
-                  )}
-                </span>
-                <span className="min-w-0 flex-1 truncate">
-                  {choice.kind === "everyone" ? "Everyone" : choice.kind === "state" ? choice.state : choice.person.name}
-                </span>
-                <span className="shrink-0 truncate text-xs tabular-nums text-muted-foreground">
-                  {choice.kind === "person"
-                    ? choice.person.email
-                    : choice.count.toLocaleString()}
-                </span>
+            {suggestions.map((choice, index) => {
+              const heading =
+                choice.kind !== suggestions[index - 1]?.kind && choice.kind !== "everyone"
+                  ? choice.kind === "state"
+                    ? "States"
+                    : "People"
+                  : null;
+              return (
+                <li key={choice.key} role="presentation">
+                  {heading ? (
+                    <p className="px-3.5 pb-1 pt-2 text-[11px] text-muted-foreground">{heading}</p>
+                  ) : null}
+                  <div
+                    id={`comms-to-${index}`}
+                    data-index={index}
+                    role="option"
+                    aria-selected={index === active}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => pick(choice)}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm",
+                      index === active ? "bg-alva-surface text-foreground" : "text-foreground/90"
+                    )}
+                  >
+                    <Badge choice={choice} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {choice.kind === "everyone"
+                        ? "Everyone"
+                        : choice.kind === "state"
+                          ? choice.state
+                          : choice.person.name}
+                    </span>
+                    <span className="shrink-0 truncate text-xs tabular-nums text-muted-foreground">
+                      {choice.kind === "person" ? choice.person.email : choice.count.toLocaleString()}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+            {morePeople > 0 ? (
+              <li role="presentation" className="px-3.5 py-2 text-xs text-muted-foreground">
+                {morePeople.toLocaleString()} more, type to narrow
               </li>
-            ))}
+            ) : null}
           </motion.ul>
         ) : null}
       </AnimatePresence>
@@ -284,7 +332,7 @@ function Chip({
   children,
   onRemove,
 }: {
-  icon?: ReactNode;
+  icon: ReactNode;
   children: ReactNode;
   onRemove: () => void;
 }) {
@@ -295,9 +343,9 @@ function Chip({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.14 }}
-      className="inline-flex items-center gap-1.5 rounded-full bg-alva-surface py-0.5 pl-2.5 pr-1 text-xs text-foreground"
+      className="inline-flex items-center gap-1.5 rounded-full bg-alva-surface py-1 pl-1 pr-1.5 text-xs text-foreground"
     >
-      {icon ? <span className="text-muted-foreground">{icon}</span> : null}
+      <Dot>{icon}</Dot>
       <span className="max-w-[12rem] truncate">{children}</span>
       <button
         type="button"
@@ -311,5 +359,32 @@ function Chip({
         <CloseCircle size={15} weight="Bold" />
       </button>
     </motion.span>
+  );
+}
+
+/** The round mark in front of a chip or a suggestion: textured accent. */
+function Dot({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <span className={alvaAccentTexture(cn("flex size-5 shrink-0 items-center justify-center rounded-full", className))}>
+      <span className="relative z-[1] flex items-center justify-center text-alva-bg">{children}</span>
+    </span>
+  );
+}
+
+function initialOf(name: string) {
+  return <span className="text-[10px] font-bold leading-none">{name.trim().slice(0, 1).toUpperCase()}</span>;
+}
+
+function Badge({ choice }: { choice: Suggestion }) {
+  return (
+    <Dot className="size-6">
+      {choice.kind === "everyone" ? (
+        <UsersGroupRounded size={13} weight="Bold" />
+      ) : choice.kind === "state" ? (
+        <MapPoint size={13} weight="Bold" />
+      ) : (
+        initialOf(choice.person.name)
+      )}
+    </Dot>
   );
 }

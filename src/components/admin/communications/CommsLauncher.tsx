@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Letter from "@solar-icons/react/messages/Letter";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
-import Plain2 from "@solar-icons/react/messages/Plain2";
+import Plain from "@solar-icons/react/messages/Plain";
 import { BorderBeam } from "border-beam";
 import { TextureButton } from "@/components/ui/texture-button";
 import { WaveFill } from "@/components/shared/wave-fill";
@@ -291,15 +291,20 @@ export function CommsLauncher() {
                           aria-valuenow={Math.round(fields.heroProgress * 100)}
                           className="relative flex h-[42px] flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-alva-surface text-sm font-semibold text-muted-foreground"
                         >
-                          <Plain2 size={16} weight="Bold" />
                           Send
+                          <Plain size={16} weight="Bold" />
+                          {/* Many small crests rather than a few tall ones:
+                              the button is wide and short, and a big wave
+                              across it reads as a slope. */}
                           <WaveFill
                             progress={fields.heroProgress}
-                            fillClassName="bg-alva-accent text-alva-bg"
+                            amplitude={0.012}
+                            cycles={3.5}
+                            fillClassName="bg-alva-accent font-semibold text-alva-bg"
                             aheadClassName="bg-alva-accent/30"
                           >
-                            <Plain2 size={16} weight="Bold" />
                             Send
+                            <Plain size={16} weight="Bold" />
                           </WaveFill>
                         </div>
                       ) : (
@@ -312,7 +317,6 @@ export function CommsLauncher() {
                           title={confirming && stage.blocked ? stage.blocked : undefined}
                           onClick={() => void press()}
                         >
-                          <Plain2 size={16} weight="Bold" />
                           <AnimatePresence initial={false} mode="popLayout">
                             <motion.span
                               key={confirming ? "confirm" : "send"}
@@ -327,6 +331,7 @@ export function CommsLauncher() {
                                 : "Send"}
                             </motion.span>
                           </AnimatePresence>
+                          <Plain size={16} weight="Bold" />
                         </TextureButton>
                       )}
                     </div>

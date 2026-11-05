@@ -21,6 +21,8 @@ export type ComposerFields = {
   hero: string | null;
   /** The uploaded image's id, sent as `hero_image_id`. Null for the brand image. */
   heroId: string | null;
+  /** Which image: the brand one (the server's default), the everyday one, or an upload. */
+  heroChoice: "brand" | "everyday" | "custom";
   /** An upload still going: Send waits for it. */
   heroUploading: boolean;
   /** How much of it has gone, 0 to 1, for the Send button's fill. */
@@ -46,6 +48,7 @@ export type ComposerFields = {
 const EMPTY: ComposerFields = {
   hero: null,
   heroId: null,
+  heroChoice: "brand",
   heroUploading: false,
   heroProgress: 0,
   header: "",

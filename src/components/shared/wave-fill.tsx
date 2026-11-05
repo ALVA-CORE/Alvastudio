@@ -17,6 +17,8 @@ export function WaveFill({
   className,
   fillClassName,
   aheadClassName,
+  amplitude: amplitudeProp = WAVE_AMPLITUDE,
+  cycles,
   children,
 }: {
   progress: number;
@@ -25,6 +27,10 @@ export function WaveFill({
   fillClassName: string;
   /** The paler crest ahead of it. */
   aheadClassName: string;
+  /** How far the crests reach, as a share of the width. */
+  amplitude?: number;
+  /** Crests down the edge. More, smaller ones read as a gentler wave. */
+  cycles?: number;
   children?: ReactNode;
 }) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -37,10 +43,10 @@ export function WaveFill({
     if (reduceMotion) smooth.jump(progress);
   }, [goal, smooth, progress, reduceMotion]);
 
-  const amplitude = reduceMotion ? 0 : WAVE_AMPLITUDE;
-  const front = useWave(smooth, amplitude);
+  const amplitude = reduceMotion ? 0 : amplitudeProp;
+  const front = useWave(smooth, amplitude, 0, cycles);
   const aheadBy = useTransform(smooth, (value) => (value <= 0 ? 0 : Math.min(1, value + 0.035)));
-  const ahead = useWave(aheadBy, amplitude, Math.PI * 0.7);
+  const ahead = useWave(aheadBy, amplitude, Math.PI * 0.7, cycles);
 
   return (
     <span aria-hidden className={cn("pointer-events-none absolute inset-0 rounded-[inherit]", className)}>
