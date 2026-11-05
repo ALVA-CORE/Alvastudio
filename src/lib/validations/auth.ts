@@ -7,6 +7,23 @@ import type {
   ReferralSource,
 } from "@/data/contributors/onboarding";
 
+/**
+ * A first name and a last name, at least.
+ *
+ * One name alone is not enough to tell two contributors apart, or to match
+ * a person to the name on their bank account when they are paid. Two or more
+ * words, each with a letter in it, so "Ada Okafor", "Ngozi Mary Eze" and
+ * "Ọlá Adé" pass and "Ada" or "A ." do not. Spaces are tidied before saving.
+ */
+export const fullNameSchema = z
+  .string()
+  .transform((value) => value.trim().replace(/\s+/g, " "))
+  .refine(
+    (value) => value.split(" ").filter((word) => /\p{L}/u.test(word)).length >= 2,
+    "Enter your first and last name"
+  )
+  .refine((value) => value.length <= 255, "That name is too long");
+
 export const loginSchema = z.object({
   email: z.string().email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -15,7 +32,7 @@ export const loginSchema = z.object({
 
 export const signupSchema = z
   .object({
-    fullName: z.string().min(2, "Enter your full name"),
+    fullName: fullNameSchema,
     email: z.string().email("Enter a valid email"),
     phone: z.string().min(11, "Enter a valid phone number"),
     password: z.string().min(8, "Password must be at least 8 characters"),
@@ -31,7 +48,7 @@ export const signupSchema = z
 
 export const internSignupSchema = z
   .object({
-    fullName: z.string().min(2, "Enter your full name"),
+    fullName: fullNameSchema,
     email: z.string().email("Enter a valid email"),
     phone: z
       .string()
@@ -66,7 +83,7 @@ export const ANNOTATOR_VARIETY_OPTIONS = [
  */
 export const annotatorSignupSchema = z
   .object({
-    fullName: z.string().min(2, "Enter your full name"),
+    fullName: fullNameSchema,
     email: z.string().email("Enter a valid email"),
     phone: z
       .string()
