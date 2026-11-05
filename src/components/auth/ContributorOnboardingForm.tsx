@@ -61,7 +61,7 @@ const AUTH_FIELD_SIZE = "lg" as const;
 
 export function ContributorOnboardingForm() {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, logout } = useAuth();
   const [step, setStep] = useState(1);
   const [detectingMic, setDetectingMic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -217,9 +217,12 @@ export function ContributorOnboardingForm() {
     draft.clear();
 
     /* Waiting, not turned away. We wanted their details and we have them.
-       Sending them to a dashboard where every request answers 403 would be
-       the wrong ending to a sign-up that worked. */
+       `signup()` had to sign them in to save the profile and consent, and
+       that session must not outlive the sheet: kept, "Got it" opened a
+       dashboard where every request answers 403. Signed out here, as the
+       sign-in form does for the same account. */
     if (waitlisted) {
+      logout();
       setBlocked("full");
       return;
     }
@@ -762,7 +765,12 @@ export function ContributorOnboardingForm() {
       <SignInBlockedSheet
         block={blocked}
         onOpenChange={(open) => {
-          if (!open) setBlocked(null);
+          if (open) return;
+          /* Signed out already; the sign-in page is where they would come
+             back to, and the sign-up form behind the sheet has nothing left
+             to do. */
+          if (blocked === "full") navigate("/login");
+          setBlocked(null);
         }}
         /* No way onward. Signing in would refuse them too: the account is
            made but not approved, so "Back to sign in" would be a second dead

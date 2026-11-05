@@ -191,10 +191,10 @@ export class ApiError extends Error {
    * Seconds to wait, from `Retry-After`, when the response has one and the
    * browser lets us read it.
    *
-   * Cross-origin, a browser hides every response header the API does not
-   * list in `Access-Control-Expose-Headers`, and on 4 Nov that list was
-   * `X-Total-Count` alone. So this is null in production until the API adds
-   * it (endpoints-needed #5), and callers need a fallback of their own.
+   * Cross-origin, a browser hides every header the API does not list in
+   * `Access-Control-Expose-Headers`; `Retry-After` is listed since 5 Nov.
+   * Both upload 429s carry it: seconds until a `too_fast` window clears, or
+   * until the daily limit resets at 00:00 WAT.
    */
   retryAfterSeconds: number | null = null;
 
@@ -494,4 +494,62 @@ export async function apiFetchBlobUrl(path: string): Promise<string> {
   // them would send no token. Fetch with the header, then hand back a blob URL.
   // Callers must revokeObjectURL when done.
   return URL.createObjectURL(await response.blob());
+}
+
+/**
+ * A multipart upload that reports how far it has got.
+ *
+ * `fetch` cannot see upload progress, so this is the one request made with
+ * XMLHttpRequest. Everything else is `apiFetch`'s: the token, the error
+ * shapes (so `code`, `detail` and field errors arrive the same way), and an
+ * unreachable server read as one rather than as a fault in the file.
+ *
+ * `onProgress` gets a fraction, 0 to 1, of the bytes sent.
+ */
+export function apiUpload<T>(
+  path: string,
+  form: FormData,
+  onProgress?: (fraction: number) => void
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", new URL(`${BASE_URL}${path}`, window.location.origin).toString());
+    const token = getToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.timeout = TIMEOUT_MS;
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) onProgress?.(event.loaded / event.total);
+    };
+
+    xhr.onload = () => {
+      let parsed: unknown = null;
+      try {
+        parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        parsed = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(1);
+        resolve(parsed as T);
+        return;
+      }
+      if (xhr.status === 401) {
+        setToken(null);
+        unauthorizedHandler?.();
+      }
+      const error = parseError(xhr.status, parsed);
+      error.retryAfterSeconds = parseRetryAfter(xhr.getResponseHeader("Retry-After"));
+      if (parsed === null) error.unreachable = true;
+      reject(error);
+    };
+    xhr.onerror = () => {
+      const error = new ApiError(0, "Can't reach Alvastudio right now. Please try again in a moment.");
+      error.unreachable = true;
+      reject(error);
+    };
+    xhr.ontimeout = () => reject(timeoutError("POST", path));
+
+    xhr.send(form);
+  });
 }

@@ -58,7 +58,7 @@ const COPY: Record<
     tone: "text-alva-accent",
     title: "You're on the list",
     detail:
-      "Alva Studio is full right now. Your account is saved and we've emailed you — we'll be in touch the moment a place opens.",
+      "Alva Studio is full right now. Your account is saved, and we'll email you the moment a place opens.",
   },
 };
 

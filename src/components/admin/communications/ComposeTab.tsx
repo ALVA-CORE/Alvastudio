@@ -1,24 +1,45 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Gallery from "@solar-icons/react/video/Gallery";
-import CloseCircle from "@solar-icons/react/ui/CloseCircle";
-import Magnifier from "@solar-icons/react/search/Magnifier";
 import { BeamInput } from "@/components/auth/BeamInput";
-import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
-import { AlvaSelect } from "@/components/shared/AlvaSelect";
-import { Input } from "@/components/ui/input";
 import { RichBodyEditor } from "@/components/admin/communications/RichBodyEditor";
-import { toPlainText } from "@/lib/admin/richBody";
-import { NIGERIAN_STATES } from "@/data/interns/participants";
+import { RecipientsField } from "@/components/admin/communications/RecipientsField";
+import { toMarkdown } from "@/lib/admin/richBody";
+import { uploadCommunicationImage } from "@/lib/api/communications";
+import { reportApiError } from "@/lib/api/reportApiError";
 import { COMMUNICATION_LIMITS } from "@/lib/api/communications";
-import { actionUrlProblem, DEFAULT_ACTION_URL } from "@/lib/admin/emailTemplate";
+import {
+  actionUrlProblem,
+  COMMUNICATION_HERO,
+  DEFAULT_ACTION_URL,
+  EVERYDAY_HERO,
+} from "@/lib/admin/emailTemplate";
 import { alvaToast } from "@/lib/alva-toast";
 import type { ComposerFields } from "@/hooks/useCommsComposer";
 import type { DirectoryContributor } from "@/hooks/useContributorDirectory";
 import { cn } from "@/lib/utils";
 
 const HERO_MAX_BYTES = 5 * 1024 * 1024;
-const ANY_STATE = "__any__";
+
+const EVERYDAY_KEY = "alva-comms-everyday-image";
+
+/** The uploaded copy of the everyday image, if this browser has made one. */
+function rememberedEveryday(): { id: string; url: string } | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(EVERYDAY_KEY) ?? "null");
+    return value && typeof value.id === "string" && typeof value.url === "string" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberEveryday(image: { id: string; url: string }) {
+  try {
+    localStorage.setItem(EVERYDAY_KEY, JSON.stringify({ id: image.id, url: image.url }));
+  } catch {
+    /* Private window or full storage: it is uploaded again next time. */
+  }
+}
 
 type Set_ = <K extends keyof ComposerFields>(key: K, value: ComposerFields[K]) => void;
 
@@ -26,31 +47,134 @@ export function ComposeTab({
   fields,
   set,
   contributors,
-  loadingContributors,
 }: {
   fields: ComposerFields;
   set: Set_;
   contributors: DirectoryContributor[];
-  loadingContributors: boolean;
 }) {
   const linkProblem = fields.link.trim() ? actionUrlProblem(fields.link.trim()) : null;
 
+  /* Only the latest drop counts: an upload that finishes after a newer one
+     started, or after the image was removed, is ignored. */
+  const uploads = useRef(0);
+
+  /**
+   * Shown at once from the file, uploaded straight away, then swapped for
+   * the server's copy: re-encoded, at most 1200px wide, transparency filled
+   * with the card's dark. That copy is what inboxes will fetch, so the
+   * preview shows it rather than the original.
+   */
+  const pickHero = (file: File, choice: HeroChoice = "custom", shownAs?: string) => {
+    const seq = ++uploads.current;
+    set("heroChoice", choice);
+    if (shownAs) {
+      set("hero", shownAs);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (seq === uploads.current) set("hero", String(reader.result));
+      };
+      reader.readAsDataURL(file);
+    }
+    set("heroId", null);
+    set("heroUploading", true);
+    set("heroProgress", 0);
+    uploadCommunicationImage(file, (fraction) => {
+      if (seq === uploads.current) set("heroProgress", fraction);
+    })
+      .then((image) => {
+        if (seq !== uploads.current) return;
+        set("heroId", image.id);
+        set("hero", image.url);
+        if (choice === "everyday") rememberEveryday(image);
+      })
+      .catch((cause: unknown) => {
+        if (seq !== uploads.current) return;
+        set("hero", null);
+        set("heroChoice", "brand");
+        alvaToast.error(reportApiError(cause, "Could not upload that image.") ?? "Could not upload that image.");
+      })
+      .finally(() => {
+        if (seq === uploads.current) set("heroUploading", false);
+      });
+  };
+
+  /**
+   * The brand image is the server's own default: nothing to upload, and no
+   * id to send. The everyday image is the other one the templates use; the
+   * API takes only uploaded images, so a copy of it is uploaded once and its
+   * id kept in this browser for next time. Uploaded images are never
+   * deleted, so a kept id stays good.
+   */
+  const pickPreset = (preset: "brand" | "everyday") => {
+    const seq = ++uploads.current;
+    set("heroUploading", false);
+    if (preset === "brand") {
+      set("heroChoice", "brand");
+      set("hero", null);
+      set("heroId", null);
+      return;
+    }
+    const kept = rememberedEveryday();
+    if (kept) {
+      set("heroChoice", "everyday");
+      set("heroId", kept.id);
+      set("hero", kept.url);
+      return;
+    }
+    set("heroChoice", "everyday");
+    set("hero", EVERYDAY_HERO);
+    set("heroUploading", true);
+    set("heroProgress", 0);
+    fetch(EVERYDAY_HERO)
+      .then((response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.blob();
+      })
+      .then((blob) => {
+        /* Another choice made while it downloaded wins. */
+        if (seq !== uploads.current) return;
+        pickHero(new File([blob], "everyday.png", { type: blob.type || "image/png" }), "everyday", EVERYDAY_HERO);
+      })
+      .catch(() => {
+        if (seq !== uploads.current) return;
+        set("heroUploading", false);
+        set("heroChoice", "brand");
+        set("hero", null);
+        alvaToast.error("Could not load that image");
+      });
+  };
+
   return (
     <div className="space-y-3">
-      <HeroDrop value={fields.hero} onChange={(next) => set("hero", next)} />
+      {/* To and the header as an inbox has them: label and field on a line,
+          a hairline between, no boxes. */}
+      <div className="divide-y divide-alva-border border-b border-alva-border">
+        <RecipientsField fields={fields} set={set} contributors={contributors} />
 
-      <BeamInput
-        label="Header"
-        value={fields.header}
-        maxLength={COMMUNICATION_LIMITS.subject}
-        onChange={(event) => set("header", event.target.value)}
+        <input
+          aria-label="Header"
+          placeholder="Header"
+          value={fields.header}
+          maxLength={COMMUNICATION_LIMITS.subject}
+          onChange={(event) => set("header", event.target.value)}
+          className="h-12 w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+      </div>
+
+      <HeroDrop
+        value={fields.hero}
+        choice={fields.heroChoice}
+        uploading={fields.heroUploading}
+        onPreset={pickPreset}
+        onPick={pickHero}
       />
 
       <RichBodyEditor
         value={fields.bodyDoc}
         onChange={(doc) => {
           set("bodyDoc", doc);
-          set("body", toPlainText(doc));
+          set("body", toMarkdown(doc));
         }}
       />
 
@@ -72,43 +196,58 @@ export function ComposeTab({
         />
       </div>
 
-      <Recipients
-        fields={fields}
-        set={set}
-        contributors={contributors}
-        isLoading={loadingContributors}
-      />
     </div>
   );
 }
 
-/** Drop an image on it, or press it to choose one. */
+/** The types the upload route takes, checked here first so a wrong one is
+ *  refused before it is sent. */
+const HERO_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+export type HeroChoice = "brand" | "everyday" | "custom";
+
+const PRESETS = [
+  { value: "brand", label: "Brand image", src: COMMUNICATION_HERO },
+  { value: "everyday", label: "Everyday image", src: EVERYDAY_HERO },
+] as const;
+
+/**
+ * The email's image: one of the two the templates already use, or your own.
+ *
+ * All in the one area. It shows the image that will be sent; the round
+ * thumbnails in its corner switch between the brand image, the everyday
+ * image and an upload, and a file dropped anywhere on it is taken too.
+ */
 function HeroDrop({
   value,
-  onChange,
+  choice,
+  uploading,
+  onPreset,
+  onPick,
 }: {
   value: string | null;
-  onChange: (next: string | null) => void;
+  choice: HeroChoice;
+  uploading: boolean;
+  onPreset: (preset: "brand" | "everyday") => void;
+  onPick: (file: File) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
-  /* A data URL, not an object URL: the preview is a sandboxed frame with an
-     origin of its own, and it cannot read this page's blob: URLs. */
   const take = (file: File | undefined) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      alvaToast.error("That is not an image");
+    if (!HERO_TYPES.includes(file.type)) {
+      alvaToast.error("PNG, JPEG or WebP");
       return;
     }
     if (file.size > HERO_MAX_BYTES) {
       alvaToast.error("Images up to 5 MB");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => onChange(String(reader.result));
-    reader.readAsDataURL(file);
+    onPick(file);
   };
+
+  const shown = value ?? COMMUNICATION_HERO;
 
   return (
     <div
@@ -123,234 +262,78 @@ function HeroDrop({
         take(event.dataTransfer.files?.[0]);
       }}
       className={cn(
-        "relative h-28 overflow-hidden rounded-2xl border border-dashed transition-colors",
-        over ? "border-alva-accent bg-alva-accent/[0.06]" : "border-alva-border bg-alva-surface"
+        "relative h-32 overflow-hidden rounded-2xl border transition-colors",
+        over ? "border-dashed border-alva-accent" : "border-alva-border"
       )}
     >
       <input
         ref={input}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp"
         className="sr-only"
         onChange={(event) => {
           take(event.target.files?.[0]);
           event.target.value = "";
         }}
       />
-      <AnimatePresence initial={false} mode="wait">
-        {value ? (
-          <motion.div
-            key="image"
-            initial={{ opacity: 0, scale: 1.03 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="h-full"
-          >
-            <img src={value} alt="" className="h-full w-full object-cover" />
-            <button
-              type="button"
-              aria-label="Remove image"
-              onClick={() => onChange(null)}
-              className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white/90 backdrop-blur transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-            >
-              <CloseCircle size={18} weight="Bold" />
-            </button>
-          </motion.div>
-        ) : (
-          <motion.button
-            key="empty"
-            type="button"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => input.current?.click()}
-            aria-label="Hero image"
-            className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-alva-accent"
-          >
-            <Gallery size={22} weight="Outline" />
-            <span className="text-xs">Hero image</span>
-          </motion.button>
-        )}
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.img
+          key={shown}
+          src={shown}
+          alt=""
+          initial={{ opacity: 0, scale: 1.03 }}
+          animate={{ opacity: uploading ? 0.6 : 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className={cn("absolute inset-0 h-full w-full object-cover", uploading && "animate-pulse")}
+        />
       </AnimatePresence>
-    </div>
-  );
-}
 
-/**
- * Everyone, or the people ticked here. A state narrows the list to whoever
- * gave it as their state of origin or residence; the box at the top ticks
- * everyone the list is showing.
- */
-function Recipients({
-  fields,
-  set,
-  contributors,
-  isLoading,
-}: {
-  fields: ComposerFields;
-  set: Set_;
-  contributors: DirectoryContributor[];
-  isLoading: boolean;
-}) {
-  const [query, setQuery] = useState("");
-  const [state, setState] = useState(ANY_STATE);
-  const selected = useMemo(() => new Set(fields.selected), [fields.selected]);
-  const choosing = fields.audience === "selected_contributors";
+      {over ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white">
+          <Gallery size={24} weight="Bold" />
+        </div>
+      ) : null}
 
-  const shown = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return contributors.filter((person) => {
-      if (
-        state !== ANY_STATE &&
-        person.stateOfOrigin !== state &&
-        person.stateOfResidence !== state
-      ) {
-        return false;
-      }
-      return (
-        !needle ||
-        person.name.toLowerCase().includes(needle) ||
-        person.email.toLowerCase().includes(needle)
-      );
-    });
-  }, [contributors, query, state]);
-
-  const allShown = shown.length > 0 && shown.every((person) => selected.has(person.id));
-  const someShown = shown.some((person) => selected.has(person.id));
-
-  const commit = (next: Set<string>) => set("selected", [...next].sort());
-
-  const toggle = (id: string) => {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else if (next.size < COMMUNICATION_LIMITS.recipients) next.add(id);
-    commit(next);
-  };
-
-  const toggleShown = () => {
-    const next = new Set(selected);
-    if (allShown) shown.forEach((person) => next.delete(person.id));
-    else
-      for (const person of shown) {
-        if (next.size >= COMMUNICATION_LIMITS.recipients) break;
-        next.add(person.id);
-      }
-    commit(next);
-  };
-
-  return (
-    <div className="space-y-2">
-      <div role="radiogroup" aria-label="Recipients" className="grid grid-cols-2 rounded-full bg-alva-surface p-1">
-        {(
-          [
-            { value: "all_contributors", label: "Everyone" },
-            {
-              value: "selected_contributors",
-              label: fields.selected.length ? `Chosen · ${fields.selected.length}` : "Choose",
-            },
-          ] as const
-        ).map((option) => (
+      <div
+        role="radiogroup"
+        aria-label="Hero image"
+        className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/55 p-1 backdrop-blur"
+      >
+        {PRESETS.map((preset) => (
           <button
-            key={option.value}
+            key={preset.value}
             type="button"
             role="radio"
-            aria-checked={fields.audience === option.value}
-            onClick={() => set("audience", option.value)}
-            className="relative rounded-full py-1.5 text-sm text-muted-foreground transition-colors aria-checked:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+            aria-checked={choice === preset.value}
+            aria-label={preset.label}
+            onClick={() => onPreset(preset.value)}
+            className={cn(
+              "size-8 overflow-hidden rounded-full ring-2 ring-offset-0 transition focus-visible:outline-none",
+              choice === preset.value ? "ring-alva-accent" : "ring-transparent opacity-70 hover:opacity-100"
+            )}
           >
-            {fields.audience === option.value ? (
-              <motion.span
-                layoutId="comms-audience"
-                className="absolute inset-0 rounded-full bg-alva-card"
-                transition={{ type: "spring", stiffness: 500, damping: 40 }}
-              />
-            ) : null}
-            <span className="relative tabular-nums">{option.label}</span>
+            <img src={preset.src} alt="" className="h-full w-full object-cover" />
           </button>
         ))}
+        <button
+          type="button"
+          role="radio"
+          aria-checked={choice === "custom"}
+          aria-label="Upload an image"
+          onClick={() => input.current?.click()}
+          className={cn(
+            "flex size-8 items-center justify-center overflow-hidden rounded-full bg-alva-surface text-foreground ring-2 transition focus-visible:outline-none",
+            choice === "custom" ? "ring-alva-accent" : "ring-transparent hover:text-alva-accent"
+          )}
+        >
+          {choice === "custom" && value ? (
+            <img src={value} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Gallery size={15} weight="Bold" />
+          )}
+        </button>
       </div>
-
-      <AnimatePresence initial={false}>
-        {choosing ? (
-          <motion.div
-            key="choose"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-2 pt-1">
-              <div className="flex gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Magnifier
-                    size={14}
-                    weight="Outline"
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  />
-                  <Input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search"
-                    aria-label="Search contributors"
-                    className="h-9 rounded-full border-0 bg-alva-surface pl-8 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                  />
-                </div>
-                <AlvaSelect
-                  aria-label="State"
-                  value={state}
-                  onValueChange={setState}
-                  className="w-32"
-                  options={[
-                    { value: ANY_STATE, label: "All states" },
-                    ...NIGERIAN_STATES.map((name) => ({ value: name, label: name })),
-                  ]}
-                />
-              </div>
-
-              <div className="alva-thin-scrollbar max-h-52 overflow-y-auto rounded-2xl bg-alva-surface">
-                <label className="sticky top-0 z-[1] flex cursor-pointer items-center gap-3 border-b border-alva-border/60 bg-alva-surface px-3.5 py-2 text-xs text-muted-foreground">
-                  <AuthCheckbox
-                    checked={allShown ? true : someShown ? "indeterminate" : false}
-                    onCheckedChange={toggleShown}
-                    disabled={shown.length === 0}
-                    aria-label="Select all shown"
-                  />
-                  <span className="tabular-nums">{shown.length.toLocaleString()}</span>
-                </label>
-                {isLoading ? (
-                  <div className="space-y-2 p-3">
-                    {[0, 1, 2].map((row) => (
-                      <div key={row} className="h-8 animate-pulse rounded-lg bg-alva-card" />
-                    ))}
-                  </div>
-                ) : (
-                  <ul>
-                    {shown.map((person) => (
-                      <li key={person.id}>
-                        <label className="flex cursor-pointer items-center gap-3 px-3.5 py-2 transition-colors hover:bg-alva-card/60">
-                          <AuthCheckbox
-                            checked={selected.has(person.id)}
-                            onCheckedChange={() => toggle(person.id)}
-                            aria-label={person.name}
-                          />
-                          <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                            {person.name}
-                          </span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            {person.stateOfOrigin ?? person.stateOfResidence ?? ""}
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </div>
   );
 }

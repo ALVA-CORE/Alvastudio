@@ -44,6 +44,20 @@ export const listPrompts = (query: CatalogQuery = {}) =>
 export const listStimuli = (query: CatalogQuery = {}) =>
   apiFetch<ApiPrompt[]>("/stimuli", { query });
 
+/** A prompt or stimulus held for this contributor, until `reserved_until`. */
+export type ApiAssignedItem = ApiPrompt & { reserved_until: string };
+
+/**
+ * What a contributor has been handed: up to 20 prompts, or up to 5 stimuli,
+ * each held for 24 hours and topped up on every call. Staff get a 403.
+ *
+ * Both banks work the same way since 5 Nov: two readers or narrators per
+ * item, one reading each, and a rejected one frees its place for somebody
+ * else.
+ */
+export const listAssignedPrompts = () => apiFetch<ApiAssignedItem[]>("/prompts/assigned");
+export const listAssignedStimuli = () => apiFetch<ApiAssignedItem[]>("/stimuli/assigned");
+
 export type CatalogPage = {
   items: ApiPrompt[];
   /** Rows matching every filter, `recorded` included. What paging stops on. */

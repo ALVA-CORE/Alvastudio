@@ -54,6 +54,7 @@ const preview = vi.fn(async () => ({
   html: "",
   text: "",
 }));
+const upload = vi.fn();
 const send = vi.fn(async () => ({ ...detail, status: "queued", delivery: { ...detail.delivery, total: 87 } }));
 
 vi.mock("@/lib/api/communications", async (original) => ({
@@ -62,6 +63,7 @@ vi.mock("@/lib/api/communications", async (original) => ({
   previewCommunication: () => preview(),
   sendCommunication: (...args: unknown[]) => send(...(args as [])),
   listCommunications: vi.fn(async () => ({ items: [], total: 0, limit: 50, offset: 0 })),
+  uploadCommunicationImage: (...args: unknown[]) => upload(...args),
 }));
 
 const { CommsLauncher } = await import("../CommsLauncher");
@@ -108,11 +110,46 @@ describe("CommsLauncher", () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith("m1", 1));
   });
 
-  it("finds people by state, however they typed it", async () => {
+  /* The To row: a state, however it was typed, or a person, as chips. */
+  it("picks a whole state or one person in the To row", async () => {
     render(<CommsLauncher />);
     await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
-    await userEvent.click(screen.getByRole("radio", { name: "Choose" }));
-    expect(await screen.findByText("Lagos")).toBeInTheDocument();
+    const to = screen.getByRole("combobox", { name: "To" });
+
+    await userEvent.type(to, "lag");
+    await userEvent.click(await screen.findByRole("option", { name: /Lagos/ }));
+    expect(screen.getByText("Lagos")).toBeInTheDocument();
+    /* Everyone is now only a suggestion, not a chip. */
+    await waitFor(() =>
+      expect(
+        screen.queryAllByText("Everyone").every((node) => node.closest('[role="listbox"]'))
+      ).toBe(true)
+    );
+
+    /* People are in the list before anything is typed. */
+    await userEvent.click(to);
+    await userEvent.click(await screen.findByRole("option", { name: /Esther Obi/ }));
+    expect(
+      screen.getAllByText("Esther Obi").some((node) => !node.closest('[role="listbox"]'))
+    ).toBe(true);
+
+    /* Backspace on an empty field takes the last chip off. */
+    await userEvent.type(to, "{Backspace}");
+    await waitFor(() =>
+      expect(
+        screen.queryAllByText("Esther Obi").every((node) => node.closest('[role="listbox"]'))
+      ).toBe(true)
+    );
+  });
+
+  it("fills Send with the upload while the hero goes up", async () => {
+    upload.mockImplementation(() => new Promise(() => undefined));
+    render(<CommsLauncher />);
+    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    const file = new File(["x"], "hero.png", { type: "image/png" });
+    const picker = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(picker, file);
+    expect(await screen.findByRole("progressbar", { name: "Uploading image" })).toBeInTheDocument();
   });
 
   it("closes on a press outside, and keeps what was written", async () => {
@@ -131,4 +168,37 @@ describe("CommsLauncher", () => {
     await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
     expect(screen.getByLabelText("Header")).toHaveValue("Kept");
   });
+
+  /* The two images the templates already use, or your own, in one place. */
+  it("uploads the everyday image once, and sends no image for the brand one", async () => {
+    localStorage.clear();
+    upload.mockReset().mockResolvedValue({ id: "img-everyday", url: "https://api/x.jpg", width: 1200, height: 600 });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () => new Response(new Blob(["png"], { type: "image/png" }))) as typeof fetch;
+    try {
+      render(<CommsLauncher />);
+      await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+
+      await userEvent.click(screen.getByRole("radio", { name: "Everyday image" }));
+      await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.getByRole("radio", { name: "Everyday image" })).toHaveAttribute("aria-checked", "true")
+      );
+
+      await userEvent.click(screen.getByRole("radio", { name: "Brand image" }));
+      await userEvent.click(screen.getByRole("radio", { name: "Everyday image" }));
+      expect(upload).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(screen.getByRole("radio", { name: "Brand image" }));
+      await userEvent.type(screen.getByLabelText("Header"), "Update");
+      await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
+      await userEvent.keyboard("Read it.");
+      await userEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+      await waitFor(() => expect(create).toHaveBeenCalled());
+      expect((create.mock.calls.at(-1) as unknown[] | undefined)?.[0]).not.toHaveProperty("hero_image_id");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
 });
+
