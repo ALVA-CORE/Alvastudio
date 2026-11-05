@@ -5,6 +5,7 @@ import CloseCircle from "@solar-icons/react/ui/CloseCircle";
 import Plain2 from "@solar-icons/react/messages/Plain2";
 import { BorderBeam } from "border-beam";
 import { TextureButton } from "@/components/ui/texture-button";
+import { WaveFill } from "@/components/shared/wave-fill";
 import { ComposeTab } from "@/components/admin/communications/ComposeTab";
 import { SentTab } from "@/components/admin/communications/SentTab";
 import { EmailPreviewFrame } from "@/components/admin/communications/EmailPreviewFrame";
@@ -18,7 +19,6 @@ import {
   renderEmailHtml,
 } from "@/lib/admin/emailTemplate";
 import { ApiError } from "@/lib/api/client";
-import { toEmailHtml } from "@/lib/admin/richBody";
 import { alvaToast } from "@/lib/alva-toast";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { AdminPermission } from "@/data/admin/users";
@@ -92,6 +92,17 @@ export function CommsLauncher() {
   }, [open]);
 
   const { fields } = composer;
+
+  /* Fetched ahead, so the preview's image is in the cache before the tab is
+     opened: the brand image as soon as the panel is, a new hero as soon as
+     it is set. */
+  const heroSrc = fields.hero ?? COMMUNICATION_HERO;
+  useEffect(() => {
+    if (!everOpened) return;
+    const image = new Image();
+    image.decoding = "async";
+    image.src = heroSrc;
+  }, [everOpened, heroSrc]);
   const html = useMemo(
     () =>
       renderEmailHtml({
@@ -100,9 +111,7 @@ export function CommsLauncher() {
         action: fields.button.trim() || DEFAULT_ACTION_LABEL,
         url: fields.link.trim() || DEFAULT_ACTION_URL,
         hero: fields.hero ?? COMMUNICATION_HERO,
-        /* The formatting as written. What is sent today is the plain text
-           beside it (endpoints-needed #6). */
-        bodyHtml: fields.body.trim() ? toEmailHtml(fields.bodyDoc) : undefined,
+        markdown: Boolean(fields.body.trim()),
       }),
     [fields]
   );
@@ -197,30 +206,52 @@ export function CommsLauncher() {
                 </button>
               </header>
 
-              <div className="alva-thin-scrollbar relative min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
-                <AnimatePresence initial={false} mode="wait">
-                  <motion.div
-                    key={tab}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.16 }}
-                    className={cn(tab === "preview" && "h-full")}
-                  >
-                    {tab === "compose" ? (
-                      <ComposeTab
-                        fields={fields}
-                        set={composer.set}
-                        contributors={directory.contributors}
-                        loadingContributors={directory.isLoading}
-                      />
-                    ) : tab === "preview" ? (
-                      <EmailPreviewFrame html={html} />
-                    ) : (
-                      <SentTab version={sentVersion} />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+              <div className="relative min-h-0 flex-1">
+                <div
+                  className={cn(
+                    "alva-thin-scrollbar absolute inset-0 overflow-y-auto px-4 pb-4 pt-2",
+                    tab === "preview" && "pointer-events-none invisible"
+                  )}
+                >
+                  <AnimatePresence initial={false} mode="wait">
+                    {tab !== "preview" ? (
+                      <motion.div
+                        key={tab}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.16 }}
+                      >
+                        {tab === "compose" ? (
+                          <ComposeTab
+                            fields={fields}
+                            set={composer.set}
+                            contributors={directory.contributors}
+                          />
+                        ) : (
+                          <SentTab version={sentVersion} />
+                        )}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+
+                {/* Always mounted, shown or not. Unmounted, every visit to
+                    the tab rebuilt the email and fetched the hero again,
+                    which is the wait people saw. Hidden by opacity rather
+                    than `display`, so it keeps its size and its fit. */}
+                <motion.div
+                  initial={false}
+                  animate={{ opacity: tab === "preview" ? 1 : 0, y: tab === "preview" ? 0 : 6 }}
+                  transition={{ duration: 0.16 }}
+                  aria-hidden={tab !== "preview"}
+                  className={cn(
+                    "absolute inset-0 px-4 pb-4 pt-2",
+                    tab !== "preview" && "pointer-events-none"
+                  )}
+                >
+                  <EmailPreviewFrame html={html} />
+                </motion.div>
               </div>
 
               <AnimatePresence initial={false}>
@@ -248,31 +279,56 @@ export function CommsLauncher() {
                           </motion.button>
                         ) : null}
                       </AnimatePresence>
-                      <TextureButton
-                        variant="alva"
-                        size="default"
-                        className="flex-1"
-                        loading={busy}
-                        disabled={!composer.valid || (confirming && Boolean(stage.blocked))}
-                        title={confirming && stage.blocked ? stage.blocked : undefined}
-                        onClick={() => void press()}
-                      >
-                        <Plain2 size={16} weight="Bold" />
-                        <AnimatePresence initial={false} mode="popLayout">
-                          <motion.span
-                            key={confirming ? "confirm" : "send"}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.18 }}
-                            className="tabular-nums"
+                      {/* While the hero uploads, Send is its progress: a green
+                          wave filling it as the bytes go. Full, it is the green
+                          button it was filling up to. */}
+                      {fields.heroUploading ? (
+                        <div
+                          role="progressbar"
+                          aria-label="Uploading image"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={Math.round(fields.heroProgress * 100)}
+                          className="relative flex h-[42px] flex-1 items-center justify-center gap-2 overflow-hidden rounded-full bg-alva-surface text-sm font-semibold text-muted-foreground"
+                        >
+                          <Plain2 size={16} weight="Bold" />
+                          Send
+                          <WaveFill
+                            progress={fields.heroProgress}
+                            fillClassName="bg-alva-accent text-alva-bg"
+                            aheadClassName="bg-alva-accent/30"
                           >
-                            {confirming && !stage.blocked
-                              ? `Send to ${stage.count.toLocaleString()}`
-                              : "Send"}
-                          </motion.span>
-                        </AnimatePresence>
-                      </TextureButton>
+                            <Plain2 size={16} weight="Bold" />
+                            Send
+                          </WaveFill>
+                        </div>
+                      ) : (
+                      <TextureButton
+                          variant="alva"
+                          size="default"
+                          className="flex-1"
+                          loading={busy}
+                          disabled={!composer.valid || (confirming && Boolean(stage.blocked))}
+                          title={confirming && stage.blocked ? stage.blocked : undefined}
+                          onClick={() => void press()}
+                        >
+                          <Plain2 size={16} weight="Bold" />
+                          <AnimatePresence initial={false} mode="popLayout">
+                            <motion.span
+                              key={confirming ? "confirm" : "send"}
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -8 }}
+                              transition={{ duration: 0.18 }}
+                              className="tabular-nums"
+                            >
+                              {confirming && !stage.blocked
+                                ? `Send to ${stage.count.toLocaleString()}`
+                                : "Send"}
+                            </motion.span>
+                          </AnimatePresence>
+                        </TextureButton>
+                      )}
                     </div>
                   </motion.footer>
                 ) : null}

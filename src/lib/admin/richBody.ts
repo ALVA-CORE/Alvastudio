@@ -1,157 +1,167 @@
 import type { JSONContent } from "@tiptap/react";
+import { httpsUrlProblem } from "@/lib/admin/emailMarkdown";
 
 /**
- * The email body, from the editor's document.
+ * The editor's document as the Markdown subset the API renders
+ * (`body_format: markdown`, see `emailMarkdown.ts`).
  *
- * Two renderings of one document:
+ * The backend's subset has no escape character, so text that would read as
+ * markup is kept from doing so here:
  *
- * - `toPlainText` is what is sent. `body` is plain text on the API today
- *   (endpoints-needed #6), so formatting is spelled out rather than lost:
- *   a bullet becomes "• ", a numbered item "1. ", a link "words (url)".
- *   Paragraphs are separated by a blank line, which is how the server splits
- *   them.
- * - `toEmailHtml` is the formatted body for the preview, in the template's own
- *   inline styles. Every piece of text and every link is escaped; only the
- *   tags written here are ever produced.
+ * - a typed `*` becomes `∗` (U+2217), which looks the same and is not a
+ *   marker;
+ * - a line of text starting `- ` or `1. ` gets a zero-width space in front,
+ *   so it stays a sentence rather than becoming a list;
+ * - italic that starts or ends inside a word is dropped, because the server
+ *   would not read it as italic and would show the asterisks;
+ * - italic at the edge of bold is kept apart from the bold markers by a
+ *   zero-width space, so `***` never forms.
+ *
+ * Lists are one level deep, as in the subset; nested items are lifted up.
  */
-
-const TEXT = "#F5F5F4";
-const MUTED = "#A1A1AA";
-const ACCENT = "#25F07D";
 
 type Mark = { type: string; attrs?: Record<string, unknown> };
 
-function escape(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;");
-}
-
-/** HTTPS only, as the API asks of the button. Anything else is not a link. */
+/** HTTPS only, as the API asks of every link. */
 export function safeHref(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
-  } catch {
-    return null;
-  }
+  return httpsUrlProblem(value) ? null : value;
 }
 
-const linkOf = (marks: Mark[] | undefined) =>
-  safeHref(marks?.find((mark) => mark.type === "link")?.attrs?.href);
+type Run = { text: string; bold: boolean; italic: boolean; href: string | null };
 
-/* ------------------------------------------------------------------ */
-/* Plain text                                                          */
-/* ------------------------------------------------------------------ */
+const WORD = /[\p{L}\p{N}_]/u;
 
-function inlineText(nodes: JSONContent[] | undefined): string {
-  let out = "";
-  const runs = nodes ?? [];
-  for (let index = 0; index < runs.length; index += 1) {
-    const node = runs[index];
+/** Text the subset would misread, made literal. */
+const literal = (text: string) => text.replace(/\*/g, "∗");
+
+function runsOf(nodes: JSONContent[] | undefined): Run[][] {
+  /* Split on hard breaks: each becomes its own line of the paragraph. */
+  const lines: Run[][] = [[]];
+  for (const node of nodes ?? []) {
     if (node.type === "hardBreak") {
-      out += "\n";
+      lines.push([]);
       continue;
     }
     if (node.type !== "text" || !node.text) continue;
-    const href = linkOf(node.marks as Mark[] | undefined);
-    if (!href) {
-      out += node.text;
-      continue;
-    }
-    /* One link can be split across runs by bold or italic. Gather the
-       whole of it before saying where it goes, once. */
-    let words = node.text;
-    while (
-      index + 1 < runs.length &&
-      runs[index + 1].type === "text" &&
-      linkOf(runs[index + 1].marks as Mark[] | undefined) === href
-    ) {
-      index += 1;
-      words += runs[index].text ?? "";
-    }
-    const bare = href.replace(/\/$/, "");
-    out += words === href || words === bare ? href : `${words} (${href})`;
+    const marks = (node.marks ?? []) as Mark[];
+    lines[lines.length - 1].push({
+      text: literal(node.text),
+      bold: marks.some((mark) => mark.type === "bold"),
+      italic: marks.some((mark) => mark.type === "italic"),
+      href: safeHref(marks.find((mark) => mark.type === "link")?.attrs?.href),
+    });
+  }
+  return lines;
+}
+
+/** Consecutive runs sharing `key`, as groups. */
+function group<K>(runs: Run[], key: (run: Run) => K): { key: K; runs: Run[] }[] {
+  const out: { key: K; runs: Run[] }[] = [];
+  for (const run of runs) {
+    const k = key(run);
+    const last = out[out.length - 1];
+    if (last && last.key === k) last.runs.push(run);
+    else out.push({ key: k, runs: [run] });
   }
   return out;
 }
 
-function listText(node: JSONContent): string {
-  const ordered = node.type === "orderedList";
-  const start = Number(node.attrs?.start ?? 1) || 1;
-  return (node.content ?? [])
-    .map((item, index) => {
-      const marker = ordered ? `${start + index}. ` : "• ";
-      const parts = (item.content ?? []).map((child) =>
-        child.type === "paragraph" ? inlineText(child.content) : blockText(child)
-      );
-      return marker + parts.filter(Boolean).join("\n   ");
-    })
-    .join("\n");
-}
-
-function blockText(node: JSONContent): string {
-  if (node.type === "paragraph") return inlineText(node.content);
-  if (node.type === "bulletList" || node.type === "orderedList") return listText(node);
-  return inlineText(node.content);
-}
-
-export function toPlainText(doc: JSONContent | null | undefined): string {
-  return (doc?.content ?? [])
-    .map(blockText)
-    .map((block) => block.trim())
-    .filter(Boolean)
-    .join("\n\n");
-}
-
-/* ------------------------------------------------------------------ */
-/* Email HTML                                                          */
-/* ------------------------------------------------------------------ */
-
-function inlineHtml(nodes: JSONContent[] | undefined): string {
-  return (nodes ?? [])
-    .map((node) => {
-      if (node.type === "hardBreak") return "<br>";
-      if (node.type !== "text" || !node.text) return "";
-      let html = escape(node.text);
-      const marks = (node.marks ?? []) as Mark[];
-      if (marks.some((mark) => mark.type === "italic")) html = `<em>${html}</em>`;
-      if (marks.some((mark) => mark.type === "bold")) {
-        html = `<strong style="color:${TEXT};font-weight:600;">${html}</strong>`;
-      }
-      const href = linkOf(marks);
-      if (href) {
-        html = `<a href="${escape(href)}" style="color:${ACCENT};text-decoration:underline;">${html}</a>`;
-      }
-      return html;
+/** Italic only where the server will read it: not touching a word. */
+function italics(runs: Run[], before: string, after: string): string {
+  const parts = group(runs, (run) => run.italic);
+  return parts
+    .map((part, index) => {
+      const text = part.runs.map((run) => run.text).join("");
+      if (!part.key || !text.trim()) return text;
+      const prev = index > 0 ? parts[index - 1].runs.map((r) => r.text).join("").slice(-1) : before;
+      const next =
+        index < parts.length - 1 ? parts[index + 1].runs.map((r) => r.text).join("").slice(0, 1) : after;
+      if (WORD.test(prev) || WORD.test(next)) return text;
+      /* The marker hugs the words; spaces at the edges stay outside it. */
+      const lead = text.match(/^\s*/)?.[0] ?? "";
+      const tail = text.match(/\s*$/)?.[0] ?? "";
+      return `${lead}*${text.trim()}*${tail}`;
     })
     .join("");
 }
 
-const COPY = `margin:0 0 12px;font-size:15px;line-height:1.6;color:${MUTED};`;
-
-function blockHtml(node: JSONContent): string {
-  if (node.type === "bulletList" || node.type === "orderedList") {
-    const tag = node.type === "orderedList" ? "ol" : "ul";
-    const start = Number(node.attrs?.start ?? 1) || 1;
-    const items = (node.content ?? [])
-      .map(
-        (item) =>
-          `<li style="margin:0 0 6px;">${(item.content ?? [])
-            .map((child) => (child.type === "paragraph" ? inlineHtml(child.content) : blockHtml(child)))
-            .join("")}</li>`
-      )
-      .join("");
-    return `<${tag} class="copy"${tag === "ol" && start !== 1 ? ` start="${start}"` : ""} style="${COPY}padding-left:22px;">${items}</${tag}>`;
-  }
-  const inner = inlineHtml(node.content);
-  return inner ? `<p class="copy" style="${COPY}">${inner}</p>` : "";
+function bolds(runs: Run[], before: string, after: string): string {
+  return group(runs, (run) => run.bold)
+    .map((part) => {
+      const inner = italics(part.runs, before, after);
+      if (!part.key || !inner.trim()) return inner;
+      const lead = inner.match(/^\s*/)?.[0] ?? "";
+      const tail = inner.match(/\s*$/)?.[0] ?? "";
+      /* Italic at either edge of bold would put `***` together, which the
+         server reads as bold around an unclosed italic and shows the
+         asterisk. A zero-width space between the markers keeps them apart. */
+      let words = inner.trim();
+      if (words.startsWith("*")) words = `\u200b${words}`;
+      if (words.endsWith("*")) words = `${words}\u200b`;
+      return `${lead}**${words}**${tail}`;
+    })
+    .join("");
 }
 
-export function toEmailHtml(doc: JSONContent | null | undefined): string {
-  return (doc?.content ?? []).map(blockHtml).join("");
+function line(runs: Run[]): string {
+  const links = group(runs, (run) => run.href);
+  return links
+    .map((part, index) => {
+      const before = index > 0 ? links[index - 1].runs.map((r) => r.text).join("").slice(-1) : " ";
+      const after =
+        index < links.length - 1 ? links[index + 1].runs.map((r) => r.text).join("").slice(0, 1) : " ";
+      const text = bolds(part.runs, before, after);
+      if (!part.key || !text.trim()) return text;
+      /* Square brackets would end the link's words early. */
+      return `[${text.replace(/[[\]]/g, "")}](${part.key})`;
+    })
+    .join("");
+}
+
+/** A line of a paragraph that must not turn into a list item. */
+const notAList = (text: string) => (/^(- |\d{1,3}\. )/.test(text) ? `\u200b${text}` : text);
+
+function paragraph(node: JSONContent): string {
+  return runsOf(node.content)
+    .map((runs) => notAList(line(runs).trim()))
+    .filter(Boolean)
+    .join("\n");
+}
+
+function list(node: JSONContent): string[] {
+  const ordered = node.type === "orderedList";
+  const start = Number(node.attrs?.start ?? 1) || 1;
+  const items: string[] = [];
+  for (const item of node.content ?? []) {
+    const words: string[] = [];
+    const nested: string[] = [];
+    for (const child of item.content ?? []) {
+      if (child.type === "paragraph") {
+        words.push(paragraph(child).replace(/\n/g, " "));
+      } else if (child.type === "bulletList" || child.type === "orderedList") {
+        /* Nested lists are lifted to the same level, after their parent:
+           the subset has one level. */
+        nested.push(...list(child).map((entry) => entry.replace(/^(- |\d{1,3}\. )/, "")));
+      }
+    }
+    const text = words.filter(Boolean).join(" ");
+    if (text) items.push(text);
+    items.push(...nested);
+  }
+  return items.map((text, index) => (ordered ? `${start + index}. ${text}` : `- ${text}`));
+}
+
+export function toMarkdown(doc: JSONContent | null | undefined): string {
+  const blocks: string[] = [];
+  for (const node of doc?.content ?? []) {
+    if (node.type === "bulletList" || node.type === "orderedList") {
+      const lines = list(node);
+      if (lines.length) blocks.push(lines.join("\n"));
+    } else {
+      const text = paragraph(node);
+      if (text) blocks.push(text);
+    }
+  }
+  return blocks.join("\n\n");
 }

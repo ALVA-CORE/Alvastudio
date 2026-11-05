@@ -12,6 +12,8 @@
  * somebody's inbox. If the template changes on the backend, change it here.
  */
 
+import { renderMarkdown } from "@/lib/admin/emailMarkdown";
+
 const BG = "#090909";
 const CARD = "#202020";
 const TEXT = "#F5F5F4";
@@ -78,7 +80,7 @@ export function renderEmailHtml({
   action,
   url,
   hero = COMMUNICATION_HERO,
-  bodyHtml,
+  markdown = false,
 }: {
   /** A sample, as the server's preview uses. Real messages use each name. */
   name?: string;
@@ -88,21 +90,25 @@ export function renderEmailHtml({
   url: string;
   hero?: string;
   /**
-   * The body already rendered, formatting and all (`toEmailHtml`), for the
-   * preview of what the editor holds. Must be escaped already. Without it the
-   * body is drawn from plain text, exactly as the server does.
+   * `body_format: markdown`: the body is drawn by `renderMarkdown`, as the
+   * server's `email_markdown.render` does, and the inbox preview line is its
+   * plain version. Otherwise it is plain paragraphs, escaped.
    */
-  bodyHtml?: string;
+  markdown?: boolean;
 }) {
-  const paragraphs = bodyParagraphs(body);
+  /* The server's clean-up first: CRLF to LF, and trimmed. */
+  const rendered = markdown ? renderMarkdown(body.replace(/\r\n/g, "\n").trim()) : null;
+  const paragraphs = rendered ? rendered.paragraphs : bodyParagraphs(body);
   const greeting = `Hi ${name},`;
   const year = new Date().getUTCFullYear();
-  const copy = bodyHtml ?? paragraphs
-    .map(
-      (p) =>
-        `<p class="copy" style="margin:0 0 12px;font-size:15px;line-height:1.6;color:${MUTED};">${escape(p).replace(/\n/g, "<br>")}</p>`
-    )
-    .join("");
+  const copy = rendered
+    ? rendered.html.join("")
+    : paragraphs
+        .map(
+          (p) =>
+            `<p class="copy" style="margin:0 0 12px;font-size:15px;line-height:1.6;color:${MUTED};">${escape(p).replace(/\n/g, "<br>")}</p>`
+        )
+        .join("");
   const helpLine = `Need help? Contact <a href="mailto:${SUPPORT}" style="color:${ACCENT};text-decoration:underline;">${SUPPORT}</a>`;
 
   return `<!doctype html>

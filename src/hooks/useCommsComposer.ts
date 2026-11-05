@@ -17,16 +17,27 @@ import {
 import { ApiError } from "@/lib/api/client";
 
 export type ComposerFields = {
-  /** A data URL. Preview only until the API takes a hero (endpoints-needed #7). */
+  /** What the preview shows: the dropped file at once, then its uploaded URL. */
   hero: string | null;
+  /** The uploaded image's id, sent as `hero_image_id`. Null for the brand image. */
+  heroId: string | null;
+  /** An upload still going: Send waits for it. */
+  heroUploading: boolean;
+  /** How much of it has gone, 0 to 1, for the Send button's fill. */
+  heroProgress: number;
   header: string;
   /** The editor's document, formatting and all. */
   bodyDoc: JSONContent | null;
-  /** That document as plain text: what the API is sent (endpoints-needed #6). */
+  /** That document as the Markdown subset the API renders. */
   body: string;
   button: string;
   link: string;
   audience: ApiCommunicationAudience;
+  /** People picked one by one in the To row. */
+  people: string[];
+  /** Whole states picked in the To row: everyone whose state it is. */
+  states: string[];
+  /** Both, resolved to ids: what is sent as `recipient_ids`. */
   selected: string[];
 };
 
@@ -34,12 +45,17 @@ export type ComposerFields = {
    shows where it goes. Left as it is, nothing custom is sent. */
 const EMPTY: ComposerFields = {
   hero: null,
+  heroId: null,
+  heroUploading: false,
+  heroProgress: 0,
   header: "",
   bodyDoc: null,
   body: "",
   button: DEFAULT_ACTION_LABEL,
   link: DEFAULT_ACTION_URL,
   audience: "all_contributors",
+  people: [],
+  states: [],
   selected: [],
 };
 
@@ -75,6 +91,7 @@ export function useCommsComposer() {
 
   const valid = useMemo(() => {
     if (!fields.header.trim() || !fields.body.trim()) return false;
+    if (fields.heroUploading) return false;
     const link = fields.link.trim();
     if (link && actionUrlProblem(link)) return false;
     if (fields.audience === "selected_contributors" && fields.selected.length === 0) return false;
@@ -94,7 +111,9 @@ export function useCommsComposer() {
     return {
       subject: fields.header.trim(),
       body: fields.body.trim(),
+      body_format: "markdown",
       audience: fields.audience,
+      ...(fields.heroId ? { hero_image_id: fields.heroId } : forPatch ? { hero_image_id: null } : {}),
       ...(chosen ? { recipient_ids: fields.selected } : forPatch ? { recipient_ids: [] } : {}),
       ...(custom
         ? {

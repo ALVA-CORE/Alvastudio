@@ -7,7 +7,7 @@ import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { useApiResource } from "@/hooks/useApiResource";
-import { listPrompts, listStimuli } from "@/lib/api/catalog";
+import { listAssignedPrompts, listAssignedStimuli } from "@/lib/api/catalog";
 import {
   recordingQuota,
   NARRATION_MAX_SECONDS,
@@ -76,26 +76,17 @@ export default function ContributorStudioPage() {
   const [isSaving, setSaving] = useState(false);
 
   /**
-   * The prompts handed to this contributor, paged locally.
+   * What this contributor has been handed, paged locally.
    *
-   * This used to read the whole bank on the reasoning that a prompt is not
-   * consumed by being read. **That stopped being true on 29 Oct**: each
-   * prompt now has two places, is reserved for whoever holds it for 24
-   * hours, and a third contributor trying to read it is refused.
-   *
-   * `GET /prompts` answers a contributor with their own held prompts now,
-   * so the same call returns the right set without a change here — it tops
-   * itself up to twenty, and never more than they can still read today.
-   * An empty bank means every prompt has its two readers, or they have read
-   * today's allowance.
-   *
-   * Stimuli are not capped and still page the whole list.
+   * Prompts since 29 Oct and stimuli since 5 Nov: each item has two places,
+   * is held for whoever has it for 24 hours, and a third reader is refused.
+   * `/assigned` tops itself up (20 prompts, 5 stimuli) and never hands out
+   * more than they can still do today. An empty list means everything has
+   * its two, or today's allowance is used.
    */
   const fetchBank = useCallback(
     () =>
-      mode === "stimuli"
-        ? listStimuli({ is_active: true, limit: 200 })
-        : listPrompts({ is_active: true, limit: 200 }),
+      mode === "stimuli" ? listAssignedStimuli() : listAssignedPrompts(),
     [mode]
   );
 
@@ -168,17 +159,17 @@ export default function ContributorStudioPage() {
   /**
    * Sentences sent this visit, off the stack.
    *
-   * Since 3 Nov a sentence is read once: a second reading is refused unless
-   * the first was rejected. The stack is paged locally, so a sent card
-   * stayed in it and came round again on a swipe, offering a reading the API
-   * would turn down. Prompts only: a stimulus can be narrated again.
+   * A sentence (since 3 Nov) and a stimulus (since 5 Nov) are each done
+   * once: a second go is refused unless the first was rejected. The stack is
+   * paged locally, so a sent card stayed in it and came round again on a
+   * swipe, offering something the API would turn down.
    */
   const [sent, setSent] = useState<ReadonlySet<string>>(() => new Set());
   const markSent = (id: string) =>
     setSent((prev) => new Set(prev).add(id));
 
   const items = (bank ?? [])
-    .filter((entry) => mode === "stimuli" || !sent.has(entry.id))
+    .filter((entry) => !sent.has(entry.id))
     .map((entry) => ({ id: entry.id, prompt: entry.text }));
   const total = items.length;
 
@@ -186,9 +177,9 @@ export default function ContributorStudioPage() {
    * `too_fast`: uploads are paused until this instant.
    *
    * The take is kept and Save waits, because this is the one refusal that a
-   * later retry fixes. `Retry-After` says how long when the browser can read
-   * it; it cannot yet cross-origin (endpoints-needed #5), so a minute stands
-   * in, and a second early try is simply told again.
+   * later retry fixes. `Retry-After` says how long (exposed to the browser
+   * since 5 Nov), usually under a minute. A minute stands in only if a
+   * response ever arrives without it.
    */
   const [uploadsPausedUntil, setUploadsPausedUntil] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -343,10 +334,9 @@ export default function ContributorStudioPage() {
       alvaToast.success("Clip sent for review", <Diskette size={14} weight="Bold" />);
       reloadQuota();
       recorder.discardRecording();
-      /* A sent sentence leaves the stack, and the next one takes its place
-         at the same position. A stimulus stays, so the stack moves on. */
-      if (mode === "stimuli") setIndex((value) => value + 1);
-      else markSent(card.id);
+      /* Sent, so it leaves the stack, and the next one takes its place at
+         the same position. */
+      markSent(card.id);
     } catch (cause) {
       /* Too much audio in too little time. The only refusal a later retry
          fixes, so the take stays and Save waits it out. The sentence is
@@ -367,9 +357,10 @@ export default function ContributorStudioPage() {
       }
 
       /**
-       * A prompt with both its places taken.
+       * A prompt or stimulus with both its places taken.
        *
-       * Since 29 Oct each prompt has two readers and no more. The take is
+       * Each prompt (since 29 Oct) and each stimulus (since 5 Nov) has two
+       * readers and no more. The take is
        * already recorded when this lands, so moving to the next card and
        * keeping the audio would be wrong in the other direction — the clip
        * cannot be attached to anything. Dropping it and moving on is the
@@ -379,13 +370,12 @@ export default function ContributorStudioPage() {
        * The same goes for `already_read` (they have read it, and it was not
        * rejected) and `duplicate_audio` (this exact file went up before,
        * usually a retried upload that had in fact landed). In every case the
-       * sentence is done with, so it leaves the stack.
+       * card is done with, so it leaves the stack.
        */
       if (cause instanceof ApiError && cause.status === 409) {
         alvaToast.show(cause.message, { variant: "default" });
         recorder.discardRecording();
-        if (mode === "stimuli") setIndex((value) => value + 1);
-        else markSent(card.id);
+        markSent(card.id);
         return;
       }
 

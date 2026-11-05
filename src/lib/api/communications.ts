@@ -1,14 +1,13 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiUpload } from "./client";
 
 /**
  * Admin email to contributors (4 Nov handoff, `/communications`).
  *
- * Plain text in, the branded email layout out. The subject is the email
- * subject and the heading inside the layout. The body is split into
- * paragraphs on blank lines, single newlines become line breaks, and HTML is
- * shown as text, never run. There is no rich text and no per-message hero
- * image on the API yet (endpoints-needed #6 and #7), so nothing here sends
- * either.
+ * The subject is the email subject and the heading inside the layout. The
+ * body is plain text, or since 5 Nov a fixed Markdown subset
+ * (`body_format: "markdown"`, see `lib/admin/emailMarkdown.ts`); HTML in it is
+ * shown as text, never run. A hero image is uploaded first and attached by
+ * id.
  *
  * Saving never sends. Sending is a separate, explicit call against the
  * revision the admin previewed, and a 200 from it is "queued", not
@@ -62,11 +61,17 @@ export type ApiCommunication = {
   delivery: ApiDeliveryCounts;
 };
 
+export type ApiBodyFormat = "plain" | "markdown";
+
 export type ApiCommunicationDetail = ApiCommunication & {
   body: string;
+  body_format: ApiBodyFormat;
   recipient_ids: string[];
   action_label: string | null;
   action_url: string | null;
+  hero_image_id: string | null;
+  /** Null for the brand image. */
+  hero_image_url: string | null;
 };
 
 export type ApiCommunicationPreview = {
@@ -102,6 +107,24 @@ export type ApiCommunicationDraft = {
   /** Both or neither. Neither means the standard "Open Alva Studio" button. */
   action_label?: string | null;
   action_url?: string | null;
+  /** `plain` by default. On a PATCH it may be left out; `null` is a 422. */
+  body_format?: ApiBodyFormat;
+  /** From `uploadCommunicationImage`. `null` on a PATCH puts back the brand image. */
+  hero_image_id?: string | null;
+};
+
+export type ApiCommunicationImage = { id: string; url: string; width: number; height: number };
+
+/**
+ * Upload a hero image. PNG, JPEG or WebP up to 5 MB; kept as a re-encoded
+ * JPEG at most 1200px wide, with no metadata, served publicly and never
+ * deleted. 413 over 5 MB, 415 for another type, 422 unreadable or over 40
+ * megapixels, 400 empty.
+ */
+export const uploadCommunicationImage = (file: File, onProgress?: (fraction: number) => void) => {
+  const form = new FormData();
+  form.append("file", file);
+  return apiUpload<ApiCommunicationImage>("/communications/images", form, onProgress);
 };
 
 type Page<T> = { items: T[]; total: number; limit: number; offset: number };
