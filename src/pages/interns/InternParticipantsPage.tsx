@@ -144,7 +144,6 @@ export default function InternParticipantsPage() {
           pageSize={8}
           isLoading={isLoading}
           searchPlaceholder="Search"
-          searchKeys={["nameOrId", "state", "focusGroupSession"]}
           onRowClick={handleRowClick}
           mobilePrimary={(row) => ({
             title: row.nameOrId,

@@ -120,7 +120,6 @@ export function IdentityRecheckTable({
         pageSize={10}
         isLoading={isLoading}
         searchPlaceholder="Search"
-        searchKeys={["full_name", "email"]}
         mobilePrimary={(row) => ({
           title: row.full_name,
           subtitle: row.notified ? "Told, waiting on them" : "Not told yet",

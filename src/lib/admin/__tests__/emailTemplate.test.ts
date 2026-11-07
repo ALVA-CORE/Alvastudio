@@ -6,7 +6,7 @@ import { actionUrlProblem, bodyParagraphs, renderEmailHtml } from "../emailTempl
  * The live preview is a copy of the backend's template, and a copy drifts.
  *
  * `emailTemplate.fixture.json` is the backend's own `render()` (origin/main,
- * 4 Nov), run with the inputs below. If the backend template changes,
+ * 6 Nov), run with the inputs below. If the backend template changes,
  * regenerate it from `app/services/email_templates.py` and make this pass
  * again, or the preview stops being what contributors receive.
  */

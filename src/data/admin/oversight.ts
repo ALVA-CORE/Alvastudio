@@ -3,6 +3,7 @@ import {
 } from "./shared";
 import type { SunburstNode } from "@/components/charts/sunburst-data";
 import type { SankeyFlow } from "./corpus";
+import type { ApiRejectionReason } from "@/lib/api/recordings";
 import { ANNOTATION_STATUS_COLORS, PERSON_COLORS } from "./statusColors";
 
 /* ------------------------------------------------------------------ *
@@ -93,26 +94,14 @@ export type RejectionReason =
   | "Unnatural delivery"
   | "Clipped or truncated";
 
-export const REJECTION_REASONS: RejectionReason[] = [
-  "Background noise",
-  "Too quiet",
-  "Does not match prompt",
-  "Unnatural delivery",
-  "Clipped or truncated",
-];
-
-/** Rejections grouped by cause — guidance problem or equipment problem. */
-export function rejectionBreakdown(rows: AdminRecording[]) {
-  const counts = new Map<RejectionReason, number>();
-  for (const row of rows) {
-    if (!row.rejectionReason) continue;
-    counts.set(row.rejectionReason, (counts.get(row.rejectionReason) ?? 0) + 1);
-  }
-  return REJECTION_REASONS.map((reason) => ({
-    reason,
-    count: counts.get(reason) ?? 0,
-  })).sort((a, b) => b.count - a.count);
-}
+/** The API's `rejection_reason`, worded as the page shows it. */
+export const REJECTION_REASON_LABEL: Record<ApiRejectionReason, RejectionReason> = {
+  background_noise: "Background noise",
+  too_quiet: "Too quiet",
+  prompt_mismatch: "Does not match prompt",
+  unnatural_delivery: "Unnatural delivery",
+  clipped: "Clipped or truncated",
+};
 
 /* ------------------------------------------------------------------ *
  * Annotation oversight
@@ -211,20 +200,21 @@ const FLOW_LIMIT = 6;
  * two columns to cross-reference. A thin band running mostly red is the thing
  * this chart exists to surface.
  */
-export function reviewerFlow(rows: AdminRecording[]): SankeyFlow {
-  const byReviewer = new Map<string, { approved: number; rejected: number }>();
-
-  for (const row of rows) {
-    if (!row.reviewer) continue;
-    if (row.status !== "approved" && row.status !== "rejected") continue;
-    const entry = byReviewer.get(row.reviewer) ?? { approved: 0, rejected: 0 };
-    entry[row.status] += 1;
-    byReviewer.set(row.reviewer, entry);
-  }
-
-  const top = [...byReviewer.entries()]
-    .sort((a, b) => b[1].approved + b[1].rejected - (a[1].approved + a[1].rejected))
-    .slice(0, FLOW_LIMIT);
+export function reviewerFlow(
+  tallies: {
+    reviewer_id: string;
+    reviewer_name: string | null;
+    approved: number;
+    rejected: number;
+  }[]
+): SankeyFlow {
+  /* `GET /recordings/summary` sends them most first. */
+  const top = tallies
+    .slice(0, FLOW_LIMIT)
+    .map((tally) => [
+      tally.reviewer_name ?? tally.reviewer_id.slice(0, 8),
+      { approved: tally.approved, rejected: tally.rejected },
+    ] as const);
 
   if (top.length === 0) return { nodes: [], links: [] };
 

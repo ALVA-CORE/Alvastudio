@@ -43,6 +43,8 @@ export type AlvaTableColumn<T> = {
   className?: string;
   sortable?: boolean;
   sortValue?: (row: T) => string | number;
+  /** Server-paged tables: the sort key the server takes for this column. */
+  serverSort?: string;
 };
 
 type AlvaDataTableProps<T extends { id: string }> = {
@@ -50,11 +52,6 @@ type AlvaDataTableProps<T extends { id: string }> = {
   rows: T[];
   columns: AlvaTableColumn<T>[];
   searchPlaceholder?: string;
-  /**
-   * Fields to put first. Search covers every field and every column either
-   * way; this no longer narrows it.
-   */
-  searchKeys?: (keyof T)[];
   emptyState?: {
     icon: ReactNode;
     title: string;
@@ -86,6 +83,14 @@ type AlvaDataTableProps<T extends { id: string }> = {
      * size is fixed and the picker is not shown.
      */
     onPageSizeChange?: (size: number) => void;
+    /**
+     * Search on the server: what is typed, trimmed, 300ms after the last
+     * key. Without it the search box is hidden, since searching one page
+     * would read as searching them all.
+     */
+    onQueryChange?: (query: string) => void;
+    /** Sort on the server, by a column's `serverSort`. Without it no column sorts. */
+    onSortChange?: (key: string, dir: "asc" | "desc") => void;
   };
 };
 
@@ -136,7 +141,6 @@ export function AlvaDataTable<T extends { id: string }>({
   rows,
   columns,
   searchPlaceholder = "Search",
-  searchKeys: _searchKeys,
   emptyState,
   mobilePrimary,
   renderMobileLeading,
@@ -161,9 +165,27 @@ export function AlvaDataTable<T extends { id: string }>({
   const size = serverPaging ? pageSize : ownSize;
   const canResize = Boolean(pageSize) && (!serverPaging || Boolean(serverPaging.onPageSizeChange));
 
-  const sortableColumns = serverPaging
-    ? []
-    : columns.filter((column) => column.sortable !== false && column.sortValue);
+  const canSort = (column: AlvaTableColumn<T>) =>
+    serverPaging
+      ? Boolean(serverPaging.onSortChange && column.serverSort)
+      : column.sortable !== false && Boolean(column.sortValue);
+  const sortableColumns = columns.filter(canSort);
+  const searchable = !serverPaging || Boolean(serverPaging.onQueryChange);
+
+  /* Server search, once typing pauses. The latest callback is kept in a ref
+     so a parent re-rendering does not restart the wait. */
+  const onQueryChange = useRef(serverPaging?.onQueryChange);
+  onQueryChange.current = serverPaging?.onQueryChange;
+  const sentQuery = useRef("");
+  useEffect(() => {
+    const next = query.trim();
+    if (!onQueryChange.current || next === sentQuery.current) return;
+    const timer = window.setTimeout(() => {
+      sentQuery.current = next;
+      onQueryChange.current?.(next);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   const filtered = useMemo(() => {
     if (serverPaging) return rows;
@@ -227,17 +249,17 @@ export function AlvaDataTable<T extends { id: string }>({
     }
   };
 
-  const handleHeaderSort = (key: string) => {
-    if (serverPaging) return;
+  const applySort = (key: string, dir: SortDir) => {
+    setSortKey(key);
+    setSortDir(dir);
     const column = columns.find((entry) => entry.key === key);
-    if (!column?.sortValue) return;
+    if (serverPaging && column?.serverSort) serverPaging.onSortChange?.(column.serverSort, dir);
+  };
 
-    if (sortKey === key) {
-      setSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
+  const handleHeaderSort = (key: string) => {
+    const column = columns.find((entry) => entry.key === key);
+    if (!column || !canSort(column)) return;
+    applySort(key, sortKey === key && sortDir === "asc" ? "desc" : "asc");
   };
 
   const tableColumns = renderRowActions
@@ -253,7 +275,10 @@ export function AlvaDataTable<T extends { id: string }>({
     : columns;
 
   const isNullState = rows.length === 0;
-  const isNoResults = !isNullState && filtered.length === 0 && query.trim().length > 0;
+  /* A server-paged table holds only the matches, so no rows and a query is
+     "nothing matches", not "nothing here". */
+  const isNoResults =
+    filtered.length === 0 && query.trim().length > 0 && (Boolean(serverPaging) || !isNullState);
   const isEmpty = isNullState || isNoResults;
 
   return (
@@ -263,7 +288,7 @@ export function AlvaDataTable<T extends { id: string }>({
           {title}
         </h2>
         <div className="flex w-full max-w-md items-center justify-end gap-2">
-          {serverPaging ? null : (
+          {!searchable ? null : (
           <FieldBeam radius={18} className="min-w-0 flex-1 rounded-full">
           <div className="relative">
             <Magnifier
@@ -320,7 +345,7 @@ export function AlvaDataTable<T extends { id: string }>({
               ))}
               {sortKey && (
                 <DropdownMenuItem
-                  onClick={() => setSortDir((direction) => (direction === "asc" ? "desc" : "asc"))}
+                  onClick={() => applySort(sortKey, sortDir === "asc" ? "desc" : "asc")}
                   className="text-muted-foreground"
                 >
                   Reverse direction ({sortDir === "asc" ? "descending" : "ascending"})
@@ -407,7 +432,7 @@ export function AlvaDataTable<T extends { id: string }>({
                       key={column.key}
                       className={column.key === "_actions" ? "w-12 text-right" : undefined}
                     >
-                      {column.sortValue && !serverPaging ? (
+                      {canSort(column) ? (
                         <button
                           type="button"
                           onClick={() => handleHeaderSort(column.key)}

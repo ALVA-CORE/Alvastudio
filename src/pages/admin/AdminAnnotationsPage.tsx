@@ -292,7 +292,6 @@ export default function AdminAnnotationsPage() {
           columns={columns}
           pageSize={10}
           searchPlaceholder="Search"
-          searchKeys={["code", "topic", "annotator"]}
           activeFilterCount={status === "all" ? 0 : 1}
           onRowClick={(row: AdminAnnotation) => setDetail(row)}
           mobilePrimary={(row) => ({

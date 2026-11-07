@@ -202,8 +202,7 @@ export default function AnnotatorSessionsPage() {
   const sharedTableProps = {
     pageSize: 8,
     isLoading,
-    searchPlaceholder: "Search session, topic, state",
-    searchKeys: ["code", "topic", "state", "recordedBy"] as (keyof AnnotatorSession)[],
+    searchPlaceholder: "Search",
     onRowClick: handleRowClick,
     columns,
     filterMenuContent: filterMenu,

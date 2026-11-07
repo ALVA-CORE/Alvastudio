@@ -427,7 +427,6 @@ export default function AdminUsersPage() {
           columns={columns}
           pageSize={10}
           searchPlaceholder="Search"
-          searchKeys={["fullName", "email"]}
           activeFilterCount={activeFilterCount}
           onRowClick={(row) => {
             setDetail(row);

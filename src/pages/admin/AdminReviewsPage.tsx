@@ -25,12 +25,13 @@ import {
 } from "@/data/admin/approval";
 import {
   RECORDING_STATUS_LABELS,
-  rejectionBreakdown,
+  REJECTION_REASON_LABEL,
   reviewerFlow,
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
 import { useAdminReviews } from "@/hooks/useAdminReviews";
+import type { ApiRecordingSort } from "@/lib/api/recordings";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NO_VALUE } from "@/lib/no-value";
 
@@ -67,35 +68,62 @@ const REJECTION_PALETTE = [
  * completely different fixes.
  */
 export default function AdminReviewsPage() {
-  const { rows: live, isLoading, error, reload, reassign } = useAdminReviews();
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<{ key: ApiRecordingSort; order: "asc" | "desc" }>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [detail, setDetail] = useState<AdminRecording | null>(null);
   const [reassigning, setReassigning] = useState<AdminRecording | null>(null);
-  const rows = live;
 
-  const filtered = useMemo(
-    () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
-    [rows, status]
-  );
+  const { rows, total, summary, isLoading, isFetching, error, reload, reassign } =
+    useAdminReviews({
+      status: status === "all" ? undefined : status,
+      q: query,
+      sort,
+      page,
+      pageSize,
+    });
 
-  const rejections = useMemo(() => rejectionBreakdown(rows), [rows]);
+  /* Any change of what is listed starts again from page one, in the same
+     update, so the old page is never asked for under the new filter. */
+  const showStatus = (next: StatusFilter) => {
+    setStatus(next);
+    setPage(1);
+  };
+  const search = (next: string) => {
+    setQuery(next);
+    setPage(1);
+  };
+  const sortBy = (key: string, order: "asc" | "desc") => {
+    setSort({ key: key as ApiRecordingSort, order });
+    setPage(1);
+  };
 
-  const approved = rows.filter((row) => row.status === "approved").length;
-  const rejected = rows.filter((row) => row.status === "rejected").length;
-  const pending = rows.filter(
-    (row) => row.status === "submitted" || row.status === "in_review"
-  ).length;
+  /* Every count is the server's, over all recordings, whatever the table
+     shows. */
+  const recordings = summary?.total ?? 0;
+  const approved = summary?.by_status.approved ?? 0;
+  const rejected = summary?.by_status.rejected ?? 0;
+  const pending = (summary?.awaiting_in_bank ?? 0) + (summary?.awaiting_on_desks ?? 0);
   /* Through the shared function, so this and the dashboard cannot drift into
      two different answers under the same heading again. */
   const rate = approvalRate({ approved, rejected });
 
-  const flow = useMemo(() => reviewerFlow(rows), [rows]);
+  const rejections = useMemo(
+    () =>
+      (summary?.rejection_reasons ?? [])
+        .map((entry) => ({ reason: REJECTION_REASON_LABEL[entry.reason], count: entry.count }))
+        .sort((a, b) => b.count - a.count),
+    [summary]
+  );
+
+  const flow = useMemo(() => reviewerFlow(summary?.by_reviewer ?? []), [summary]);
 
   const columns = [
     {
       key: "code",
       header: "Clip",
-      sortValue: (row: AdminRecording) => row.code,
       render: (row: AdminRecording) => (
         <span className="font-medium tabular-nums text-foreground">{row.code}</span>
       ),
@@ -103,7 +131,7 @@ export default function AdminReviewsPage() {
     {
       key: "contributor",
       header: "Contributor",
-      sortValue: (row: AdminRecording) => row.contributor,
+      serverSort: "contributor",
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.contributor}</span>
       ),
@@ -111,7 +139,7 @@ export default function AdminReviewsPage() {
     {
       key: "prompt",
       header: "Prompt",
-      sortValue: (row: AdminRecording) => row.prompt,
+      serverSort: "text",
       render: (row: AdminRecording) => (
         <TruncateCell className="max-w-sm text-muted-foreground" title={row.prompt}>
           {row.prompt}
@@ -121,7 +149,7 @@ export default function AdminReviewsPage() {
     {
       key: "mode",
       header: "Type",
-      sortValue: (row: AdminRecording) => row.mode,
+      serverSort: "session_type",
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.mode}</span>
       ),
@@ -129,7 +157,7 @@ export default function AdminReviewsPage() {
     {
       key: "duration",
       header: "Length",
-      sortValue: (row: AdminRecording) => row.durationSec,
+      serverSort: "duration",
       render: (row: AdminRecording) => (
         <span className="tabular-nums text-muted-foreground">{row.duration}</span>
       ),
@@ -137,7 +165,7 @@ export default function AdminReviewsPage() {
     {
       key: "reviewer",
       header: "Reviewer",
-      sortValue: (row: AdminRecording) => row.reviewer,
+      serverSort: "reviewer",
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">
           {row.reviewer || NO_VALUE}
@@ -147,7 +175,7 @@ export default function AdminReviewsPage() {
     {
       key: "status",
       header: "Status",
-      sortValue: (row: AdminRecording) => row.status,
+      serverSort: "status",
       render: (row: AdminRecording) => (
         <AdminStatusPill tone={STATUS_TONE[row.status]}>
           {RECORDING_STATUS_LABELS[row.status]}
@@ -157,7 +185,7 @@ export default function AdminReviewsPage() {
     {
       key: "submittedLabel",
       header: "Submitted",
-      sortValue: (row: AdminRecording) => row.submittedAt,
+      serverSort: "created_at",
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">
           {row.submittedLabel}
@@ -195,12 +223,12 @@ export default function AdminReviewsPage() {
         <MetricCard
           variant="accent"
           title="Recordings"
-          value={String(rows.length)}
+          value={recordings.toLocaleString()}
           icon={ClipboardCheck}
         />
         <MetricCard
           title="Approved"
-          value={String(approved)}
+          value={approved.toLocaleString()}
           trend={{
             label: rate === null ? "" : `${rate}% of decided`,
             positive: false,
@@ -210,12 +238,12 @@ export default function AdminReviewsPage() {
         />
         <MetricCard
           title="Rejected"
-          value={String(rejected)}
+          value={rejected.toLocaleString()}
           icon={CloseCircle}
         />
         <MetricCard
           title="Awaiting a verdict"
-          value={String(pending)}
+          value={pending.toLocaleString()}
           icon={ClockCircle}
         />
       </div>
@@ -234,19 +262,19 @@ export default function AdminReviewsPage() {
               {
                 label: "Approved",
                 value: approved,
-                total: rows.length,
+                total: recordings,
                 color: "hsl(146 87% 54%)",
               },
               {
                 label: "Awaiting",
                 value: pending,
-                total: rows.length,
+                total: recordings,
                 color: "hsl(38 92% 50%)",
               },
               {
                 label: "Rejected",
                 value: rejected,
-                total: rows.length,
+                total: recordings,
                 color: "hsl(0 72% 51%)",
               },
             ]}
@@ -302,11 +330,19 @@ export default function AdminReviewsPage() {
       <div className="mt-2">
         <AlvaDataTable
           title="All recordings"
-          rows={filtered}
+          rows={rows}
           columns={columns}
-          pageSize={10}
+          pageSize={pageSize}
+          isLoading={isFetching}
+          serverPaging={{
+            total,
+            page,
+            onPageChange: setPage,
+            onPageSizeChange: setPageSize,
+            onQueryChange: search,
+            onSortChange: sortBy,
+          }}
           searchPlaceholder="Search"
-          searchKeys={["code", "contributor", "prompt"]}
           activeFilterCount={status === "all" ? 0 : 1}
           onRowClick={(row: AdminRecording) => setDetail(row)}
           mobilePrimary={(row) => ({
@@ -322,7 +358,7 @@ export default function AdminReviewsPage() {
                 <DropdownMenuCheckboxItem
                   key={value}
                   checked={status === value}
-                  onCheckedChange={() => setStatus(value)}
+                  onCheckedChange={() => showStatus(value)}
                   onSelect={(event) => event.preventDefault()}
                 >
                   {value === "all" ? "All statuses" : RECORDING_STATUS_LABELS[value]}
@@ -333,7 +369,7 @@ export default function AdminReviewsPage() {
           emptyState={{
             icon: <ClipboardCheck size={20} weight="Outline" />,
             title: "No recordings match",
-            description: "Clear the status filter to see the rest.",
+            description: "Clear the search or the status filter to see the rest.",
           }}
         />
       </div>
@@ -347,7 +383,7 @@ export default function AdminReviewsPage() {
            "unassigned and waiting" is what the queue is. */
         onReopen={async (recording) => {
           try {
-            await reassign(recording.id, null, "");
+            await reassign(recording.id, null);
             setDetail(null);
             alvaToast.success(`${recording.code} back in the queue`);
           } catch (cause) {
@@ -366,7 +402,7 @@ export default function AdminReviewsPage() {
         onAssign={async (reviewer) => {
           if (!reassigning) return;
           try {
-            await reassign(reassigning.id, reviewer.id, reviewer.name);
+            await reassign(reassigning.id, reviewer.id);
             alvaToast.success(`Reassigned to ${reviewer.name}`);
           } catch (cause) {
             const message = reportApiError(cause, "Could not reassign that clip.");

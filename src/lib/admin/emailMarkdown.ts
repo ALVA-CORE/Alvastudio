@@ -2,7 +2,7 @@
  * The Markdown subset an email body is written in (`body_format: markdown`).
  *
  * A copy of the backend's `app/services/email_markdown.py` (origin/main,
- * 5 Nov) and `links.py`, so the live preview draws a body exactly as the
+ * 6 Nov) and `links.py`, so the live preview draws a body exactly as the
  * server will. The parity test runs both on the same input; if either file
  * changes on the backend, change it here and regenerate the fixture.
  *
@@ -33,6 +33,18 @@ const COPY = `margin:0 0 12px;font-size:15px;line-height:1.6;color:${MUTED};`;
 const LIST = `margin:0 0 12px;padding-left:22px;font-size:15px;line-height:1.6;color:${MUTED};`;
 const ITEM = "margin:0 0 4px;";
 const LINK = `color:${ACCENT};text-decoration:underline;`;
+
+/**
+ * Light text that Gmail's dark mode does not darken (`light()` in the
+ * backend's `email_templates.py`). Gmail inverts text colour; under its
+ * `u + .body` only, these two blends invert it back. Goes inside a block
+ * element, never around one. `html` is already escaped.
+ *
+ * Here rather than in `emailTemplate.ts`, which imports this file.
+ */
+export function light(html: string) {
+  return `<span class="gmail-screen"><span class="gmail-difference">${html}</span></span>`;
+}
 
 /** Python's `html.escape(value, quote=True)`. */
 function escape(value: string) {
@@ -128,7 +140,7 @@ export function renderMarkdown(body: string): RenderedMarkdown {
   for (const [kind, lines] of blocks(body)) {
     if (kind === "text") {
       const parts = lines.map((line) => inline(line));
-      html.push(`<p class="copy" style="${COPY}">` + parts.map(([h]) => h).join("<br>") + "</p>");
+      html.push(`<p class="copy muted" style="${COPY}">` + light(parts.map(([h]) => h).join("<br>")) + "</p>");
       paragraphs.push(parts.map(([, p]) => p).join("\n"));
       continue;
     }
@@ -139,8 +151,8 @@ export function renderMarkdown(body: string): RenderedMarkdown {
     const first = kind === "numbered" ? Number.parseInt(items[0].groups!.n, 10) : 1;
     const start = kind === "numbered" && first !== 1 ? ` start="${first}"` : "";
     html.push(
-      `<${tag}${start} class="copy" style="${LIST}">` +
-        parts.map(([h]) => `<li style="${ITEM}">${h}</li>`).join("") +
+      `<${tag}${start} class="copy muted" style="${LIST}">` +
+        parts.map(([h]) => `<li style="${ITEM}">${light(h)}</li>`).join("") +
         `</${tag}>`
     );
     paragraphs.push(

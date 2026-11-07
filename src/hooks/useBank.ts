@@ -67,6 +67,8 @@ export type BankView = {
   isActive?: boolean;
   /** Prompts and stimuli only. Omitted for "all". */
   recorded?: boolean;
+  /** Prompts and stimuli only: text or category contains this. Blank for none. */
+  q?: string;
   /** 1-based. */
   page: number;
   pageSize: number;
@@ -112,7 +114,7 @@ async function fetchTotals(kind: CatalogKind): Promise<BankTotals> {
  * whole and filtered and counted here, as before.
  */
 export function useBank(view: BankView) {
-  const { kind, isActive, recorded, page, pageSize } = view;
+  const { kind, isActive, recorded, q, page, pageSize } = view;
   const [items, setItems] = useState<BankItem[]>([]);
   const [total, setTotal] = useState(0);
   const [totals, setTotals] = useState<BankTotals | null>(null);
@@ -144,6 +146,7 @@ export function useBank(view: BankView) {
           offset: (page - 1) * pageSize,
           ...(isActive == null ? {} : { is_active: isActive }),
           ...(recorded == null ? {} : { recorded }),
+          ...(q ? { q } : {}),
         }),
         fetchTotals(kind),
       ]);
@@ -175,7 +178,7 @@ export function useBank(view: BankView) {
     return () => {
       cancelled = true;
     };
-  }, [kind, isActive, recorded, page, pageSize, attempt]);
+  }, [kind, isActive, recorded, q, page, pageSize, attempt]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 

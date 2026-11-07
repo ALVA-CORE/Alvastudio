@@ -129,8 +129,7 @@ export default function AdminFocusGroupsPage() {
   const sharedTableProps = {
     columns,
     pageSize: 10,
-    searchPlaceholder: "Search session, topic or intern",
-    searchKeys: ["code", "topic", "intern", "state"] as (keyof AdminSession)[],
+    searchPlaceholder: "Search",
     activeFilterCount: stateFilter === "all" ? 0 : 1,
     onRowClick: (row: AdminSession) => setDetail(row),
     mobilePrimary: (row: AdminSession) => ({

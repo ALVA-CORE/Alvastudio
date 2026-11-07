@@ -348,7 +348,6 @@ export default function AdminPaymentsPage() {
           columns={columns}
           pageSize={10}
           searchPlaceholder="Search"
-          searchKeys={["contributor"]}
           activeFilterCount={status === "all" ? 0 : 1}
           onRowClick={(row: Earning) => setDetail(row)}
           mobilePrimary={(row) => ({

@@ -164,7 +164,6 @@ export function RecoveryRequestsTable({
         columns={columns}
         pageSize={10}
         searchPlaceholder="Search"
-        searchKeys={["name", "email"]}
         /* A menu rather than two buttons: approving lets somebody into an
            account, and one deliberate step in front of it is worth having. */
         renderRowActions={(row: RecoveryRequest) => (
