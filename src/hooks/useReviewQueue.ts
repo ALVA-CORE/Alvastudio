@@ -100,7 +100,7 @@ export function useReviewQueue() {
       /* The intern's own desk. Clips are allocated on submission now, so the
        * unassigned pool they used to read is usually empty. */
       reviewsApi.reviewQueue(100, true),
-      fetchAllRows<ApiRecording>((query) => listRecordings(query)),
+      fetchAllRows<ApiRecording>((query) => listRecordings(query), { stop: () => cancelled }),
       /* Names, not ids. `RecordingOut` carries `contributor_id` and nothing
        * else, so one list turns every row's id into somebody's name.
        *
@@ -111,14 +111,15 @@ export function useReviewQueue() {
        * name and nothing else.
        *
        * Failing here still costs the names, not the queue. */
-      fetchAllPages<ApiContributorRef>((query) => listContributors(query)).catch(
-        () => null
-      ),
+      fetchAllPages<ApiContributorRef>((query) => listContributors(query), {
+        stop: () => cancelled,
+      }).catch(() => null),
       /* Their own verdicts, which is what "my history" means. Null when it
          fails, which the filter below reads as "do not filter". */
       userId
-        ? fetchAllPages<ApiReviewRow>((query) =>
-            reviewsApi.listReviews({ ...query, reviewer_id: userId })
+        ? fetchAllPages<ApiReviewRow>(
+            (query) => reviewsApi.listReviews({ ...query, reviewer_id: userId }),
+            { stop: () => cancelled }
           ).catch(() => null)
         : Promise.resolve(null),
     ])

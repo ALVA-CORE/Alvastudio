@@ -41,8 +41,9 @@ export function useAssignableStaff(roles: ApiUserRole[], enabled: boolean) {
      * omits the 201st annotator is not a bug anybody would catch. */
     Promise.all(
       key.split(",").map((role) =>
-        fetchAllPages<ApiUser>((query) =>
-          listUsers({ ...query, role: role as ApiUserRole })
+        fetchAllPages<ApiUser>(
+          (query) => listUsers({ ...query, role: role as ApiUserRole }),
+          { stop: () => cancelled }
         )
       )
     )

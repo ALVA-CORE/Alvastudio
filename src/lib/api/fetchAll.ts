@@ -22,7 +22,18 @@ export async function fetchAllPages<T>(
     pageSize = 200,
     cap = 5000,
     concurrency = 6,
-  }: { pageSize?: number; cap?: number; concurrency?: number } = {}
+    stop,
+  }: {
+    pageSize?: number;
+    cap?: number;
+    concurrency?: number;
+    /**
+     * True once the screen that asked has gone: no further pages are asked
+     * for. The few already in flight finish and are thrown away by the
+     * caller, as before.
+     */
+    stop?: () => boolean;
+  } = {}
 ): Promise<{ items: T[]; total: number; complete: boolean }> {
   const first = await page({ limit: pageSize, offset: 0 });
   const total = first.total;
@@ -39,7 +50,7 @@ export async function fetchAllPages<T>(
   const pages: T[][] = new Array(offsets.length);
   let next = 0;
   const worker = async () => {
-    while (next < offsets.length) {
+    while (next < offsets.length && !stop?.()) {
       const slot = next;
       next += 1;
       pages[slot] = (await page({ limit: pageSize, offset: offsets[slot] })).items;
@@ -78,11 +89,15 @@ export async function fetchAllPages<T>(
  */
 export async function fetchAllRows<T>(
   page: (query: { limit: number; offset: number }) => Promise<T[]>,
-  { pageSize = 200, cap = 5000 }: { pageSize?: number; cap?: number } = {}
+  {
+    pageSize = 200,
+    cap = 5000,
+    stop,
+  }: { pageSize?: number; cap?: number; stop?: () => boolean } = {}
 ): Promise<T[]> {
   const items: T[] = [];
 
-  while (items.length < cap) {
+  while (items.length < cap && !stop?.()) {
     const next = await page({ limit: pageSize, offset: items.length });
     items.push(...next);
     if (next.length < pageSize) break;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchAllPages } from "../fetchAll";
+import { fetchAllPages, fetchAllRows } from "../fetchAll";
 
 const rows = Array.from({ length: 1050 }, (_, index) => ({ id: `r${index}` }));
 
@@ -46,4 +46,35 @@ describe("fetchAllPages", () => {
     expect(result.items).toHaveLength(400);
     expect(result.complete).toBe(false);
   });
+
+  /* Leaving the page used to leave every remaining page downloading. */
+  it("asks for no more pages once the screen has gone", async () => {
+    let asked = 0;
+    let gone = false;
+    const result = await fetchAllPages(
+      async ({ limit, offset }) => {
+        asked += 1;
+        if (asked === 3) gone = true;
+        return { items: rows.slice(offset, offset + limit), total: rows.length, limit, offset };
+      },
+      { pageSize: 50, concurrency: 1, stop: () => gone }
+    );
+    expect(asked).toBe(3);
+    expect(result.complete).toBe(false);
+  });
+
+  it("stops the bare-array loader too", async () => {
+    let asked = 0;
+    let gone = false;
+    await fetchAllRows(
+      async ({ limit, offset }) => {
+        asked += 1;
+        if (asked === 2) gone = true;
+        return rows.slice(offset, offset + limit);
+      },
+      { pageSize: 50, stop: () => gone }
+    );
+    expect(asked).toBe(2);
+  });
 });
+

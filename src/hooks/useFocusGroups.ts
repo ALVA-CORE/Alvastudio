@@ -77,8 +77,9 @@ export function useInternParticipants() {
 
     (async () => {
       try {
-        const summaries = await fetchAllRows<ApiSessionSummary>((query) =>
-          listSessions({ ...query, expand: "participants" })
+        const summaries = await fetchAllRows<ApiSessionSummary>(
+          (query) => listSessions({ ...query, expand: "participants" }),
+          { stop: () => cancelled }
         );
         if (cancelled) return;
         setSessions(summaries);

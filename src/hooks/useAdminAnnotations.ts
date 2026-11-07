@@ -46,11 +46,12 @@ export function useAdminAnnotations() {
     Promise.all([
       /* `expand=tags` because the table has a tag column. It is opt-in at
        * the API since counting tags reads every span on the page. */
-      fetchAllPages<ApiAnnotationSummary>((query) =>
-        listAllAnnotations({ ...query, expand: "tags" })
+      fetchAllPages<ApiAnnotationSummary>(
+        (query) => listAllAnnotations({ ...query, expand: "tags" }),
+        { stop: () => cancelled }
       ),
-      fetchAllRows<ApiSessionSummary>((query) => listSessions(query)),
-      fetchAllPages<ApiUser>((query) => listUsers(query)),
+      fetchAllRows<ApiSessionSummary>((query) => listSessions(query), { stop: () => cancelled }),
+      fetchAllPages<ApiUser>((query) => listUsers(query), { stop: () => cancelled }),
     ])
       .then(([annotations, sessions, users]) => {
         if (cancelled) return;

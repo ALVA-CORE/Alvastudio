@@ -26,8 +26,9 @@ export function useInternReviewCount(reviewerId: string | undefined) {
 
     let cancelled = false;
 
-    fetchAllPages<ApiReviewRow>((query) =>
-      listReviews({ ...query, reviewer_id: reviewerId })
+    fetchAllPages<ApiReviewRow>(
+      (query) => listReviews({ ...query, reviewer_id: reviewerId }),
+      { stop: () => cancelled }
     )
       .then((page) => {
         if (!cancelled) setReviews(page.items);

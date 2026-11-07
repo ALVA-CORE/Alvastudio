@@ -32,10 +32,13 @@ export function useAdminSessions() {
     setLoading(true);
 
     Promise.all([
-      fetchAllRows<ApiSessionSummary>((query) =>
-        listSessions({ ...query, expand: "participants" })
+      fetchAllRows<ApiSessionSummary>(
+        (query) => listSessions({ ...query, expand: "participants" }),
+        { stop: () => cancelled }
       ),
-      fetchAllPages<ApiUser>((query) => listUsers({ ...query, role: "intern" })),
+      fetchAllPages<ApiUser>((query) => listUsers({ ...query, role: "intern" }), {
+        stop: () => cancelled,
+      }),
     ])
       .then(([sessions, interns]) => {
         if (cancelled) return;

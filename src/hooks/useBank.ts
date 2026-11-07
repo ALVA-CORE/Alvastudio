@@ -134,7 +134,9 @@ export function useBank(view: BankView) {
 
     const load = async () => {
       if (kind === "topic") {
-        const { items: all } = await fetchAllPages((query) => listTopicsPage(query));
+        const { items: all } = await fetchAllPages((query) => listTopicsPage(query), {
+          stop: () => cancelled,
+        });
         const rows = all.map((item) => toBankItem(item, "topic"));
         const shown = rows.filter((row) => isActive == null || row.isActive === isActive);
         return { rows: shown, total: shown.length, totals: bankTotalsFromRows(rows) };
