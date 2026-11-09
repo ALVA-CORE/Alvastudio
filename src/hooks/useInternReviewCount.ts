@@ -1,53 +1,58 @@
 import { useEffect, useState } from "react";
-import { fetchAllPages } from "@/lib/api/fetchAll";
-import { listReviews, type ApiReviewRow } from "@/lib/api/reviews";
+import { listReviews } from "@/lib/api/reviews";
+
+const PAGE = 200;
 
 /**
- * Clips this intern has decided, inside a window.
+ * Clips this intern has decided in the last `days` days.
  *
- * `GET /dashboard/intern` does not carry one. The card read `0` for everybody
- * because it fell through to the empty dataset, and an intern who had just
- * reviewed a clip was told they had reviewed nothing.
+ * `GET /dashboard/intern` does not carry it, and `GET /reviews` has no date
+ * filter, so it is counted from `GET /reviews?reviewer_id=…`, which lists
+ * verdicts newest first. Pages are read only until one reaches a verdict
+ * older than the window: a week's count is usually one request. It used to
+ * read every verdict the intern had ever given, about 35 requests of 200,
+ * on every visit, to count the few inside the window.
  *
- * Counted from `GET /reviews?reviewer_id=…` rather than from the dashboard's
- * `quality_in_window.clip_approval.denominator`, which is close but is
- * measured over the API's own 365-day window. The card says "Last 30 days",
- * and a figure under a label it does not match is how the admin screens came
- * to disagree with each other.
+ * Counted here rather than from the dashboard's
+ * `quality_in_window.clip_approval.denominator`, which is measured over the
+ * API's own 365-day window, not the one the card is labelled with.
+ *
+ * Null while unknown, so the card can show a dash rather than a false zero.
  */
-export function useInternReviewCount(reviewerId: string | undefined) {
-  const [reviews, setReviews] = useState<ApiReviewRow[] | null>(null);
+export function useInternReviewCount(reviewerId: string | undefined, days: number) {
+  const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!reviewerId) {
-      setReviews(null);
-      return;
-    }
+    setCount(null);
+    if (!reviewerId) return;
 
     let cancelled = false;
+    const since = Date.now() - days * 24 * 60 * 60 * 1000;
 
-    fetchAllPages<ApiReviewRow>(
-      (query) => listReviews({ ...query, reviewer_id: reviewerId }),
-      { stop: () => cancelled }
-    )
-      .then((page) => {
-        if (!cancelled) setReviews(page.items);
+    (async () => {
+      let inWindow = 0;
+      for (let offset = 0; !cancelled; offset += PAGE) {
+        const page = await listReviews({ reviewer_id: reviewerId, limit: PAGE, offset });
+        const times = page.items.map((review) => new Date(review.created_at).getTime());
+        inWindow += times.filter((time) => time >= since).length;
+        /* Newest first: once a page reaches past the window, nothing after
+           it can be inside. */
+        const reachedPast = times.some((time) => time < since);
+        if (reachedPast || page.items.length < PAGE || offset + PAGE >= page.total) break;
+      }
+      return inWindow;
+    })()
+      .then((value) => {
+        if (!cancelled) setCount(value);
       })
       .catch(() => {
-        if (!cancelled) setReviews(null);
+        if (!cancelled) setCount(null);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [reviewerId]);
+  }, [reviewerId, days]);
 
-  /** Null while unknown, so a card can show a dash rather than a false zero. */
-  return (days: number): number | null => {
-    if (reviews === null) return null;
-
-    const since = Date.now() - days * 24 * 60 * 60 * 1000;
-    return reviews.filter((review) => new Date(review.created_at).getTime() >= since)
-      .length;
-  };
+  return count;
 }

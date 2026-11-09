@@ -98,4 +98,15 @@ describe("useAdminReviews", () => {
     await waitFor(() => expect(listRecordingsPage).toHaveBeenCalledTimes(2));
     expect(recordingsSummary).toHaveBeenCalledTimes(1);
   });
+
+  /* From an intern's panel: only what they judged, and whose clip it is. */
+  it("narrows to one reviewer, and carries the people's ids", async () => {
+    const { result } = renderHook(() =>
+      useAdminReviews({ q: "", judgedBy: "r1", page: 1, pageSize: 10 })
+    );
+    await waitFor(() => expect(result.current.rows).toHaveLength(1));
+    expect(listRecordingsPage.mock.calls[0][0]).toMatchObject({ judged_by: "r1" });
+    expect(result.current.rows[0]).toMatchObject({ contributorId: "c1", reviewerId: "r1" });
+  });
 });
+

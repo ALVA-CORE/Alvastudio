@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
@@ -15,6 +16,7 @@ import { ReviewerFlowChart } from "@/components/admin/shared/ReviewerFlowChart";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { RecordingDetailPanel } from "@/components/admin/reviews/RecordingDetailPanel";
 import { ReassignReviewerDialog } from "@/components/admin/shared/ReassignReviewerDialog";
+import { UserPanelHost } from "@/components/admin/users/UserPanelHost";
 import { alvaToast } from "@/lib/alva-toast";
 import { StatusRings } from "@/components/admin/shared/StatusRings";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
@@ -71,7 +73,19 @@ export default function AdminReviewsPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ key: ApiRecordingSort; order: "asc" | "desc" }>();
-  const [page, setPage] = useState(1);
+  /* "Reviewed by", from the link on an intern's panel: `?judged_by=<id>`,
+     with their name to show on the chip. */
+  const [params, setParams] = useSearchParams();
+  const judgedBy = params.get("judged_by") ?? undefined;
+  const judgedByName = params.get("name") ?? "one reviewer";
+  const [paging, setPaging] = useState({ page: 1, judgedBy });
+  /* A new "Reviewed by" starts at page one in the same render, not one
+     request later. */
+  const page = paging.judgedBy === judgedBy ? paging.page : 1;
+  const setPage = (next: number) => setPaging({ page: next, judgedBy });
+  const [personId, setPersonId] = useState<string | null>(null);
+  const closePerson = useCallback(() => setPersonId(null), []);
+  useEffect(() => setPersonId(null), [judgedBy]);
   const [pageSize, setPageSize] = useState(10);
   const [detail, setDetail] = useState<AdminRecording | null>(null);
   const [reassigning, setReassigning] = useState<AdminRecording | null>(null);
@@ -80,6 +94,7 @@ export default function AdminReviewsPage() {
     useAdminReviews({
       status: status === "all" ? undefined : status,
       q: query,
+      judgedBy,
       sort,
       page,
       pageSize,
@@ -329,6 +344,21 @@ export default function AdminReviewsPage() {
       </div>
 
       <div className="mt-2">
+        {judgedBy ? (
+          <div className="mb-2 flex">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-alva-surface py-1 pl-3 pr-1.5 text-xs text-foreground">
+              Reviewed by {judgedByName}
+              <button
+                type="button"
+                aria-label="Clear the reviewer filter"
+                onClick={() => setParams({}, { replace: true })}
+                className="rounded-full text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <CloseCircle size={15} weight="Bold" />
+              </button>
+            </span>
+          </div>
+        ) : null}
         <AlvaDataTable
           title="All recordings"
           rows={rows}
@@ -344,7 +374,7 @@ export default function AdminReviewsPage() {
             onSortChange: sortBy,
           }}
           searchPlaceholder="Search"
-          activeFilterCount={status === "all" ? 0 : 1}
+          activeFilterCount={(status === "all" ? 0 : 1) + (judgedBy ? 1 : 0)}
           onRowClick={(row: AdminRecording) => setDetail(row)}
           mobilePrimary={(row) => ({
             title: row.code,
@@ -393,7 +423,10 @@ export default function AdminReviewsPage() {
           }
         }}
         onReassign={(row: AdminRecording) => setReassigning(row)}
+        onOpenPerson={setPersonId}
       />
+
+      <UserPanelHost userId={personId} onClose={closePerson} />
 
       <ReassignReviewerDialog
         open={reassigning !== null}

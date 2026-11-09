@@ -16,6 +16,8 @@ the other document points here.
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
 | 10 | Keep the email button our green in Gmail's dark mode | The button shows a darker, wrong green in the Gmail apps | Medium |
+| 11 | Page the annotations and focus-group lists on the server | Both admin pages download every row (and every user) on each visit | Medium |
+| 12 | How many clips were dealt to an intern | The intern's "Assigned and reviewed" bar runs on sample figures | Medium |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -63,4 +65,67 @@ that light mode is unchanged.
 
 The composer's preview copy follows the template; when it changes, we update
 ours and its parity test.
+
+---
+
+## 11. Page the annotations and focus-group lists on the server
+
+You asked (9 Nov, section 5) to be told when another table needs what
+recordings got. These two do: each downloads its whole list on every visit,
+plus a user list only to put names on the rows, and both lists only grow.
+
+**`/admin/annotations`** today reads every annotation (`GET /annotations`),
+every session (`GET /focus-groups`) and every user (`GET /users`).
+
+- **A name on each row:** `annotator_name` on `AnnotationSummary`, as
+  `FocusGroupSessionSummary` already has. Rows carry only `annotator_id`, so
+  the page reads every user to name them.
+- **Search and sort on `GET /annotations`:** `q` over the id, the topic and
+  the annotator's name; `sort` and `order` over `topic`, `annotator`,
+  `segment_count`, `tag_count`, `duration`, `status` and `created_at`.
+  `status` is there already.
+- **The cards and the chart, counted over everything:** total annotations;
+  `approved`; in progress (`draft` + `in_progress`); and, for "Annotator
+  throughput", each annotator's count by status.
+- **"Waiting to be claimed":** sessions with audio and no annotation. Today
+  the page works it out from every session against every annotation. A
+  filter for it on `GET /focus-groups`, with `total`, would replace both
+  downloads.
+
+**`/admin/focus-groups`** today reads every session and every intern.
+
+- **A name on each row:** `intern_name` on `FocusGroupSessionSummary`. Rows
+  carry only `intern_id`.
+- **Filters on `GET /focus-groups`:** `state`, and `has_audio` (the "Missing
+  audio" tab), with `total`.
+- **Search and sort:** `q` over the id, the topic, the intern's name and the
+  state; `sort` and `order` over `topic`, `intern`, `state`,
+  `participant_count`, `duration`, `has_audio` and `created_at`.
+- **The cards, counted over everything:** sessions, hours recorded, speakers
+  captured, and sessions missing audio.
+
+With those, both pages move to one page at a time the way reviews did: the
+table from the list, the cards from a summary.
+
+---
+
+## 12. How many clips were dealt to an intern
+
+The user panel's Activity tab for an intern now has an "Assigned and reviewed"
+bar under the contribution graph: of the clips dealt to them, how many they
+have judged. It tells an admin whether an intern is keeping up with their
+desk. `UserActivity.intern` has `clips_reviewed` but nothing for what was
+dealt, so the bar runs on sample figures, marked "Sample" on screen.
+
+**What would fix it:** on `UserActivity.intern`, over the same window as the
+rest:
+
+- `clips_assigned`: clips dealt to them, from the bank or by an admin's
+  reassignment;
+- `on_desk`: clips on their desk now, still waiting for their verdict;
+- `taken_back`: clips that left their desk without a verdict (reopened,
+  reassigned, or handed back when they stopped reviewing).
+
+We would show `clips_reviewed` against `clips_assigned`, with the other two
+as the rest of the bar, so the parts add up to what was dealt.
 

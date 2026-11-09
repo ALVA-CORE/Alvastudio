@@ -434,7 +434,9 @@ export function UserDetailPanel({
           </>
         ) : null}
 
-        {tab === "activity" ? <UserActivitySection activity={activity} /> : null}
+        {tab === "activity" ? (
+          <UserActivitySection activity={activity} name={user.fullName} />
+        ) : null}
 
         {tab === "audit" ? (
           <>

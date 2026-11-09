@@ -61,9 +61,7 @@ export function useAdminAnnotations() {
         const annotated = new Set(annotations.items.map((row) => row.session_id));
 
         setRows(
-          annotations.items.map((row, index) =>
-            toAdminAnnotation(row, index, names, sessionById)
-          )
+          annotations.items.map((row) => toAdminAnnotation(row, names, sessionById))
         );
 
         /* Uploaded, and nobody has started on it. Sessions without audio are
@@ -147,7 +145,6 @@ export function useAdminAnnotations() {
 
 function toAdminAnnotation(
   api: ApiAnnotationSummary,
-  index: number,
   names: Map<string, string>,
   sessions: Map<string, ApiSessionSummary>
 ): AdminAnnotation {
@@ -159,8 +156,9 @@ function toAdminAnnotation(
 
   return {
     id: api.id,
-    /* A short handle. The API's id is a UUID, which nobody reads aloud. */
-    code: `ANN-${String(index + 1).padStart(4, "0")}`,
+    /* The first eight characters of the id: stable, unlike a position in a
+       list that every new annotation renumbered. */
+    code: api.id.slice(0, 8),
     topic: api.topic ?? session?.topic ?? "Session unavailable",
     annotator: names.get(api.annotator_id) ?? "Unassigned",
     status: api.status as AnnotationStatus,

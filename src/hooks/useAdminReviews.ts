@@ -36,6 +36,8 @@ export type ReviewsView = {
   status?: ApiRecordingStatus;
   /** Blank for no search. */
   q: string;
+  /** Only clips this person has judged. */
+  judgedBy?: string;
   /** Omitted for the server's default, newest first. */
   sort?: { key: ApiRecordingSort; order: "asc" | "desc" };
   /** 1-based. */
@@ -54,7 +56,7 @@ export type ReviewsView = {
  * verdict where it wanted the newest and lost rows to uploads mid-load.
  */
 export function useAdminReviews(view: ReviewsView) {
-  const { status, q, sort, page, pageSize } = view;
+  const { status, q, judgedBy, sort, page, pageSize } = view;
   const [rows, setRows] = useState<AdminRecording[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<ApiRecordingSummary | null>(null);
@@ -84,6 +86,7 @@ export function useAdminReviews(view: ReviewsView) {
           expand: "verdicts",
           ...(status ? { status } : {}),
           ...(q ? { q } : {}),
+          ...(judgedBy ? { judged_by: judgedBy } : {}),
           ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
         },
         controller.signal
@@ -110,7 +113,7 @@ export function useAdminReviews(view: ReviewsView) {
       });
 
     return () => controller.abort();
-  }, [status, q, sortKey, sortOrder, page, pageSize, attempt]);
+  }, [status, q, judgedBy, sortKey, sortOrder, page, pageSize, attempt]);
 
   /** The page and the counts again, as after a reassign or a reopen. */
   const reload = useCallback(() => {
@@ -158,6 +161,7 @@ function toAdminRecording(api: ApiRecording): AdminRecording {
        list that every upload renumbers, and what `q` matches. */
     code: api.id.slice(0, 8),
     contributor: api.contributor_name ?? "Unknown",
+    contributorId: api.contributor_id,
     mode: MODE[api.session_type] ?? "Prompt read",
     prompt: api.prompt_text ?? api.stimulus_text ?? "",
     durationSec,
@@ -168,6 +172,7 @@ function toAdminRecording(api: ApiRecording): AdminRecording {
     variety: VARIETY[api.language_variety ?? ""] ?? "Nigerian English",
     status: api.status as RecordingStatus,
     reviewer: api.reviewer_name ?? (api.assigned_reviewer_id ? "Assigned" : ""),
+    reviewerId: api.assigned_reviewer_id ?? undefined,
     submittedAt: submitted.getTime(),
     reviewedAt: api.reviewed_at ? new Date(api.reviewed_at).getTime() : 0,
     submittedLabel: relativeDays(submitted),
