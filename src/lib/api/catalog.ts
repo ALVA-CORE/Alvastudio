@@ -35,14 +35,11 @@ export type CatalogQuery = {
    * `items` and `total`, not `bank_total` or `recorded_total`.
    */
   recorded?: boolean;
+  /** Text or category contains this, ignoring case, taken literally. Up to 200. */
+  q?: string;
   limit?: number;
   offset?: number;
 };
-
-export const listPrompts = (query: CatalogQuery = {}) =>
-  apiFetch<ApiPrompt[]>("/prompts", { query });
-export const listStimuli = (query: CatalogQuery = {}) =>
-  apiFetch<ApiPrompt[]>("/stimuli", { query });
 
 /** A prompt or stimulus held for this contributor, until `reserved_until`. */
 export type ApiAssignedItem = ApiPrompt & { reserved_until: string };

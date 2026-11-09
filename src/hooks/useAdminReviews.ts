@@ -1,31 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
-import { fetchAllPages } from "@/lib/api/fetchAll";
-
-/**
- * Enough for the corpus as it stands and well past it. Still a backstop:
- * a server reporting a total it will not serve must not request forever.
- */
-const ALL_ROWS = 50_000;
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   assignReviewer,
   listRecordingsPage,
+  recordingsSummary,
   type ApiRecording,
+  type ApiRecordingSort,
+  type ApiRecordingSummary,
+  type ApiRecordingVerdict,
 } from "@/lib/api/recordings";
-import { listReviews, type ApiReviewRow } from "@/lib/api/reviews";
-import type { ApiQualityAnswer } from "@/lib/api/enums";
-import { listUsers, type ApiUser } from "@/lib/api/users";
+import type { ApiRecordingStatus } from "@/lib/api/enums";
 import { reportApiError } from "@/lib/api/reportApiError";
 import {
+  REJECTION_REASON_LABEL,
   RUBRIC_QUESTIONS,
+  type AdminRecording,
+  type RecordingStatus,
   type RubricAnswer,
   type RubricEntry,
 } from "@/data/admin/oversight";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
-import type {
-  AdminRecording,
-  RecordingStatus,
-  RejectionReason,
-} from "@/data/admin/oversight";
 
 const VARIETY: Record<string, "Nigerian English" | "Nigerian Pidgin"> = {
   nigerian_english: "Nigerian English",
@@ -38,140 +31,133 @@ const MODE: Record<string, AdminRecording["mode"]> = {
   focus_group: "Focus group",
 };
 
-/**
- * Why a clip was turned down, read back off the rubric.
- *
- * There is no rejection-reason field at the API. There are four answers, and
- * the first "no" among them is the reason, in the order a reviewer would have
- * noticed the problem: you hear the noise before you judge whether the reading
- * matched the prompt.
- */
-function rejectionReason(review: ApiReviewRow | undefined): RejectionReason | undefined {
-  if (!review || review.verdict !== "reject") return undefined;
-  if (review.q_noise_free === "no") return "Background noise";
-  if (review.q_clear_audible === "no") return "Too quiet";
-  if (review.q_matches_prompt === "no") return "Does not match prompt";
-  if (review.q_natural_intelligible === "no") return "Unnatural delivery";
-  return "Clipped or truncated";
-}
+export type ReviewsView = {
+  /** Omitted for every status. */
+  status?: ApiRecordingStatus;
+  /** Blank for no search. */
+  q: string;
+  /** Omitted for the server's default, newest first. */
+  sort?: { key: ApiRecordingSort; order: "asc" | "desc" };
+  /** 1-based. */
+  page: number;
+  pageSize: number;
+};
 
 /**
- * The admin reviews screen: every clip, and the verdict on it.
+ * The admin reviews screen: one page of clips, and the counts over all of them.
  *
- * Three requests, not one per row. `GET /recordings` gives the clips but names
- * nobody, `GET /users` resolves the two ids on each, and `GET /reviews`
- * carries the rubric answers that the detail panel exists to show. Joining
- * them here means the table renders from one shape and the panel needs no
- * further fetch.
+ * The table is a page of `GET /recordings`, searched, sorted and filtered on
+ * the server, each row carrying its verdicts (`expand=verdicts`, newest
+ * first). The cards and charts are `GET /recordings/summary`, over every
+ * recording whatever the table shows. It used to download every clip, every
+ * verdict and every user and work all of it out here, which kept the oldest
+ * verdict where it wanted the newest and lost rows to uploads mid-load.
  */
-export function useAdminReviews() {
+export function useAdminReviews(view: ReviewsView) {
+  const { status, q, sort, page, pageSize } = view;
   const [rows, setRows] = useState<AdminRecording[]>([]);
-  const [reviews, setReviews] = useState<Map<string, ApiReviewRow>>(new Map());
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<ApiRecordingSummary | null>(null);
+  /* The page skeleton until both first answers are in; after that only the
+     table waits. */
   const [isLoading, setLoading] = useState(true);
+  const [isFetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const loadedOnce = useRef(false);
+
+  const sortKey = sort?.key;
+  const sortOrder = sort?.order;
 
   useEffect(() => {
-    let cancelled = false;
+    /* A page, search or sort that is replaced is aborted, so a slow old
+       answer cannot land on top of the new one. */
+    const controller = new AbortController();
+    const cancelled = () => controller.signal.aborted;
+    setFetching(true);
 
-
-    setLoading(true);
-
-    /* Every page, not the first one. The API caps `limit` at 200, so a
-       single call was silently answering "the first 200" to a screen whose
-       headline figure, status ring and approval gauge are all counts of the
-       whole queue. See `fetchAllPages`. */
-    /* Past the default 5,000. The recordings route has no search, so the
-       table can only search, count and filter what is loaded; at the cap it
-       read "of 5,000" with the oldest clips missing from all three. */
     Promise.all([
-      fetchAllPages<ApiRecording>((query) => listRecordingsPage(query), { cap: ALL_ROWS }),
-      fetchAllPages<ApiUser>((query) => listUsers(query)),
-      fetchAllPages<ApiReviewRow>((query) => listReviews(query), { cap: ALL_ROWS }),
+      listRecordingsPage(
+        {
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          expand: "verdicts",
+          ...(status ? { status } : {}),
+          ...(q ? { q } : {}),
+          ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
+        },
+        controller.signal
+      ),
+      /* Counts move only with verdicts and uploads, not with the table's
+         filters, so they are read with the first page and on reload. */
+      loadedOnce.current ? Promise.resolve(null) : recordingsSummary(controller.signal),
     ])
-      .then(([recordings, users, reviewPage]) => {
-        if (cancelled) return;
-
-        const names = new Map(users.items.map((user) => [user.id, user.full_name]));
-        const byRecording = new Map(
-          reviewPage.items.map((review) => [review.recording_id, review])
-        );
-
-        setReviews(byRecording);
-        setRows(
-          recordings.items.map((recording, index) =>
-            toAdminRecording(recording, index, names, byRecording)
-          )
-        );
+      .then(([pageResult, nextSummary]) => {
+        if (cancelled()) return;
+        setRows(pageResult.items.map(toAdminRecording));
+        setTotal(pageResult.total);
+        if (nextSummary) setSummary(nextSummary);
+        loadedOnce.current = true;
         setError(null);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(reportApiError(cause, "Could not load recordings."));
+        if (!cancelled()) setError(reportApiError(cause, "Could not load recordings."));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled()) return;
+        setLoading(false);
+        setFetching(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt]);
+    return () => controller.abort();
+  }, [status, q, sortKey, sortOrder, page, pageSize, attempt]);
+
+  /** The page and the counts again, as after a reassign or a reopen. */
+  const reload = useCallback(() => {
+    loadedOnce.current = false;
+    setAttempt((value) => value + 1);
+  }, []);
 
   const reassign = useCallback(
-    async (recordingId: string, reviewerId: string | null, reviewerName: string) => {
+    async (recordingId: string, reviewerId: string | null) => {
       await assignReviewer(recordingId, reviewerId);
-      setRows((prev) =>
-        prev.map((row) =>
-          row.id === recordingId ? { ...row, reviewer: reviewerName } : row
-        )
-      );
+      reload();
     },
-    []
+    [reload]
   );
 
-  return {
-    rows,
-    reviews,
-    isLoading,
-    error,
-    reload: useCallback(() => setAttempt((value) => value + 1), []),
-    reassign,
-  };
+  return { rows, total, summary, isLoading, isFetching, error, reload, reassign };
 }
 
 /** The four answers, in the order the rubric asks them. */
-function toRubric(review: ApiReviewRow): RubricEntry[] {
-  const answers: Record<string, ApiQualityAnswer> = {
-    noiseFree: review.q_noise_free,
-    audible: review.q_clear_audible,
-    matchesPrompt: review.q_matches_prompt,
-    natural: review.q_natural_intelligible,
+function toRubric(verdict: ApiRecordingVerdict): RubricEntry[] {
+  const answers: Record<string, RubricAnswer> = {
+    noiseFree: verdict.q_noise_free,
+    audible: verdict.q_clear_audible,
+    matchesPrompt: verdict.q_matches_prompt,
+    natural: verdict.q_natural_intelligible,
   };
 
   return RUBRIC_QUESTIONS.map((question) => ({
     ...question,
-    answer: answers[question.id] as RubricAnswer,
+    answer: answers[question.id],
   }));
 }
 
-function toAdminRecording(
-  api: ApiRecording,
-  index: number,
-  names: Map<string, string>,
-  reviews: Map<string, ApiReviewRow>
-): AdminRecording {
+function toAdminRecording(api: ApiRecording): AdminRecording {
   const submitted = new Date(api.created_at);
-  const review = reviews.get(api.id);
+  /* Newest first: the verdict the status reflects. */
+  const latest = api.verdicts?.[0];
   /* Measured from the stored file where we have it; the browser's figure
      was never checked. */
   const durationSec = Math.round(api.measured_duration_seconds ?? api.duration_seconds ?? 0);
 
   return {
     id: api.id,
-    /* A short human handle. The API's id is a UUID, which nobody reads out
-     * over a call, and the list is ordered so position is stable enough. */
-    code: `REC-${String(index + 1).padStart(4, "0")}`,
-    contributor: api.contributor_name ?? names.get(api.contributor_id) ?? "Unknown",
+    /* The first eight characters of the id: stable, unlike a position in a
+       list that every upload renumbers, and what `q` matches. */
+    code: api.id.slice(0, 8),
+    contributor: api.contributor_name ?? "Unknown",
     mode: MODE[api.session_type] ?? "Prompt read",
     prompt: api.prompt_text ?? api.stimulus_text ?? "",
     durationSec,
@@ -183,16 +169,15 @@ function toAdminRecording(
     status: api.status as RecordingStatus,
     reviewer: api.reviewer_name ?? (api.assigned_reviewer_id ? "Assigned" : ""),
     submittedAt: submitted.getTime(),
-    /* The real decision time. The history used to put it two hours after
-     * submission, which was a number nobody measured. */
     reviewedAt: api.reviewed_at ? new Date(api.reviewed_at).getTime() : 0,
     submittedLabel: relativeDays(submitted),
-    rejectionReason: rejectionReason(review),
+    rejectionReason: latest?.rejection_reason
+      ? REJECTION_REASON_LABEL[latest.rejection_reason]
+      : undefined,
     /* The reviewer's real answers, or nothing. Null is not "all yes": it is
-       "nobody has judged this", and the panel says so rather than printing
-       four rows under a heading that claims somebody did. */
-    rubric: review ? toRubric(review) : null,
-    reviewNotes: review?.notes ?? null,
+       "nobody has judged this", and the panel says so. */
+    rubric: latest ? toRubric(latest) : null,
+    reviewNotes: latest?.notes ?? null,
     audioUrl: "",
   };
 }

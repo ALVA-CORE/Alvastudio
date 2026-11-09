@@ -17,7 +17,7 @@ import {
 } from "@/data/admin/users";
 import type { Earning, PayoutStatus, Rate, RateUnit } from "@/data/admin/payments";
 import {
-  REJECTION_REASONS,
+  REJECTION_REASON_LABEL,
   type AdminRecording,
   type RecordingStatus,
 } from "@/data/admin/oversight";
@@ -329,7 +329,7 @@ function buildRecordings(count: number): AdminRecording[] {
       submittedLabel: relativeDays(submitted),
       rejectionReason:
         status === "rejected" || status === "flagged"
-          ? pick(random, REJECTION_REASONS)
+          ? pick(random, Object.values(REJECTION_REASON_LABEL))
           : undefined,
       /* Demo mode only, and only where a verdict exists. An undecided clip
          has nobody's answers on it here either. */

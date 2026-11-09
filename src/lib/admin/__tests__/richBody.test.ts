@@ -7,7 +7,7 @@ import { toMarkdown } from "../richBody";
 
 /**
  * `emailMarkdown.fixture.json` is the backend's own `email_markdown.render`
- * and `email_templates.render` (origin/main, 5 Nov) on the body inside it. If
+ * and `email_templates.render` (origin/main, 6 Nov) on the body inside it. If
  * either changes on the backend, regenerate the fixture from them.
  */
 describe("renderMarkdown", () => {

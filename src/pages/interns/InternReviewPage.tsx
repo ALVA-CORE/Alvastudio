@@ -4,7 +4,8 @@ import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { TextureButton } from "@/components/ui/texture-button";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { REVIEW_STATUS_LABELS, type ReviewQueueItem } from "@/data/reviewQueue";
-import { useReviewQueue } from "@/hooks/useReviewQueue";
+import { useReviewHistory, useReviewQueue } from "@/hooks/useReviewQueue";
+import type { ApiRecordingSort } from "@/lib/api/recordings";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getReviewDisplayStatus } from "@/lib/review-progress";
@@ -29,27 +30,31 @@ function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) 
 export default function InternReviewPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"pending" | "completed">("pending");
-  /* Live. `/reviews/queue` is unclaimed work, `/recordings` is everything this
-   * reviewer can see; the hook merges them into the existing row shape. */
-  const { items, isLoading, error, reload, assignNext, isAssigning } = useReviewQueue();
-  const queueRows = items;
+  /* Their desk, and how many wait in the bank for one. */
+  const { items, waiting, isLoading, error, reload, assignNext, isAssigning } =
+    useReviewQueue();
+
+  /* Their history, a page at a time, once the tab is opened. Search and sort
+     go back to page one in the same update. */
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(8);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historySort, setHistorySort] = useState<{ key: ApiRecordingSort; order: "asc" | "desc" }>();
+  const history = useReviewHistory({
+    q: historyQuery,
+    sort: historySort,
+    page: historyPage,
+    pageSize: historyPageSize,
+    enabled: tab === "completed",
+  });
 
   const pendingRows = useMemo(
     () =>
-      queueRows.filter((row) => {
+      items.filter((row) => {
         const displayStatus = getReviewDisplayStatus(row.id, row.status, Boolean(row.draft));
         return displayStatus !== "completed";
       }),
-    [queueRows]
-  );
-
-  const completedRows = useMemo(
-    () =>
-      queueRows.filter((row) => {
-        const displayStatus = getReviewDisplayStatus(row.id, row.status, Boolean(row.draft));
-        return displayStatus === "completed";
-      }),
-    [queueRows]
+    [items]
   );
 
   const tableColumns = [
@@ -57,6 +62,7 @@ export default function InternReviewPage() {
       key: "contributor",
       header: "Contributor",
       sortValue: (row: ReviewQueueItem) => row.contributor,
+      serverSort: "contributor",
       render: (row: ReviewQueueItem) => (
         <span className="font-medium text-foreground">{row.contributor}</span>
       ),
@@ -65,6 +71,7 @@ export default function InternReviewPage() {
       key: "mode",
       header: "Mode",
       sortValue: (row: ReviewQueueItem) => row.mode,
+      serverSort: "session_type",
       render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.mode}</span>
       ),
@@ -73,6 +80,7 @@ export default function InternReviewPage() {
       key: "duration",
       header: "Duration",
       sortValue: (row: ReviewQueueItem) => row.durationSec,
+      serverSort: "duration",
       render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.duration}</span>
       ),
@@ -89,6 +97,7 @@ export default function InternReviewPage() {
       key: "submitted",
       header: "Submitted",
       sortValue: (row: ReviewQueueItem) => row.submittedAt,
+      serverSort: "created_at",
       render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.submittedAt}</span>
       ),
@@ -116,29 +125,37 @@ export default function InternReviewPage() {
 
           {/* The queue hands work out by claim: assign-next moves the next
               recording from submitted to in_review and locks it to you. */}
-          <TextureButton
-            variant="alva"
-            size="sm"
-            className="w-auto shrink-0"
-            onClick={async () => {
-              /* `assignNext` reports its own failures and resolves null, so
-                 there is nothing to catch — but it must stay that way, and a
-                 rejection escaping here would be invisible. */
-              const id = await assignNext().catch(() => null);
-              if (id) navigate(`/intern/review/${id}`);
-            }}
-            loading={isAssigning}
-          >
-            Review next
-          </TextureButton>
+          <div className="flex items-center gap-3">
+            {waiting ? (
+              <span className="text-sm text-muted-foreground">
+                <span className="tabular-nums text-foreground">{waiting.toLocaleString()}</span>{" "}
+                {waiting === 1 ? "clip" : "clips"} waiting for a desk
+              </span>
+            ) : null}
+            <TextureButton
+              variant="alva"
+              size="sm"
+              className="w-auto shrink-0"
+              onClick={async () => {
+                /* `assignNext` reports its own failures and resolves null, so
+                   there is nothing to catch — but it must stay that way, and a
+                   rejection escaping here would be invisible. */
+                const id = await assignNext().catch(() => null);
+                if (id) navigate(`/intern/review/${id}`);
+              }}
+              loading={isAssigning}
+            >
+              Review next
+            </TextureButton>
+          </div>
         </div>
 
-        {error ? (
+        {error || history.error ? (
           <div
             role="alert"
             className="flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
           >
-            {error}
+            {error ?? history.error}
             <button
               type="button"
               onClick={reload}
@@ -177,7 +194,6 @@ export default function InternReviewPage() {
               pageSize={8}
               isLoading={isLoading}
               searchPlaceholder="Search"
-              searchKeys={["contributor", "mode", "language"]}
               onRowClick={(row) => navigate(`/intern/review/${row.id}`)}
               mobilePrimary={(row) => ({
                 title: row.contributor,
@@ -195,11 +211,24 @@ export default function InternReviewPage() {
           <TabsContent value="completed" className="mt-2">
             <AlvaDataTable
               title="Completed reviews"
-              rows={completedRows}
-              pageSize={8}
-              isLoading={isLoading}
+              rows={history.items}
+              pageSize={historyPageSize}
+              isLoading={history.isFetching}
+              serverPaging={{
+                total: history.total,
+                page: historyPage,
+                onPageChange: setHistoryPage,
+                onPageSizeChange: setHistoryPageSize,
+                onQueryChange: (next) => {
+                  setHistoryQuery(next);
+                  setHistoryPage(1);
+                },
+                onSortChange: (key, order) => {
+                  setHistorySort({ key: key as ApiRecordingSort, order });
+                  setHistoryPage(1);
+                },
+              }}
               searchPlaceholder="Search"
-              searchKeys={["contributor", "mode", "language"]}
               onRowClick={(row) => navigate(`/intern/review/${row.id}`)}
               mobilePrimary={(row) => ({
                 title: row.contributor,

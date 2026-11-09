@@ -1,24 +1,27 @@
-import { fetchAllPages, fetchAllRows } from "@/lib/api/fetchAll";
 import { useCallback, useEffect, useState } from "react";
 import * as reviewsApi from "@/lib/api/reviews";
-import type { ApiReviewRow } from "@/lib/api/reviews";
-import { listRecordings, type ApiRecording } from "@/lib/api/recordings";
-import { listContributors, type ApiContributorRef } from "@/lib/api/users";
+import {
+  listRecordingsPage,
+  type ApiRecording,
+  type ApiRecordingSort,
+} from "@/lib/api/recordings";
 import { useAuth } from "@/lib/auth/context";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 import { NO_VALUE } from "@/lib/no-value";
 
 /**
- * The intern review queue: their desk, and nobody else's.
+ * An intern's review work, as three small requests (9 Nov):
  *
- * `/reviews/queue?mine` is what has been allocated to them and still needs a
- * verdict. `/recordings` is added for history, because a clip leaves that
- * queue the moment it is decided — and since 28 Oct the API scopes that list
- * for an intern, so a colleague's work never arrives in the first place.
+ * - their desk, `/reviews/queue?mine`: at most 20 clips, refilled from the
+ *   bank by every verdict;
+ * - how many clips wait in the bank for a desk, as a number;
+ * - their history, `/recordings?judged_by=` themselves, a page at a time and
+ *   only when they open it (`useReviewHistory`).
  *
- * The recording carries `prompt_text` and `stimulus_text`, so the queue
- * shows the real prompt rather than an id.
+ * It used to read every recording they could see, every contributor and
+ * every verdict of theirs, one page after another, and work out the rest
+ * here.
  */
 
 function relative(iso: string): string {
@@ -46,18 +49,12 @@ const MODE: Record<string, ReviewQueueItem["mode"]> = {
   stimuli_narration: "Stimuli",
 };
 
-export function toQueueItem(
-  recording: ApiRecording,
-  names: Map<string, string> = new Map()
-): ReviewQueueItem {
+export function toQueueItem(recording: ApiRecording): ReviewQueueItem {
   return {
     id: recording.id,
-    /* A name when we can resolve one. The id's first eight characters are a
-     * last resort, not an identifier anybody reads. */
-    contributor:
-      recording.contributor_name ??
-      names.get(recording.contributor_id) ??
-      recording.contributor_id.slice(0, 8),
+    /* On every row. The id's first eight characters are a last resort, not
+     * an identifier anybody reads. */
+    contributor: recording.contributor_name ?? recording.contributor_id.slice(0, 8),
     mode: MODE[recording.session_type] ?? "Prompt reader",
     /* Measured from the stored file where we have it; the browser's figure
        was never checked. */
@@ -82,102 +79,38 @@ export function toQueueItem(
 
 export function useReviewQueue() {
   const [items, setItems] = useState<ReviewQueueItem[]>([]);
+  const [waiting, setWaiting] = useState<number | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [isAssigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
-  /* Whose desk this is, and whose verdicts count as history. */
-  const { user } = useAuth();
-  const userId = user?.id;
-  const isAdmin = user?.role === "admin";
-
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
 
     Promise.all([
-      /* The intern's own desk. Clips are allocated on submission now, so the
-       * unassigned pool they used to read is usually empty. */
+      /* Room for a desk dealt over 20 before 6 Nov, which drains rather than
+         being cut. */
       reviewsApi.reviewQueue(100, true),
-      fetchAllRows<ApiRecording>((query) => listRecordings(query)),
-      /* Names, not ids. `RecordingOut` carries `contributor_id` and nothing
-       * else, so one list turns every row's id into somebody's name.
-       *
-       * `/users/contributors` rather than `/users?role=contributor`: the
-       * second is admin-only because it returns email, phone and account
-       * state, so a reviewer got a 403 and every name on this screen fell
-       * back to eight characters of a UUID. This one returns an id and a
-       * name and nothing else.
-       *
-       * Failing here still costs the names, not the queue. */
-      fetchAllPages<ApiContributorRef>((query) => listContributors(query)).catch(
-        () => null
-      ),
-      /* Their own verdicts, which is what "my history" means. Null when it
-         fails, which the filter below reads as "do not filter". */
-      userId
-        ? fetchAllPages<ApiReviewRow>((query) =>
-            reviewsApi.listReviews({ ...query, reviewer_id: userId })
-          ).catch(() => null)
-        : Promise.resolve(null),
+      /* A count is worth having but not worth failing the desk over. */
+      reviewsApi.reviewBankCount(controller.signal).catch(() => null),
     ])
-      .then(([queue, all, people, mine]) => {
-        if (cancelled) return;
-        const names = new Map<string, string>(
-          (people?.items ?? []).map((user) => [user.id, user.full_name])
-        );
-
-        /**
-         * The server's rule, applied again here.
-         *
-         * `GET /recordings` is scoped for an intern since 28 Oct: clips
-         * allocated to them, the unassigned pool, and anything they have
-         * written a verdict on. The server is the boundary — a filter here
-         * is a courtesy and nothing can be concluded from it about what the
-         * browser received.
-         *
-         * It is back because the first attempt at it was *wrong* rather
-         * than merely redundant. That one kept rows assigned to the caller
-         * or to nobody, which drops the third group: an intern whose
-         * decided clip was later handed to somebody else watched their own
-         * past work disappear. Keying history off their own verdicts
-         * instead of off who the clip is assigned to has no such edge —
-         * a verdict they wrote is theirs however the clip moves afterwards.
-         *
-         * `mine === null` means that call failed, and then nothing is
-         * filtered. Losing an intern's history to a failed request is worse
-         * than showing rows the server has already decided they may see.
-         */
-        const decidedByMe = mine ? new Set(mine.items.map((r) => r.recording_id)) : null;
-
-        const visible = (row: ApiRecording) => {
-          if (isAdmin || !userId || !decidedByMe) return true;
-          if (!row.assigned_reviewer_id) return true;
-          if (row.assigned_reviewer_id === userId) return true;
-          return decidedByMe.has(row.id);
-        };
-
-        const seen = new Set(queue.map((r) => r.id));
-        const merged = [
-          ...queue,
-          ...all.filter((r) => !seen.has(r.id) && visible(r)),
-        ];
-        setItems(merged.map((row) => toQueueItem(row, names)));
+      .then(([desk, bank]) => {
+        if (controller.signal.aborted) return;
+        setItems(desk.map(toQueueItem));
+        setWaiting(bank);
         setError(null);
       })
       .catch((cause: unknown) => {
-        if (cancelled) return;
-        setError(reportApiError(cause, "Could not load the queue."));
+        if (!controller.signal.aborted) setError(reportApiError(cause, "Could not load the queue."));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt, userId, isAdmin]);
+    return () => controller.abort();
+  }, [attempt]);
 
   const reload = useCallback(() => setAttempt((v) => v + 1), []);
 
@@ -196,5 +129,64 @@ export function useReviewQueue() {
     }
   }, []);
 
-  return { items, isLoading, error, reload, assignNext, isAssigning };
+  return { items, waiting, isLoading, error, reload, assignNext, isAssigning };
+}
+
+export type HistoryView = {
+  /** Blank for no search. */
+  q: string;
+  /** Omitted for the server's default, newest first. */
+  sort?: { key: ApiRecordingSort; order: "asc" | "desc" };
+  /** 1-based. */
+  page: number;
+  pageSize: number;
+  /** Fetch nothing until the history is opened. */
+  enabled: boolean;
+};
+
+/** The clips this reviewer has judged, a page at a time, from the server. */
+export function useReviewHistory({ q, sort, page, pageSize, enabled }: HistoryView) {
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [items, setItems] = useState<ReviewQueueItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isFetching, setFetching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const sortKey = sort?.key;
+  const sortOrder = sort?.order;
+
+  useEffect(() => {
+    if (!enabled || !userId) return;
+    /* A page or search that is replaced is aborted, so a slow old answer
+       cannot land on top of the new one. */
+    const controller = new AbortController();
+    setFetching(true);
+
+    listRecordingsPage(
+      {
+        judged_by: userId,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        ...(q ? { q } : {}),
+        ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
+      },
+      controller.signal
+    )
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setItems(result.items.map(toQueueItem));
+        setTotal(result.total);
+        setError(null);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setError(reportApiError(cause, "Could not load your reviews."));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFetching(false);
+      });
+
+    return () => controller.abort();
+  }, [enabled, userId, q, sortKey, sortOrder, page, pageSize]);
+
+  return { items, total, isFetching, error };
 }

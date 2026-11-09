@@ -144,7 +144,6 @@ export function DuplicateFlagsTable({
         pageSize={10}
         isLoading={isLoading}
         searchPlaceholder="Search"
-        searchKeys={["who", "matched"]}
         mobilePrimary={(row) => ({
           title: row.who,
           subtitle: `${row.kindLabel} as ${row.matched}`,

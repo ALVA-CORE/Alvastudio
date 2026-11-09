@@ -80,7 +80,7 @@ export function useAdminUsers() {
 
     setLoading(true);
 
-    fetchAllPages<ApiUser>((query) => listUsers(query))
+    fetchAllPages<ApiUser>((query) => listUsers(query), { stop: () => cancelled })
       .then((page) => {
         if (cancelled) return;
         setUsers(page.items.map(fromApiUser));

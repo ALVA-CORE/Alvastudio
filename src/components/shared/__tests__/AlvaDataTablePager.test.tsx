@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AlvaDataTable } from "../AlvaDataTable";
 
@@ -70,5 +70,53 @@ describe("table search", () => {
   it("says how many rows there are", () => {
     table();
     expect(screen.getByText("of 5,000 rows")).toBeInTheDocument();
+  });
+});
+
+describe("server-paged table", () => {
+  const page = [{ id: "1", name: "Row 1" }];
+  const sortable = [
+    { key: "name", header: "Name", serverSort: "contributor", render: (row: (typeof page)[number]) => row.name },
+  ];
+
+  /* The server holds the rows, so the table only says what was asked for. */
+  it("sends the search once typing pauses, and the sort on a header press", async () => {
+    const queries: string[] = [];
+    const sorts: string[] = [];
+    render(
+      <AlvaDataTable
+        title="Rows"
+        rows={page}
+        columns={sortable}
+        pageSize={10}
+        serverPaging={{
+          total: 1,
+          page: 1,
+          onPageChange: () => undefined,
+          onQueryChange: (query) => queries.push(query),
+          onSortChange: (key, dir) => sorts.push(`${key}:${dir}`),
+        }}
+      />
+    );
+
+    await userEvent.type(screen.getByRole("textbox", { name: "Search" }), "  obi ");
+    await waitFor(() => expect(queries).toEqual(["obi"]));
+
+    await userEvent.click(screen.getByRole("button", { name: "Name" }));
+    await userEvent.click(screen.getByRole("button", { name: /Name/ }));
+    expect(sorts).toEqual(["contributor:asc", "contributor:desc"]);
+  });
+
+  it("has no search box when the server cannot search", () => {
+    render(
+      <AlvaDataTable
+        title="Rows"
+        rows={page}
+        columns={sortable}
+        pageSize={10}
+        serverPaging={{ total: 1, page: 1, onPageChange: () => undefined }}
+      />
+    );
+    expect(screen.queryByRole("textbox", { name: "Search" })).not.toBeInTheDocument();
   });
 });

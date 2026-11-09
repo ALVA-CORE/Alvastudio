@@ -4,7 +4,6 @@ import {
   type ApiAdminDashboard,
 } from "@/lib/api/adminDashboard";
 import { reportApiError } from "@/lib/api/reportApiError";
-import type { GrowthPoint } from "@/data/admin/corpus";
 
 /**
  * The admin overview.
@@ -51,13 +50,4 @@ export function useAdminOverview() {
     error,
     reload: useCallback(() => setAttempt((value) => value + 1), []),
   };
-}
-
-/** Daily counts, run cumulatively, in the shape the growth chart takes. */
-export function cumulative(daily: { date: string; count: number }[]): GrowthPoint[] {
-  let running = 0;
-  return daily.map((day) => {
-    running += day.count;
-    return { date: new Date(day.date), hours: running };
-  });
 }

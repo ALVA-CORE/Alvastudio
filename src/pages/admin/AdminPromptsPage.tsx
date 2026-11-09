@@ -67,6 +67,7 @@ export default function AdminPromptsPage() {
   const [recordedFilter, setRecordedFilter] = useState<RecordedFilter>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [query, setQuery] = useState("");
 
   /* Any change of what is listed starts again from the first page. Page 40
      of the unrecorded prompts is not page 40 of the recorded ones. Done in
@@ -82,6 +83,10 @@ export default function AdminPromptsPage() {
   };
   const showRecorded = (next: RecordedFilter) => {
     setRecordedFilter(next);
+    setPage(1);
+  };
+  const search = (next: string) => {
+    setQuery(next);
     setPage(1);
   };
 
@@ -106,6 +111,7 @@ export default function AdminPromptsPage() {
       kind === "topic" || recordedFilter === "all"
         ? undefined
         : recordedFilter === "recorded",
+    q: kind === "topic" ? undefined : query,
     page,
     pageSize,
   });
@@ -388,11 +394,16 @@ export default function AdminPromptsPage() {
             isLoading={isFetching}
             serverPaging={
               serverPaged
-                ? { total, page, onPageChange: setPage, onPageSizeChange: setPageSize }
+                ? {
+                    total,
+                    page,
+                    onPageChange: setPage,
+                    onPageSizeChange: setPageSize,
+                    onQueryChange: search,
+                  }
                 : undefined
             }
             searchPlaceholder="Search"
-            searchKeys={["text", "variety"]}
             activeFilterCount={
               (activeFilter === "active" ? 0 : 1) +
               (serverPaged && recordedFilter !== "all" ? 1 : 0)

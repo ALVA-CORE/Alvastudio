@@ -46,7 +46,48 @@ export type ApiRecording = {
   contributor_name?: string | null;
   /** Null while nobody is assigned. */
   reviewer_name?: string | null;
+  /**
+   * Every verdict on the clip, newest first, so the first is the one its
+   * status reflects. Only with `expand=verdicts` (staff); `[]` when nobody
+   * has judged it.
+   */
+  verdicts?: ApiRecordingVerdict[] | null;
 };
+
+/** Why a rejection was given: the first "no", in the rubric's order. */
+export type ApiRejectionReason =
+  | "background_noise"
+  | "too_quiet"
+  | "prompt_mismatch"
+  | "unnatural_delivery"
+  | "clipped";
+
+type ApiAnswer = "yes" | "partial" | "no";
+
+export type ApiRecordingVerdict = {
+  id: string;
+  reviewer_id: string;
+  reviewer_name: string | null;
+  verdict: "approve" | "reject" | "flag";
+  q_noise_free: ApiAnswer;
+  q_clear_audible: ApiAnswer;
+  q_matches_prompt: ApiAnswer;
+  q_natural_intelligible: ApiAnswer;
+  notes: string | null;
+  /** Null for an approval or a flag. */
+  rejection_reason: ApiRejectionReason | null;
+  created_at: string;
+};
+
+/** The columns `GET /recordings` sorts by. `reviewer` is staff only. */
+export type ApiRecordingSort =
+  | "created_at"
+  | "contributor"
+  | "text"
+  | "session_type"
+  | "duration"
+  | "reviewer"
+  | "status";
 
 /** Six hours, which is the API's ceiling on any duration it stores. */
 export const MAX_DURATION_SECONDS = 21_600;
@@ -112,16 +153,6 @@ export const submitStimulus = (
   meta?: Parameters<typeof submit>[4]
 ) => submit("/recordings/stimuli", "stimulus_id", stimulusId, audio, meta);
 
-/** Contributors see their own; reviewers and admins see all. */
-export const listRecordings = (
-  query: {
-    status?: ApiRecordingStatus;
-    session_type?: ApiSessionType;
-    limit?: number;
-    offset?: number;
-  } = {}
-) => apiFetch<ApiRecording[]>("/recordings", { query });
-
 export type ApiPage<T> = {
   items: T[];
   total: number;
@@ -140,13 +171,49 @@ export const listRecordingsPage = (
   query: {
     status?: ApiRecordingStatus;
     session_type?: ApiSessionType;
+    /** Id, prompt or stimulus text, contributor, and (staff) reviewer. Literal, up to 200. */
+    q?: string;
+    sort?: ApiRecordingSort;
+    order?: "asc" | "desc";
+    expand?: "verdicts";
+    /** Only clips this user has judged: an intern's history. Interns may name only themselves. */
+    judged_by?: string;
     limit?: number;
     offset?: number;
-  } = {}
+  } = {},
+  /** Aborts the request, for a page or search that has been replaced. */
+  signal?: AbortSignal
 ) =>
   apiFetch<ApiPage<ApiRecording>>("/recordings", {
     query: { ...query, envelope: true },
+    signal,
   });
+
+/**
+ * Counts over every recording, whatever a table is filtered to (admin): the
+ * reviews page's cards and charts.
+ */
+export type ApiRecordingSummary = {
+  total: number;
+  /** Every status present, 0 included. */
+  by_status: Record<ApiRecordingStatus, number>;
+  /** Awaiting a verdict, waiting in the bank for a desk with room. */
+  awaiting_in_bank: number;
+  /** Awaiting a verdict on an intern's desk. */
+  awaiting_on_desks: number;
+  /** Every reason, in the rule's order; sums to `by_status.rejected`. */
+  rejection_reasons: { reason: ApiRejectionReason; count: number }[];
+  /** Approved or rejected clips by who decided them, most first. */
+  by_reviewer: {
+    reviewer_id: string;
+    reviewer_name: string | null;
+    approved: number;
+    rejected: number;
+  }[];
+};
+
+export const recordingsSummary = (signal?: AbortSignal) =>
+  apiFetch<ApiRecordingSummary>("/recordings/summary", { signal });
 
 /** Moves a recording to another reviewer, or back to the queue with `null`. */
 export const assignReviewer = (recordingId: string, reviewerId: string | null) =>

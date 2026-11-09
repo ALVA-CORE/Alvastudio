@@ -1,6 +1,6 @@
 # What we need from the backend
 
-Checked against the live OpenAPI document, 5 Nov 2026.
+Checked against the live OpenAPI document, 7 Nov 2026.
 
 **Every ask and every open question lives here, and nowhere else.**
 
@@ -15,111 +15,52 @@ the other document points here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 8 | A text search parameter on the bank and recordings lists | The prompt bank has no search; the reviews page loads every recording to search them | Medium |
-| 9 | Keep emails dark in dark-mode mail apps | Every email turns light for anyone whose mail app is in dark mode | High |
+| 10 | Keep the email button our green in Gmail's dark mode | The button shows a darker, wrong green in the Gmail apps | Medium |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
 #3 bulk profiles (see [`replies/api-status-2026-11-03.md`](replies/api-status-2026-11-03.md)).
 Closed on 5 Nov: #4 `/stimuli` totals, #5 readable `Retry-After`, #6 Markdown
 bodies, #7 hero images (see [`replies/api-status-2026-11-05.md`](replies/api-status-2026-11-05.md)).
+Closed on 6 Nov: #8 search, #9 dark-mode emails (see
+[`replies/api-status-2026-11-06.md`](replies/api-status-2026-11-06.md)). #9 still
+needs checking in real mail apps; that is ours to do, and the reply says how.
 
 ---
 
-## 8. Search on the bank and recordings lists
+## 10. The email button turns a different green in Gmail's dark mode
 
-**Prompts and stimuli.** `GET /prompts` and `GET /stimuli` page on the
-server, and the prompt bank is about 10,000 deep. There is no search
-parameter, so the admin table cannot offer one: searching the 25 rows on
-screen would read as if it covered the bank.
+**What happens.** The 6 Nov dark-mode change works: emails stay dark. One
+thing is left. In **Gmail on iPhone and Gmail on Android, in dark mode only**,
+the button is a darker, duller green that is not `#25F07D`. In light mode it
+is right. We have not seen it in other apps, but have not checked them all.
 
-**Recordings.** `GET /recordings` has no search either. The reviews page
-needs one, so it loads every recording (about 6,000 today, six pages at a
-time) and searches in the browser. That stops scaling as the corpus grows.
+**Why we think so.** Gmail's dark mode recolours bright colours and leaves
+dark ones mostly alone, which is why the dark surfaces come through and the
+bright button does not. The button's cell and link already carry
+`background-image:linear-gradient(#25F07D,#25F07D)`, so in the Gmail apps the
+gradient is not protecting it. What Gmail does not recolour is an image.
 
-**What would fix it:** an optional `q` on each, matched case-insensitively
-and combined with the filters already there (`is_active`, `recorded`,
-`language_variety` and `category` on the banks; `status` and `session_type`
-on recordings). `total` should follow it, so paging works on the results.
+**What would fix it.**
 
-| Route | `q` matches |
-| --- | --- |
-| `GET /prompts`, `GET /stimuli` | `text`, `category` |
-| `GET /recordings` | the recording's id, the prompt or stimulus text, the contributor's name, the reviewer's name |
-
-A substring match is enough; ranking is not needed. Once it exists the prompt
-bank gets its search box back, and the reviews page can page on the server
-instead of loading everything.
-
----
-
-## 9. Emails turn light in dark-mode mail apps
-
-**What happens.** Every email is designed dark. Opened in Gmail or Apple Mail
-with the app in **light** mode, it shows dark, as designed. With the app in
-**dark** mode, it shows **light**: the app recolours it.
-
-**Why.** The only signal in `email_templates.render` is
-`<meta name="color-scheme" content="dark">`. Mail apps in dark mode recolour
-any email that does not tell them, in the ways each one listens for, that it
-already handles dark mode itself:
-
-- **Apple Mail (iOS and macOS) and Outlook** look for both colour schemes
-  declared, and a `prefers-color-scheme: dark` block. Without them they treat
-  the email as light and adjust it.
-- **The Gmail apps (iOS and Android)** ignore all of that and invert every
-  colour in dark mode. A dark background becomes light, and light text becomes
-  dark. This is the one that turns the email white.
-
-**What would fix it.** All in `email_templates.render`, so every email gets
-it (communications, welcome, resets):
-
-1. **Declare dark mode support properly**, in `<head>`:
-   ```html
-   <meta name="color-scheme" content="light dark">
-   <meta name="supported-color-schemes" content="light dark">
-   <style>
-     :root { color-scheme: light dark; supported-color-schemes: light dark; }
-     @media (prefers-color-scheme: dark) {
-       /* The same colours again, !important, so a client that applies its
-          own dark styles applies ours. */
-       .bg   { background:#090909 !important; }
-       .card { background:#202020 !important; }
-       .text { color:#F5F5F4 !important; }
-       .muted{ color:#A1A1AA !important; }
-     }
-     [data-ogsc] .text  { color:#F5F5F4 !important; }  /* Outlook app */
-     [data-ogsb] .card  { background:#202020 !important; }
-   </style>
+1. Host a small solid tile of the accent beside the other email assets, for
+   example `/static/email/accent.png`: 8 × 8 pixels, every pixel `#25F07D`.
+2. On the button's `<td>` and its `<a>`, give that tile as the background,
+   repeated, over the colour that is there now:
    ```
-   with those classes on the body, card and text cells beside their inline
-   styles.
-
-2. **Backgrounds Gmail cannot invert.** Gmail leaves `background-image`
-   alone, so give each dark surface a one-colour gradient as well as its
-   colour:
-   `background:#202020; background-image:linear-gradient(#202020,#202020);`
-   on the body, the outer table, the card and the footer.
-
-3. **Text Gmail cannot invert.** Once the backgrounds stay dark, Gmail still
-   darkens light text, which then disappears. The usual counter is a blend
-   that Gmail alone applies (it puts a `<u>` before the body, which nothing
-   else does): give `<body>` the class `body`, wrap each block of light text
-   in two spans, and add
-   ```css
-   u + .body .gmail-screen     { background:#000; mix-blend-mode:screen; }
-   u + .body .gmail-difference { background:#000; mix-blend-mode:difference; }
+   background-color:#25F07D;
+   background-image:url(https://api.alvacoreai.com/static/email/accent.png);
+   background-repeat:repeat;
    ```
-   ```html
-   <span class="gmail-screen"><span class="gmail-difference">Hi Ada,</span></span>
-   ```
-   Inverted text blended this way comes back as it was written.
+   Keep `bgcolor` on the cell for clients that show neither.
+3. Check the label in the same place. It is dark text on the green, and Gmail
+   may lighten it now the green holds. If it does, tell us before working
+   round it; it is the same trick as `light()` the other way, and worth
+   seeing first.
 
-**Please check it in** Gmail on iOS and Android, Apple Mail on iOS and macOS,
-and Outlook, each in light and dark mode, before and after: a send to a test
-inbox, or Litmus / Email on Acid. Steps 2 and 3 are well-known workarounds,
-not documented behaviour, so they need seeing on real clients.
+**To check:** Gmail on iPhone and Android, dark mode, before and after, and
+that light mode is unchanged.
 
-The composer draws its preview from a copy of this template, checked against
-yours by a test. When it changes, send us the new file and we update the copy.
+The composer's preview copy follows the template; when it changes, we update
+ours and its parity test.
 
