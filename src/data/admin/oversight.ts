@@ -29,6 +29,8 @@ export type AdminRecording = {
   id: string;
   code: string;
   contributor: string;
+  /** For opening their panel. */
+  contributorId?: string;
   mode: "Prompt read" | "Stimuli" | "Focus group";
   prompt: string;
   durationSec: number;
@@ -36,6 +38,8 @@ export type AdminRecording = {
   variety: Variety;
   status: RecordingStatus;
   reviewer: string;
+  /** Whoever holds or decided it, for opening their panel. */
+  reviewerId?: string;
   submittedAt: number;
   /** When a verdict landed. 0 while nothing has been decided. */
   reviewedAt: number;

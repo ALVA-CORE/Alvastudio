@@ -45,7 +45,7 @@ export default function InternDashboard() {
   const { data: live, isLoading } = useApiResource(internDashboard, []);
   /* Reviewing is half an intern's job and the dashboard endpoint does not
      count it, so this card is the only one with its own request. */
-  const reviewsIn = useInternReviewCount(user?.id);
+  const clipsReviewed = useInternReviewCount(user?.id, RANGE_DAYS[timeRange]);
 
   /* Zeroes, never a sample. This is one person's own work, and a screen that
    * fills itself with somebody else's figures when the request fails is the
@@ -87,7 +87,7 @@ export default function InternDashboard() {
               hours: `${hours.toFixed(1)}h`,
               participants: String(participants),
               sessions: String(sessions),
-              clipsReviewed: String(reviewsIn(RANGE_DAYS[timeRange]) ?? NO_VALUE),
+              clipsReviewed: String(clipsReviewed ?? NO_VALUE),
               periodLabel: RANGE_LABEL[timeRange],
               /* No trends: the endpoint gives one window, not this one against
                * the last, so there is no honest arrow to draw. */

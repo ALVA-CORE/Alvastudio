@@ -11,7 +11,8 @@ export function DetailGroup({
   first,
   action,
 }: {
-  title: string;
+  /** Text, or text with a control that belongs beside it. */
+  title: ReactNode;
   children: ReactNode;
   first?: boolean;
   /** Trailing control on the heading row. */
@@ -20,7 +21,7 @@ export function DetailGroup({
   return (
     <section className={cn(!first && "mt-6 border-t border-alva-border pt-6")}>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-medium text-foreground">{title}</h3>
         {action}
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-4">{children}</dl>

@@ -60,12 +60,15 @@ export function RecordingDetailPanel({
   recording,
   onReopen,
   onReassign,
+  onOpenPerson,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   recording: AdminRecording | null;
   onReopen: (recording: AdminRecording) => void;
   onReassign: (recording: AdminRecording) => void;
+  /** Opens a person's own panel: the contributor's or the reviewer's. */
+  onOpenPerson?: (userId: string) => void;
 }) {
   const [tab, setTab] = useState("detail");
   const [confirmReopen, setConfirmReopen] = useState(false);
@@ -175,14 +178,31 @@ export function RecordingDetailPanel({
                 </div>
               ) : null}
               <DetailProse label="Prompt">{recording.prompt}</DetailProse>
-              <DetailField label="Contributor" value={recording.contributor} />
+              <DetailField
+                label="Contributor"
+                value={
+                  <PersonName
+                    name={recording.contributor}
+                    userId={recording.contributorId}
+                    onOpen={onOpenPerson}
+                  />
+                }
+              />
               <DetailField label="Type" value={recording.mode} />
               <DetailField label="Length" value={recording.duration} />
               <DetailField label="Variety" value={recording.variety} />
               <DetailField label="Submitted" value={recording.submittedLabel} />
               <DetailField
                 label="Reviewer"
-                value={recording.reviewer}
+                value={
+                  recording.reviewer ? (
+                    <PersonName
+                      name={recording.reviewer}
+                      userId={recording.reviewerId}
+                      onOpen={onOpenPerson}
+                    />
+                  ) : null
+                }
                 tone={recording.reviewer ? "default" : "muted"}
               />
             </DetailGroup>
@@ -257,5 +277,30 @@ export function RecordingDetailPanel({
         }}
       />
     </>
+  );
+}
+
+/**
+ * A name that opens that person's panel. It reads as plain text until it is
+ * hovered or focused, so the panel does not look like a page of links.
+ */
+function PersonName({
+  name,
+  userId,
+  onOpen,
+}: {
+  name: string;
+  userId?: string;
+  onOpen?: (userId: string) => void;
+}) {
+  if (!userId || !onOpen) return <>{name}</>;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(userId)}
+      className="max-w-full truncate text-left underline-offset-2 hover:underline focus-visible:underline focus-visible:outline-none"
+    >
+      {name}
+    </button>
   );
 }

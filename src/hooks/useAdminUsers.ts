@@ -68,16 +68,18 @@ function fromApiUser(api: ApiUser): AdminUser {
  * showing a change that did not happen is worst: the next admin to look would
  * believe it.
  */
-export function useAdminUsers() {
+export function useAdminUsers(
+  /** False to load nothing yet, for a screen that may never need the list. */
+  enabled = true
+) {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [isLoading, setLoading] = useState(true);
+  const [isLoading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
-
-
     setLoading(true);
 
     fetchAllPages<ApiUser>((query) => listUsers(query), { stop: () => cancelled })
@@ -96,7 +98,7 @@ export function useAdminUsers() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, enabled]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 

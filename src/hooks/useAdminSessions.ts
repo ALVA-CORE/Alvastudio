@@ -43,7 +43,7 @@ export function useAdminSessions() {
       .then(([sessions, interns]) => {
         if (cancelled) return;
         const names = new Map(interns.items.map((user) => [user.id, user.full_name]));
-        setRows(sessions.map((session, index) => toAdminSession(session, index, names)));
+        setRows(sessions.map((session) => toAdminSession(session, names)));
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -68,7 +68,6 @@ export function useAdminSessions() {
 
 function toAdminSession(
   api: ApiSessionSummary,
-  index: number,
   interns: Map<string, string>
 ): AdminSession {
   const created = new Date(api.created_at);
@@ -76,8 +75,9 @@ function toAdminSession(
 
   return {
     id: api.id,
-    /* A short handle. The API's id is a UUID, which nobody reads aloud. */
-    code: `FG-${String(index + 1).padStart(4, "0")}`,
+    /* The first eight characters of the id: stable, unlike a position in a
+       list that every new session renumbered. */
+    code: api.id.slice(0, 8),
     topic: api.topic,
     intern: interns.get(api.intern_id) ?? "Unknown",
     /* The session's own field now. It used to be the commonest state among
