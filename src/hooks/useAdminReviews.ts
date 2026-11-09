@@ -70,24 +70,30 @@ export function useAdminReviews(view: ReviewsView) {
   const sortOrder = sort?.order;
 
   useEffect(() => {
-    let cancelled = false;
+    /* A page, search or sort that is replaced is aborted, so a slow old
+       answer cannot land on top of the new one. */
+    const controller = new AbortController();
+    const cancelled = () => controller.signal.aborted;
     setFetching(true);
 
     Promise.all([
-      listRecordingsPage({
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-        expand: "verdicts",
-        ...(status ? { status } : {}),
-        ...(q ? { q } : {}),
-        ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
-      }),
+      listRecordingsPage(
+        {
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          expand: "verdicts",
+          ...(status ? { status } : {}),
+          ...(q ? { q } : {}),
+          ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
+        },
+        controller.signal
+      ),
       /* Counts move only with verdicts and uploads, not with the table's
          filters, so they are read with the first page and on reload. */
-      loadedOnce.current ? Promise.resolve(null) : recordingsSummary(),
+      loadedOnce.current ? Promise.resolve(null) : recordingsSummary(controller.signal),
     ])
       .then(([pageResult, nextSummary]) => {
-        if (cancelled) return;
+        if (cancelled()) return;
         setRows(pageResult.items.map(toAdminRecording));
         setTotal(pageResult.total);
         if (nextSummary) setSummary(nextSummary);
@@ -95,17 +101,15 @@ export function useAdminReviews(view: ReviewsView) {
         setError(null);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(reportApiError(cause, "Could not load recordings."));
+        if (!cancelled()) setError(reportApiError(cause, "Could not load recordings."));
       })
       .finally(() => {
-        if (cancelled) return;
+        if (cancelled()) return;
         setLoading(false);
         setFetching(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [status, q, sortKey, sortOrder, page, pageSize, attempt]);
 
   /** The page and the counts again, as after a reassign or a reopen. */

@@ -28,7 +28,6 @@ vi.mock("@/lib/api/recordings", async () => {
       limit: 200,
       offset: 0,
     })),
-    listRecordings: vi.fn(async () => items),
     recordingsSummary: vi.fn(async () => ({
       total: items.length,
       by_status: { submitted: 0, in_review: 0, approved: 0, rejected: 0, flagged: 0 },

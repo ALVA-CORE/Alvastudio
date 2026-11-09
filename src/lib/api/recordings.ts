@@ -153,16 +153,6 @@ export const submitStimulus = (
   meta?: Parameters<typeof submit>[4]
 ) => submit("/recordings/stimuli", "stimulus_id", stimulusId, audio, meta);
 
-/** Contributors see their own; reviewers and admins see all. */
-export const listRecordings = (
-  query: {
-    status?: ApiRecordingStatus;
-    session_type?: ApiSessionType;
-    limit?: number;
-    offset?: number;
-  } = {}
-) => apiFetch<ApiRecording[]>("/recordings", { query });
-
 export type ApiPage<T> = {
   items: T[];
   total: number;
@@ -186,12 +176,17 @@ export const listRecordingsPage = (
     sort?: ApiRecordingSort;
     order?: "asc" | "desc";
     expand?: "verdicts";
+    /** Only clips this user has judged: an intern's history. Interns may name only themselves. */
+    judged_by?: string;
     limit?: number;
     offset?: number;
-  } = {}
+  } = {},
+  /** Aborts the request, for a page or search that has been replaced. */
+  signal?: AbortSignal
 ) =>
   apiFetch<ApiPage<ApiRecording>>("/recordings", {
     query: { ...query, envelope: true },
+    signal,
   });
 
 /**
@@ -217,7 +212,8 @@ export type ApiRecordingSummary = {
   }[];
 };
 
-export const recordingsSummary = () => apiFetch<ApiRecordingSummary>("/recordings/summary");
+export const recordingsSummary = (signal?: AbortSignal) =>
+  apiFetch<ApiRecordingSummary>("/recordings/summary", { signal });
 
 /** Moves a recording to another reviewer, or back to the queue with `null`. */
 export const assignReviewer = (recordingId: string, reviewerId: string | null) =>

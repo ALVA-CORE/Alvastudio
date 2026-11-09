@@ -49,6 +49,17 @@ export const reviewQueue = (limit = 50, mine = false) =>
   });
 
 /**
+ * How many clips wait in the review bank for a desk with room. Interns see
+ * the bank as a number, not a list: it deals to them as they clear their
+ * desk, and it can be thousands long.
+ */
+export const reviewBankCount = (signal?: AbortSignal) =>
+  apiFetch<{ total: number }>("/reviews/queue", {
+    query: { envelope: true, limit: 1 },
+    signal,
+  }).then((page) => page.total);
+
+/**
  * Claims from the unassigned pool, never from a colleague.
  *
  * The API cannot tell a clip somebody is listening to from one they have not

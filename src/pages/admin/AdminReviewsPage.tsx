@@ -124,6 +124,7 @@ export default function AdminReviewsPage() {
     {
       key: "code",
       header: "Clip",
+      serverSort: "created_at",
       render: (row: AdminRecording) => (
         <span className="font-medium tabular-nums text-foreground">{row.code}</span>
       ),
