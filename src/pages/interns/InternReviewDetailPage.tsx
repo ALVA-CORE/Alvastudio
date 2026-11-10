@@ -82,7 +82,7 @@ export default function InternReviewDetailPage() {
    * prev/next control; it is not what renders this page. */
   const { item: fetched, isLoading, error, submit, isSubmitting: isPosting } =
     useReviewItem(id);
-  const { items: queue, reload: reloadQueue } = useReviewQueue();
+  const { items: queue } = useReviewQueue();
 
   const item = fetched ?? undefined;
   const activeIndex = queue.findIndex((row) => row.id === id);
@@ -259,10 +259,6 @@ export default function InternReviewDetailPage() {
     setIsDirty(false);
 
     alvaToast.success(`${VERDICT_LABELS[verdict]}, review submitted`);
-
-    /* Each verdict frees a place on the desk, and the server refills it at
-       once (6 Nov). Read the desk again so the new clip is in reach. */
-    reloadQueue();
 
     if (nextItem) {
       navigate(`/intern/review/${nextItem.id}`);

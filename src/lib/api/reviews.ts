@@ -1,6 +1,6 @@
 import { apiFetch } from "./client";
 import type { ApiQualityAnswer, ApiVerdict } from "./enums";
-import type { ApiRecording } from "./recordings";
+import type { ApiPage, ApiRecording } from "./recordings";
 
 export type ApiReview = {
   id: string;
@@ -33,25 +33,33 @@ export type ApiReviewResult = {
 };
 
 /**
- * The review queue.
+ * This intern's desk, `/reviews/queue?mine=true`: clips dealt to them and
+ * still awaiting their verdict, oldest first, every page of it.
  *
- * Two queues, one route. Without `mine` it is the unassigned pool, which is
- * usually empty now that clips are allocated on submission. With `mine=true`
- * it is this intern's own desk: clips assigned to them and still awaiting a
- * verdict, oldest first.
+ * There is no desk limit since 10 Nov, so one 7pm deal from a long bank can
+ * put more on a desk than one page (200) holds.
  *
  * A clip on somebody's desk is theirs — a verdict from anyone else is a 409,
  * admins included — so the desk is the one an intern actually works from.
  */
-export const reviewQueue = (limit = 50, mine = false) =>
-  apiFetch<ApiRecording[]>("/reviews/queue", {
-    query: mine ? { limit, mine: true } : { limit },
-  });
+export async function reviewDesk(signal?: AbortSignal) {
+  const desk: ApiRecording[] = [];
+  let total = Infinity;
+  while (desk.length < total) {
+    const page = await apiFetch<ApiPage<ApiRecording>>("/reviews/queue", {
+      query: { mine: true, envelope: true, limit: 200, offset: desk.length },
+      signal,
+    });
+    desk.push(...page.items);
+    total = page.total;
+    if (page.items.length === 0) break;
+  }
+  return desk;
+}
 
 /**
- * How many clips wait in the review bank for a desk with room. Interns see
- * the bank as a number, not a list: it deals to them as they clear their
- * desk, and it can be thousands long.
+ * How many clips wait in the review bank. Interns see the bank as a number,
+ * not a list: it is dealt to desks at 7pm WAT, and it can be thousands long.
  */
 export const reviewBankCount = (signal?: AbortSignal) =>
   apiFetch<{ total: number }>("/reviews/queue", {
@@ -63,10 +71,8 @@ export const reviewBankCount = (signal?: AbortSignal) =>
  * Claims from the unassigned pool, never from a colleague.
  *
  * The API cannot tell a clip somebody is listening to from one they have not
- * opened, so taking one could throw away their work. Under allocation the
- * pool is usually empty, which makes a 404 here normal rather than a fault —
- * an intern who clears their desk becomes the least loaded and receives new
- * arrivals anyway.
+ * opened, so taking one could throw away their work. For an intern who
+ * clears their desk before the 7pm deal; 404 when the bank is empty.
  */
 export const assignNext = () =>
   apiFetch<ApiRecording>("/reviews/assign-next", { method: "POST" });

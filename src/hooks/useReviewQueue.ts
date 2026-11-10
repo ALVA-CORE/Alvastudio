@@ -14,8 +14,8 @@ import { formatDuration } from "@/lib/duration";
 /**
  * An intern's review work, as three small requests (9 Nov):
  *
- * - their desk, `/reviews/queue?mine`: at most 20 clips, refilled from the
- *   bank by every verdict;
+ * - their desk, `/reviews/queue?mine`, dealt from the bank once a day at
+ *   7pm WAT (10 Nov) and not refilled by verdicts;
  * - how many clips wait in the bank for a desk, as a number;
  * - their history, `/recordings?judged_by=` themselves, a page at a time and
  *   only when they open it (`useReviewHistory`).
@@ -86,9 +86,7 @@ export function useReviewQueue() {
     setLoading(true);
 
     Promise.all([
-      /* Room for a desk dealt over 20 before 6 Nov, which drains rather than
-         being cut. */
-      reviewsApi.reviewQueue(100, true),
+      reviewsApi.reviewDesk(controller.signal),
       /* A count is worth having but not worth failing the desk over. */
       reviewsApi.reviewBankCount(controller.signal).catch(() => null),
     ])
