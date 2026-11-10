@@ -26,8 +26,6 @@ type Outcome = {
   title: string;
   /** Where the work itself can be seen, filtered to this person. */
   link?: string;
-  /** Name each slice, with its count, under the chart. */
-  legend?: boolean;
   fields: { label: string; value: string }[];
   slices: { label: string; hours: number }[];
   centerLabel: string;
@@ -81,13 +79,12 @@ function outcomeOf(activity: ApiUserActivity): Outcome | null {
     return {
       title: "Verdicts and sessions",
       link: `/admin/reviews?judged_by=${encodeURIComponent(activity.user_id)}`,
-      /* The verdict counts are the chart and its legend; these two are not
-         in it. */
+      /* The verdict counts are the chart (hover a slice); these two are
+         not in it. */
       fields: [
         { label: "Sessions run", value: String(sessions_run) },
         { label: "Participants", value: String(participants) },
       ],
-      legend: true,
       slices: [
         { label: "Approved", hours: approved },
         { label: "Flagged", hours: flagged },
@@ -198,21 +195,6 @@ export function UserActivitySection({
         <DetailField label="Per active day" value={String(perActiveDay)} />
       </DetailGroup>
 
-      <section className="mt-6 border-t border-alva-border pt-6">
-        <h3 className="text-sm font-medium text-foreground">Contribution graph</h3>
-        <div className="mt-3">
-          {activity.total === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nothing recorded in this window.
-            </p>
-          ) : (
-            <UserActivityHeatmap data={columns} />
-          )}
-        </div>
-      </section>
-
-      {activity.intern ? <AssignedProgress counts={activity.intern} /> : null}
-
       {outcome ? (
         <>
           <DetailGroup
@@ -250,24 +232,25 @@ export function UserActivitySection({
               <div className="h-48 rounded-xl bg-alva-surface p-3">
                 <ApprovalGauge value={outcome.rate} label={outcome.rateLabel} />
               </div>
-              {outcome.legend ? (
-                <ul className="col-span-2 flex flex-wrap gap-x-5 gap-y-2 px-1 text-xs">
-                  {outcome.slices.map((slice, index) => (
-                    <li key={slice.label} className="flex items-center gap-1.5">
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ background: OUTCOME_PALETTE[index % OUTCOME_PALETTE.length] }}
-                      />
-                      <span className="text-muted-foreground">{slice.label}</span>
-                      <span className="tabular-nums text-foreground">{slice.hours}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </div>
           ) : null}
         </>
       ) : null}
+
+      <section className="mt-6 border-t border-alva-border pt-6">
+        <h3 className="text-sm font-medium text-foreground">Contribution graph</h3>
+        <div className="mt-3">
+          {activity.total === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nothing recorded in this window.
+            </p>
+          ) : (
+            <UserActivityHeatmap data={columns} />
+          )}
+        </div>
+      </section>
+
+      {activity.intern ? <AssignedProgress counts={activity.intern} /> : null}
     </>
   );
 }
@@ -294,7 +277,8 @@ function AssignedProgress({
   const assigned = counts.clips_assigned;
   const parts = [
     { label: "Reviewed", value: counts.assigned_reviewed, color: OUTCOME_PALETTE[0] },
-    { label: "On desk", value: counts.on_desk, color: "hsl(146 87% 54% / 0.35)" },
+    /* Cyan from the chart palette: apart from the green, still ours. */
+    { label: "Pending", value: counts.on_desk, color: "hsl(187 72% 56%)" },
     { label: "Taken back", value: counts.taken_back, color: OUTCOME_PALETTE[3] },
   ];
   const width = (value: number) => `${assigned > 0 ? (value / assigned) * 100 : 0}%`;

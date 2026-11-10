@@ -4,6 +4,7 @@ import type { ApiAnnotationStatus } from "@/lib/api/annotations";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { AnnotationStatus, AnnotatorSession } from "@/data/annotators/sessions";
 import { NO_VALUE } from "@/lib/no-value";
+import { formatDuration } from "@/lib/duration";
 
 /**
  * The annotator's session list.
@@ -40,11 +41,6 @@ function relativeTime(iso: string): string {
   if (days === 1) return "Yesterday";
   if (days < 7) return `${days}d ago`;
   return `${Math.floor(days / 7)}w ago`;
-}
-
-function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  return `${mins}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 }
 
 /** The queue carries these; the annotator's own list does not. */

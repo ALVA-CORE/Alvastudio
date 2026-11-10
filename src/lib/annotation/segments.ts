@@ -68,17 +68,6 @@ export function formatClock(seconds: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
-/** Long-form duration for metadata panels, e.g. "32m 14s". */
-export function formatDurationLong(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "0s";
-  const total = Math.round(seconds);
-  const mins = Math.floor(total / 60);
-  const secs = total % 60;
-  if (mins === 0) return `${secs}s`;
-  if (secs === 0) return `${mins}m`;
-  return `${mins}m ${secs}s`;
-}
-
 /* ------------------------------------------------------------------ *
  * Measurement
  * ------------------------------------------------------------------ */

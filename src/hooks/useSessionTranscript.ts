@@ -9,6 +9,7 @@ import { toTranscriptDoc } from "@/data/annotators/fromApi";
 import { baselineFrom, saveAnnotation, type Baseline } from "@/data/annotators/toApi";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import type { TranscriptDoc } from "@/lib/annotation/types";
+import { formatDuration } from "@/lib/duration";
 
 /**
  * Loads the session record and its annotation for the workspace route.
@@ -58,11 +59,6 @@ export type TranscriptResource =
 /** Short, readable handle. The API has no session code, so derive a stable one. */
 function sessionCode(sessionId: string): string {
   return `FG-${sessionId.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
-}
-
-function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  return `${mins}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 }
 
 const LANGUAGE: Record<string, AnnotatorSession["language"]> = {

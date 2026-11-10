@@ -6,6 +6,7 @@ import type {
   NotificationStatus,
 } from "@/data/contributor-notifications";
 import type { InternNotification, InternNotificationCategory } from "@/data/intern-notifications";
+import { formatDuration } from "@/lib/duration";
 
 /**
  * Maps the API's notifications onto the two shapes the screens already speak.
@@ -120,10 +121,8 @@ const MODE_LABEL: Record<string, string> = {
   focus_group: "Focus group",
 };
 
-function formatDuration(seconds: number | null) {
-  if (!seconds) return undefined;
-  const total = Math.round(seconds);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+function formatRecordingLength(seconds: number | null) {
+  return seconds ? formatDuration(seconds) : undefined;
 }
 
 /**
@@ -143,7 +142,9 @@ export function withRecordingDetail(
   return {
     ...notification,
     prompt: recording.prompt_text ?? recording.stimulus_text ?? notification.prompt,
-    duration: formatDuration(recording.measured_duration_seconds ?? recording.duration_seconds) ?? notification.duration,
+    duration:
+      formatRecordingLength(recording.measured_duration_seconds ?? recording.duration_seconds) ??
+      notification.duration,
     mode: MODE_LABEL[recording.session_type] ?? recording.session_type,
     device: recording.device_mic ?? notification.device,
   };

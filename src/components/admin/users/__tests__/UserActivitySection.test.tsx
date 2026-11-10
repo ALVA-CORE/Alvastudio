@@ -52,14 +52,19 @@ describe("UserActivitySection, intern", () => {
     );
   });
 
-  /* The verdict counts are the chart's legend now, not a list above it. */
-  it("names the verdicts in a legend, and keeps the rest as fields", () => {
+  /* The verdict counts are the chart now: hovering a slice names it. */
+  it("keeps the verdicts in the chart, with no list or legend beside it", () => {
     renderSection(intern);
     expect(screen.queryByText("Clips reviewed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Approved")).not.toBeInTheDocument();
     expect(screen.getByText("Sessions run")).toBeInTheDocument();
-    for (const item of screen.getAllByText("Approved")) {
-      expect(within(item.closest("li") as HTMLElement).getByText("30")).toBeInTheDocument();
-    }
+  });
+
+  it("puts the verdicts above the contribution graph", () => {
+    renderSection(intern);
+    const verdicts = screen.getByText("Verdicts and sessions");
+    const graph = screen.getByText("Contribution graph");
+    expect(verdicts.compareDocumentPosition(graph) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   /* The three parts of what was dealt fill it, and nothing is made up. */
@@ -69,7 +74,7 @@ describe("UserActivitySection, intern", () => {
     expect(bar).toHaveAttribute("aria-valuenow", "18");
     expect(bar).toHaveAttribute("aria-valuemax", "25");
     expect(bar.children).toHaveLength(3);
-    expect(within(screen.getByText("On desk").closest("li") as HTMLElement).getByText("5")).toBeInTheDocument();
+    expect(within(screen.getByText("Pending").closest("li") as HTMLElement).getByText("5")).toBeInTheDocument();
     expect(within(screen.getByText("Taken back").closest("li") as HTMLElement).getByText("2")).toBeInTheDocument();
     expect(screen.queryByText("Sample")).not.toBeInTheDocument();
   });

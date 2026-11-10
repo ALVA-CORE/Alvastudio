@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth/context";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 import { NO_VALUE } from "@/lib/no-value";
+import { formatDuration } from "@/lib/duration";
 
 /**
  * An intern's review work, as three small requests (9 Nov):
@@ -34,11 +35,6 @@ function relative(iso: string): string {
   return days === 1 ? "Yesterday" : days < 7 ? `${days}d ago` : `${Math.floor(days / 7)}w ago`;
 }
 
-function duration(seconds: number | null): string {
-  const total = Math.round(seconds ?? 0);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
-
 const VARIETY: Record<string, string> = {
   nigerian_english: "Nigerian English",
   nigerian_pidgin: "Nigerian Pidgin",
@@ -58,7 +54,7 @@ export function toQueueItem(recording: ApiRecording): ReviewQueueItem {
     mode: MODE[recording.session_type] ?? "Prompt reader",
     /* Measured from the stored file where we have it; the browser's figure
        was never checked. */
-    duration: duration(recording.measured_duration_seconds ?? recording.duration_seconds),
+    duration: formatDuration(recording.measured_duration_seconds ?? recording.duration_seconds ?? 0),
     durationSec: Math.round(
       recording.measured_duration_seconds ?? recording.duration_seconds ?? 0
     ),
