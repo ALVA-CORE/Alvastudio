@@ -4,14 +4,10 @@ import Forward10 from "@solar-icons/react/video/Rewind10SecondsForward";
 import { BeamPlayButton } from "@/components/shared/BeamPlayButton";
 import { SpeedControl } from "@/components/shared/SpeedControl";
 import { cn } from "@/lib/utils";
+import { formatClockTime as clock } from "@/lib/duration";
 
 /** Skip step, in seconds. Enough to clear a false start, short enough to land. */
 const SKIP = 10;
-
-function clock(seconds: number) {
-  const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : 0;
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
 
 /**
  * Listen to the clip without leaving the panel.

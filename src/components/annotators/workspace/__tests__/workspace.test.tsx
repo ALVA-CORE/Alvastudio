@@ -8,11 +8,8 @@ import type { AnnotationStore } from "@/lib/annotation/store";
 import { buildTranscript } from "@/test/demoTranscript";
 import { getAnnotatorSessions } from "@/test/annotatorSessionFixtures";
 import { speakerDisplayName } from "@/lib/annotation/types";
-import {
-  formatDurationLong,
-  formatRulerTime,
-  formatTimecode,
-} from "@/lib/annotation/segments";
+import { formatRulerTime, formatTimecode } from "@/lib/annotation/segments";
+import { formatDuration } from "@/lib/duration";
 import { DEFAULT_ZOOM } from "@/lib/annotation/store";
 
 /**
@@ -476,7 +473,7 @@ describe("AnnotationWorkspace", () => {
     await user.click(screen.getByRole("tab", { name: /tags/i }));
 
     const first = doc.segments[0];
-    const expected = formatDurationLong(first.end - first.start);
+    const expected = formatDuration(first.end - first.start);
     expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
   });
 

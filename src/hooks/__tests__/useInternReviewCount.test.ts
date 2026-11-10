@@ -7,32 +7,28 @@ vi.mock("@/lib/api/reviews", () => ({ listReviews: (query: unknown) => listRevie
 const { useInternReviewCount } = await import("../useInternReviewCount");
 
 const DAY = 24 * 60 * 60 * 1000;
-/* 1,000 verdicts, one a day, newest first, as the route lists them. */
-const verdicts = Array.from({ length: 1000 }, (_, index) => ({
-  id: `v${index}`,
-  created_at: new Date(Date.now() - (index + 0.5) * DAY).toISOString(),
-}));
 
 describe("useInternReviewCount", () => {
   beforeEach(() => {
-    listReviews.mockReset().mockImplementation(async ({ limit, offset }: { limit: number; offset: number }) => ({
-      items: verdicts.slice(offset, offset + limit),
-      total: verdicts.length,
-      limit,
-      offset,
-    }));
+    listReviews.mockReset().mockResolvedValue({ items: [], total: 30, limit: 1, offset: 0 });
   });
 
   /* The bug: every verdict ever given, about 35 requests, on every visit. */
-  it("stops at the first page that reaches past the window", async () => {
+  it("asks once, for the count inside the window", async () => {
+    const before = Date.now();
     const { result } = renderHook(() => useInternReviewCount("intern-1", 30));
     await waitFor(() => expect(result.current).toBe(30));
+
     expect(listReviews).toHaveBeenCalledTimes(1);
+    const query = listReviews.mock.calls[0][0];
+    expect(query).toMatchObject({ reviewer_id: "intern-1", limit: 1 });
+    expect(Math.abs(new Date(query.created_after).getTime() - (before - 30 * DAY))).toBeLessThan(5000);
   });
 
-  it("reads on only as far as a long window needs", async () => {
-    const { result } = renderHook(() => useInternReviewCount("intern-1", 365));
-    await waitFor(() => expect(result.current).toBe(365));
-    expect(listReviews).toHaveBeenCalledTimes(2);
+  it("shows nothing rather than a false zero when it fails", async () => {
+    listReviews.mockRejectedValue(new Error("down"));
+    const { result } = renderHook(() => useInternReviewCount("intern-1", 7));
+    await waitFor(() => expect(listReviews).toHaveBeenCalled());
+    expect(result.current).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 # What we need from the backend
 
-Checked against the live OpenAPI document, 7 Nov 2026.
+Checked against the live OpenAPI document, 10 Nov 2026.
 
 **Every ask and every open question lives here, and nowhere else.**
 
@@ -15,9 +15,9 @@ the other document points here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 10 | Keep the email button our green in Gmail's dark mode | The button shows a darker, wrong green in the Gmail apps | Medium |
-| 11 | Page the annotations and focus-group lists on the server | Both admin pages download every row (and every user) on each visit | Medium |
-| 12 | How many clips were dealt to an intern | The intern's "Assigned and reviewed" bar runs on sample figures | Medium |
+| 10 | Keep the email button's label dark in Gmail's dark mode (reopened) | The label turns white on the green in Gmail on iPhone | Medium |
+| 13 | A way to stream session audio | A session's player waits for the whole file to download | High |
+| 14 | A session's measured length on each row | A session shows the length sent with the upload, which can be far off | Medium |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -27,105 +27,85 @@ bodies, #7 hero images (see [`replies/api-status-2026-11-05.md`](replies/api-sta
 Closed on 6 Nov: #8 search, #9 dark-mode emails (see
 [`replies/api-status-2026-11-06.md`](replies/api-status-2026-11-06.md)). #9 still
 needs checking in real mail apps; that is ours to do, and the reply says how.
+Closed on 10 Nov: #10 the email button in Gmail's dark mode, #11 paging the
+annotations and focus-group lists, #12 clips dealt to an intern (see
+[`replies/api-status-2026-11-10.md`](replies/api-status-2026-11-10.md)). #10
+was reopened the same day for the label; see below.
 
 ---
 
-## 10. The email button turns a different green in Gmail's dark mode
+## 10. The email button's label in Gmail's dark mode (reopened 10 Nov)
 
-**What happens.** The 6 Nov dark-mode change works: emails stay dark. One
-thing is left. In **Gmail on iPhone and Gmail on Android, in dark mode only**,
-the button is a darker, duller green that is not `#25F07D`. In light mode it
-is right. We have not seen it in other apps, but have not checked them all.
+**What we saw**, after the 10 Nov tile, on a real send:
 
-**Why we think so.** Gmail's dark mode recolours bright colours and leaves
-dark ones mostly alone, which is why the dark surfaces come through and the
-bright button does not. The button's cell and link already carry
-`background-image:linear-gradient(#25F07D,#25F07D)`, so in the Gmail apps the
-gradient is not protecting it. What Gmail does not recolour is an image.
+- **Gmail on iPhone, dark mode:** the green now holds. Sampled from the
+  screenshot, the button is `#24EF7D` against our `#25F07D`. **The label
+  does not:** it comes out `#F7F7F7`, near white, where it should be `#090909`.
+  Light text on the bright green also makes the button look paler than it is.
+- **Gmail on the web, dark theme:** right. Green button, dark label.
+- **Light mode:** right everywhere we looked.
+- **Gmail on Android:** not checked yet.
 
-**What would fix it.**
+**What we need:** the label `#090909` on the green in Gmail's dark mode, as it
+is in light mode. You said you'd rather talk before working round it, so we
+have not guessed at a fix. Two things we know about this setup:
 
-1. Host a small solid tile of the accent beside the other email assets, for
-   example `/static/email/accent.png`: 8 × 8 pixels, every pixel `#25F07D`.
-2. On the button's `<td>` and its `<a>`, give that tile as the background,
-   repeated, over the colour that is there now:
-   ```
-   background-color:#25F07D;
-   background-image:url(https://api.alvacoreai.com/static/email/accent.png);
-   background-repeat:repeat;
-   ```
-   Keep `bgcolor` on the cell for clients that show neither.
-3. Check the label in the same place. It is dark text on the green, and Gmail
-   may lighten it now the green holds. If it does, tell us before working
-   round it; it is the same trick as `light()` the other way, and worth
-   seeing first.
+- **Images are left alone:** the tile and the hero both come through as sent.
+- **`light()` already works** for light text. The label needs the same kind of
+  measure, for dark text on a bright background.
 
-**To check:** Gmail on iPhone and Android, dark mode, before and after, and
-that light mode is unchanged.
-
-The composer's preview copy follows the template; when it changes, we update
-ours and its parity test.
+When the template changes, we copy it and regenerate the parity fixtures.
 
 ---
 
-## 11. Page the annotations and focus-group lists on the server
+## 13. A way to stream session audio
 
-You asked (9 Nov, section 5) to be told when another table needs what
-recordings got. These two do: each downloads its whole list on every visit,
-plus a user list only to put names on the rows, and both lists only grow.
+**What happens:** opening a focus-group session in the admin panel shows a
+loading player until the whole recording has downloaded. Nothing plays until
+the last byte arrives, and the longer the session the longer the wait.
 
-**`/admin/annotations`** today reads every annotation (`GET /annotations`),
-every session (`GET /focus-groups`) and every user (`GET /users`).
+**Why:** `GET /focus-groups/{session_id}/audio` takes a bearer token, and an
+`<audio src>` cannot send one. So the studio fetches the whole file with the
+header and plays it from memory (`apiFetchBlobUrl`). The route itself serves
+ranges; the browser just never gets to ask for them.
 
-- **A name on each row:** `annotator_name` on `AnnotationSummary`, as
-  `FocusGroupSessionSummary` already has. Rows carry only `annotator_id`, so
-  the page reads every user to name them.
-- **Search and sort on `GET /annotations`:** `q` over the id, the topic and
-  the annotator's name; `sort` and `order` over `topic`, `annotator`,
-  `segment_count`, `tag_count`, `duration`, `status` and `created_at`.
-  `status` is there already.
-- **The cards and the chart, counted over everything:** total annotations;
-  `approved`; in progress (`draft` + `in_progress`); and, for "Annotator
-  throughput", each annotator's count by status.
-- **"Waiting to be claimed":** sessions with audio and no annotation. Today
-  the page works it out from every session against every annotation. A
-  filter for it on `GET /focus-groups`, with `total`, would replace both
-  downloads.
+**What would fix it:** a URL the browser can load directly, for example a
+short-lived signed link to the same file:
 
-**`/admin/focus-groups`** today reads every session and every intern.
+- **Route:** `GET /focus-groups/{session_id}/audio-url` returns
+  `{ url, expires_at }`, with the same access rule as the audio route.
+- **The link:** carries its own short-lived token, and the file it serves
+  honours `Range`, so the player starts at once and can seek.
 
-- **A name on each row:** `intern_name` on `FocusGroupSessionSummary`. Rows
-  carry only `intern_id`.
-- **Filters on `GET /focus-groups`:** `state`, and `has_audio` (the "Missing
-  audio" tab), with `total`.
-- **Search and sort:** `q` over the id, the topic, the intern's name and the
-  state; `sort` and `order` over `topic`, `intern`, `state`,
-  `participant_count`, `duration`, `has_audio` and `created_at`.
-- **The cards, counted over everything:** sessions, hours recorded, speakers
-  captured, and sessions missing audio.
-
-With those, both pages move to one page at a time the way reviews did: the
-table from the list, the cards from a summary.
+The same would help `GET /recordings/{id}/audio` and
+`GET /annotations/{id}/audio`, which work the same way. Clips are short, so
+those matter less.
 
 ---
 
-## 12. How many clips were dealt to an intern
+## 14. A session's measured length on each row
 
-The user panel's Activity tab for an intern now has an "Assigned and reviewed"
-bar under the contribution graph: of the clips dealt to them, how many they
-have judged. It tells an admin whether an intern is keeping up with their
-desk. `UserActivity.intern` has `clips_reviewed` but nothing for what was
-dealt, so the bar runs on sample figures, marked "Sample" on screen.
+**What happens:** session `f705732b` ("Scribe test: a memorable market day")
+shows **6h** in the table and the panel. Its audio plays for **1:25**. The 6h
+is `duration_seconds`, the length sent with the upload: exactly 21,600, the
+most the API accepts. Nothing measured from the file reaches us per session.
 
-**What would fix it:** on `UserActivity.intern`, over the same window as the
-rest:
+**Why it matters:** the Length column, the panel, the annotations table and
+the waiting list all show that figure, so one wrong upload reads as six hours
+of work.
 
-- `clips_assigned`: clips dealt to them, from the bank or by an admin's
-  reassignment;
-- `on_desk`: clips on their desk now, still waiting for their verdict;
-- `taken_back`: clips that left their desk without a verdict (reopened,
-  reassigned, or handed back when they stopped reviewing).
+**What we know you have:** `GET /focus-groups/summary` already counts
+`hours_measured` from the file, and recordings carry
+`measured_duration_seconds`.
 
-We would show `clips_reviewed` against `clips_assigned`, with the other two
-as the rest of the bar, so the parts add up to what was dealt.
+**What would fix it:** `measured_duration_seconds` (null where never
+measured) on:
+
+- `FocusGroupSessionSummary` and the session detail;
+- `AnnotationSummary`;
+- `AnnotationQueueRow`.
+
+We would show the measured length wherever there is one, and the reported one
+otherwise, as the reviews page does for clips. Sorting by `duration` would
+ideally follow the same rule.
 

@@ -11,14 +11,10 @@ import {
 } from "@/data/admin/activity";
 import { BeamPlayButton } from "@/components/shared/BeamPlayButton";
 import { cn } from "@/lib/utils";
+import { formatClockTime as clock } from "@/lib/duration";
 
 /** Steps per second while playing. Slow enough to read, fast enough to sit through. */
 const STEP_MS = 160;
-
-function clock(seconds: number) {
-  const total = Math.max(0, Math.round(seconds));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-}
 
 function wallClock(at: number) {
   return new Date(at).toLocaleTimeString(undefined, {

@@ -1,5 +1,5 @@
 import { apiFetch, apiFetchBlobUrl } from "./client";
-import { isSendableDuration } from "./recordings";
+import { isSendableDuration, type ApiPage } from "./recordings";
 import type { ApiAgeBracket, ApiGender, ApiLanguageVariety } from "./enums";
 
 export type ApiParticipant = {
@@ -47,6 +47,7 @@ export type ApiSpeakerTurn = {
 export type ApiSessionSummary = {
   id: string;
   intern_id: string;
+  intern_name?: string | null;
   /** Who is annotating it, and their name. Null while nobody holds it. */
   assigned_annotator_id?: string | null;
   annotator_name?: string | null;
@@ -55,8 +56,6 @@ export type ApiSessionSummary = {
   duration_seconds: number | null;
   has_audio: boolean;
   participant_count: number;
-  /** Empty for nearly every session. One entry per person removed. */
-  redactions?: ApiParticipantRedaction[];
   /**
    * Where the session was RECORDED, as typed.
    *
@@ -79,6 +78,8 @@ export type ApiSession = Omit<
   audio_size_bytes: number | null;
   participants: ApiParticipant[];
   turns: ApiSpeakerTurn[];
+  /** Empty for nearly every session. One entry per person removed. */
+  redactions?: ApiParticipantRedaction[];
 };
 
 /**
@@ -90,6 +91,54 @@ export type ApiSession = Omit<
 export const listSessions = (
   query: { limit?: number; offset?: number; expand?: "participants" } = {}
 ) => apiFetch<ApiSessionSummary[]>("/focus-groups", { query });
+
+/** What `GET /focus-groups` sorts by. `duration` is the reported length. */
+export type ApiSessionSort =
+  | "created_at"
+  | "topic"
+  | "intern"
+  | "state"
+  | "participant_count"
+  | "duration"
+  | "has_audio";
+
+/**
+ * One page of sessions, with the total. Admins see every session, interns
+ * their own. `state` matches by canonical name (`FCT` finds "Abuja"); `q`
+ * matches the id, topic, intern's name and state as typed.
+ */
+export const listSessionsPage = (
+  query: {
+    q?: string;
+    state?: string;
+    has_audio?: boolean;
+    sort?: ApiSessionSort;
+    order?: "asc" | "desc";
+    limit?: number;
+    offset?: number;
+  },
+  signal?: AbortSignal
+) =>
+  apiFetch<ApiPage<ApiSessionSummary>>("/focus-groups", {
+    query: { ...query, envelope: true },
+    signal,
+  });
+
+/** Counts over the same sessions the list would show, whatever it is filtered to. */
+export type ApiSessionCounts = {
+  sessions: number;
+  missing_audio: number;
+  /** Participants summed over sessions: somebody in two counts twice. */
+  speakers_captured: number;
+  /** By each session's reported length, audio or not. */
+  hours_reported: number;
+  /** Audio in hand: measured length, or the reported one where none was measured. */
+  hours_measured: number;
+  unmeasured_sessions: number;
+};
+
+export const sessionCounts = (signal?: AbortSignal) =>
+  apiFetch<ApiSessionCounts>("/focus-groups/summary", { signal });
 
 export const getSession = (id: string) => apiFetch<ApiSession>(`/focus-groups/${id}`);
 

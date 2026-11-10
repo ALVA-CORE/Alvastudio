@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import UsersGroupTwoRounded from "@solar-icons/react/users/UsersGroupTwoRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
@@ -20,6 +20,8 @@ import { alvaToast } from "@/lib/alva-toast";
 import type { AdminSession } from "@/data/admin/oversight";
 import { STATES, round1 } from "@/data/admin/shared";
 import { useAdminSessions } from "@/hooks/useAdminSessions";
+import { assignSessionAnnotator, type ApiSessionSort } from "@/lib/api/focusGroups";
+import { reportApiError } from "@/lib/api/reportApiError";
 
 type Tab = "all" | "no-audio";
 type StateFilter = string | "all";
@@ -33,33 +35,51 @@ type StateFilter = string | "all";
  * the first thing an admin sees, not something they have to sort for.
  */
 export default function AdminFocusGroupsPage() {
-  const { rows: live, isLoading, error, reload } = useAdminSessions();
   const [tab, setTab] = useState<Tab>("all");
   const [backfillOpen, setBackfillOpen] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<{ key: ApiSessionSort; order: "asc" | "desc" }>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [detail, setDetail] = useState<AdminSession | null>(null);
   const [assigning, setAssigning] = useState<AdminSession | null>(null);
-  const rows = live;
 
-  const missingAudio = useMemo(() => rows.filter((row) => !row.hasAudio), [rows]);
+  const { rows, total, summary, isLoading, isFetching, error, reload } = useAdminSessions({
+    hasAudio: tab === "no-audio" ? false : undefined,
+    state: stateFilter === "all" ? undefined : stateFilter,
+    q: query,
+    sort,
+    page,
+    pageSize,
+  });
 
-  const filtered = useMemo(() => {
-    const base = tab === "no-audio" ? missingAudio : rows;
-    return stateFilter === "all"
-      ? base
-      : base.filter((row) => row.state === stateFilter);
-  }, [rows, missingAudio, tab, stateFilter]);
+  /* Any change of what is listed starts again from page one, in the same
+     update, so the old page is never asked for under the new filter. */
+  const showTab = (next: Tab) => {
+    setTab(next);
+    setPage(1);
+  };
+  const showState = (next: StateFilter) => {
+    setStateFilter(next);
+    setPage(1);
+  };
+  const search = (next: string) => {
+    setQuery(next);
+    setPage(1);
+  };
+  const sortBy = (key: string, order: "asc" | "desc") => {
+    setSort({ key: key as ApiSessionSort, order });
+    setPage(1);
+  };
 
-  const totalHours = round1(
-    rows.reduce((sum, row) => sum + row.durationSec, 0) / 3600
-  );
-  const participants = rows.reduce((sum, row) => sum + row.participants, 0);
+  /* Every count is the server's, over all sessions, whatever the table shows. */
+  const missingAudio = summary?.missing_audio ?? 0;
 
   const columns = [
     {
       key: "code",
       header: "Session",
-      sortValue: (row: AdminSession) => row.code,
       render: (row: AdminSession) => (
         <span className="font-medium tabular-nums text-foreground">{row.code}</span>
       ),
@@ -67,7 +87,7 @@ export default function AdminFocusGroupsPage() {
     {
       key: "topic",
       header: "Topic",
-      sortValue: (row: AdminSession) => row.topic,
+      serverSort: "topic",
       render: (row: AdminSession) => (
         <TruncateCell className="max-w-sm text-muted-foreground" title={row.topic}>
           {row.topic}
@@ -77,7 +97,7 @@ export default function AdminFocusGroupsPage() {
     {
       key: "intern",
       header: "Intern",
-      sortValue: (row: AdminSession) => row.intern,
+      serverSort: "intern",
       render: (row: AdminSession) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.intern}</span>
       ),
@@ -85,7 +105,7 @@ export default function AdminFocusGroupsPage() {
     {
       key: "state",
       header: "State",
-      sortValue: (row: AdminSession) => row.state,
+      serverSort: "state",
       render: (row: AdminSession) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.state}</span>
       ),
@@ -93,7 +113,7 @@ export default function AdminFocusGroupsPage() {
     {
       key: "participants",
       header: "Speakers",
-      sortValue: (row: AdminSession) => row.participants,
+      serverSort: "participant_count",
       render: (row: AdminSession) => (
         <span className="tabular-nums text-muted-foreground">{row.participants}</span>
       ),
@@ -101,7 +121,7 @@ export default function AdminFocusGroupsPage() {
     {
       key: "duration",
       header: "Length",
-      sortValue: (row: AdminSession) => row.durationSec,
+      serverSort: "duration",
       render: (row: AdminSession) => (
         <span className="tabular-nums text-muted-foreground">{row.duration}</span>
       ),
@@ -109,7 +129,7 @@ export default function AdminFocusGroupsPage() {
     {
       key: "hasAudio",
       header: "Audio",
-      sortValue: (row: AdminSession) => String(row.hasAudio),
+      serverSort: "has_audio",
       render: (row: AdminSession) => (
         <AdminStatusPill tone={row.hasAudio ? "good" : "bad"}>
           {row.hasAudio ? "Uploaded" : "Missing"}
@@ -119,7 +139,7 @@ export default function AdminFocusGroupsPage() {
     {
       key: "createdLabel",
       header: "Recorded",
-      sortValue: (row: AdminSession) => row.createdAt,
+      serverSort: "created_at",
       render: (row: AdminSession) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.createdLabel}</span>
       ),
@@ -128,7 +148,16 @@ export default function AdminFocusGroupsPage() {
 
   const sharedTableProps = {
     columns,
-    pageSize: 10,
+    pageSize,
+    isLoading: isFetching,
+    serverPaging: {
+      total,
+      page,
+      onPageChange: setPage,
+      onPageSizeChange: setPageSize,
+      onQueryChange: search,
+      onSortChange: sortBy,
+    },
     searchPlaceholder: "Search",
     activeFilterCount: stateFilter === "all" ? 0 : 1,
     onRowClick: (row: AdminSession) => setDetail(row),
@@ -143,7 +172,7 @@ export default function AdminFocusGroupsPage() {
         </DropdownMenuLabel>
         <DropdownMenuCheckboxItem
           checked={stateFilter === "all"}
-          onCheckedChange={() => setStateFilter("all")}
+          onCheckedChange={() => showState("all")}
           onSelect={(event) => event.preventDefault()}
         >
           All states
@@ -152,7 +181,7 @@ export default function AdminFocusGroupsPage() {
           <DropdownMenuCheckboxItem
             key={state}
             checked={stateFilter === state}
-            onCheckedChange={() => setStateFilter(state)}
+            onCheckedChange={() => showState(state)}
             onSelect={(event) => event.preventDefault()}
           >
             {state}
@@ -207,24 +236,24 @@ export default function AdminFocusGroupsPage() {
         <MetricCard
           variant="accent"
           title="Sessions"
-          value={String(rows.length)}
+          value={String(summary?.sessions ?? 0)}
           icon={UsersGroupTwoRounded}
         />
         <MetricCard
           title="Hours recorded"
-          value={`${totalHours}h`}
+          value={`${round1(summary?.hours_reported ?? 0)}h`}
           icon={ClockCircle}
         />
         <MetricCard
           title="Speakers captured"
-          value={String(participants)}
+          value={String(summary?.speakers_captured ?? 0)}
           icon={Microphone3}
         />
         <MetricCard
           title="Missing audio"
-          value={String(missingAudio.length)}
+          value={String(missingAudio)}
           trend={{
-            label: missingAudio.length > 0 ? "never reach annotation" : "",
+            label: missingAudio > 0 ? "never reach annotation" : "",
             positive: false,
             neutral: true,
           }}
@@ -232,7 +261,7 @@ export default function AdminFocusGroupsPage() {
         />
       </div>
 
-      <Tabs className="mt-3" value={tab} onValueChange={(value) => setTab(value as Tab)}>
+      <Tabs className="mt-3" value={tab} onValueChange={(value) => showTab(value as Tab)}>
         <TabsList className="h-9 rounded-full bg-alva-surface p-1">
           <TabsTrigger
             value="all"
@@ -246,9 +275,9 @@ export default function AdminFocusGroupsPage() {
           >
             <span className="flex items-center gap-2">
               Missing audio
-              {missingAudio.length > 0 ? (
+              {missingAudio > 0 ? (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500/20 px-1.5 text-[10px] font-semibold text-red-400">
-                  {missingAudio.length}
+                  {missingAudio}
                 </span>
               ) : null}
             </span>
@@ -259,7 +288,7 @@ export default function AdminFocusGroupsPage() {
           <AlvaDataTable
             {...sharedTableProps}
             title={tab === "no-audio" ? "Sessions with no audio" : "All sessions"}
-            rows={filtered}
+            rows={rows}
             emptyState={{
               icon: <UsersGroupTwoRounded size={20} weight="Outline" />,
               title:
@@ -286,8 +315,15 @@ export default function AdminFocusGroupsPage() {
         open={assigning !== null}
         onOpenChange={(next) => !next && setAssigning(null)}
         subject={assigning ? `${assigning.code} · ${assigning.topic}` : null}
-        onAssign={(annotator) => {
-          alvaToast.success(`${assigning?.code} assigned to ${annotator.name}`);
+        onAssign={async (annotator) => {
+          if (!assigning) return;
+          try {
+            await assignSessionAnnotator(assigning.id, annotator.id);
+            alvaToast.success(`${assigning.code} assigned to ${annotator.name}`);
+          } catch (cause) {
+            const message = reportApiError(cause, "Could not assign that one.");
+            if (message) alvaToast.error(message);
+          }
           setAssigning(null);
         }}
       />

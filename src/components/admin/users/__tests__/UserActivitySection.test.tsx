@@ -28,6 +28,10 @@ const intern = {
     flagged: 4,
     sessions_run: 3,
     participants: 18,
+    clips_assigned: 25,
+    assigned_reviewed: 18,
+    on_desk: 5,
+    taken_back: 2,
   },
 } as unknown as ApiUserActivity;
 
@@ -48,26 +52,31 @@ describe("UserActivitySection, intern", () => {
     );
   });
 
-  /* The verdict counts are the chart's legend now, not a list above it. */
-  it("names the verdicts in a legend, and keeps the rest as fields", () => {
+  /* The verdict counts are the chart now: hovering a slice names it. */
+  it("keeps the verdicts in the chart, with no list or legend beside it", () => {
     renderSection(intern);
     expect(screen.queryByText("Clips reviewed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Approved")).not.toBeInTheDocument();
     expect(screen.getByText("Sessions run")).toBeInTheDocument();
-    for (const item of screen.getAllByText("Approved")) {
-      expect(within(item.closest("li") as HTMLElement).getByText("30")).toBeInTheDocument();
-    }
   });
 
-  /* What we have fills the bar; only the assigned total is made up, and only it says so. */
-  it("fills the bar with the real verdicts, and marks only the assigned total as sample", () => {
+  it("puts the verdicts below the graph and the assigned bar", () => {
+    renderSection(intern);
+    const bar = screen.getByText("Assigned and reviewed");
+    const verdicts = screen.getByText("Verdicts and sessions");
+    expect(bar.compareDocumentPosition(verdicts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  /* The three parts of what was dealt fill it, and nothing is made up. */
+  it("fills the bar with what became of the clips dealt to them", () => {
     renderSection(intern);
     const bar = screen.getByRole("progressbar", { name: "Clips reviewed of those assigned" });
-    expect(bar).toHaveAttribute("aria-valuenow", "40");
-    expect(bar).toHaveAttribute("aria-valuemax", "54");
+    expect(bar).toHaveAttribute("aria-valuenow", "18");
+    expect(bar).toHaveAttribute("aria-valuemax", "25");
     expect(bar.children).toHaveLength(3);
-    expect(screen.getByText("Sample").previousElementSibling).toHaveTextContent("54 assigned");
-    const notYet = screen.getByText("Not yet").closest("li") as HTMLElement;
-    expect(within(notYet).getByText("14")).toBeInTheDocument();
+    expect(within(screen.getByText("Pending").closest("li") as HTMLElement).getByText("5")).toBeInTheDocument();
+    expect(within(screen.getByText("Taken back").closest("li") as HTMLElement).getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("Sample")).not.toBeInTheDocument();
   });
 
   it("has no assigned bar for anyone but an intern", () => {

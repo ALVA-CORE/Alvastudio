@@ -61,6 +61,8 @@ export function seededApiAnnotations() {
     task: "asr" as const,
     status: row.status,
     annotator_id: `an-${index}`,
+    annotator_name: row.annotator,
+    topic: row.topic,
     revision: 1,
     is_gold: false,
     version: 1,
@@ -74,6 +76,8 @@ export function seededApiSessions() {
   return ADMIN_SESSIONS.map((row) => ({
     id: row.id,
     intern_id: `in-${row.id}`,
+    intern_name: row.intern,
+    state: row.state,
     topic: row.topic,
     language_variety: null,
     duration_seconds: row.durationSec || null,

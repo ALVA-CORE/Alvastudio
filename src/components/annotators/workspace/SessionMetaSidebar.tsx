@@ -9,7 +9,7 @@ import Microphone2 from "@solar-icons/react/video/Microphone2";
 import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStatusBadge";
 import { AutosaveIndicator } from "@/components/annotators/workspace/AutosaveIndicator";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
-import { formatDurationLong } from "@/lib/annotation/segments";
+import { formatDuration } from "@/lib/duration";
 import { TagInspector } from "@/components/annotators/workspace/tagging/TagInspector";
 import { useAnnotation } from "@/lib/annotation/context";
 import {
@@ -403,8 +403,8 @@ function SessionMetaSidebarImpl({
                       <StatDivider />
                       <Stat
                         label="Spoken"
-                        value={formatDurationLong(stats.speakingSeconds)}
-                        title={`${formatDurationLong(stats.speakingSeconds)} of speech across all segments`}
+                        value={formatDuration(stats.speakingSeconds)}
+                        title={`${formatDuration(stats.speakingSeconds)} of speech across all segments`}
                       />
                       <StatDivider />
                       <Stat

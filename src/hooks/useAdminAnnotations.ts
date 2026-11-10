@@ -1,118 +1,134 @@
-import { fetchAllPages, fetchAllRows } from "@/lib/api/fetchAll";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  annotationCounts,
   assignAnnotator,
-  listAllAnnotations,
+  listAnnotationsPage,
+  listQueue,
   reviewAnnotation,
+  type ApiAnnotationCounts,
+  type ApiAnnotationSort,
+  type ApiAnnotationStatus,
   type ApiAnnotationSummary,
+  type ApiQueueRow,
 } from "@/lib/api/annotations";
-import {
-  assignSessionAnnotator,
-  listSessions,
-  type ApiSessionSummary,
-} from "@/lib/api/focusGroups";
-import { listUsers, type ApiUser } from "@/lib/api/users";
+import { assignSessionAnnotator } from "@/lib/api/focusGroups";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
-import type { AdminAnnotation, AnnotationStatus } from "@/data/admin/oversight";
+import type { AdminAnnotation } from "@/data/admin/oversight";
 import { NO_VALUE } from "@/lib/no-value";
 
+/** The most the queue gives in one request. */
+const QUEUE_LIMIT = 200;
+
+export type AnnotationsView = {
+  /** Omitted for every status. */
+  status?: ApiAnnotationStatus;
+  /** Blank for no search. */
+  q: string;
+  /** Omitted for the server's default, newest first. */
+  sort?: { key: ApiAnnotationSort; order: "asc" | "desc" };
+  /** 1-based. */
+  page: number;
+  pageSize: number;
+};
+
 /**
- * The admin annotations screen, and the sessions nobody has claimed.
+ * The admin annotations screen: one page of annotations, the counts over all
+ * of them, and the sessions waiting to be claimed.
  *
- * Three requests. `GET /annotations` returns ids and status and nothing a
- * person would recognise — no topic, no annotator name, no duration — so the
- * sessions supply the topic and the users supply the name. Joining here keeps
- * it at three requests instead of two per row.
- *
- * Segment and tag counts are not in the summary either. They are on the full
- * document, which is one request per annotation, so the table no longer claims
- * to know them and the detail panel reads the real figures when it opens.
+ * The table is a page of `GET /annotations`, searched, sorted and filtered on
+ * the server, each row carrying its topic, length and author's name. The
+ * cards and chart are `GET /annotations/summary`. The waiting list is
+ * `GET /annotations/queue`, the one annotators claim from. It used to
+ * download every annotation, session and user, and work out "waiting" itself,
+ * which offered sessions whose speakers had not all agreed and missed ones
+ * sent back to the queue.
  */
-export function useAdminAnnotations() {
+export function useAdminAnnotations(view: AnnotationsView) {
+  const { status, q, sort, page, pageSize } = view;
   const [rows, setRows] = useState<AdminAnnotation[]>([]);
-  const [unclaimed, setUnclaimed] = useState<ApiSessionSummary[]>([]);
-  const [annotators, setAnnotators] = useState<{ id: string; name: string }[]>([]);
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<ApiAnnotationCounts | null>(null);
+  const [queue, setQueue] = useState<ApiQueueRow[]>([]);
+  /* The page skeleton until the first answers are in; after that only the
+     table waits. */
   const [isLoading, setLoading] = useState(true);
+  const [isFetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const loadedOnce = useRef(false);
+
+  const sortKey = sort?.key;
+  const sortOrder = sort?.order;
 
   useEffect(() => {
-    let cancelled = false;
-
-
-    setLoading(true);
+    /* A page, search or sort that is replaced is aborted, so a slow old
+       answer cannot land on top of the new one. */
+    const controller = new AbortController();
+    const cancelled = () => controller.signal.aborted;
+    const first = !loadedOnce.current;
+    setFetching(true);
 
     Promise.all([
-      /* `expand=tags` because the table has a tag column. It is opt-in at
-       * the API since counting tags reads every span on the page. */
-      fetchAllPages<ApiAnnotationSummary>(
-        (query) => listAllAnnotations({ ...query, expand: "tags" }),
-        { stop: () => cancelled }
+      listAnnotationsPage(
+        {
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          /* The Tags column. Opt-in at the API: it reads every span on the page. */
+          expand: "tags",
+          ...(status ? { status } : {}),
+          ...(q ? { q } : {}),
+          ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
+        },
+        controller.signal
       ),
-      fetchAllRows<ApiSessionSummary>((query) => listSessions(query), { stop: () => cancelled }),
-      fetchAllPages<ApiUser>((query) => listUsers(query), { stop: () => cancelled }),
+      /* Counts and the queue move with work, not with the table's filters,
+         so they are read with the first page and on reload. */
+      first ? annotationCounts(controller.signal) : Promise.resolve(null),
+      first ? listQueue({ limit: QUEUE_LIMIT }, controller.signal) : Promise.resolve(null),
     ])
-      .then(([annotations, sessions, users]) => {
-        if (cancelled) return;
-
-        const names = new Map(users.items.map((user) => [user.id, user.full_name]));
-        const sessionById = new Map(sessions.map((session) => [session.id, session]));
-        const annotated = new Set(annotations.items.map((row) => row.session_id));
-
-        setRows(
-          annotations.items.map((row) => toAdminAnnotation(row, names, sessionById))
-        );
-
-        /* Uploaded, and nobody has started on it. Sessions without audio are
-         * the focus-group page's problem, not this one's. */
-        setUnclaimed(
-          sessions.filter((session) => session.has_audio && !annotated.has(session.id))
-        );
-
-        setAnnotators(
-          users.items
-            .filter((user) => user.role === "annotator" && user.is_active)
-            .map((user) => ({ id: user.id, name: user.full_name }))
-        );
+      .then(([pageResult, nextSummary, nextQueue]) => {
+        if (cancelled()) return;
+        setRows(pageResult.items.map(toAdminAnnotation));
+        setTotal(pageResult.total);
+        if (nextSummary) setSummary(nextSummary);
+        if (nextQueue) setQueue(nextQueue);
+        loadedOnce.current = true;
         setError(null);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(reportApiError(cause, "Could not load annotations."));
+        if (!cancelled()) setError(reportApiError(cause, "Could not load annotations."));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled()) return;
+        setLoading(false);
+        setFetching(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [attempt]);
+    return () => controller.abort();
+  }, [status, q, sortKey, sortOrder, page, pageSize, attempt]);
 
+  /** The page, the counts and the queue again, as after an assignment. */
+  const reload = useCallback(() => {
+    loadedOnce.current = false;
+    setAttempt((value) => value + 1);
+  }, []);
+
+  /** Moves an existing annotation to another annotator. */
   const assign = useCallback(
-    async (annotationId: string, annotator: { id: string; name: string }) => {
-      await assignAnnotator(annotationId, annotator.id);
-      setRows((prev) =>
-        prev.map((row) =>
-          row.id === annotationId ? { ...row, annotator: annotator.name } : row
-        )
-      );
+    async (annotationId: string, annotatorId: string) => {
+      await assignAnnotator(annotationId, annotatorId);
+      reload();
     },
-    []
+    [reload]
   );
 
   const setVerdict = useCallback(
-    async (annotationId: string, status: "approved" | "needs_rework") => {
-      const next = await reviewAnnotation(annotationId, { status });
-      setRows((prev) =>
-        prev.map((row) =>
-          row.id === annotationId
-            ? { ...row, status: next.status as AnnotationStatus }
-            : row
-        )
-      );
+    async (annotationId: string, next: "approved" | "needs_rework") => {
+      await reviewAnnotation(annotationId, { status: next });
+      reload();
     },
-    []
+    [reload]
   );
 
   /**
@@ -120,48 +136,44 @@ export function useAdminAnnotations() {
    *
    * Different call from `assign`: that one moves an existing annotation
    * between annotators, this one creates the annotation by giving the session
-   * to somebody. The list is work with no annotation yet, so it has to be
-   * this one.
+   * to somebody. The waiting list is work with no annotation yet, so it has to
+   * be this one.
    */
   const assignSession = useCallback(
-    async (sessionId: string, annotator: { id: string; name: string }) => {
-      await assignSessionAnnotator(sessionId, annotator.id);
+    async (sessionId: string, annotatorId: string) => {
+      await assignSessionAnnotator(sessionId, annotatorId);
+      reload();
     },
-    []
+    [reload]
   );
 
   return {
     rows,
-    unclaimed,
-    annotators,
+    total,
+    summary,
+    queue,
     isLoading,
+    isFetching,
     error,
-    reload: useCallback(() => setAttempt((value) => value + 1), []),
+    reload,
     assign,
     assignSession,
     setVerdict,
   };
 }
 
-function toAdminAnnotation(
-  api: ApiAnnotationSummary,
-  names: Map<string, string>,
-  sessions: Map<string, ApiSessionSummary>
-): AdminAnnotation {
-  const session = sessions.get(api.session_id);
+function toAdminAnnotation(api: ApiAnnotationSummary): AdminAnnotation {
   const claimed = new Date(api.created_at);
-  const durationSec = Math.round(
-    api.duration_seconds ?? session?.duration_seconds ?? 0
-  );
+  const durationSec = Math.round(api.duration_seconds ?? 0);
 
   return {
     id: api.id,
     /* The first eight characters of the id: stable, unlike a position in a
-       list that every new annotation renumbered. */
+       list that every new annotation renumbered, and what `q` matches. */
     code: api.id.slice(0, 8),
-    topic: api.topic ?? session?.topic ?? "Session unavailable",
-    annotator: names.get(api.annotator_id) ?? "Unassigned",
-    status: api.status as AnnotationStatus,
+    topic: api.topic ?? "Session unavailable",
+    annotator: api.annotator_name ?? "Unassigned",
+    status: api.status,
     segments: api.segment_count ?? 0,
     tags: api.tag_count ?? 0,
     durationSec,

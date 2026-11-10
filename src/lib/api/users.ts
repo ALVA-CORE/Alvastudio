@@ -309,6 +309,14 @@ export type ApiInternOutcomes = {
   flagged: number;
   sessions_run: number;
   participants: number;
+  /** Distinct clips dealt to them in the window. Only since 23 Oct 2026. */
+  clips_assigned: number;
+  /** Of those, judged since it was dealt to them. */
+  assigned_reviewed: number;
+  /** Of those, still on their desk. */
+  on_desk: number;
+  /** Of those, gone from their desk without their verdict. */
+  taken_back: number;
 };
 
 export type ApiAnnotatorOutcomes = {

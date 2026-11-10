@@ -26,8 +26,6 @@ type Outcome = {
   title: string;
   /** Where the work itself can be seen, filtered to this person. */
   link?: string;
-  /** Name each slice, with its count, under the chart. */
-  legend?: boolean;
   fields: { label: string; value: string }[];
   slices: { label: string; hours: number }[];
   centerLabel: string;
@@ -81,13 +79,12 @@ function outcomeOf(activity: ApiUserActivity): Outcome | null {
     return {
       title: "Verdicts and sessions",
       link: `/admin/reviews?judged_by=${encodeURIComponent(activity.user_id)}`,
-      /* The verdict counts are the chart and its legend; these two are not
-         in it. */
+      /* The verdict counts are the chart (hover a slice); these two are
+         not in it. */
       fields: [
         { label: "Sessions run", value: String(sessions_run) },
         { label: "Participants", value: String(participants) },
       ],
-      legend: true,
       slices: [
         { label: "Approved", hours: approved },
         { label: "Flagged", hours: flagged },
@@ -250,20 +247,6 @@ export function UserActivitySection({
               <div className="h-48 rounded-xl bg-alva-surface p-3">
                 <ApprovalGauge value={outcome.rate} label={outcome.rateLabel} />
               </div>
-              {outcome.legend ? (
-                <ul className="col-span-2 flex flex-wrap gap-x-5 gap-y-2 px-1 text-xs">
-                  {outcome.slices.map((slice, index) => (
-                    <li key={slice.label} className="flex items-center gap-1.5">
-                      <span
-                        className="size-2 rounded-full"
-                        style={{ background: OUTCOME_PALETTE[index % OUTCOME_PALETTE.length] }}
-                      />
-                      <span className="text-muted-foreground">{slice.label}</span>
-                      <span className="tabular-nums text-foreground">{slice.hours}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </div>
           ) : null}
         </>
@@ -273,43 +256,40 @@ export function UserActivitySection({
 }
 
 /**
- * How much of what was dealt to them they have judged.
+ * What became of the clips dealt to them in the window.
  *
- * The judged part is real: approved, flagged and rejected, in the chart's
- * colours. Only the assigned total is a sample, and so "not yet", which is
- * what is left of it. The API does not say how many clips were dealt to an
- * intern (endpoints-needed #12), so it is made up until it does, and only it
- * is marked. Swap `notYet` for the API's figure and drop the tag.
+ * `clips_assigned` is always `assigned_reviewed` + `on_desk` + `taken_back`,
+ * so the three fill the bar. Not the verdict counts above: those are every
+ * verdict given in the window, second opinions and clips dealt earlier
+ * included, so set against what was dealt they need not add up. Counted from
+ * 23 Oct 2026, when assignments began to be recorded.
  */
 function AssignedProgress({
   counts,
 }: {
-  counts: { approved: number; flagged: number; rejected: number };
+  counts: {
+    clips_assigned: number;
+    assigned_reviewed: number;
+    on_desk: number;
+    taken_back: number;
+  };
 }) {
-  const judged = [
-    { label: "Approved", value: counts.approved, color: OUTCOME_PALETTE[0] },
-    { label: "Flagged", value: counts.flagged, color: OUTCOME_PALETTE[1] },
-    { label: "Rejected", value: counts.rejected, color: OUTCOME_PALETTE[2] },
+  const assigned = counts.clips_assigned;
+  const parts = [
+    { label: "Reviewed", value: counts.assigned_reviewed, color: OUTCOME_PALETTE[0] },
+    /* Cyan from the chart palette: apart from the green, still ours. */
+    { label: "Pending", value: counts.on_desk, color: "hsl(187 72% 56%)" },
+    { label: "Taken back", value: counts.taken_back, color: OUTCOME_PALETTE[3] },
   ];
-  const reviewed = judged.reduce((sum, part) => sum + part.value, 0);
-  /* Sample. */
-  const notYet = Math.round(reviewed * 0.2) + 6;
-  const assigned = reviewed + notYet;
   const width = (value: number) => `${assigned > 0 ? (value / assigned) * 100 : 0}%`;
 
   return (
     <section className="mt-6 border-t border-alva-border pt-6">
       <div className="mb-3 flex items-end justify-between gap-3">
         <h3 className="text-sm font-medium text-foreground">Assigned and reviewed</h3>
-        <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
-          <span>
-            <span className="text-foreground">{reviewed.toLocaleString()}</span> reviewed
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            <span className="text-foreground">{assigned.toLocaleString()}</span> assigned
-          </span>
-          <span className="rounded-full bg-alva-surface px-1.5 py-0.5 text-[10px]">Sample</span>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="text-foreground">{counts.assigned_reviewed.toLocaleString()}</span>{" "}
+          reviewed · <span className="text-foreground">{assigned.toLocaleString()}</span> assigned
         </span>
       </div>
       <div
@@ -317,10 +297,10 @@ function AssignedProgress({
         aria-label="Clips reviewed of those assigned"
         aria-valuemin={0}
         aria-valuemax={assigned}
-        aria-valuenow={reviewed}
+        aria-valuenow={counts.assigned_reviewed}
         className="flex h-10 w-full overflow-hidden rounded-md bg-alva-surface"
       >
-        {judged.map((part, index) =>
+        {parts.map((part, index) =>
           part.value > 0 ? (
             <div
               key={part.label}
@@ -331,18 +311,13 @@ function AssignedProgress({
         )}
       </div>
       <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-xs">
-        {judged.map((part) => (
+        {parts.map((part) => (
           <li key={part.label} className="flex items-center gap-1.5">
             <span className="size-2 rounded-full" style={{ background: part.color }} />
             <span className="text-muted-foreground">{part.label}</span>
             <span className="tabular-nums text-foreground">{part.value.toLocaleString()}</span>
           </li>
         ))}
-        <li className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-alva-surface ring-1 ring-alva-border" />
-          <span className="text-muted-foreground">Not yet</span>
-          <span className="tabular-nums text-foreground">{notYet.toLocaleString()}</span>
-        </li>
       </ul>
     </section>
   );

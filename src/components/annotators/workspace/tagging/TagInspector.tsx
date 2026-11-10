@@ -3,7 +3,8 @@ import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import { useAnnotation, useAnnotationActions } from "@/lib/annotation/context";
 import { selectNonSpeech, selectSegments, selectSpans } from "@/lib/annotation/store";
 import { buildTokenIndex, segmentTokenRange } from "@/lib/annotation/tokens";
-import { formatDurationLong, segmentDuration } from "@/lib/annotation/segments";
+import { segmentDuration } from "@/lib/annotation/segments";
+import { formatDuration } from "@/lib/duration";
 import {
   DIFFICULTY_FLAGS,
   NON_SPEECH_COLOR,
@@ -206,7 +207,7 @@ export const TagInspector = memo(function TagInspector() {
     if (chosen.length === 0) return null;
 
     const total = chosen.reduce((sum, segment) => sum + segmentDuration(segment), 0);
-    const label = formatDurationLong(total);
+    const label = formatDuration(total);
 
     return chosen.length === 1 ? label : `${chosen.length} selected · ${label}`;
   }, [segments, selectedIds]);

@@ -133,7 +133,7 @@ const TOPICS = [
 const ANNOTATION_STATUSES: AnnotationStatus[] = [
   "approved", "approved", "approved",
   "submitted", "submitted",
-  "in_progress", "in_progress",
+  "draft", "draft",
   "draft",
   "needs_rework",
 ];
@@ -400,12 +400,6 @@ function buildSessions(count: number): AdminSession[] {
       durationSec,
       duration: hasAudio ? formatDuration(durationSec) : NO_VALUE,
       hasAudio,
-      redactedCount: 0,
-      // Roughly one uploaded session in six is still sitting in the queue.
-      claimedBy:
-        hasAudio && random() > 0.17
-          ? pick(random, NIGERIAN_NAMES.slice(0, 8))
-          : null,
       createdAt: created.getTime(),
       createdLabel: relativeDays(created),
     };

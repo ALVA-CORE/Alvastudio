@@ -10,7 +10,6 @@ import {
   findActiveSegmentIndex,
   findNextSegmentIndex,
   formatClock,
-  formatDurationLong,
   formatRulerTime,
   formatTimecode,
   mergeSegments,
@@ -98,30 +97,6 @@ describe("formatClock", () => {
     expect(formatClock(-4)).toBe("0:00");
     expect(formatClock(Number.NaN)).toBe("0:00");
     expect(formatClock(Number.POSITIVE_INFINITY)).toBe("0:00");
-  });
-});
-
-describe("formatDurationLong", () => {
-  it("drops the empty unit at each boundary", () => {
-    expect(formatDurationLong(0)).toBe("0s");
-    expect(formatDurationLong(1)).toBe("1s");
-    expect(formatDurationLong(59)).toBe("59s");
-    expect(formatDurationLong(60)).toBe("1m");
-    expect(formatDurationLong(120)).toBe("2m");
-    expect(formatDurationLong(74)).toBe("1m 14s");
-    expect(formatDurationLong(1934)).toBe("32m 14s");
-  });
-
-  it("rounds to the nearest second before splitting units", () => {
-    expect(formatDurationLong(59.6)).toBe("1m");
-    expect(formatDurationLong(59.4)).toBe("59s");
-    expect(formatDurationLong(0.4)).toBe("0s");
-  });
-
-  it("guards against negatives and non-finite input", () => {
-    expect(formatDurationLong(-10)).toBe("0s");
-    expect(formatDurationLong(Number.NaN)).toBe("0s");
-    expect(formatDurationLong(Number.POSITIVE_INFINITY)).toBe("0s");
   });
 });
 
