@@ -123,15 +123,16 @@ export default function InternReviewPage() {
             <h1 className="font-display text-2xl text-foreground">Review</h1>
           </div>
 
-          {/* The queue hands work out by claim: assign-next moves the next
-              recording from submitted to in_review and locks it to you. */}
+          {/* Desks are dealt once a day, at 7pm WAT (10 Nov). Somebody who
+              clears theirs early can take the oldest waiting clip. */}
           <div className="flex items-center gap-3">
             {waiting ? (
               <span className="text-sm text-muted-foreground">
                 <span className="tabular-nums text-foreground">{waiting.toLocaleString()}</span>{" "}
-                {waiting === 1 ? "clip" : "clips"} waiting for a desk
+                {waiting === 1 ? "clip" : "clips"} waiting · dealt at 7pm
               </span>
             ) : null}
+            {!isLoading && pendingRows.length === 0 && waiting ? (
             <TextureButton
               variant="alva"
               size="sm"
@@ -147,6 +148,7 @@ export default function InternReviewPage() {
             >
               Review next
             </TextureButton>
+            ) : null}
           </div>
         </div>
 
@@ -202,7 +204,7 @@ export default function InternReviewPage() {
               emptyState={{
                 icon: <Clipboard size={20} weight="Outline" />,
                 title: "No pending clips",
-                description: "You're all caught up on the contributor queue.",
+                description: "New clips are dealt at 7pm.",
               }}
               columns={tableColumns}
             />

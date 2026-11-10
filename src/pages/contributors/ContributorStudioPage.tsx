@@ -357,10 +357,9 @@ export default function ContributorStudioPage() {
       }
 
       /**
-       * A prompt or stimulus with both its places taken.
+       * A prompt or stimulus somebody else holds or has recorded.
        *
-       * Each prompt (since 29 Oct) and each stimulus (since 5 Nov) has two
-       * readers and no more. The take is
+       * Each prompt and each stimulus has one reader (10 Nov). The take is
        * already recorded when this lands, so moving to the next card and
        * keeping the audio would be wrong in the other direction — the clip
        * cannot be attached to anything. Dropping it and moving on is the

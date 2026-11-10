@@ -32,6 +32,12 @@ annotations and focus-group lists, #12 clips dealt to an intern (see
 [`replies/api-status-2026-11-10.md`](replies/api-status-2026-11-10.md)). #10
 was reopened the same day for the label; see below.
 
+Not used: `GET /users/interns/activity`, from the second 10 Nov handoff
+([`replies/api-status-2026-11-10b.md`](replies/api-status-2026-11-10b.md)).
+Each intern's Activity tab in the account panel already shows the same
+graph and numbers, so we built no page for it. Keep it or drop it; nothing
+here calls it.
+
 ---
 
 ## 10. The email button's label in Gmail's dark mode (reopened 10 Nov)

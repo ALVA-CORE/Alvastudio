@@ -1,13 +1,13 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const reviewQueue = vi.fn();
+const reviewDesk = vi.fn();
 const reviewBankCount = vi.fn();
 const listRecordingsPage = vi.fn();
 
 vi.mock("@/lib/auth/context", () => ({ useAuth: () => ({ user: { id: "intern-1", role: "intern" } }) }));
 vi.mock("@/lib/api/reviews", () => ({
-  reviewQueue: (...args: unknown[]) => reviewQueue(...args),
+  reviewDesk: (...args: unknown[]) => reviewDesk(...args),
   reviewBankCount: (...args: unknown[]) => reviewBankCount(...args),
   assignNext: vi.fn(),
 }));
@@ -36,7 +36,7 @@ const clip = (id: string, status = "in_review") => ({
 
 describe("useReviewQueue", () => {
   beforeEach(() => {
-    reviewQueue.mockReset().mockResolvedValue([clip("a"), clip("b")]);
+    reviewDesk.mockReset().mockResolvedValue([clip("a"), clip("b")]);
     reviewBankCount.mockReset().mockResolvedValue(34);
   });
 
@@ -45,7 +45,7 @@ describe("useReviewQueue", () => {
     const { result } = renderHook(() => useReviewQueue());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(reviewQueue).toHaveBeenCalledWith(100, true);
+    expect(reviewDesk).toHaveBeenCalledTimes(1);
     expect(result.current.items.map((row) => row.id)).toEqual(["a", "b"]);
     expect(result.current.items[0].contributor).toBe("Esther Obi");
     expect(result.current.waiting).toBe(34);
