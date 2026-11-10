@@ -11,7 +11,9 @@ describe("ReferralSourcesChart", () => {
     const user = userEvent.setup();
     render(<ReferralSourcesChart slices={slices as never} otherDetails={others} />);
 
-    await user.click(screen.getByRole("button", { name: "Every somewhere else answer" }));
+    /* Only the label under the ring; the answers wait for the sheet. */
+    expect(screen.queryByText("Flyer")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Somewhere else" }));
     const sheet = screen.getByRole("dialog", { name: "Somewhere else" });
     expect(within(sheet).getAllByRole("listitem")).toHaveLength(6);
     expect(within(sheet).getByText("Flyer")).toBeInTheDocument();

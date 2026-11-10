@@ -19,9 +19,6 @@ const SERIES = [
   { dataKey: "contributors", label: "Contributors", color: "hsl(var(--alva-accent))" },
 ];
 
-/** How many of the "Somewhere else" answers fit on the line under the ring. */
-const OTHER_SHOWN = 4;
-
 /**
  * How contributors heard about Alva, one wedge per channel.
  *
@@ -37,7 +34,7 @@ export function ReferralSourcesChart({
   slices: ReferralSlice[];
   /**
    * `referral_other_details`: the "Somewhere else" answers in their own
-   * words. Listed under the ring, most common first, because a recurring one
+   * words. Listed in the sheet, most common first, because a recurring one
    * ("Radio", "Church") is a channel that deserves its own option.
    */
   otherDetails?: Record<string, number>;
@@ -45,7 +42,6 @@ export function ReferralSourcesChart({
   const others = Object.entries(otherDetails ?? {})
     .filter(([, count]) => count > 0)
     .sort((a, b) => b[1] - a[1]);
-  const shown = others.slice(0, OTHER_SHOWN);
   const [listOpen, setListOpen] = useState(false);
 
   useEffect(() => {
@@ -97,28 +93,17 @@ export function ReferralSourcesChart({
         </RadialChart>
       </div>
 
-      {shown.length > 0 ? (
-        <div className="mt-2 flex shrink-0 items-center gap-2">
-          <p className="min-w-0 truncate text-xs text-muted-foreground">
-            <span className="text-foreground">Somewhere else:</span>{" "}
-            {shown.map(([answer, count], index) => (
-              <span key={answer}>
-                {index > 0 ? " · " : ""}
-                {answer} <span className="tabular-nums">{count}</span>
-              </span>
-            ))}
-            {others.length > OTHER_SHOWN ? ` · ${others.length - OTHER_SHOWN} more` : ""}
-          </p>
-          <button
-            type="button"
-            onClick={() => setListOpen(true)}
-            aria-label="Every somewhere else answer"
-            title="Every somewhere else answer"
-            className="shrink-0 rounded-full text-alva-accent transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-          >
-            <ArrowRightUp size={16} weight="Linear" />
-          </button>
-        </div>
+      {others.length > 0 ? (
+        /* Above the chart's own layers, which otherwise sit over this row
+           and swallow the click. */
+        <button
+          type="button"
+          onClick={() => setListOpen(true)}
+          className="relative z-10 mt-2 flex shrink-0 items-center gap-1.5 self-start rounded-full text-xs text-foreground transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+        >
+          Somewhere else
+          <ArrowRightUp size={16} weight="Linear" className="text-alva-accent" />
+        </button>
       ) : null}
 
       <AnimatePresence>
@@ -137,7 +122,7 @@ export function ReferralSourcesChart({
             <motion.div
               role="dialog"
               aria-label="Somewhere else"
-              className="absolute inset-x-0 bottom-0 z-20 flex max-h-[75%] flex-col rounded-t-2xl border-t border-alva-border bg-alva-surface"
+              className="absolute inset-x-1 bottom-1 z-20 flex max-h-[75%] flex-col rounded-2xl border border-alva-border bg-alva-surface"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
