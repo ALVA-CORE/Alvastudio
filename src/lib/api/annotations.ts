@@ -1,5 +1,6 @@
 import { apiFetch, apiFetchBlobUrl } from "./client";
 import type { ApiLanguageVariety } from "./enums";
+import type { ApiPage } from "./recordings";
 
 /**
  * Annotations API — `/api/v1/annotations`.
@@ -179,6 +180,8 @@ export type ApiAnnotationSummary = {
   task: AnnotationTask;
   status: ApiAnnotationStatus;
   annotator_id: string;
+  /** The author's name, also on a draft abandoned when its session went back. */
+  annotator_name?: string | null;
   revision: number;
   is_gold: boolean;
   version: number;
@@ -186,12 +189,41 @@ export type ApiAnnotationSummary = {
   updated_at: string;
 };
 
+/** What `GET /annotations` sorts by. No tag count: it lives in JSON. */
+export type ApiAnnotationSort =
+  | "created_at"
+  | "topic"
+  | "annotator"
+  | "segment_count"
+  | "duration"
+  | "status";
+
+/** Counts over every annotation, whatever the table shows (admin). */
+export type ApiAnnotationCounts = {
+  total: number;
+  /** Every status, 0 included. */
+  by_status: Record<ApiAnnotationStatus, number>;
+  /** Sessions waiting to be claimed: the depth of `GET /annotations/queue`. */
+  claimable_sessions: number;
+  /** Each author's annotations by status, most first. */
+  by_annotator: {
+    annotator_id: string;
+    annotator_name: string | null;
+    total: number;
+    by_status: Record<ApiAnnotationStatus, number>;
+  }[];
+};
+
 /* ------------------------------------------------------------------ *
  * Reads
  * ------------------------------------------------------------------ */
 
-export function listQueue(params: { limit?: number; offset?: number } = {}) {
-  return apiFetch<ApiQueueRow[]>("/annotations/queue", { query: params });
+/**
+ * Sessions waiting to be claimed, oldest first: audio uploaded, nobody holding
+ * it, and every speaker has agreed. Admins may read it too.
+ */
+export function listQueue(params: { limit?: number; offset?: number } = {}, signal?: AbortSignal) {
+  return apiFetch<ApiQueueRow[]>("/annotations/queue", { query: params, signal });
 }
 
 export function listMine(
@@ -211,25 +243,30 @@ export function getAnnotation(id: string) {
 }
 
 /**
- * Every annotation on the platform, for the admin oversight screen.
- *
- * Same path as `listMine` — annotators see their own, reviewers and admins see
- * all — with the envelope on so the screen can show a total.
+ * One page of every annotation on the platform, for the admin screen: the
+ * same path as `listMine` (reviewers and admins see all), with the envelope
+ * so the table has a total. `q` matches the id, topic and annotator's name.
  */
-export function listAllAnnotations(
-  params: {
+export function listAnnotationsPage(
+  query: {
     status?: ApiAnnotationStatus;
+    q?: string;
+    sort?: ApiAnnotationSort;
+    order?: "asc" | "desc";
+    expand?: "tags";
     limit?: number;
     offset?: number;
-    expand?: "tags";
-  } = {}
+  },
+  signal?: AbortSignal
 ) {
-  return apiFetch<{
-    items: ApiAnnotationSummary[];
-    total: number;
-    limit: number;
-    offset: number;
-  }>("/annotations", { query: { ...params, envelope: true } });
+  return apiFetch<ApiPage<ApiAnnotationSummary>>("/annotations", {
+    query: { ...query, envelope: true },
+    signal,
+  });
+}
+
+export function annotationCounts(signal?: AbortSignal) {
+  return apiFetch<ApiAnnotationCounts>("/annotations/summary", { signal });
 }
 
 /**

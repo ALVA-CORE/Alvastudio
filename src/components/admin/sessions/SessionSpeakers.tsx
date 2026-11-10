@@ -44,6 +44,9 @@ export function SessionSpeakers({
   children?: ReactNode;
 }) {
   const [participants, setParticipants] = useState<ApiParticipant[] | null>(null);
+  /* People who withdrew and were cut from the recording. Only the session
+     itself carries it, not the list row. */
+  const [withdrawn, setWithdrawn] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -53,12 +56,15 @@ export function SessionSpeakers({
     let url: string | null = null;
 
     setParticipants(null);
+    setWithdrawn(0);
     setFailed(false);
     setAudioLoading(true);
 
     getSession(sessionId)
       .then((session) => {
-        if (!cancelled) setParticipants(session.participants ?? []);
+        if (cancelled) return;
+        setParticipants(session.participants ?? []);
+        setWithdrawn(session.redactions?.length ?? 0);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -111,6 +117,16 @@ export function SessionSpeakers({
       </div>
 
       {children}
+
+      {/* No names: they withdrew, so the API keeps none and neither do we.
+          The count is what an admin needs to know the file is not the one
+          that was recorded. */}
+      {withdrawn > 0 ? (
+        <p className="mt-6 text-xs text-muted-foreground">
+          {withdrawn} {withdrawn === 1 ? "person" : "people"} withdrew and{" "}
+          {withdrawn === 1 ? "was" : "were"} removed from the recording.
+        </p>
+      ) : null}
 
       {failed ? (
         <p role="alert" className="mt-6 text-xs text-destructive">

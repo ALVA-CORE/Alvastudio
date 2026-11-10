@@ -6,14 +6,13 @@ import type { AnnotationStatus } from "./oversight";
  * Charts were each picking their own greens and ambers, so "approved" was a
  * different green in the rings than in the sunburst and a reader had to check
  * the legend every time. Fixed here, these become learnable: green is kept,
- * amber is needs work, red is refused, blue is moving, grey is not started.
+ * amber is needs work, red is refused, grey is not started.
  *
  * Because they are fixed, charts that use them do not need a legend for the
  * status ring. The colour is the label.
  */
 export const ANNOTATION_STATUS_COLORS: Record<AnnotationStatus, string> = {
   draft: "hsl(0 0% 44%)",
-  in_progress: "hsl(199 89% 58%)",
   submitted: "hsl(262 72% 68%)",
   approved: "hsl(146 87% 54%)",
   needs_rework: "hsl(38 92% 50%)",

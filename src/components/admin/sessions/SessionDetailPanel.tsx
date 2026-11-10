@@ -1,6 +1,5 @@
 import { useState } from "react";
 import UsersGroupTwoRounded from "@solar-icons/react/users/UsersGroupTwoRounded";
-import Letter from "@solar-icons/react/messages/Letter";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { SessionSpeakers } from "@/components/admin/sessions/SessionSpeakers";
@@ -14,7 +13,6 @@ import {
   PanelAction,
 } from "@/components/admin/shared/detail";
 import type { AdminSession } from "@/data/admin/oversight";
-import { alvaToast } from "@/lib/alva-toast";
 import { round1 } from "@/data/admin/shared";
 import { NO_VALUE } from "@/lib/no-value";
 
@@ -30,7 +28,7 @@ const TABS = [
  * one a session can be stuck in silently: the intern has done all the hard
  * work — found people, taken consent, run the conversation — and until a file
  * is attached it produces nothing and reaches nobody. So the panel names that
- * plainly and offers the one action that fixes it: chase the intern.
+ * plainly.
  *
  * Who was in the room and the recording itself sit under the session detail,
  * not behind a tab. Both were collected and neither was readable here, which
@@ -96,16 +94,7 @@ export function SessionDetailPanel({
               onOpenChange(false);
             }}
           />
-        ) : (
-          <PanelAction
-            icon={<Letter size={15} weight="Outline" />}
-            label={`Chase ${session.intern.split(" ")[0]}`}
-            tone="primary"
-            onClick={() =>
-              alvaToast.success(`Reminder sent to ${session.intern}`)
-            }
-          />
-        )
+        ) : null
       }
     >
       {tab === "detail" ? (
@@ -139,18 +128,6 @@ export function SessionDetailPanel({
               value={session.turns > 0 ? String(session.turns) : NO_VALUE}
             />
             <DetailField label="Length" value={session.duration} />
-            {/* No names: they withdrew, so the API keeps none and neither do
-                we. The count is what an admin needs to know the file is not
-                the one that was recorded. */}
-            {session.redactedCount > 0 ? (
-              <DetailField
-                label="Withdrawn"
-                value={`${session.redactedCount} ${
-                  session.redactedCount === 1 ? "person" : "people"
-                } removed from the recording`}
-                span
-              />
-            ) : null}
             <DetailField
               label="Hours"
               value={

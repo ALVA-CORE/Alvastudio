@@ -113,7 +113,6 @@ export const REJECTION_REASON_LABEL: Record<ApiRejectionReason, RejectionReason>
 
 export type AnnotationStatus =
   | "draft"
-  | "in_progress"
   | "submitted"
   | "approved"
   | "needs_rework"
@@ -121,7 +120,6 @@ export type AnnotationStatus =
 
 export const ANNOTATION_STATUS_LABELS: Record<AnnotationStatus, string> = {
   draft: "Draft",
-  in_progress: "In progress",
   submitted: "Submitted",
   approved: "Approved",
   needs_rework: "Needs rework",
@@ -161,22 +159,6 @@ export type AdminSession = {
   durationSec: number;
   duration: string;
   hasAudio: boolean;
-  /**
-   * How many people withdrew and were cut from the recording.
-   *
-   * A count, not names: they withdrew, so the API keeps no name and neither
-   * do we. 0 on nearly every session.
-   */
-  redactedCount: number;
-  /**
-   * The annotator working on it, or null when nobody has picked it up.
-   *
-   * The admin page used to derive this by matching session topics against
-   * annotation topics. Both draw from the same topic list, so every session
-   * looked claimed and the queue was permanently empty. Unclaimed is a
-   * property of the session, not a coincidence of strings.
-   */
-  claimedBy: string | null;
   createdAt: number;
   createdLabel: string;
 };
@@ -253,33 +235,27 @@ export function reviewerFlow(
  * all sit in "Needs rework" is a shape rather than a figure you go looking
  * for.
  */
-export function annotatorBreakdown(rows: AdminAnnotation[]): SunburstNode {
-  const byAnnotator = new Map<string, Map<AnnotationStatus, number>>();
-
-  for (const row of rows) {
-    if (!row.annotator) continue;
-    const statuses = byAnnotator.get(row.annotator) ?? new Map();
-    statuses.set(row.status, (statuses.get(row.status) ?? 0) + 1);
-    byAnnotator.set(row.annotator, statuses);
-  }
-
-  const children = [...byAnnotator.entries()]
-    .map(([name, statuses], index) => ({
-      name,
-      color: PERSON_COLORS[index % PERSON_COLORS.length],
-      children: [...statuses.entries()]
-        .map(([status, count]) => ({
-          name: ANNOTATION_STATUS_LABELS[status],
-          value: count,
-          color: ANNOTATION_STATUS_COLORS[status],
-        }))
-        .sort((a, b) => b.value - a.value),
-    }))
-    .sort(
-      (a, b) =>
-        b.children.reduce((sum, child) => sum + child.value, 0) -
-        a.children.reduce((sum, child) => sum + child.value, 0)
-    );
+export function annotatorBreakdown(
+  tallies: {
+    annotator_id: string;
+    annotator_name: string | null;
+    by_status: Record<AnnotationStatus, number>;
+  }[]
+): SunburstNode {
+  /* `GET /annotations/summary` sends them by id, most first, so two people
+     with one name stay two. */
+  const children = tallies.map((tally, index) => ({
+    name: tally.annotator_name ?? tally.annotator_id.slice(0, 8),
+    color: PERSON_COLORS[index % PERSON_COLORS.length],
+    children: (Object.entries(tally.by_status) as [AnnotationStatus, number][])
+      .filter(([, count]) => count > 0)
+      .map(([status, count]) => ({
+        name: ANNOTATION_STATUS_LABELS[status],
+        value: count,
+        color: ANNOTATION_STATUS_COLORS[status],
+      }))
+      .sort((a, b) => b.value - a.value),
+  }));
 
   return { name: "Annotators", children };
 }

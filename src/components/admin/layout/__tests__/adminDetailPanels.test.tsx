@@ -48,16 +48,23 @@ vi.mock("@/lib/api/reviews", () => ({
   reviewsForRecording: vi.fn(async () => []),
 }));
 
-/* The annotations screen reads from `GET /annotations` and `/focus-groups`. */
+/* The annotations screen reads a page of `GET /annotations`, its summary
+   and the queue. */
 vi.mock("@/lib/api/annotations", async () => {
   const { seededApiAnnotations } = await import("@/test/apiUserFixtures");
   const items = seededApiAnnotations();
   return {
-    listAllAnnotations: vi.fn(async () => ({
+    listAnnotationsPage: vi.fn(async () => ({
       items,
       total: items.length,
-      limit: 200,
+      limit: 10,
       offset: 0,
+    })),
+    annotationCounts: vi.fn(async () => ({
+      total: items.length,
+      by_status: { draft: 0, submitted: 0, approved: 0, needs_rework: 0, rejected: 0 },
+      claimable_sessions: 0,
+      by_annotator: [],
     })),
     assignAnnotator: vi.fn(async () => items[0]),
     reviewAnnotation: vi.fn(async () => items[0]),
@@ -72,7 +79,21 @@ vi.mock("@/lib/api/focusGroups", async () => {
   const { seededApiSessions } = await import("@/test/apiUserFixtures");
   const sessions = seededApiSessions();
   return {
-    listSessions: vi.fn(async () => sessions),
+    listSessionsPage: vi.fn(async () => ({
+      items: sessions,
+      total: sessions.length,
+      limit: 10,
+      offset: 0,
+    })),
+    sessionCounts: vi.fn(async () => ({
+      sessions: sessions.length,
+      missing_audio: 0,
+      speakers_captured: 0,
+      hours_reported: 0,
+      hours_measured: 0,
+      unmeasured_sessions: 0,
+    })),
+    assignSessionAnnotator: vi.fn(),
     getSession: vi.fn(async () => sessions[0]),
     /* The session panel plays the recording now. jsdom has no audio, so this
        just has to resolve to something the player can be handed. */

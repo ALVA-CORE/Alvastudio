@@ -103,7 +103,14 @@ export type ApiReviewRow = ApiReview & {
 };
 
 export const listReviews = (
-  query: { verdict?: ApiVerdict; reviewer_id?: string; limit?: number; offset?: number } = {}
+  query: {
+    verdict?: ApiVerdict;
+    reviewer_id?: string;
+    /** ISO 8601, inclusive. With `limit: 1`, `total` is the count in the window. */
+    created_after?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
 ) =>
   apiFetch<{ items: ApiReviewRow[]; total: number; limit: number; offset: number }>(
     "/reviews",

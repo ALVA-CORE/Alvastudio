@@ -2,7 +2,7 @@
  * The branded email, drawn in the browser for the live preview.
  *
  * A copy of `render()` in the backend's `app/services/email_templates.py`
- * (origin/main, 6 Nov), kept as close to line for line as the two languages
+ * (origin/main, 10 Nov), kept as close to line for line as the two languages
  * allow. It exists so the preview can follow every keystroke without a save
  * and a round trip each time.
  *
@@ -25,6 +25,8 @@ const ASSETS = "https://api.alvacoreai.com/static/email";
 const LOGO = `${ASSETS}/logo.png`;
 const X_ICON = `${ASSETS}/x.png`;
 const LINKEDIN_ICON = `${ASSETS}/linkedin.png`;
+/** 8x8, every pixel ACCENT: the button's background in Gmail's dark mode. */
+const ACCENT_TILE = `${ASSETS}/accent.png`;
 
 /** `hero_for("communication")` on the backend: the brand image. */
 export const COMMUNICATION_HERO = "https://www.alvacoreai.com/assets/og.png";
@@ -60,6 +62,15 @@ function escape(value: string) {
  */
 function solid(color: string) {
   return `background:${color};background-image:linear-gradient(${color},${color});`;
+}
+
+/**
+ * A bright background Gmail's dark mode keeps (`_tile`): it recolours a bright
+ * colour even under a gradient, but never an image, so the button is painted
+ * with a repeated tile of the colour, over the colour itself.
+ */
+function tile(color: string, url: string) {
+  return `background-color:${color};background-image:url(${url});background-repeat:repeat;`;
 }
 
 function lockup(logo: string, color: string) {
@@ -188,8 +199,8 @@ ${copy}
 </td></tr>
 <tr><td class="button-wrap" align="center" style="padding:32px 24px 8px;">
 <table role="presentation" cellspacing="0" cellpadding="0" align="center"><tr>
-<td bgcolor="${ACCENT}" align="center" style="${solid(ACCENT)}border-radius:999px;">
-<a href="${escape(url)}" style="display:inline-block;padding:14px 28px;border-radius:999px;${solid(ACCENT)}color:${BG};font-size:14px;font-weight:600;line-height:1;text-decoration:none;">${escape(action)}</a>
+<td bgcolor="${ACCENT}" align="center" style="${tile(ACCENT, ACCENT_TILE)}border-radius:999px;">
+<a href="${escape(url)}" style="display:inline-block;padding:14px 28px;border-radius:999px;${tile(ACCENT, ACCENT_TILE)}color:${BG};font-size:14px;font-weight:600;line-height:1;text-decoration:none;">${escape(action)}</a>
 </td>
 </tr></table>
 </td></tr>

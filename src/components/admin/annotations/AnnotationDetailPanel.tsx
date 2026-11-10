@@ -28,7 +28,6 @@ import { round1 } from "@/data/admin/shared";
 const STATUS_TONE: Record<AnnotationStatus, PillTone> = {
   approved: "good",
   submitted: "pending",
-  in_progress: "pending",
   draft: "neutral",
   needs_rework: "bad",
   rejected: "bad",
@@ -150,9 +149,7 @@ export function AnnotationDetailPanel({
 
   /** Only work still in progress can move. */
   const canReassign =
-    annotation.status === "draft" ||
-    annotation.status === "in_progress" ||
-    annotation.status === "needs_rework";
+    annotation.status === "draft" || annotation.status === "needs_rework";
 
   return (
     <>

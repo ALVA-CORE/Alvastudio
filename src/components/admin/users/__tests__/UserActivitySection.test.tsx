@@ -28,6 +28,10 @@ const intern = {
     flagged: 4,
     sessions_run: 3,
     participants: 18,
+    clips_assigned: 25,
+    assigned_reviewed: 18,
+    on_desk: 5,
+    taken_back: 2,
   },
 } as unknown as ApiUserActivity;
 
@@ -58,16 +62,16 @@ describe("UserActivitySection, intern", () => {
     }
   });
 
-  /* What we have fills the bar; only the assigned total is made up, and only it says so. */
-  it("fills the bar with the real verdicts, and marks only the assigned total as sample", () => {
+  /* The three parts of what was dealt fill it, and nothing is made up. */
+  it("fills the bar with what became of the clips dealt to them", () => {
     renderSection(intern);
     const bar = screen.getByRole("progressbar", { name: "Clips reviewed of those assigned" });
-    expect(bar).toHaveAttribute("aria-valuenow", "40");
-    expect(bar).toHaveAttribute("aria-valuemax", "54");
+    expect(bar).toHaveAttribute("aria-valuenow", "18");
+    expect(bar).toHaveAttribute("aria-valuemax", "25");
     expect(bar.children).toHaveLength(3);
-    expect(screen.getByText("Sample").previousElementSibling).toHaveTextContent("54 assigned");
-    const notYet = screen.getByText("Not yet").closest("li") as HTMLElement;
-    expect(within(notYet).getByText("14")).toBeInTheDocument();
+    expect(within(screen.getByText("On desk").closest("li") as HTMLElement).getByText("5")).toBeInTheDocument();
+    expect(within(screen.getByText("Taken back").closest("li") as HTMLElement).getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("Sample")).not.toBeInTheDocument();
   });
 
   it("has no assigned bar for anyone but an intern", () => {

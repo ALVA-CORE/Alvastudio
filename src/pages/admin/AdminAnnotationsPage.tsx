@@ -22,6 +22,7 @@ import {
   type AnnotationStatus,
 } from "@/data/admin/oversight";
 import { useAdminAnnotations } from "@/hooks/useAdminAnnotations";
+import type { ApiAnnotationSort } from "@/lib/api/annotations";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NO_VALUE } from "@/lib/no-value";
@@ -31,14 +32,13 @@ type StatusFilter = AnnotationStatus | "all";
 const STATUS_TONE: Record<AnnotationStatus, PillTone> = {
   approved: "good",
   submitted: "pending",
-  in_progress: "pending",
   draft: "neutral",
   needs_rework: "bad",
   rejected: "bad",
 };
 
 const STATUSES: StatusFilter[] = [
-  "all", "draft", "in_progress", "submitted", "approved", "needs_rework", "rejected",
+  "all", "draft", "submitted", "approved", "needs_rework", "rejected",
 ];
 
 /**
@@ -50,17 +50,30 @@ const STATUSES: StatusFilter[] = [
  * long it has been waiting.
  */
 export default function AdminAnnotationsPage() {
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<{ key: ApiAnnotationSort; order: "asc" | "desc" }>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const {
-    rows: live,
-    unclaimed: unclaimedLive,
+    rows,
+    total,
+    summary,
+    queue: unclaimed,
     isLoading,
+    isFetching,
     error,
     reload,
     assign,
     assignSession,
     setVerdict,
-  } = useAdminAnnotations();
-  const [status, setStatus] = useState<StatusFilter>("all");
+  } = useAdminAnnotations({
+    status: status === "all" ? undefined : status,
+    q: query,
+    sort,
+    page,
+    pageSize,
+  });
   /**
    * The thing being handed out, and which endpoint hands it out.
    *
@@ -72,35 +85,36 @@ export default function AdminAnnotationsPage() {
   const [assigning, setAssigning] = useState<
     { kind: "session" | "annotation"; id: string; topic: string } | null
   >(null);
-  /* Sessions handed out from here, so the list reflects the action taken
-   * without refetching the whole screen. */
-  const [assigned, setAssigned] = useState<Record<string, string>>({});
   const [detail, setDetail] = useState<AdminAnnotation | null>(null);
-  const rows = live;
 
-  const filtered = useMemo(
-    () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
-    [rows, status]
-  );
+  /* Any change of what is listed starts again from page one, in the same
+     update, so the old page is never asked for under the new filter. */
+  const showStatus = (next: StatusFilter) => {
+    setStatus(next);
+    setPage(1);
+  };
+  const search = (next: string) => {
+    setQuery(next);
+    setPage(1);
+  };
+  const sortBy = (key: string, order: "asc" | "desc") => {
+    setSort({ key: key as ApiAnnotationSort, order });
+    setPage(1);
+  };
 
-  const breakdown = useMemo(() => annotatorBreakdown(rows), [rows]);
+  const breakdown = useMemo(() => annotatorBreakdown(summary?.by_annotator ?? []), [summary]);
 
-  const unclaimed = useMemo(
-    () => unclaimedLive.filter((session) => !assigned[session.id]),
-    [unclaimedLive, assigned]
-  );
-
-  const approved = rows.filter((row) => row.status === "approved").length;
-  const inFlight = rows.filter(
-    (row) => row.status === "in_progress" || row.status === "draft"
-  ).length;
-  const rework = rows.filter((row) => row.status === "needs_rework").length;
+  /* Every count is the server's, over all annotations, whatever the table
+     shows. "In progress" is drafts: the API has no other in-progress status. */
+  const approved = summary?.by_status.approved ?? 0;
+  const inFlight = summary?.by_status.draft ?? 0;
+  const rework = summary?.by_status.needs_rework ?? 0;
+  const claimable = summary?.claimable_sessions ?? 0;
 
   const columns = [
     {
       key: "code",
       header: "Annotation",
-      sortValue: (row: AdminAnnotation) => row.code,
       render: (row: AdminAnnotation) => (
         <span className="font-medium tabular-nums text-foreground">{row.code}</span>
       ),
@@ -108,7 +122,7 @@ export default function AdminAnnotationsPage() {
     {
       key: "topic",
       header: "Topic",
-      sortValue: (row: AdminAnnotation) => row.topic,
+      serverSort: "topic",
       render: (row: AdminAnnotation) => (
         <TruncateCell className="max-w-sm text-muted-foreground" title={row.topic}>
           {row.topic}
@@ -118,7 +132,7 @@ export default function AdminAnnotationsPage() {
     {
       key: "annotator",
       header: "Annotator",
-      sortValue: (row: AdminAnnotation) => row.annotator,
+      serverSort: "annotator",
       render: (row: AdminAnnotation) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.annotator}</span>
       ),
@@ -126,7 +140,7 @@ export default function AdminAnnotationsPage() {
     {
       key: "segments",
       header: "Segments",
-      sortValue: (row: AdminAnnotation) => row.segments,
+      serverSort: "segment_count",
       render: (row: AdminAnnotation) => (
         <span className="tabular-nums text-muted-foreground">{row.segments}</span>
       ),
@@ -134,7 +148,6 @@ export default function AdminAnnotationsPage() {
     {
       key: "tags",
       header: "Tags",
-      sortValue: (row: AdminAnnotation) => row.tags,
       render: (row: AdminAnnotation) => (
         <span className="tabular-nums text-muted-foreground">{row.tags}</span>
       ),
@@ -142,7 +155,7 @@ export default function AdminAnnotationsPage() {
     {
       key: "duration",
       header: "Length",
-      sortValue: (row: AdminAnnotation) => row.durationSec,
+      serverSort: "duration",
       render: (row: AdminAnnotation) => (
         <span className="tabular-nums text-muted-foreground">{row.duration}</span>
       ),
@@ -150,7 +163,7 @@ export default function AdminAnnotationsPage() {
     {
       key: "status",
       header: "Status",
-      sortValue: (row: AdminAnnotation) => row.status,
+      serverSort: "status",
       render: (row: AdminAnnotation) => (
         <AdminStatusPill tone={STATUS_TONE[row.status]}>
           {ANNOTATION_STATUS_LABELS[row.status]}
@@ -160,7 +173,7 @@ export default function AdminAnnotationsPage() {
     {
       key: "claimedLabel",
       header: "Claimed",
-      sortValue: (row: AdminAnnotation) => row.claimedAt,
+      serverSort: "created_at",
       render: (row: AdminAnnotation) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.claimedLabel}</span>
       ),
@@ -196,7 +209,7 @@ export default function AdminAnnotationsPage() {
         <MetricCard
           variant="accent"
           title="Annotations"
-          value={String(rows.length)}
+          value={String(summary?.total ?? 0)}
           icon={DocumentText}
         />
         <MetricCard
@@ -211,7 +224,7 @@ export default function AdminAnnotationsPage() {
         />
         <MetricCard
           title="Unclaimed sessions"
-          value={String(unclaimed.length)}
+          value={String(claimable)}
           trend={{
             label: rework > 0 ? `${rework} need rework` : "",
             positive: false,
@@ -249,7 +262,7 @@ export default function AdminAnnotationsPage() {
           <dl className="alva-thin-scrollbar max-h-[13rem] space-y-1 overflow-y-auto pr-1">
             {unclaimed.map((session) => (
               <div
-                key={session.id}
+                key={session.session_id}
                 className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-1.5 last:border-0"
               >
                 <dt className="min-w-0 truncate text-xs text-foreground" title={session.topic}>
@@ -270,7 +283,7 @@ export default function AdminAnnotationsPage() {
                     onClick={() =>
                       setAssigning({
                         kind: "session",
-                        id: session.id,
+                        id: session.session_id,
                         topic: session.topic,
                       })
                     }
@@ -288,9 +301,18 @@ export default function AdminAnnotationsPage() {
       <div className="mt-2">
         <AlvaDataTable
           title="All annotations"
-          rows={filtered}
+          rows={rows}
           columns={columns}
-          pageSize={10}
+          pageSize={pageSize}
+          isLoading={isFetching}
+          serverPaging={{
+            total,
+            page,
+            onPageChange: setPage,
+            onPageSizeChange: setPageSize,
+            onQueryChange: search,
+            onSortChange: sortBy,
+          }}
           searchPlaceholder="Search"
           activeFilterCount={status === "all" ? 0 : 1}
           onRowClick={(row: AdminAnnotation) => setDetail(row)}
@@ -307,7 +329,7 @@ export default function AdminAnnotationsPage() {
                 <DropdownMenuCheckboxItem
                   key={value}
                   checked={status === value}
-                  onCheckedChange={() => setStatus(value)}
+                  onCheckedChange={() => showStatus(value)}
                   onSelect={(event) => event.preventDefault()}
                 >
                   {value === "all" ? "All statuses" : ANNOTATION_STATUS_LABELS[value]}
@@ -364,10 +386,9 @@ export default function AdminAnnotationsPage() {
           if (!assigning) return;
           try {
             if (assigning.kind === "session") {
-              await assignSession(assigning.id, annotator);
-              setAssigned((prev) => ({ ...prev, [assigning.id]: annotator.name }));
+              await assignSession(assigning.id, annotator.id);
             } else {
-              await assign(assigning.id, annotator);
+              await assign(assigning.id, annotator.id);
             }
             alvaToast.success(`Assigned to ${annotator.name}`);
           } catch (cause) {
