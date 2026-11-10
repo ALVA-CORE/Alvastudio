@@ -195,6 +195,21 @@ export function UserActivitySection({
         <DetailField label="Per active day" value={String(perActiveDay)} />
       </DetailGroup>
 
+      <section className="mt-6 border-t border-alva-border pt-6">
+        <h3 className="text-sm font-medium text-foreground">Contribution graph</h3>
+        <div className="mt-3">
+          {activity.total === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nothing recorded in this window.
+            </p>
+          ) : (
+            <UserActivityHeatmap data={columns} />
+          )}
+        </div>
+      </section>
+
+      {activity.intern ? <AssignedProgress counts={activity.intern} /> : null}
+
       {outcome ? (
         <>
           <DetailGroup
@@ -236,21 +251,6 @@ export function UserActivitySection({
           ) : null}
         </>
       ) : null}
-
-      <section className="mt-6 border-t border-alva-border pt-6">
-        <h3 className="text-sm font-medium text-foreground">Contribution graph</h3>
-        <div className="mt-3">
-          {activity.total === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nothing recorded in this window.
-            </p>
-          ) : (
-            <UserActivityHeatmap data={columns} />
-          )}
-        </div>
-      </section>
-
-      {activity.intern ? <AssignedProgress counts={activity.intern} /> : null}
     </>
   );
 }

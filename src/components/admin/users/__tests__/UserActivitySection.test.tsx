@@ -60,11 +60,11 @@ describe("UserActivitySection, intern", () => {
     expect(screen.getByText("Sessions run")).toBeInTheDocument();
   });
 
-  it("puts the verdicts above the contribution graph", () => {
+  it("puts the verdicts below the graph and the assigned bar", () => {
     renderSection(intern);
+    const bar = screen.getByText("Assigned and reviewed");
     const verdicts = screen.getByText("Verdicts and sessions");
-    const graph = screen.getByText("Contribution graph");
-    expect(verdicts.compareDocumentPosition(graph) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bar.compareDocumentPosition(verdicts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   /* The three parts of what was dealt fill it, and nothing is made up. */

@@ -16,7 +16,8 @@ the other document points here.
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
 | 10 | Keep the email button's label dark in Gmail's dark mode (reopened) | The label turns white on the green in Gmail on iPhone | Medium |
-| 13 | A way to stream session audio | A long session's player waits for the whole file to download | High |
+| 13 | A way to stream session audio | A session's player waits for the whole file to download | High |
+| 14 | A session's measured length on each row | A session shows the length sent with the upload, which can be far off | Medium |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -60,8 +61,8 @@ When the template changes, we copy it and regenerate the parity fixtures.
 ## 13. A way to stream session audio
 
 **What happens:** opening a focus-group session in the admin panel shows a
-loading player until the whole recording has downloaded. A six-hour session
-is one very large file, and nothing plays until the last byte arrives.
+loading player until the whole recording has downloaded. Nothing plays until
+the last byte arrives, and the longer the session the longer the wait.
 
 **Why:** `GET /focus-groups/{session_id}/audio` takes a bearer token, and an
 `<audio src>` cannot send one. So the studio fetches the whole file with the
@@ -79,3 +80,32 @@ short-lived signed link to the same file:
 The same would help `GET /recordings/{id}/audio` and
 `GET /annotations/{id}/audio`, which work the same way. Clips are short, so
 those matter less.
+
+---
+
+## 14. A session's measured length on each row
+
+**What happens:** session `f705732b` ("Scribe test: a memorable market day")
+shows **6h** in the table and the panel. Its audio plays for **1:25**. The 6h
+is `duration_seconds`, the length sent with the upload: exactly 21,600, the
+most the API accepts. Nothing measured from the file reaches us per session.
+
+**Why it matters:** the Length column, the panel, the annotations table and
+the waiting list all show that figure, so one wrong upload reads as six hours
+of work.
+
+**What we know you have:** `GET /focus-groups/summary` already counts
+`hours_measured` from the file, and recordings carry
+`measured_duration_seconds`.
+
+**What would fix it:** `measured_duration_seconds` (null where never
+measured) on:
+
+- `FocusGroupSessionSummary` and the session detail;
+- `AnnotationSummary`;
+- `AnnotationQueueRow`.
+
+We would show the measured length wherever there is one, and the reported one
+otherwise, as the reviews page does for clips. Sorting by `duration` would
+ideally follow the same rule.
+
