@@ -10,6 +10,7 @@ import { reportApiError } from "@/lib/api/reportApiError";
 import { formatDuration, relativeDays, type Variety } from "@/data/admin/shared";
 import type { AdminSession } from "@/data/admin/oversight";
 import { NO_VALUE } from "@/lib/no-value";
+import { lengthOf } from "@/lib/duration";
 
 const VARIETY: Record<string, Variety> = {
   nigerian_english: "Nigerian English",
@@ -109,7 +110,7 @@ export function useAdminSessions(view: SessionsView) {
 
 function toAdminSession(api: ApiSessionSummary): AdminSession {
   const created = new Date(api.created_at);
-  const durationSec = Math.round(api.duration_seconds ?? 0);
+  const durationSec = Math.round(lengthOf(api) ?? 0);
 
   return {
     id: api.id,

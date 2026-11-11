@@ -76,27 +76,16 @@ export function RecordingDetailPanel({
   /** Distinguishes "still fetching" from "this clip has no audio". */
   const [audioLoading, setAudioLoading] = useState(false);
 
-  /**
-   * The audio route is authenticated, so an `<audio src>` pointed at it would
-   * send no token and 401. Fetch it with the header, hand the player a blob
-   * URL, and revoke it when the panel closes or moves to another clip —
-   * otherwise every clip an admin opens leaks until the tab is closed.
-   */
+  /** A playable link to the clip, which streams, fetched when the panel opens. */
   useEffect(() => {
     if (!open || !recording) return;
 
-    let url: string | null = null;
     let cancelled = false;
     setAudioLoading(true);
 
     recordingAudioUrl(recording.id)
-      .then((blobUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        url = blobUrl;
-        setAudioUrl(blobUrl);
+      .then((link) => {
+        if (!cancelled) setAudioUrl(link);
       })
       .catch(() => setAudioUrl(null))
       .finally(() => {
@@ -105,7 +94,6 @@ export function RecordingDetailPanel({
 
     return () => {
       cancelled = true;
-      if (url) URL.revokeObjectURL(url);
       setAudioUrl(null);
     };
   }, [open, recording]);

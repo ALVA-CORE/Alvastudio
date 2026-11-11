@@ -14,6 +14,7 @@ import {
 import { assignSessionAnnotator } from "@/lib/api/focusGroups";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
+import { lengthOf } from "@/lib/duration";
 import type { AdminAnnotation } from "@/data/admin/oversight";
 import { NO_VALUE } from "@/lib/no-value";
 
@@ -164,7 +165,7 @@ export function useAdminAnnotations(view: AnnotationsView) {
 
 function toAdminAnnotation(api: ApiAnnotationSummary): AdminAnnotation {
   const claimed = new Date(api.created_at);
-  const durationSec = Math.round(api.duration_seconds ?? 0);
+  const durationSec = Math.round(lengthOf(api) ?? 0);
 
   return {
     id: api.id,

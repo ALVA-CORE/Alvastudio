@@ -22,3 +22,14 @@ export function formatClockTime(seconds: number) {
   const secs = String(total % 60).padStart(2, "0");
   return hours > 0 ? `${hours}:${String(mins).padStart(2, "0")}:${secs}` : `${mins}:${secs}`;
 }
+
+/**
+ * The length to show for a row: measured from the file where it was, else
+ * what the client reported with the upload. Null with neither.
+ */
+export function lengthOf(row: {
+  measured_duration_seconds?: number | null;
+  duration_seconds?: number | null;
+}) {
+  return row.measured_duration_seconds ?? row.duration_seconds ?? null;
+}

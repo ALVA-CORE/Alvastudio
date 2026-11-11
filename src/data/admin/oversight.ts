@@ -59,13 +59,6 @@ export type AdminRecording = {
   rubric: RubricEntry[] | null;
   /** What the reviewer wrote, if anything. */
   reviewNotes?: string | null;
-  /**
-   * Where the audio lives.
-   *
-   * One demo file stands in for every clip until `/recordings/{id}` returns a
-   * playable URL. The player is real; only the source is not.
-   */
-  audioUrl: string;
 };
 
 

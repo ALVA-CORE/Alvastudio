@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, apiFetch, getToken, parseRetryAfter, setToken } from "../client";
+import {
+  ApiError,
+  apiAudioLink,
+  apiFetch,
+  getToken,
+  parseRetryAfter,
+  refreshAudioLink,
+  setToken,
+} from "../client";
 
 /**
  * The client's job is to make the backend's two error shapes and its auth
@@ -227,5 +235,23 @@ describe("upload refusals (3 Nov)", () => {
     expect(parseRetryAfter("Wed, 04 Nov 2026 09:00:00 GMT", now)).toBe(0);
     expect(parseRetryAfter("soon", now)).toBeNull();
     expect(parseRetryAfter(null, now)).toBeNull();
+  });
+});
+
+/* #13: the player is handed the link, and a link that stops working is
+   swapped for a fresh one from the same route. */
+describe("apiAudioLink", () => {
+  it("returns the link and can ask the same route again", async () => {
+    setToken("abc123");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(respond(200, { url: "https://api.test/media/1", expires_at: "x" }))
+      .mockResolvedValueOnce(respond(200, { url: "https://api.test/media/2", expires_at: "x" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await apiAudioLink("/recordings/r1/audio-url")).toBe("https://api.test/media/1");
+    expect(await refreshAudioLink("https://api.test/media/1")).toBe("https://api.test/media/2");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/recordings/r1/audio-url");
+    expect(refreshAudioLink("blob:somewhere-else")).toBeNull();
   });
 });

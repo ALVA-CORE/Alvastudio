@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchBlobUrl } from "./client";
+import { apiAudioLink, apiFetch } from "./client";
 import { isSendableDuration, type ApiPage } from "./recordings";
 import type { ApiAgeBracket, ApiGender, ApiLanguageVariety } from "./enums";
 
@@ -53,7 +53,10 @@ export type ApiSessionSummary = {
   annotator_name?: string | null;
   topic: string;
   language_variety: ApiLanguageVariety | null;
+  /** What the client reported with the upload. Can be far off. */
   duration_seconds: number | null;
+  /** Read from the file at upload (10 Nov). Null before measurement or with no audio. */
+  measured_duration_seconds?: number | null;
   has_audio: boolean;
   participant_count: number;
   /**
@@ -275,9 +278,9 @@ export function uploadSessionAudio(
   });
 }
 
-/** Authenticated, so it needs the header — returns a revocable blob URL. */
+/** A playable link to the session's audio; see `apiAudioLink`. */
 export const sessionAudioUrl = (sessionId: string) =>
-  apiFetchBlobUrl(`/focus-groups/${sessionId}/audio`);
+  apiAudioLink(`/focus-groups/${sessionId}/audio-url`);
 
 export const listTurns = (sessionId: string, participantId?: string) =>
   apiFetch<ApiSpeakerTurn[]>(`/focus-groups/${sessionId}/turns`, {

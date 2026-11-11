@@ -4,7 +4,7 @@ import type { ApiAnnotationStatus } from "@/lib/api/annotations";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { AnnotationStatus, AnnotatorSession } from "@/data/annotators/sessions";
 import { NO_VALUE } from "@/lib/no-value";
-import { formatDuration } from "@/lib/duration";
+import { formatDuration, lengthOf } from "@/lib/duration";
 
 /**
  * The annotator's session list.
@@ -130,7 +130,7 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
             toSession(
               row.session_id,
               row.topic,
-              row.duration_seconds,
+              lengthOf(row),
               row.participant_count,
               row.created_at,
               "not-started",
@@ -143,16 +143,15 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
             )
           );
 
-        /* Claimed rows come from `/annotations`, which carries no topic or
-         * duration — only the annotation's own metadata. A session already
-         * claimed has also left the queue, so the lookup usually misses and
-         * the row shows what the annotation itself knows. */
+        /* Claimed rows come from `/annotations`. A session already claimed
+         * has left the queue, so the lookup usually misses and the row shows
+         * what the annotation carries from its session: topic and length. */
         const held = mine.map((entry) => {
           const row = queue.find((item) => item.session_id === entry.session_id);
           return toSession(
             entry.session_id,
-            row?.topic ?? "Focus group session",
-            row?.duration_seconds ?? null,
+            row?.topic ?? entry.topic ?? "Focus group session",
+            lengthOf(row ?? entry),
             row?.participant_count ?? 0,
             entry.created_at,
             STATUS_MAP[entry.status],

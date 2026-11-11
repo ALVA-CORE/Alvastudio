@@ -80,7 +80,6 @@ import type { BankItem, BankKind } from "@/data/admin/prompts";
 import { NO_VALUE } from "@/lib/no-value";
 
 /** One file stands in for every clip; the player is real, the source is not. */
-const DEMO_CLIP = "/audio/demo-clip.wav";
 
 const PROMPT_TEXTS = [
   "The traffic for Lagos island go always choke by seven a.m., especially when rain fall.",
@@ -323,7 +322,6 @@ function buildRecordings(count: number): AdminRecording[] {
       status,
       reviewer:
         status === "submitted" ? "" : pick(random, NIGERIAN_NAMES.slice(0, 6)),
-      audioUrl: DEMO_CLIP,
       submittedAt: submitted.getTime(),
       reviewedAt: 0,
       submittedLabel: relativeDays(submitted),

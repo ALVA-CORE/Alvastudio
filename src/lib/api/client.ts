@@ -479,21 +479,30 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
-/** Fetches a protected binary resource as an object URL, e.g. recording audio. */
-export async function apiFetchBlobUrl(path: string): Promise<string> {
-  const token = getToken();
-  const url = new URL(`${BASE_URL}${path}`, window.location.origin);
+/** Which `audio-url` route each link came from, to ask it for a fresh one. */
+const audioLinkRoutes = new Map<string, string>();
 
-  const response = await fetch(url.toString(), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+/**
+ * A playable link from one of the `audio-url` routes (#13, 10 Nov).
+ *
+ * The link needs no Authorization header, so it goes straight into an
+ * `<audio src>`: the browser streams it and seeks with Range requests instead
+ * of downloading the whole file first. Never stored: it is tied to the person
+ * who asked, and expires an hour past the recording's length.
+ */
+export async function apiAudioLink(path: string): Promise<string> {
+  const { url } = await apiFetch<{ url: string; expires_at: string }>(path);
+  audioLinkRoutes.set(url, path);
+  return url;
+}
 
-  if (!response.ok) throw parseError(response.status, null);
-
-  // The audio routes are authenticated, so an <audio src> pointing straight at
-  // them would send no token. Fetch with the header, then hand back a blob URL.
-  // Callers must revokeObjectURL when done.
-  return URL.createObjectURL(await response.blob());
+/**
+ * A fresh link for one that has stopped working (expired, or 401 after a
+ * sign-out), or null for a src that did not come from `apiAudioLink`.
+ */
+export function refreshAudioLink(url: string): Promise<string> | null {
+  const path = audioLinkRoutes.get(url);
+  return path ? apiAudioLink(path) : null;
 }
 
 /**

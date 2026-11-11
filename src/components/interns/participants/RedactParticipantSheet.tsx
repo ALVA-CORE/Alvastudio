@@ -62,7 +62,6 @@ export function RedactParticipantSheet({
     if (!open || !sessionId || !participantId) return;
 
     let cancelled = false;
-    let url: string | null = null;
 
     setConfirmed(false);
     setError(null);
@@ -87,15 +86,10 @@ export function RedactParticipantSheet({
         if (!cancelled) setTurns(null);
       });
 
-    /* Authenticated, so it cannot be an `<audio src>`. */
+    /* A playable link, which streams. */
     sessionAudioUrl(sessionId)
-      .then((blobUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        url = blobUrl;
-        setAudioUrl(blobUrl);
+      .then((link) => {
+        if (!cancelled) setAudioUrl(link);
       })
       .catch(() => setAudioUrl(null))
       .finally(() => {
@@ -104,7 +98,6 @@ export function RedactParticipantSheet({
 
     return () => {
       cancelled = true;
-      if (url) URL.revokeObjectURL(url);
       setAudioUrl(null);
     };
   }, [open, sessionId, participantId]);

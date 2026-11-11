@@ -9,7 +9,7 @@ import { toTranscriptDoc } from "@/data/annotators/fromApi";
 import { baselineFrom, saveAnnotation, type Baseline } from "@/data/annotators/toApi";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import type { TranscriptDoc } from "@/lib/annotation/types";
-import { formatDuration } from "@/lib/duration";
+import { formatDuration, lengthOf } from "@/lib/duration";
 
 /**
  * Loads the session record and its annotation for the workspace route.
@@ -103,9 +103,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
         return { unclaimed: true as const, topic: waiting?.topic };
       }
 
-      /* The audio route is authenticated, so the player gets a blob URL
-       * rather than the path: an `<audio src>` pointed at the API would send
-       * no token and 401. */
+      /* A playable link, which streams. */
       const [document, focusGroup, audioSrc] = await Promise.all([
         annotations.getAnnotation(match.id),
         getSession(sessionId),
@@ -113,7 +111,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
       ]);
 
       const doc = toTranscriptDoc(document, focusGroup.participants ?? []);
-      const durationSec = Math.round(focusGroup.duration_seconds ?? 0);
+      const durationSec = Math.round(lengthOf(focusGroup) ?? 0);
 
       const session: AnnotatorSession = {
         id: sessionId,
@@ -172,14 +170,6 @@ export function useSessionTranscript(sessionId: string | undefined) {
 
     return () => {
       cancelled = true;
-      /* One blob per session. Leaving them attached means every session an
-       * annotator opens stays in memory until the tab is closed. */
-      setResource((current) => {
-        if (current.status === "ready" && current.session.audioSrc) {
-          URL.revokeObjectURL(current.session.audioSrc);
-        }
-        return current;
-      });
     };
   }, [sessionId, attempt]);
 
