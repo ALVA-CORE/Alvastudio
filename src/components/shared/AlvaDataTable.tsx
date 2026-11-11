@@ -3,7 +3,9 @@ import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import SortVertical from "@solar-icons/react/arrows/SortVertical";
 import Magnifier from "@solar-icons/react/search/Magnifier";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -92,6 +94,17 @@ type AlvaDataTableProps<T extends { id: string }> = {
     /** Sort on the server, by a column's `serverSort`. Without it no column sorts. */
     onSortChange?: (key: string, dir: "asc" | "desc") => void;
   };
+  /**
+   * A box on each row. The parent owns which ids are picked, and what can be
+   * done with them: `actions` takes the title's place while any are.
+   */
+  selection?: {
+    selected: string[];
+    onChange: (ids: string[]) => void;
+    /** Rows this says no to get no box. */
+    canSelect?: (row: T) => boolean;
+    actions: ReactNode;
+  };
 };
 
 /** What a page can hold. The table's own `pageSize` is added if it is not one. */
@@ -151,6 +164,7 @@ export function AlvaDataTable<T extends { id: string }>({
   activeFilterCount = 0,
   isLoading = false,
   serverPaging,
+  selection,
 }: AlvaDataTableProps<T>) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -274,6 +288,42 @@ export function AlvaDataTable<T extends { id: string }>({
       ]
     : columns;
 
+  /* The header box covers the rows on screen, never the pages behind them. */
+  const picked = useMemo(() => new Set(selection?.selected ?? []), [selection?.selected]);
+  const pickable = selection
+    ? paged.filter((row) => selection.canSelect?.(row) ?? true)
+    : [];
+  const allPicked = pickable.length > 0 && pickable.every((row) => picked.has(row.id));
+  const somePicked = pickable.some((row) => picked.has(row.id));
+  const togglePage = () => {
+    if (!selection) return;
+    const ids = new Set(selection.selected);
+    for (const row of pickable) {
+      if (allPicked) ids.delete(row.id);
+      else ids.add(row.id);
+    }
+    selection.onChange([...ids]);
+  };
+  const toggleRow = (id: string) => {
+    if (!selection) return;
+    selection.onChange(
+      picked.has(id)
+        ? selection.selected.filter((entry) => entry !== id)
+        : [...selection.selected, id]
+    );
+  };
+  const rowBox = (row: T) =>
+    selection && (selection.canSelect?.(row) ?? true) ? (
+      <Checkbox
+        checked={picked.has(row.id)}
+        onCheckedChange={() => toggleRow(row.id)}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+        aria-label="Select row"
+      />
+    ) : null;
+  const picking = Boolean(selection && selection.selected.length > 0);
+
   const isNullState = rows.length === 0;
   /* A server-paged table holds only the matches, so no rows and a query is
      "nothing matches", not "nothing here". */
@@ -284,9 +334,41 @@ export function AlvaDataTable<T extends { id: string }>({
   return (
     <AlvaSurfaceCard className="flex h-full min-w-0 flex-col gap-4 overflow-hidden">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <h2 className="font-display text-lg font-medium tracking-tight text-foreground">
-          {title}
-        </h2>
+        <AnimatePresence mode="wait" initial={false}>
+          {picking && selection ? (
+            <motion.div
+              key="picking"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="flex min-h-9 items-center gap-2"
+            >
+              <span className="font-display text-lg font-medium tabular-nums tracking-tight text-foreground">
+                {selection.selected.length.toLocaleString()} selected
+              </span>
+              <button
+                type="button"
+                onClick={() => selection.onChange([])}
+                className="rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+              >
+                Clear
+              </button>
+              {selection.actions}
+            </motion.div>
+          ) : (
+            <motion.h2
+              key="title"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="font-display text-lg font-medium tracking-tight text-foreground"
+            >
+              {title}
+            </motion.h2>
+          )}
+        </AnimatePresence>
         <div className="flex w-full max-w-md items-center justify-end gap-2">
           {!searchable ? null : (
           <FieldBeam radius={18} className="min-w-0 flex-1 rounded-full">
@@ -400,6 +482,7 @@ export function AlvaDataTable<T extends { id: string }>({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
+                      {selection ? <span className="flex h-5 items-center">{rowBox(row)}</span> : null}
                       {renderMobileLeading?.(row)}
                       <div className="min-w-0">
                         <p className="text-[13px] font-medium text-foreground">{mobile.title}</p>
@@ -427,6 +510,17 @@ export function AlvaDataTable<T extends { id: string }>({
             <Table>
               <TableHeader>
                 <TableRow className="border-alva-border hover:bg-transparent">
+                  {selection ? (
+                    <TableHead className="w-10 pr-0">
+                      {pickable.length > 0 ? (
+                        <Checkbox
+                          checked={allPicked ? true : somePicked ? "indeterminate" : false}
+                          onCheckedChange={togglePage}
+                          aria-label="Select all on this page"
+                        />
+                      ) : null}
+                    </TableHead>
+                  ) : null}
                   {tableColumns.map((column) => (
                     <TableHead
                       key={column.key}
@@ -459,10 +553,20 @@ export function AlvaDataTable<T extends { id: string }>({
                     key={row.id}
                     className={cn(
                       "border-alva-border",
-                      onRowClick && "cursor-pointer hover:bg-alva-card/60"
+                      onRowClick && "cursor-pointer hover:bg-alva-card/60",
+                      picked.has(row.id) && "bg-alva-accent/[0.06]"
                     )}
+                    data-state={picked.has(row.id) ? "selected" : undefined}
                     onClick={() => onRowClick?.(row)}
                   >
+                    {selection ? (
+                      <TableCell
+                        className="w-10 pr-0"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {rowBox(row)}
+                      </TableCell>
+                    ) : null}
                     {tableColumns.map((column) => (
                       <TableCell
                         key={column.key}
