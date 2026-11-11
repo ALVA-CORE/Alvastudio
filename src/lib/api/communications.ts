@@ -158,6 +158,17 @@ export const previewCommunication = (id: string) =>
   apiFetch<ApiCommunicationPreview>(`/communications/${id}/preview`);
 
 /**
+ * Sends a saved communication, draft or queued, to the signed-in admin's own
+ * address and nowhere else (10 Nov). Nothing is queued or logged, and a draft
+ * stays a draft. 429 past ten in an hour, with `Retry-After`.
+ */
+export const sendTestEmail = (communicationId: string) =>
+  apiFetch<{ sent_to: string; kind: string; subject: string }>("/communications/test-email", {
+    method: "POST",
+    body: { communication_id: communicationId },
+  });
+
+/**
  * Queue it. Safe to repeat with the same id and revision: the server makes
  * no new jobs. Never retry an uncertain send by creating a new draft.
  */

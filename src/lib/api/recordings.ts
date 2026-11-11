@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchBlobUrl } from "./client";
+import { apiAudioLink, apiFetch } from "./client";
 import type { ApiRecordingStatus, ApiSessionType } from "./enums";
 
 export type ApiRecording = {
@@ -224,13 +224,8 @@ export const assignReviewer = (recordingId: string, reviewerId: string | null) =
 
 export const getRecording = (id: string) => apiFetch<ApiRecording>(`/recordings/${id}`);
 
-/**
- * The audio route needs the bearer token, so an `<audio src>` pointed straight
- * at it would send nothing and 401. Fetch with the header and hand back a blob
- * URL — the caller must `URL.revokeObjectURL` when the player unmounts.
- */
-export const recordingAudioUrl = (id: string) =>
-  apiFetchBlobUrl(`/recordings/${id}/audio`);
+/** A playable link to the clip; see `apiAudioLink`. */
+export const recordingAudioUrl = (id: string) => apiAudioLink(`/recordings/${id}/audio-url`);
 
 /**
  * How much a contributor may still record today.

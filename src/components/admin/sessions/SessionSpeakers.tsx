@@ -53,7 +53,6 @@ export function SessionSpeakers({
 
   useEffect(() => {
     let cancelled = false;
-    let url: string | null = null;
 
     setParticipants(null);
     setWithdrawn(0);
@@ -70,15 +69,10 @@ export function SessionSpeakers({
         if (!cancelled) setFailed(true);
       });
 
-    /* Authenticated, so it cannot be an `<audio src>`. */
+    /* A playable link, which streams. */
     sessionAudioUrl(sessionId)
-      .then((blobUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        url = blobUrl;
-        setAudioUrl(blobUrl);
+      .then((link) => {
+        if (!cancelled) setAudioUrl(link);
       })
       .catch(() => {
         if (!cancelled) setAudioUrl(null);
@@ -89,7 +83,6 @@ export function SessionSpeakers({
 
     return () => {
       cancelled = true;
-      if (url) URL.revokeObjectURL(url);
     };
   }, [sessionId]);
 

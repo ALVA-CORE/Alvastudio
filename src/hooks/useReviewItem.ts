@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getRecording, recordingAudioUrl } from "@/lib/api/recordings";
 import { reviewsForRecording, submitReview } from "@/lib/api/reviews";
 import { ApiError } from "@/lib/api/client";
@@ -10,10 +10,7 @@ import type { QualityAnswers, ReviewQueueItem, ReviewVerdict } from "@/data/revi
  * One recording, ready to review.
  *
  * Two calls the queue deliberately does not make per row: the recording itself
- * and an authenticated fetch of its audio. The audio route needs the bearer
- * token, so it is fetched as a blob and handed back as an object URL — revoked
- * when the id changes or the page unmounts, or every clip reviewed would leak
- * its audio for the life of the tab.
+ * and a playable link to its audio, which streams.
  *
  * The prompt text used to be a third call. `RecordingOut` now carries
  * `prompt_text` and `stimulus_text`, so it comes back with the recording.
@@ -62,7 +59,6 @@ export function useReviewItem(id: string | undefined) {
   const [isLoading, setLoading] = useState(Boolean(id));
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
-  const blobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -74,13 +70,6 @@ export function useReviewItem(id: string | undefined) {
     let cancelled = false;
     setLoading(true);
     setError(null);
-
-    const revoke = () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-    };
 
     (async () => {
       try {
@@ -107,13 +96,7 @@ export function useReviewItem(id: string | undefined) {
         /* A clip whose audio failed to fetch is still worth showing — the
          * metadata and rubric are useful, and the player reports the gap. */
         const audio = await recordingAudioUrl(id).catch(() => null);
-        if (cancelled) {
-          if (audio) URL.revokeObjectURL(audio);
-          return;
-        }
-
-        revoke();
-        blobUrlRef.current = audio;
+        if (cancelled) return;
 
         setItem({
           ...row,
@@ -145,7 +128,6 @@ export function useReviewItem(id: string | undefined) {
 
     return () => {
       cancelled = true;
-      revoke();
     };
   }, [id]);
 

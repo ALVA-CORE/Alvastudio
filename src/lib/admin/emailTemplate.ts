@@ -2,7 +2,7 @@
  * The branded email, drawn in the browser for the live preview.
  *
  * A copy of `render()` in the backend's `app/services/email_templates.py`
- * (origin/main, 10 Nov), kept as close to line for line as the two languages
+ * (origin/main `dbc50cb`, 10 Nov), kept as close to line for line as the two languages
  * allow. It exists so the preview can follow every keystroke without a save
  * and a round trip each time.
  *
@@ -161,6 +161,9 @@ export function renderEmailHtml({
      light text (see light()). */
   u + .body .gmail-screen { background:#000; mix-blend-mode:screen; }
   u + .body .gmail-difference { background:#000; mix-blend-mode:difference; }
+  /* The button's dark label, which Gmail turns near-white: painted by an
+     image clipped to the letters instead, which it leaves alone. */
+  u + .body .gmail-label { background-image:linear-gradient(${BG},${BG}); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; }
   @media only screen and (max-width:480px) {
     .outer { padding:16px 10px !important; }
     .hero-wrap { padding:14px 16px 0 !important; }
@@ -200,7 +203,7 @@ ${copy}
 <tr><td class="button-wrap" align="center" style="padding:32px 24px 8px;">
 <table role="presentation" cellspacing="0" cellpadding="0" align="center"><tr>
 <td bgcolor="${ACCENT}" align="center" style="${tile(ACCENT, ACCENT_TILE)}border-radius:999px;">
-<a href="${escape(url)}" style="display:inline-block;padding:14px 28px;border-radius:999px;${tile(ACCENT, ACCENT_TILE)}color:${BG};font-size:14px;font-weight:600;line-height:1;text-decoration:none;">${escape(action)}</a>
+<a href="${escape(url)}" style="display:inline-block;padding:14px 28px;border-radius:999px;${tile(ACCENT, ACCENT_TILE)}color:${BG};font-size:14px;font-weight:600;line-height:1;text-decoration:none;"><span class="gmail-label">${escape(action)}</span></a>
 </td>
 </tr></table>
 </td></tr>

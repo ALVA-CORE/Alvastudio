@@ -1,6 +1,7 @@
 # What we need from the backend
 
-Checked against the live OpenAPI document, 10 Nov 2026.
+Checked against the OpenAPI document exported from backend origin/main
+`dbc50cb`, 10 Nov 2026. The live API no longer serves `/openapi.json`.
 
 **Every ask and every open question lives here, and nowhere else.**
 
@@ -15,9 +16,8 @@ the other document points here.
 
 | # | Ask | Blocks | Priority |
 | --- | --- | --- | --- |
-| 10 | Keep the email button's label dark in Gmail's dark mode (reopened) | The label turns white on the green in Gmail on iPhone | Medium |
-| 13 | A way to stream session audio | A session's player waits for the whole file to download | High |
-| 14 | A session's measured length on each row | A session shows the length sent with the upload, which can be far off | Medium |
+| 15 | Email interns and annotators, not only contributors | The composer's To row can reach contributors only | High |
+| 16 | Delete chosen prompts and stimuli by id | Ticked rows on the Prompts page can only be retired, not deleted | Medium |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -29,89 +29,59 @@ Closed on 6 Nov: #8 search, #9 dark-mode emails (see
 needs checking in real mail apps; that is ours to do, and the reply says how.
 Closed on 10 Nov: #10 the email button in Gmail's dark mode, #11 paging the
 annotations and focus-group lists, #12 clips dealt to an intern (see
-[`replies/api-status-2026-11-10.md`](replies/api-status-2026-11-10.md)). #10
-was reopened the same day for the label; see below.
-
-Not used: `GET /users/interns/activity`, from the second 10 Nov handoff
-([`replies/api-status-2026-11-10b.md`](replies/api-status-2026-11-10b.md)).
-Each intern's Activity tab in the account panel already shows the same
-graph and numbers, so we built no page for it. Keep it or drop it; nothing
-here calls it.
+[`replies/api-status-2026-11-10.md`](replies/api-status-2026-11-10.md)).
+Closed again on 10 Nov, in the third handoff: #10 the button's label, #13
+streaming audio, #14 measured lengths on rows (see
+[`replies/api-status-2026-11-10c.md`](replies/api-status-2026-11-10c.md)). #10
+still needs checking in Gmail on iPhone and Android; that is ours to do.
 
 ---
 
-## 10. The email button's label in Gmail's dark mode (reopened 10 Nov)
+## 15. Emailing interns and annotators
 
-**What we saw**, after the 10 Nov tile, on a real send:
+**Now:** a communication reaches contributors only. `audience` is
+`all_contributors` or `selected_contributors`, and every id in
+`recipient_ids` must be an active contributor, or the save is a 422. So
+"Everyone" in our To row means every active contributor, and the people
+search lists contributors only.
 
-- **Gmail on iPhone, dark mode:** the green now holds. Sampled from the
-  screenshot, the button is `#24EF7D` against our `#25F07D`. **The label
-  does not:** it comes out `#F7F7F7`, near white, where it should be `#090909`.
-  Light text on the bright green also makes the button look paler than it is.
-- **Gmail on the web, dark theme:** right. Green button, dark label.
-- **Light mode:** right everywhere we looked.
-- **Gmail on Android:** not checked yet.
+**What we need:** admins write to one group, or to everyone:
 
-**What we need:** the label `#090909` on the green in Gmail's dark mode, as it
-is in light mode. You said you'd rather talk before working round it, so we
-have not guessed at a fix. Two things we know about this setup:
+- Everyone: every active contributor, intern and annotator.
+- All contributors, all interns, or all annotators.
+- Chosen people, of any of those roles, in one email.
 
-- **Images are left alone:** the tile and the hero both come through as sent.
-- **`light()` already works** for light text. The label needs the same kind of
-  measure, for dark text on a bright background.
+How you shape it is up to you. Whatever the shape, we need what we have now
+for contributors: the group on the list and detail rows, `recipient_count`
+for it while drafting, and the same `unavailable_recipient_count` for chosen
+people who have since left that role or been deactivated.
 
-When the template changes, we copy it and regenerate the parity fixtures.
+**Questions:**
 
----
-
-## 13. A way to stream session audio
-
-**What happens:** opening a focus-group session in the admin panel shows a
-loading player until the whole recording has downloaded. Nothing plays until
-the last byte arrives, and the longer the session the longer the wait.
-
-**Why:** `GET /focus-groups/{session_id}/audio` takes a bearer token, and an
-`<audio src>` cannot send one. So the studio fetches the whole file with the
-header and plays it from memory (`apiFetchBlobUrl`). The route itself serves
-ranges; the browser just never gets to ask for them.
-
-**What would fix it:** a URL the browser can load directly, for example a
-short-lived signed link to the same file:
-
-- **Route:** `GET /focus-groups/{session_id}/audio-url` returns
-  `{ url, expires_at }`, with the same access rule as the audio route.
-- **The link:** carries its own short-lived token, and the file it serves
-  honours `Range`, so the player starts at once and can seek.
-
-The same would help `GET /recordings/{id}/audio` and
-`GET /annotations/{id}/audio`, which work the same way. Clips are short, so
-those matter less.
+1. Do admins count in "everyone"?
+2. A state in our To row is worked out here: the contributors whose state of
+   origin or residence it is. Interns have a primary state and annotators
+   have none. Should a state reach interns too, or stay contributors only?
 
 ---
 
-## 14. A session's measured length on each row
+## 16. Deleting chosen prompts and stimuli
 
-**What happens:** session `f705732b` ("Scribe test: a memorable market day")
-shows **6h** in the table and the panel. Its audio plays for **1:25**. The 6h
-is `duration_seconds`, the length sent with the upload: exactly 21,600, the
-most the API accepts. Nothing measured from the file reaches us per session.
+**Now:** the Prompts page has a box on each row. What it can do with the
+ticked rows is retire them, one `DELETE /prompts/{id}` (or `/stimuli/{id}`,
+`/focus-group-topics/{id}`) each, because those routes deactivate rather than
+delete. `POST /prompts/bulk-delete` does delete, but it picks prompts by
+filter (upload time, author, category, variety), not by the rows an admin
+ticked. Stimuli have no bulk delete at all.
 
-**Why it matters:** the Length column, the panel, the annotations table and
-the waiting list all show that figure, so one wrong upload reads as six hours
-of work.
+**What we need:** the same rule as `bulk-delete`, for a list of ids: those
+nobody has recorded are deleted, those with a recording are retired, and
+hand-outs are taken back. For prompts and stimuli. Taking `ids` (up to 100,
+our largest page) on `POST /prompts/bulk-delete` and on a matching
+`POST /stimuli/bulk-delete` would do, keeping preview first and
+`apply=true&expected=` to apply.
 
-**What we know you have:** `GET /focus-groups/summary` already counts
-`hours_measured` from the file, and recordings carry
-`measured_duration_seconds`.
+We'd show the preview's split in the confirm ("12 deleted, 8 retired:
+recorded") and the button would say Delete.
 
-**What would fix it:** `measured_duration_seconds` (null where never
-measured) on:
-
-- `FocusGroupSessionSummary` and the session detail;
-- `AnnotationSummary`;
-- `AnnotationQueueRow`.
-
-We would show the measured length wherever there is one, and the reported one
-otherwise, as the reviews page does for clips. Sorting by `duration` would
-ideally follow the same rule.
-
+**Question:** should focus-group topics get the same, or stay retire only?

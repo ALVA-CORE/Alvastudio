@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const create = vi.fn();
+const sendTestEmail = vi.fn();
 vi.mock("@/lib/api/communications", () => ({
   createCommunication: (draft: unknown) => create(draft),
   updateCommunication: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock("@/lib/api/communications", () => ({
     email_available: true,
   })),
   sendCommunication: vi.fn(),
+  sendTestEmail: (id: string) => sendTestEmail(id),
 }));
 
 const { useCommsComposer } = await import("../useCommsComposer");
@@ -52,5 +54,23 @@ describe("useCommsComposer", () => {
       action_label: "Open Alva Studio",
       action_url: "https://alvacoreai.com/guide",
     });
+  });
+
+  /* The test goes to a saved draft, so it saves first, and sends nothing to
+     anybody else. */
+  it("saves the draft and sends the test to its id", async () => {
+    sendTestEmail.mockResolvedValue({ sent_to: "me@example.com", kind: "communication", subject: "[Test] Update" });
+    const { result } = renderHook(() => useCommsComposer());
+    act(() => {
+      result.current.set("header", "Update");
+      result.current.set("body", "Read it.");
+    });
+    let sentTo: string | undefined;
+    await act(async () => {
+      sentTo = await result.current.sendTest();
+    });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(sendTestEmail).toHaveBeenCalledWith("m1");
+    expect(sentTo).toBe("me@example.com");
   });
 });

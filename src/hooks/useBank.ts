@@ -26,6 +26,9 @@ import {
 import type { Variety } from "@/data/admin/shared";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
 
+/** Retire requests in flight at once. A page can hold a hundred rows. */
+const RETIRE_AT_ONCE = 5;
+
 const TO_VARIETY: Record<ApiLanguageVariety, Variety> = {
   nigerian_english: "Nigerian English",
   nigerian_pidgin: "Nigerian Pidgin",
@@ -247,6 +250,32 @@ export function useBank(view: BankView) {
     reload();
   }, [reload]);
 
+  /**
+   * Retires each id, a few requests at a time, then reloads once. There is no
+   * route that takes a list of ids, so it is one `DELETE` each. Returns the ids
+   * that failed and the first reason.
+   */
+  const retireMany = useCallback(
+    async (kind: BankKind, ids: string[]) => {
+      const failed: string[] = [];
+      let firstError: unknown;
+      for (let start = 0; start < ids.length; start += RETIRE_AT_ONCE) {
+        const chunk = ids.slice(start, start + RETIRE_AT_ONCE);
+        const results = await Promise.allSettled(
+          chunk.map((id) => (kind === "topic" ? deleteTopic(id) : deleteBankItem(kind, id)))
+        );
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") return;
+          failed.push(chunk[index]);
+          firstError ??= result.reason;
+        });
+      }
+      reload();
+      return { failed, firstError };
+    },
+    [reload]
+  );
+
   /** CSV import is prompts and stimuli only — topics have no import route. */
   const importCsv = useCallback(
     async (kind: BankKind, file: File) => {
@@ -271,6 +300,7 @@ export function useBank(view: BankView) {
     create,
     save,
     retire,
+    retireMany,
     importCsv,
   };
 }

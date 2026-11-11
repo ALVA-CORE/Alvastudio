@@ -183,6 +183,5 @@ function toAdminRecording(api: ApiRecording): AdminRecording {
        "nobody has judged this", and the panel says so. */
     rubric: latest ? toRubric(latest) : null,
     reviewNotes: latest?.notes ?? null,
-    audioUrl: "",
   };
 }

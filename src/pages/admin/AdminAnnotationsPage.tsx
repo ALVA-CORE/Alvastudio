@@ -24,6 +24,7 @@ import {
 import { useAdminAnnotations } from "@/hooks/useAdminAnnotations";
 import type { ApiAnnotationSort } from "@/lib/api/annotations";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
+import { lengthOf } from "@/lib/duration";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NO_VALUE } from "@/lib/no-value";
 
@@ -270,8 +271,8 @@ export default function AdminAnnotationsPage() {
                 </dt>
                 <dd className="flex shrink-0 items-center gap-2">
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    {session.duration_seconds
-                      ? formatDuration(Math.round(session.duration_seconds))
+                    {lengthOf(session)
+                      ? formatDuration(Math.round(lengthOf(session) ?? 0))
                       : NO_VALUE}{" "}
                     · {relativeDays(new Date(session.created_at))}
                   </span>

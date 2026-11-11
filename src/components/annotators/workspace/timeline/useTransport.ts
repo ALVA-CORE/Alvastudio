@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAnnotationActions, useAnnotationStore } from "@/lib/annotation/context";
 import type { AnnotationState } from "@/lib/annotation/store";
+import { refreshAudioLink } from "@/lib/api/client";
 
 /**
  * Playback transport for the timeline.
@@ -60,16 +61,48 @@ export function useTransport({ src }: UseTransportOptions): UseTransportResult {
     audio.preload = "auto";
     audioRef.current = audio;
 
+    /* A link that stopped working (it expired, or the person signed out)
+       is swapped for a fresh one once, at the playhead. A second failure
+       before it plays is a real one. */
+    let link = src;
+    let refreshed = false;
+
     const handleCanPlay = () => {
       if (disposed) return;
+      refreshed = false;
       setIsReady(true);
       setError(null);
     };
 
-    const handleError = () => {
+    const fail = () => {
       if (disposed) return;
       setIsReady(false);
       setError("Could not load the session audio.");
+    };
+
+    const handleError = () => {
+      if (disposed) return;
+      const fresh = refreshed ? null : refreshAudioLink(link);
+      if (!fresh) return fail();
+      refreshed = true;
+      fresh
+        .then((next) => {
+          if (disposed) return;
+          link = next;
+          audio.addEventListener(
+            "loadedmetadata",
+            () => {
+              const state = store.getState();
+              if (Number.isFinite(audio.duration) && audio.duration > 0) {
+                audio.currentTime = state.currentTime % audio.duration;
+              }
+              if (state.isPlaying) void audio.play().catch(() => {});
+            },
+            { once: true }
+          );
+          audio.src = next;
+        })
+        .catch(fail);
     };
 
     audio.addEventListener("canplay", handleCanPlay);

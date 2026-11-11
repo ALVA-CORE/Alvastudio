@@ -23,6 +23,7 @@ import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
 import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { BankItemSheet } from "@/components/admin/prompts/BankItemSheet";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { CreateBankItemDialog } from "@/components/admin/prompts/CreateBankItemDialog";
 import { ImportBankCsvDialog } from "@/components/admin/prompts/ImportBankCsvDialog";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
@@ -68,6 +69,11 @@ export default function AdminPromptsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [query, setQuery] = useState("");
+  /* Rows picked with the boxes. Only what is on screen: any change of what
+     is listed clears it, so what you confirm is what you can see. */
+  const [selected, setSelected] = useState<string[]>([]);
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [retiring, setRetiring] = useState(false);
 
   /* Any change of what is listed starts again from the first page. Page 40
      of the unrecorded prompts is not page 40 of the recorded ones. Done in
@@ -76,18 +82,26 @@ export default function AdminPromptsPage() {
   const showKind = (next: BankKind) => {
     setKind(next);
     setPage(1);
+    setSelected([]);
   };
   const showActive = (next: ActiveFilter) => {
     setActiveFilter(next);
     setPage(1);
+    setSelected([]);
   };
   const showRecorded = (next: RecordedFilter) => {
     setRecordedFilter(next);
     setPage(1);
+    setSelected([]);
   };
   const search = (next: string) => {
     setQuery(next);
     setPage(1);
+    setSelected([]);
+  };
+  const showPage = (next: number) => {
+    setPage(next);
+    setSelected([]);
   };
 
   const {
@@ -101,6 +115,7 @@ export default function AdminPromptsPage() {
     create,
     save,
     retire,
+    retireMany,
     importCsv,
   } = useBank({
     kind,
@@ -162,6 +177,35 @@ export default function AdminPromptsPage() {
       });
     } catch (cause) {
       report(cause, "Could not retire that item.");
+    }
+  };
+
+  const nouns = (n: number) =>
+    kind === "topic"
+      ? n === 1 ? "topic" : "topics"
+      : kind === "stimulus"
+        ? n === 1 ? "stimulus" : "stimuli"
+        : n === 1 ? "prompt" : "prompts";
+  const pickedRows = items.filter((item) => selected.includes(item.id));
+  const pickedRecordings = pickedRows.reduce((sum, item) => sum + item.usedByCount, 0);
+
+  const handleRetireSelected = async () => {
+    const ids = selected;
+    setRetiring(true);
+    try {
+      const { failed, firstError } = await retireMany(kind, ids);
+      const done = ids.length - failed.length;
+      if (failed.length === 0) {
+        alvaToast.show(`${done.toLocaleString()} ${nouns(done)} retired`, { variant: "default" });
+      } else {
+        const why = reportApiError(firstError, "Some could not be retired.");
+        if (why) alvaToast.error(`${done} of ${ids.length} retired. ${why}`);
+      }
+      /* What failed stays picked, to try again. */
+      setSelected(failed);
+      setConfirmBulk(false);
+    } finally {
+      setRetiring(false);
     }
   };
 
@@ -397,7 +441,7 @@ export default function AdminPromptsPage() {
                 ? {
                     total,
                     page,
-                    onPageChange: setPage,
+                    onPageChange: showPage,
                     onPageSizeChange: setPageSize,
                     onQueryChange: search,
                   }
@@ -409,6 +453,22 @@ export default function AdminPromptsPage() {
               (serverPaged && recordedFilter !== "all" ? 1 : 0)
             }
             filterMenuContent={filterMenu}
+            selection={{
+              selected,
+              onChange: setSelected,
+              /* Retired rows have nothing left to retire. */
+              canSelect: (row) => row.isActive,
+              actions: (
+                <TextureButton
+                  variant="destructive"
+                  size="sm"
+                  className="ml-1 w-auto"
+                  onClick={() => setConfirmBulk(true)}
+                >
+                  Retire
+                </TextureButton>
+              ),
+            }}
             onRowClick={(row) => {
               setEditing(row);
               setSheetOpen(true);
@@ -500,6 +560,30 @@ export default function AdminPromptsPage() {
         item={editing}
         onSave={handleSave}
         onRetire={handleRetire}
+      />
+
+      <ConfirmDialog
+        open={confirmBulk}
+        onOpenChange={(open) => {
+          if (!retiring) setConfirmBulk(open);
+        }}
+        title={`Retire ${selected.length.toLocaleString()} ${nouns(selected.length)}?`}
+        description={
+          kind === "topic"
+            ? "They stop being offered for new sessions. Sessions already run from them keep their link."
+            : "They stop being handed out to contributors. Recordings already made against them are kept."
+        }
+        detail={
+          kind === "topic" ? undefined : (
+            <span className="tabular-nums">
+              {pickedRecordings.toLocaleString()}{" "}
+              {pickedRecordings === 1 ? "recording" : "recordings"} kept
+            </span>
+          )
+        }
+        confirmLabel={`Retire ${selected.length.toLocaleString()}`}
+        isPending={retiring}
+        onConfirm={() => void handleRetireSelected()}
       />
         </>
       )}

@@ -4,6 +4,7 @@ import {
   createCommunication,
   previewCommunication,
   sendCommunication,
+  sendTestEmail,
   updateCommunication,
   type ApiCommunicationAudience,
   type ApiCommunicationDetail,
@@ -180,6 +181,26 @@ export function useCommsComposer() {
     }
   };
 
+  /**
+   * Saves the draft, as the first press does, and sends it to the admin
+   * alone. A save moves the revision, so a count waiting to be confirmed is
+   * asked for again. Resolves with the address it went to.
+   */
+  const sendTest = async () => {
+    try {
+      const saved = draft
+        ? await updateCommunication(draft.id, draft.revision, toDraft(true))
+        : await createCommunication(toDraft(false));
+      setDraft(saved);
+      setStage({ kind: "idle" });
+      const sent = await sendTestEmail(saved.id);
+      return sent.sent_to;
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 409) setDraft(null);
+      throw cause;
+    }
+  };
+
   const cancel = () => setStage({ kind: "idle" });
 
   const reset = () => {
@@ -188,5 +209,5 @@ export function useCommsComposer() {
     setStage({ kind: "idle" });
   };
 
-  return { fields, set, valid, stage, prepare, send, cancel, reset };
+  return { fields, set, valid, stage, prepare, send, sendTest, cancel, reset };
 }

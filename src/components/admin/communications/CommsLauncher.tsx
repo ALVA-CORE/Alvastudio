@@ -55,6 +55,7 @@ export function CommsLauncher() {
   const [everOpened, setEverOpened] = useState(false);
   const [tab, setTab] = useState<Tab>("compose");
   const [sentVersion, setSentVersion] = useState(0);
+  const [testing, setTesting] = useState(false);
   const reduceMotion = useReducedMotion();
 
   const composer = useCommsComposer();
@@ -147,6 +148,23 @@ export function CommsLauncher() {
          repeat against the same draft, so the Sent tab is where to look. */
       alvaToast.error(reportApiError(cause, "Could not confirm that. Check Sent.") ?? "Could not confirm that.");
       setSentVersion((value) => value + 1);
+    }
+  };
+
+  /* Saves the draft, then sends it to this admin alone. */
+  const sendTest = async () => {
+    setTesting(true);
+    try {
+      const sentTo = await composer.sendTest();
+      alvaToast.success(`Test sent to ${sentTo}`);
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 503) {
+        alvaToast.error("Email is unavailable on the server.");
+        return;
+      }
+      alvaToast.error(reportApiError(cause, "Could not send the test.") ?? "Could not send the test.");
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -279,6 +297,18 @@ export function CommsLauncher() {
                           </motion.button>
                         ) : null}
                       </AnimatePresence>
+                      {!confirming && !fields.heroUploading ? (
+                        <TextureButton
+                          variant="minimal"
+                          size="default"
+                          className="w-auto shrink-0"
+                          loading={testing}
+                          disabled={!composer.valid || busy}
+                          onClick={() => void sendTest()}
+                        >
+                          Send me a test
+                        </TextureButton>
+                      ) : null}
                       {/* While the hero uploads, Send is its progress: a green
                           wave filling it as the bytes go. Full, it is the green
                           button it was filling up to. */}
@@ -313,7 +343,7 @@ export function CommsLauncher() {
                           size="default"
                           className="flex-1"
                           loading={busy}
-                          disabled={!composer.valid || (confirming && Boolean(stage.blocked))}
+                          disabled={!composer.valid || testing || (confirming && Boolean(stage.blocked))}
                           title={confirming && stage.blocked ? stage.blocked : undefined}
                           onClick={() => void press()}
                         >

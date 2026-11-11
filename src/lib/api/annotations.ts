@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchBlobUrl } from "./client";
+import { apiAudioLink, apiFetch } from "./client";
 import type { ApiLanguageVariety } from "./enums";
 import type { ApiPage } from "./recordings";
 
@@ -155,6 +155,8 @@ export type ApiQueueRow = {
   session_id: string;
   topic: string;
   duration_seconds: number | null;
+  /** Read from the file at upload (10 Nov). Null before measurement or with no audio. */
+  measured_duration_seconds?: number | null;
   participant_count: number;
   created_at: string;
   language_variety: ApiLanguageVariety | null;
@@ -169,6 +171,8 @@ export type ApiAnnotationSummary = {
   /** From the session, so one session reads as one number everywhere. */
   topic?: string | null;
   duration_seconds?: number | null;
+  /** Read from the file at upload (10 Nov). Null before measurement or with no audio. */
+  measured_duration_seconds?: number | null;
   segment_count?: number;
   /**
    * Only with `?expand=tags`, null otherwise.
@@ -454,12 +458,6 @@ export function submitAnnotation(id: string) {
 
 
 
-/**
- * The clip, as a blob URL.
- *
- * The audio route is authenticated, so an `<audio src>` pointed straight at it
- * would send no token and 401. Callers must `URL.revokeObjectURL` when the
- * player unmounts.
- */
+/** A playable link to the session's audio; see `apiAudioLink`. */
 export const annotationAudioUrl = (id: string) =>
-  apiFetchBlobUrl(`/annotations/${id}/audio`);
+  apiAudioLink(`/annotations/${id}/audio-url`);

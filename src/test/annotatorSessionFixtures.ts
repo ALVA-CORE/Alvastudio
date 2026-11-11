@@ -28,12 +28,6 @@ const LANGUAGES: AnnotatorSession["language"][] = [
   "Mixed",
 ];
 
-const AUDIO_SOURCES = [
-  "/audio/demo-ada.wav",
-  "/audio/demo-kemi.wav",
-  "/audio/demo-tunde.wav",
-  "/audio/demo-ngozi.wav",
-];
 
 const RECORDED_LABELS = [
   "2h ago",
@@ -78,7 +72,7 @@ function buildSessions(): AnnotatorSession[] {
       status,
       tagCount:
         status === "not-started" ? 0 : status === "in-progress" ? 4 + (index % 9) : 18 + (index % 24),
-      audioSrc: AUDIO_SOURCES[index % AUDIO_SOURCES.length],
+      audioSrc: `https://api.test/media/${index}`,
     };
   });
 }

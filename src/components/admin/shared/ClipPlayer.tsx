@@ -5,6 +5,7 @@ import { BeamPlayButton } from "@/components/shared/BeamPlayButton";
 import { SpeedControl } from "@/components/shared/SpeedControl";
 import { cn } from "@/lib/utils";
 import { formatClockTime as clock } from "@/lib/duration";
+import { refreshAudioLink } from "@/lib/api/client";
 
 /** Skip step, in seconds. Enough to clear a false start, short enough to land. */
 const SKIP = 10;
@@ -37,6 +38,11 @@ export function ClipPlayer({
 }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const frameRef = useRef(0);
+  /* The link playing now: `src`, or a fresh one once it stopped working
+     (expired, or signed out). Where to pick up, while one is fetched. */
+  const [link, setLink] = useState(src);
+  const resumeRef = useRef<{ at: number; play: boolean } | null>(null);
+  const refreshedRef = useRef(false);
 
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -48,6 +54,9 @@ export function ClipPlayer({
 
   // A different clip starts from the top, stopped.
   useEffect(() => {
+    setLink(src);
+    resumeRef.current = null;
+    refreshedRef.current = false;
     setPlaying(false);
     setPosition(0);
     setDuration(0);
@@ -100,9 +109,29 @@ export function ClipPlayer({
     <div className={cn("rounded-xl bg-alva-surface p-3", className)}>
       <audio
         ref={audioRef}
-        src={src}
+        src={link}
         preload="metadata"
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+        onLoadedMetadata={(event) => {
+          const audio = event.currentTarget;
+          setDuration(audio.duration);
+          refreshedRef.current = false;
+          const resume = resumeRef.current;
+          resumeRef.current = null;
+          if (!resume) return;
+          audio.currentTime = resume.at;
+          if (resume.play) void audio.play().catch(() => setPlaying(false));
+        }}
+        onError={(event) => {
+          /* Once; a fresh link that fails as well is a real failure. */
+          const fresh = refreshedRef.current ? null : refreshAudioLink(link);
+          if (!fresh) {
+            setPlaying(false);
+            return;
+          }
+          refreshedRef.current = true;
+          resumeRef.current = { at: event.currentTarget.currentTime, play: playing };
+          fresh.then(setLink).catch(() => setPlaying(false));
+        }}
         onEnded={() => setPlaying(false)}
       />
 
