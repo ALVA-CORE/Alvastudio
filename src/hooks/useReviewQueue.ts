@@ -12,11 +12,10 @@ import { NO_VALUE } from "@/lib/no-value";
 import { formatDuration } from "@/lib/duration";
 
 /**
- * An intern's review work, as three small requests (9 Nov):
+ * An intern's review work, as two small requests:
  *
- * - their desk, `/reviews/queue?mine`, dealt from the bank once a day at
- *   7pm WAT (10 Nov) and not refilled by verdicts;
- * - how many clips wait in the bank for a desk, as a number;
+ * - their desk, `/reviews/queue?mine`, where clips are placed as they are
+ *   uploaded (12 Nov);
  * - their history, `/recordings?judged_by=` themselves, a page at a time and
  *   only when they open it (`useReviewHistory`).
  *
@@ -60,7 +59,8 @@ export function toQueueItem(recording: ApiRecording): ReviewQueueItem {
     ),
     submittedAt: relative(recording.created_at),
     prompt: recording.prompt_text ?? recording.stimulus_text ?? "",
-    audioSrc: `/recordings/${recording.id}/audio`,
+    /* A playable link is fetched when the clip is opened (`useReviewItem`). */
+    audioSrc: "",
     device: recording.device_mic ?? NO_VALUE,
     /* The prompt's variety, which is what was actually spoken — a
      * contributor's profile holds a preference and can say "both". */
@@ -75,9 +75,7 @@ export function toQueueItem(recording: ApiRecording): ReviewQueueItem {
 
 export function useReviewQueue() {
   const [items, setItems] = useState<ReviewQueueItem[]>([]);
-  const [waiting, setWaiting] = useState<number | null>(null);
   const [isLoading, setLoading] = useState(true);
-  const [isAssigning, setAssigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -85,15 +83,11 @@ export function useReviewQueue() {
     const controller = new AbortController();
     setLoading(true);
 
-    Promise.all([
-      reviewsApi.reviewDesk(controller.signal),
-      /* A count is worth having but not worth failing the desk over. */
-      reviewsApi.reviewBankCount(controller.signal).catch(() => null),
-    ])
-      .then(([desk, bank]) => {
+    reviewsApi
+      .reviewDesk(controller.signal)
+      .then((desk) => {
         if (controller.signal.aborted) return;
         setItems(desk.map(toQueueItem));
-        setWaiting(bank);
         setError(null);
       })
       .catch((cause: unknown) => {
@@ -108,22 +102,7 @@ export function useReviewQueue() {
 
   const reload = useCallback(() => setAttempt((v) => v + 1), []);
 
-  /** Claims the next queued recording and returns its id. */
-  const assignNext = useCallback(async () => {
-    setAssigning(true);
-    try {
-      const recording = await reviewsApi.assignNext();
-      setAttempt((v) => v + 1);
-      return recording.id;
-    } catch (cause) {
-      setError(reportApiError(cause, "Nothing left to review."));
-      return null;
-    } finally {
-      setAssigning(false);
-    }
-  }, []);
-
-  return { items, waiting, isLoading, error, reload, assignNext, isAssigning };
+  return { items, isLoading, error, reload };
 }
 
 export type HistoryView = {

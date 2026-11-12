@@ -54,6 +54,11 @@ export function submitFailure(cause: unknown): string {
   return "Could not submit. Your answers are safe here.";
 }
 
+/** A verdict either lands, naming the clip to open next, or is refused with a reason. */
+export type SubmitOutcome =
+  | { ok: true; nextId: string | null }
+  | { ok: false; refusal: string };
+
 export function useReviewItem(id: string | undefined) {
   const [item, setItem] = useState<ReviewQueueItem | null>(null);
   const [isLoading, setLoading] = useState(Boolean(id));
@@ -134,19 +139,19 @@ export function useReviewItem(id: string | undefined) {
   /**
    * Records the verdict.
    *
-   * Resolves `null` when the API accepted it, and the reason when it did
-   * not. The reason used to be swallowed: the hook stored it and the page
-   * showed "Could not submit, your answers are safe" whatever had happened,
-   * so a clip reassigned to somebody else, a clip already decided and a
-   * server being down all read identically. The second half of that sentence
-   * was true and the first half told nobody what to do next.
+   * Accepted: the id of the clip to open next, from the answer's
+   * `next_recording` (null when nothing is left). Refused: the reason. The
+   * reason used to be swallowed: the hook stored it and the page showed
+   * "Could not submit, your answers are safe" whatever had happened, so a
+   * clip reassigned to somebody else, a clip already decided and a server
+   * being down all read identically.
    */
   const submit = useCallback(
-    async (answers: QualityAnswers, verdict: ReviewVerdict) => {
-      if (!id) return "This clip is no longer open.";
+    async (answers: QualityAnswers, verdict: ReviewVerdict): Promise<SubmitOutcome> => {
+      if (!id) return { ok: false, refusal: "This clip is no longer open." };
       setSubmitting(true);
       try {
-        await submitReview({
+        const result = await submitReview({
           recording_id: id,
           // The rubric maps 1:1 — see docs/backend/api.md §"Enum crosswalk".
           q_noise_free: answers.noiseFree as "yes" | "partial" | "no",
@@ -155,9 +160,9 @@ export function useReviewItem(id: string | undefined) {
           q_natural_intelligible: answers.natural as "yes" | "partial" | "no",
           verdict,
         });
-        return null;
+        return { ok: true, nextId: result.next_recording?.id ?? null };
       } catch (cause) {
-        return submitFailure(cause);
+        return { ok: false, refusal: submitFailure(cause) };
       } finally {
         setSubmitting(false);
       }

@@ -2,14 +2,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const reviewDesk = vi.fn();
-const reviewBankCount = vi.fn();
 const listRecordingsPage = vi.fn();
 
 vi.mock("@/lib/auth/context", () => ({ useAuth: () => ({ user: { id: "intern-1", role: "intern" } }) }));
 vi.mock("@/lib/api/reviews", () => ({
   reviewDesk: (...args: unknown[]) => reviewDesk(...args),
-  reviewBankCount: (...args: unknown[]) => reviewBankCount(...args),
-  assignNext: vi.fn(),
 }));
 vi.mock("@/lib/api/recordings", () => ({
   listRecordingsPage: (...args: unknown[]) => listRecordingsPage(...args),
@@ -37,26 +34,15 @@ const clip = (id: string, status = "in_review") => ({
 describe("useReviewQueue", () => {
   beforeEach(() => {
     reviewDesk.mockReset().mockResolvedValue([clip("a"), clip("b")]);
-    reviewBankCount.mockReset().mockResolvedValue(34);
   });
 
-  /* Two small requests, not every recording, contributor and verdict. */
-  it("reads the desk and how many wait in the bank", async () => {
+  it("reads the desk", async () => {
     const { result } = renderHook(() => useReviewQueue());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(reviewDesk).toHaveBeenCalledTimes(1);
     expect(result.current.items.map((row) => row.id)).toEqual(["a", "b"]);
     expect(result.current.items[0].contributor).toBe("Esther Obi");
-    expect(result.current.waiting).toBe(34);
-  });
-
-  it("keeps the desk when the count fails", async () => {
-    reviewBankCount.mockRejectedValue(new Error("500"));
-    const { result } = renderHook(() => useReviewQueue());
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.items).toHaveLength(2);
-    expect(result.current.waiting).toBeNull();
     expect(result.current.error).toBeNull();
   });
 });

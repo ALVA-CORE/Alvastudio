@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
-import { TextureButton } from "@/components/ui/texture-button";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { REVIEW_STATUS_LABELS, type ReviewQueueItem } from "@/data/reviewQueue";
 import { useReviewHistory, useReviewQueue } from "@/hooks/useReviewQueue";
@@ -30,9 +29,8 @@ function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) 
 export default function InternReviewPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"pending" | "completed">("pending");
-  /* Their desk, and how many wait in the bank for one. */
-  const { items, waiting, isLoading, error, reload, assignNext, isAssigning } =
-    useReviewQueue();
+  /* Their desk. Clips are placed on it as they are uploaded (12 Nov). */
+  const { items, isLoading, error, reload } = useReviewQueue();
 
   /* Their history, a page at a time, once the tab is opened. Search and sort
      go back to page one in the same update. */
@@ -118,39 +116,7 @@ export default function InternReviewPage() {
   return (
     <DesktopPageShell className="py-4">
       <div className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-2xl text-foreground">Review</h1>
-          </div>
-
-          {/* Desks are dealt once a day, at 7pm WAT (10 Nov). Somebody who
-              clears theirs early can take the oldest waiting clip. */}
-          <div className="flex items-center gap-3">
-            {waiting ? (
-              <span className="text-sm text-muted-foreground">
-                <span className="tabular-nums text-foreground">{waiting.toLocaleString()}</span>{" "}
-                {waiting === 1 ? "clip" : "clips"} waiting · dealt at 7pm
-              </span>
-            ) : null}
-            {!isLoading && pendingRows.length === 0 && waiting ? (
-            <TextureButton
-              variant="alva"
-              size="sm"
-              className="w-auto shrink-0"
-              onClick={async () => {
-                /* `assignNext` reports its own failures and resolves null, so
-                   there is nothing to catch — but it must stay that way, and a
-                   rejection escaping here would be invisible. */
-                const id = await assignNext().catch(() => null);
-                if (id) navigate(`/intern/review/${id}`);
-              }}
-              loading={isAssigning}
-            >
-              Review next
-            </TextureButton>
-            ) : null}
-          </div>
-        </div>
+        <h1 className="font-display text-2xl text-foreground">Review</h1>
 
         {error || history.error ? (
           <div
@@ -204,7 +170,7 @@ export default function InternReviewPage() {
               emptyState={{
                 icon: <Clipboard size={20} weight="Outline" />,
                 title: "No pending clips",
-                description: "New clips are dealt at 7pm.",
+                description: "New ones arrive as contributors record.",
               }}
               columns={tableColumns}
             />

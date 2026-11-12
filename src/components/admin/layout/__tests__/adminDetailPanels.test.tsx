@@ -42,7 +42,6 @@ vi.mock("@/lib/api/recordings", async () => {
 
 vi.mock("@/lib/api/reviews", () => ({
   listReviews: vi.fn(async () => ({ items: [], total: 0, limit: 200, offset: 0 })),
-  assignNext: vi.fn(),
   submitReview: vi.fn(),
   reviewsForRecording: vi.fn(async () => []),
 }));
