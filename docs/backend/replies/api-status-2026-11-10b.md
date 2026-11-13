@@ -2,6 +2,8 @@
 
 Received 10 Nov 2026. Wired the same day, before the deploy. It ships with
 the third 10 Nov handoff ([`api-status-2026-11-10c.md`](api-status-2026-11-10c.md)).
+The 7pm deal (B) was withdrawn on 12 Nov; see
+[`api-status-2026-11-12.md`](api-status-2026-11-12.md).
 
 Asks live in [`endpoints-needed.md`](../endpoints-needed.md), never here.
 

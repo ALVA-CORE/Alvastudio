@@ -30,14 +30,18 @@ export type ApiReviewResult = {
   review: ApiReview;
   recording: ApiRecording;
   contributor_counts: ApiContributorCounts;
+  /**
+   * The clip to open next (12 Nov): the oldest still on your desk, or with
+   * your desk empty, the oldest in the bank, claimed for you in this answer.
+   * Null when nothing is left, and always for an admin.
+   */
+  next_recording?: ApiRecording | null;
 };
 
 /**
- * This intern's desk, `/reviews/queue?mine=true`: clips dealt to them and
- * still awaiting their verdict, oldest first, every page of it.
- *
- * There is no desk limit since 10 Nov, so one 7pm deal from a long bank can
- * put more on a desk than one page (200) holds.
+ * This intern's desk, `/reviews/queue?mine=true`: clips placed with them and
+ * still awaiting their verdict, oldest first, every page of it. There is no
+ * desk limit, so a desk can hold more than one page (200).
  *
  * A clip on somebody's desk is theirs — a verdict from anyone else is a 409,
  * admins included — so the desk is the one an intern actually works from.
@@ -56,26 +60,6 @@ export async function reviewDesk(signal?: AbortSignal) {
   }
   return desk;
 }
-
-/**
- * How many clips wait in the review bank. Interns see the bank as a number,
- * not a list: it is dealt to desks at 7pm WAT, and it can be thousands long.
- */
-export const reviewBankCount = (signal?: AbortSignal) =>
-  apiFetch<{ total: number }>("/reviews/queue", {
-    query: { envelope: true, limit: 1 },
-    signal,
-  }).then((page) => page.total);
-
-/**
- * Claims from the unassigned pool, never from a colleague.
- *
- * The API cannot tell a clip somebody is listening to from one they have not
- * opened, so taking one could throw away their work. For an intern who
- * clears their desk before the 7pm deal; 404 when the bank is empty.
- */
-export const assignNext = () =>
-  apiFetch<ApiRecording>("/reviews/assign-next", { method: "POST" });
 
 /**
  * Records a verdict. The response carries the updated recording AND the

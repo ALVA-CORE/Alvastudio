@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
 import Wallet from "@solar-icons/react/money/Wallet";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
-import BillCheck from "@solar-icons/react/money/BillCheck";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import {
   DetailField,
   DetailGroup,
   DetailPanel,
-  PanelAction,
 } from "@/components/admin/shared/detail";
 import {
   PAYOUT_STATUS_LABELS,
@@ -46,18 +43,14 @@ export function EarningDetailPanel({
   open,
   onOpenChange,
   earning,
-  onAdvance,
   rates = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   earning: Earning | null;
-  /** Omitted while there is no per-contributor advance at the API. */
-  onAdvance?: (earning: Earning) => void;
   /** Live, from `GET /payments/rates`, so the panel and the card above agree. */
   rates?: Rate[];
 }) {
-  const [confirm, setConfirm] = useState(false);
   const [tab, setTab] = useState("summary");
   const [voiding, setVoiding] = useState<{
     id: string;
@@ -84,8 +77,6 @@ export function EarningDetailPanel({
 
   const perRecording = rates.find((rate) => rate.unit === "prompt_read");
   const perMinute = rates.find((rate) => rate.unit === "focus_group_minute");
-
-  const nextStep = earning.status === "pending" ? "Queue for payment" : "Mark as paid";
 
   return (
     <>
@@ -119,13 +110,6 @@ export function EarningDetailPanel({
             <p className="px-1 text-xs text-muted-foreground">
               Settled in full — {formatNaira(earning.paidKobo)}.
             </p>
-          ) : onAdvance ? (
-            <PanelAction
-              icon={<BillCheck size={15} weight="Outline" />}
-              label={nextStep}
-              tone="primary"
-              onClick={() => setConfirm(true)}
-            />
           ) : null
         }
       >
@@ -173,29 +157,6 @@ export function EarningDetailPanel({
         )}
       </DetailPanel>
 
-      <ConfirmDialog
-        open={confirm}
-        onOpenChange={setConfirm}
-        tone="default"
-        title={`${nextStep}?`}
-        description={
-          earning.status === "pending"
-            ? `${earning.contributor} moves to processing. Nothing leaves the account until finance confirms the transfer.`
-            : `${earning.contributor} is recorded as paid in full. This is what the ledger will show.`
-        }
-        detail={
-          <span className="tabular-nums">
-            <span className="text-foreground">{formatNaira(earning.earnedKobo)}</span>{" "}
-            to {earning.contributor}
-          </span>
-        }
-        confirmLabel={nextStep}
-        onConfirm={() => {
-          onAdvance?.(earning);
-          setConfirm(false);
-          onOpenChange(false);
-        }}
-      />
       <VoidEarningDialog
         open={voiding !== null}
         onOpenChange={(next) => !next && setVoiding(null)}

@@ -31,11 +31,16 @@ import {
 import { BackPayDialog } from "@/components/admin/payments/BackPayDialog";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
+import { PayoutRunPanel } from "@/components/admin/payments/PayoutRunPanel";
 import {
   EMPTY_PAYMENT_METRICS,
   PAYOUT_STATUS_LABELS,
+  RUN_LABEL,
+  RUN_TONE,
+  bankSummary,
   earningsToCsv,
   formatNaira,
+  formatNairaAmount,
   paymentMetrics,
   type Earning,
   type PayoutStatus,
@@ -44,28 +49,7 @@ import { downloadCsv } from "@/lib/download-csv";
 import { alvaToast } from "@/lib/alva-toast";
 import { relativeDays } from "@/data/admin/shared";
 
-/**
- * A run's outcome.
- *
- * `partial` is not a failure: a leg reported `unknown` settles by webhook or
- * reconciliation later, and the money is not lost. It is amber because it is
- * worth coming back to, not because anything is wrong.
- */
 type Tab = "earnings" | "runs";
-
-const RUN_LABEL: Record<string, string> = {
-  in_progress: "Sending",
-  completed: "Completed",
-  partial: "Partly settled",
-  failed: "Failed",
-};
-
-const RUN_TONE: Record<string, PillTone> = {
-  in_progress: "pending",
-  completed: "good",
-  partial: "pending",
-  failed: "bad",
-};
 
 type StatusFilter = PayoutStatus | "all";
 
@@ -108,10 +92,18 @@ export default function AdminPaymentsPage() {
   const [runOpen, setRunOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [detail, setDetail] = useState<Earning | null>(null);
+  const [openRunId, setOpenRunId] = useState<string | null>(null);
+  const openRun = payouts.runs.find((run) => run.id === openRunId) ?? null;
 
   const rows = earnings;
   const isEmpty = rows.length === 0;
   const metrics = isEmpty ? EMPTY_PAYMENT_METRICS : paymentMetrics(rows);
+
+  /* A leg carries an id, not a name. Everyone a run pays has earnings. */
+  const names = useMemo(
+    () => new Map(rows.map((row) => [row.id, row.contributor])),
+    [rows]
+  );
 
   const filtered = useMemo(
     () => (status === "all" ? rows : rows.filter((row) => row.status === status)),
@@ -392,34 +384,45 @@ export default function AdminPaymentsPage() {
               : undefined
           }
         >
-          <dl className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
-            {payouts.runs.map((run) => (
-              <div
-                key={run.id}
-                className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
-              >
-                <dt className="min-w-0">
-                  <span className="block truncate text-xs text-foreground">
-                    {run.reference}
+          <div className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
+            {/* A completed run means every transfer landed, not that the
+                money reached every bank: each row says how many it reached,
+                and the panel shows every leg's bank payout. */}
+            {payouts.runs.map((run) => {
+              const { atBank, toRetry } = bankSummary(run);
+              return (
+                <button
+                  key={run.id}
+                  type="button"
+                  onClick={() => setOpenRunId(run.id)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border-b border-alva-border/50 px-1 py-2 text-left transition-colors last:border-0 hover:bg-alva-surface/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs text-foreground">
+                      {run.reference}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                      {relativeDays(new Date(run.created_at))}
+                    </span>
                   </span>
-                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                    {relativeDays(new Date(run.created_at))}
+                  <span className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {atBank}/{run.recipient_count} at the bank
+                    </span>
+                    <span className="text-xs tabular-nums text-foreground">
+                      {formatNairaAmount(run.total_amount)}
+                    </span>
+                    {toRetry > 0 ? (
+                      <AdminStatusPill tone="bad">{toRetry} to retry</AdminStatusPill>
+                    ) : null}
+                    <AdminStatusPill tone={RUN_TONE[run.status]}>
+                      {RUN_LABEL[run.status]}
+                    </AdminStatusPill>
                   </span>
-                </dt>
-                <dd className="flex shrink-0 items-center gap-3">
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {run.succeeded_count}/{run.recipient_count}
-                  </span>
-                  <span className="text-xs tabular-nums text-foreground">
-                    {formatNaira(Math.round(Number(run.total_amount) * 100))}
-                  </span>
-                  <AdminStatusPill tone={RUN_TONE[run.status]}>
-                    {RUN_LABEL[run.status]}
-                  </AdminStatusPill>
-                </dd>
-              </div>
-            ))}
-          </dl>
+                </button>
+              );
+            })}
+          </div>
         </AlvaChartCard>
         </TabsContent>
       </Tabs>
@@ -455,10 +458,14 @@ export default function AdminPaymentsPage() {
         onOpenChange={(next) => !next && setDetail(null)}
         earning={detail}
         rates={rates}
-        /* Reading only. Moving money is a pay run — `POST /payouts/runs` —
-           not a per-row state change, and a button that looked like one was
-           promising something the API does not do per contributor. */
-        onAdvance={undefined}
+      />
+
+      <PayoutRunPanel
+        open={openRun !== null}
+        onOpenChange={(next) => !next && setOpenRunId(null)}
+        run={openRun}
+        names={names}
+        onRetryBank={payouts.retryBank}
       />
         </>
       )}

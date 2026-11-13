@@ -27,15 +27,42 @@ export type ApiPayRunPreview = {
   recipients: ApiPayRunRecipient[];
 };
 
+/**
+ * The second step of a leg (13 Nov): their Bachs balance to their bank.
+ * Null when none was asked for, because our transfer did not land or the leg
+ * predates it. `processing` becomes `paid` by itself, by webhook.
+ */
+export type ApiBankPayoutStatus = "sending" | "processing" | "paid" | "failed" | "unknown";
+
+/**
+ * One contributor's leg of a run.
+ *
+ * `status` is our transfer, into their Bachs balance. `transferred` is no
+ * longer the end: the bank payout after it is `bank_status`, so a completed
+ * run is not "everybody has been paid at their bank".
+ */
 export type ApiPayoutRunItem = {
   id: string;
   user_id: string | null;
+  /** What the bank receives. */
   amount: string;
   currency: string;
   status: "pending" | "sending" | "transferred" | "failed" | "skipped" | "unknown";
   attempts: number;
   failure_reason: string | null;
   settled_at: string | null;
+  /** Sent on top of `amount` so Bachs's fee is Alva's, not the contributor's. */
+  fee_cover: string;
+  bank_status: ApiBankPayoutStatus | null;
+  /** For the operator, never the contributor. */
+  bank_failure_reason: string | null;
+  /** 1 the first time; up by one with each retry after a failure. */
+  bank_attempts: number;
+  /** What Bachs charged, once it says. */
+  bank_fee: string | null;
+  bank_settled_at: string | null;
+  bank_reference: string | null;
+  bachs_payout_id: string | null;
 };
 
 export type ApiPayoutRun = {
@@ -68,6 +95,24 @@ export const startPayoutRun = (notes?: string) =>
     method: "POST",
     body: notes ? { notes } : {},
   });
+
+/**
+ * Settles or retries a transferred leg's bank payout. Answers the leg.
+ *
+ * Safe to press twice: a payout already at Bachs is looked up, never sent
+ * again, and nothing is transferred a second time. A failed one goes to the
+ * bank account on file now. 409 says why there is nothing to do, in a
+ * sentence to show as it is.
+ */
+export const retryBankPayout = (runId: string, itemId: string) =>
+  apiFetch<ApiPayoutRunItem>(`/payouts/runs/${runId}/items/${itemId}/bank-payout`, {
+    method: "POST",
+  });
+
+/** The legs a bank retry is offered on: transferred, and not on its way or arrived. */
+export const canRetryBank = (item: ApiPayoutRunItem) =>
+  item.status === "transferred" &&
+  (item.bank_status === null || item.bank_status === "failed" || item.bank_status === "unknown");
 
 /**
  * Two accounts the API thinks are one person, usually the same NIN.

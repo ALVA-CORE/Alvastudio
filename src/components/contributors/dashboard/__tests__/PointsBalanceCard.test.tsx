@@ -21,7 +21,7 @@ vi.mock("@/lib/api/wallet", async () => {
         paid_kobo: WALLET_FIXTURE.paidKobo,
         lifetime_kobo: WALLET_FIXTURE.lifetimeKobo,
       },
-      next_action: null,
+      next_action: nextAction,
       next_action_detail: null,
     })),
     /* A list, and no account number: the API returns the last four digits
@@ -89,11 +89,15 @@ vi.mock("@/lib/api/wallet", async () => {
 /** Flipped per test, because the gate is the thing being checked. */
 let identity: string = "passed";
 
+/** What the API says to do next. Null unless a test needs one. */
+let nextAction: string | null = null;
+
 /** The last body the document route received, so the shape can be asserted. */
 let submitted: Record<string, unknown> | null = null;
 
 beforeEach(() => {
   identity = "passed";
+  nextAction = null;
   submitted = null;
 });
 
@@ -196,6 +200,22 @@ describe("PointsBalanceCard", () => {
     expect(screen.queryByRole("button", { name: /Payout/ })).not.toBeInTheDocument();
   });
 
+  /* Identity on file is not enough to be paid since 13 Nov: the bank account
+   * is the one thing left, so it takes the gate's place, and the form says
+   * "own name" before anything is typed. */
+  it("makes linking a bank the one thing on screen once identity is on file", async () => {
+    nextAction = "add_payout_destination";
+    render(<PointsBalanceCard points={0} isEmpty />);
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
+
+    expect(await screen.findByText("Add your bank account")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Withdraw/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Link bank" }));
+    const sheet = await screen.findByRole("dialog");
+    expect(within(sheet).getByText("It must be in your own name.")).toBeInTheDocument();
+  });
+
   /* Clearing identity is the only route to being paid, so it gates the
    * wallet rather than sitting beside it. The figures stay on screen,
    * blurred: hiding a contributor's own earnings would punish them for a
@@ -238,7 +258,7 @@ describe("PointsBalanceCard", () => {
     /* Second step: the document itself. The front is required and the back
      * is not, so submitting is gated on the front alone. */
     const submit = within(sheet).getByRole("button", {
-      name: /Submit for review/,
+      name: /^Submit$/,
     });
     expect(submit).toBeDisabled();
 

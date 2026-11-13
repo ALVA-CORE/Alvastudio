@@ -18,6 +18,7 @@ the other document points here.
 | --- | --- | --- | --- |
 | 15 | Email interns and annotators, not only contributors | The composer's To row can reach contributors only | High |
 | 16 | Delete chosen prompts and stimuli by id | Ticked rows on the Prompts page can only be retired, not deleted | Medium |
+| 17 | Whether a weekly-run payment reached the contributor's bank | The wallet can only say "sent" for those | Medium |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -85,3 +86,17 @@ We'd show the preview's split in the confirm ("12 deleted, 8 retired:
 recorded") and the button would say Delete.
 
 **Question:** should focus-group topics get the same, or stay retire only?
+
+---
+
+## 17. Whether a weekly-run payment reached the bank
+
+**Now:** a withdrawal answers its leg's `bank_status`, so the wallet can say
+"On its way to your bank" or "Paid to your bank" (13 Nov). A contributor paid
+by the weekly run has nothing like it: their earnings read `paid` the moment
+the money leaves Alva, and the leg is admin only. Your handoff names this gap,
+and until it closes the wallet says "sent".
+
+**What we need:** the same `bank_status` for the contributor's own payments,
+whichever route sent them. For example, on `GET /wallet`, the latest payment's
+amount, `bank_status` and when it arrived.

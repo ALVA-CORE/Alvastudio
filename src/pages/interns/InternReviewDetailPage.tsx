@@ -247,9 +247,9 @@ export default function InternReviewDetailPage() {
     /* The verdict goes to the API first. Only once it is accepted do we clear
      * the local draft and move on — otherwise a failed POST would wipe the
      * intern's work and advance to the next clip as if it had landed. */
-    const refusal = await submit(finalAnswers, verdict);
-    if (refusal) {
-      alvaToast.error(refusal);
+    const outcome = await submit(finalAnswers, verdict);
+    if (outcome.ok === false) {
+      alvaToast.error(outcome.refusal);
       return;
     }
 
@@ -260,12 +260,10 @@ export default function InternReviewDetailPage() {
 
     alvaToast.success(`${VERDICT_LABELS[verdict]}, review submitted`);
 
-    if (nextItem) {
-      navigate(`/intern/review/${nextItem.id}`);
-      return;
-    }
-
-    navigate("/intern/review");
+    /* The API names the next clip (12 Nov): the oldest on their desk, or one
+       claimed from the bank for them. Not the list loaded when this page
+       opened, which goes stale and whose end sent people back to the list. */
+    navigate(outcome.nextId ? `/intern/review/${outcome.nextId}` : "/intern/review");
   };
 
   return (

@@ -147,6 +147,9 @@ export function LinkBankSheet({
           <SheetTitle className="text-xl text-foreground">
             {existing ? "Change payout account" : "Where should we pay you?"}
           </SheetTitle>
+          {/* Before they type, not after: Bachs refuses an account whose name
+              shares no word with theirs (13 Nov). */}
+          <p className="text-sm text-muted-foreground">It must be in your own name.</p>
         </SheetHeader>
 
         <div className="mt-6 space-y-4">

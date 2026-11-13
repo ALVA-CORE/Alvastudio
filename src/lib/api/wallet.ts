@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { ApiBankPayoutStatus } from "./payouts";
 
 /**
  * The contributor's wallet.
@@ -13,8 +14,10 @@ import { apiFetch } from "./client";
  * now; showing one number a contributor cannot withdraw reads as a broken
  * button.
  *
- * Identity is checked by **document review** since 27 Oct 2026. The old
- * NIN-and-selfie call answers 410 and is gone from this module.
+ * Identity is a document **on file** since 13 Nov: Bachs reviews nobody who
+ * only receives money, so a document answers `passed` at once and the next
+ * step is the bank account. The duplicate check and one bank account per
+ * person, in their own name, are what hold one person to one account.
  */
 
 export type ApiIdentityStatus =
@@ -163,12 +166,11 @@ export const createOnboardingLink = () =>
   apiFetch<{ url: string }>("/wallet/onboarding-link", { method: "POST" });
 
 /**
- * An identity document, for review.
+ * An identity document, put on file.
  *
- * This replaces the NIN-and-selfie call, which is now **410**. The difference
- * is not cosmetic: that was a face match against a government record and came
- * back in minutes, this is a person reading a document, so the honest thing to
- * say afterwards is "submitted", never "verified".
+ * Answers `passed` at once since 13 Nov, with the API's sentence pointing at
+ * the bank account. `submitted` stays possible, if Bachs ever reviews again,
+ * and is then shown as a wait.
  *
  * `consent` is required and must be true. It is a parameter rather than a
  * constant because hardcoding `true` would mean attesting on somebody's
@@ -217,15 +219,29 @@ export const submitIdentityDocument = (body: ApiIdentityDocumentBody) =>
  * one. The minimum is ₦5,000, and a balance under it carries over rather
  * than being lost — which the refusal says, so it is shown as sent.
  *
- * Expect `409` three ways now: the wrong day, under the minimum, or a
- * payment to this person already in flight. The last is "already on its way"
+ * Expect `409` four ways: the wrong day, under the minimum, a payment to
+ * this person already in flight, or (13 Nov) no bank account yet. Each is a
+ * sentence to show as it is. The in-flight one is "already on its way"
  * rather than an error to retry, which is what stops a double tap sending
  * twice.
  */
+export type ApiWithdrawal = {
+  id: string;
+  status: string;
+  /** One leg, theirs. */
+  items: {
+    id: string;
+    amount: string;
+    status: string;
+    /** Since 13 Nov: where the payment to their bank stands. */
+    bank_status: ApiBankPayoutStatus | null;
+    /** Written for the contributor; null once paid. */
+    failure_reason: string | null;
+  }[];
+};
+
 export const withdraw = () =>
-  apiFetch<{ id: string; status: string }>("/wallet/withdrawals", {
-    method: "POST",
-  });
+  apiFetch<ApiWithdrawal>("/wallet/withdrawals", { method: "POST" });
 
 export type ApiLedgerEntry = {
   id: string;

@@ -5,7 +5,7 @@ import SortVertical from "@solar-icons/react/arrows/SortVertical";
 import Magnifier from "@solar-icons/react/search/Magnifier";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -314,7 +314,8 @@ export function AlvaDataTable<T extends { id: string }>({
   };
   const rowBox = (row: T) =>
     selection && (selection.canSelect?.(row) ?? true) ? (
-      <Checkbox
+      <AuthCheckbox
+        className="size-4"
         checked={picked.has(row.id)}
         onCheckedChange={() => toggleRow(row.id)}
         onClick={(event) => event.stopPropagation()}
@@ -513,7 +514,8 @@ export function AlvaDataTable<T extends { id: string }>({
                   {selection ? (
                     <TableHead className="w-10 pr-0">
                       {pickable.length > 0 ? (
-                        <Checkbox
+                        <AuthCheckbox
+        className="size-4"
                           checked={allPicked ? true : somePicked ? "indeterminate" : false}
                           onCheckedChange={togglePage}
                           aria-label="Select all on this page"

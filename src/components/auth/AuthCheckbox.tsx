@@ -14,12 +14,15 @@ export function AuthCheckbox({ className, ...props }: AuthCheckboxProps) {
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "disabled:cursor-not-allowed disabled:opacity-50",
         "data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+        "data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground",
         className
       )}
       {...props}
     >
-      <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current">
-        <CheckRead size={10} weight="Linear" />
+      {/* A bar for `indeterminate`: some of a table page picked. */}
+      <CheckboxPrimitive.Indicator className="group flex items-center justify-center text-current">
+        <CheckRead size={10} weight="Linear" className="group-data-[state=indeterminate]:hidden" />
+        <span className="hidden h-0.5 w-1.5 rounded-full bg-current group-data-[state=indeterminate]:block" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

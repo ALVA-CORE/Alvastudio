@@ -287,7 +287,7 @@ export function VerifyIdentitySheet({
       /* The caller closes the sheet on success, so reaching here means it
          failed and everything is still on screen. Say why rather than
          letting the rejection escape to the console. */
-      const message = reportApiError(cause, "Could not submit that for review.");
+      const message = reportApiError(cause, "Could not submit that.");
       if (message) alvaToast.error(message);
     } finally {
       setSubmitting(false);
@@ -325,7 +325,7 @@ export function VerifyIdentitySheet({
             {waiting
               ? "Your earnings keep adding up while we check."
               : step === "document"
-                ? "A person reads this. Keep it legible."
+                ? "Keep it legible."
                 : /* Said once, plainly, at the top. Somebody can record for
                      weeks without knowing the money cannot move until this
                      is done, and finding out at withdrawal is too late. */
@@ -429,7 +429,7 @@ export function VerifyIdentitySheet({
                     loading={submitting}
                     onClick={() => void submit()}
                   >
-                    Submit for review
+                    Submit
                   </TextureButton>
                 </div>
               </>
