@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   listPayoutRuns,
   payoutPreview,
+  retryBankPayout,
   startPayoutRun,
   type ApiPayRunPreview,
   type ApiPayoutRun,
@@ -66,5 +67,15 @@ export function usePayouts() {
     }
   }, [reload]);
 
-  return { preview, runs, isLoading, isRunning, error, reload, run };
+  /** Settles or retries one leg's bank payout, then reloads, as `run` does. */
+  const retryBank = useCallback(
+    async (runId: string, itemId: string) => {
+      const leg = await retryBankPayout(runId, itemId);
+      reload();
+      return leg;
+    },
+    [reload]
+  );
+
+  return { preview, runs, isLoading, isRunning, error, reload, run, retryBank };
 }

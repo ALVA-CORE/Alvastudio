@@ -1,3 +1,5 @@
+import type { PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { canRetryBank, type ApiPayoutRun } from "@/lib/api/payouts";
 
 export type RateUnit =
   | "prompt_read"
@@ -31,6 +33,11 @@ const NAIRA = new Intl.NumberFormat("en-NG", {
 
 export function formatNaira(kobo: number) {
   return NAIRA.format(kobo / 100);
+}
+
+/** The API's decimal-string naira ("5000.00"), formatted. Null stays null. */
+export function formatNairaAmount(amount: string | null) {
+  return amount == null ? null : formatNaira(Math.round(Number(amount) * 100));
 }
 
 export type PayoutStatus = "pending" | "processing" | "paid";
@@ -92,4 +99,27 @@ export function earningsToCsv(rows: Earning[]) {
       ].join(",")
     ),
   ].join("\n");
+}
+
+/** A pay run's own state, as the runs list and its panel show it. */
+export const RUN_LABEL: Record<string, string> = {
+  in_progress: "Sending",
+  completed: "Completed",
+  partial: "Partly settled",
+  failed: "Failed",
+};
+
+export const RUN_TONE: Record<string, PillTone> = {
+  in_progress: "pending",
+  completed: "good",
+  partial: "pending",
+  failed: "bad",
+};
+
+/** Legs whose money reached the bank, and legs a retry is offered on. */
+export function bankSummary(run: ApiPayoutRun) {
+  return {
+    atBank: run.items.filter((item) => item.bank_status === "paid").length,
+    toRetry: run.items.filter(canRetryBank).length,
+  };
 }

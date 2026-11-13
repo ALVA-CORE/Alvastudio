@@ -25,6 +25,7 @@ import {
   type WalletNextAction,
 } from "@/data/contributors/wallet";
 import { TextureButton } from "@/components/ui/texture-button";
+import type { ApiBankPayoutStatus } from "@/lib/api/payouts";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,6 +49,18 @@ import { cn } from "@/lib/utils";
  * under the dip.
  * ------------------------------------------------------------------------- */
 const ICON_TOP = "pt-7";
+
+/**
+ * A withdrawal's bank step (13 Nov), in words that never alarm somebody about
+ * a delay that is ours to sort out. `calm` is said plainly, not as a success.
+ */
+const BANK_STEP: Record<ApiBankPayoutStatus, { text: string; calm?: boolean }> = {
+  sending: { text: "On its way to your bank." },
+  processing: { text: "On its way to your bank." },
+  paid: { text: "Paid to your bank." },
+  failed: { text: "We are sorting out a delay. Your money is safe.", calm: true },
+  unknown: { text: "We are sorting out a delay. Your money is safe.", calm: true },
+};
 
 /** ", the next is Sun 1 Nov". Empty when the API has not said. */
 function nextPayDay(iso: string | undefined) {
@@ -128,6 +141,7 @@ export function WalletFace({
         state={wallet.identity}
         nextAction={wallet.nextAction}
         onStart={() => setVerifyOpen(true)}
+        onLinkBank={() => setLinkOpen(true)}
       >
       <WalletShell
         card={
@@ -193,17 +207,21 @@ export function WalletFace({
               }
               onClick={async () => {
                 try {
-                  await withdraw();
+                  const sent = await withdraw();
                   onRefresh();
-                  alvaToast.success(
-                    `${formatWalletNaira(wallet.balanceKobo)} on the way`
-                  );
+                  const bank = sent.items?.[0]?.bank_status;
+                  const note = bank ? BANK_STEP[bank] : null;
+                  if (note?.calm) alvaToast.show(note.text, { variant: "default" });
+                  else
+                    alvaToast.success(
+                      note?.text ?? `${formatWalletNaira(wallet.balanceKobo)} on the way`
+                    );
                 } catch (cause) {
-                  /* 409 three ways now: the wrong day of the week, a
-                   * balance under the ₦5,000 minimum, or a payment already
-                   * in flight. All three are shown as sent — each names the
-                   * next Sunday or says the balance carries over, which is
-                   * more than a generic line could. */
+                  /* 409 four ways: the wrong day of the week, a balance under
+                   * the ₦5,000 minimum, a payment already in flight, or no
+                   * bank account yet. Each is shown as sent — each names the
+                   * next Sunday, says the balance carries over or says what
+                   * to add, which is more than a generic line could. */
                   const message = reportApiError(
                     cause,
                     "Could not start that withdrawal."
@@ -282,14 +300,16 @@ export function WalletFace({
         nextAction={wallet.nextAction}
         detail={wallet.identityDetail}
         onSubmit={async (submission) => {
-          const { detail } = await submitIdentityDocument(submission, {
+          const { status, detail } = await submitIdentityDocument(submission, {
             needsAccount: wallet.nextAction === "create_account",
           });
           onRefresh();
           setVerifyOpen(false);
-          /* The API's own sentence, which says "submitted" rather than
-             "verified". A review has not happened yet. */
+          /* The API's own sentence. Since 13 Nov a document is on file at
+             once and the sentence points at the bank, so the bank form opens
+             next: nobody is paid until it is done. */
           alvaToast.success(detail);
+          if (status === "passed") setLinkOpen(true);
         }}
       />
     </div>
@@ -343,7 +363,8 @@ function WalletAction({
 }
 
 /**
- * Blurs the wallet until identity is verified.
+ * Blurs the wallet until identity is verified, and since 13 Nov until a bank
+ * account is linked: nobody is paid without one, so it is the next thing.
  *
  * The figures stay on screen rather than being replaced: they are the
  * contributor's own earnings, and hiding them to make a point punishes someone
@@ -370,29 +391,38 @@ function IdentityGate({
   state,
   nextAction,
   onStart,
+  onLinkBank,
   children,
 }: {
   state: IdentityState;
   nextAction: WalletNextAction | null;
   onStart: () => void;
+  onLinkBank: () => void;
   children: ReactNode;
 }) {
-  if (state === "verified") return <>{children}</>;
+  /* Identity on file, no bank yet (13 Nov): the bank is the one thing left,
+     and nobody is paid until it is done, so it gets the same treatment. */
+  const needsBank = state === "verified" && nextAction === "add_payout_destination";
+  if (state === "verified" && !needsBank) return <>{children}</>;
 
   const waiting = state === "pending" || state === "blocked";
   const failed = state === "failed";
 
-  const heading = waiting
-    ? "We're reviewing your ID"
-    : failed
-      ? "We could not verify your ID"
-      : "Verify your identity";
+  const heading = needsBank
+    ? "Add your bank account"
+    : waiting
+      ? "We're reviewing your ID"
+      : failed
+        ? "We could not verify your ID"
+        : "Verify your identity";
 
-  const body = waiting
-    ? "A person checks this, so it takes a little longer. Your earnings keep adding up."
-    : failed
-      ? "Have a look at what went wrong and send it again."
-      : "We need to check your ID before any of this can be paid out.";
+  const body = needsBank
+    ? "In your own name. We can't pay you until it's linked."
+    : waiting
+      ? "This takes a little longer. Your earnings keep adding up."
+      : failed
+        ? "Have a look at what went wrong and send it again."
+        : "We need your ID on file before any of this can be paid out.";
 
   return (
     <div className="relative">
@@ -402,13 +432,17 @@ function IdentityGate({
 
       <div className="absolute inset-0 z-50 flex flex-col items-center justify-center px-8 text-center">
         <span className="flex size-11 items-center justify-center rounded-full bg-alva-bg/70">
-          <ShieldCheck
-            size={22}
-            weight="BoldDuotone"
-            className={
-              failed ? "text-red-400" : waiting ? "text-amber-300" : "text-alva-accent"
-            }
-          />
+          {needsBank ? (
+            <CardSend size={22} weight="BoldDuotone" className="text-alva-accent" />
+          ) : (
+            <ShieldCheck
+              size={22}
+              weight="BoldDuotone"
+              className={
+                failed ? "text-red-400" : waiting ? "text-amber-300" : "text-alva-accent"
+              }
+            />
+          )}
         </span>
 
         <p className="mt-3 text-sm font-semibold text-foreground">{heading}</p>
@@ -421,9 +455,15 @@ function IdentityGate({
             variant="alva"
             size="sm"
             className="mt-3.5 w-auto"
-            onClick={onStart}
+            onClick={needsBank ? onLinkBank : onStart}
           >
-            {failed ? "Try again" : nextAction === "create_account" ? "Get started" : "Verify now"}
+            {needsBank
+              ? "Link bank"
+              : failed
+                ? "Try again"
+                : nextAction === "create_account"
+                  ? "Get started"
+                  : "Verify now"}
           </TextureButton>
         )}
       </div>
