@@ -47,6 +47,7 @@ export function PayoutRunPanel({
   run,
   names,
   onRetryBank,
+  onReconcile,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,26 +55,39 @@ export function PayoutRunPanel({
   /** Contributor names by id, from the earnings already on the page. */
   names: Map<string, string>;
   onRetryBank: (runId: string, itemId: string) => Promise<ApiPayoutRunItem>;
+  /** For a leg whose transfer outcome is unknown. */
+  onReconcile: (runId: string, itemId: string) => Promise<ApiPayoutRunItem>;
 }) {
-  const [retrying, setRetrying] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
   if (!run) return null;
 
   const { atBank } = bankSummary(run);
 
-  const retry = async (item: ApiPayoutRunItem) => {
-    setRetrying(item.id);
+  /* The one action a leg offers: reconcile an unknown transfer, or retry
+     its bank payout. Either answers the leg, and the toast says where it
+     stands now. */
+  const actionFor = (item: ApiPayoutRunItem) =>
+    item.status === "unknown"
+      ? { label: "Reconcile", call: onReconcile }
+      : canRetryBank(item)
+        ? { label: item.bank_status === null ? "Send to bank" : "Retry", call: onRetryBank }
+        : null;
+
+  const act = async (item: ApiPayoutRunItem, call: typeof onRetryBank) => {
+    setBusy(item.id);
     try {
-      const leg = await onRetryBank(run.id, item.id);
-      const now = leg.bank_status ? BANK[leg.bank_status].label : "No bank payout";
-      alvaToast.show(now, { variant: "default" });
+      const leg = await call(run.id, item.id);
+      alvaToast.show((leg.bank_status ? BANK[leg.bank_status] : TRANSFER[leg.status]).label, {
+        variant: "default",
+      });
     } catch (cause) {
       /* A 409 is a sentence to show as it is: already paid, still being
          sent, or the bank account not approved yet. */
-      const message = reportApiError(cause, "Could not retry that payout.");
+      const message = reportApiError(cause, "Could not do that.");
       if (message) alvaToast.error(message);
     } finally {
-      setRetrying(null);
+      setBusy(null);
     }
   };
 
@@ -106,6 +120,7 @@ export function PayoutRunPanel({
           const bank = item.bank_status ? BANK[item.bank_status] : null;
           const reason = item.bank_failure_reason ?? item.failure_reason;
           const fee = formatNairaAmount(item.bank_fee);
+          const action = actionFor(item);
           const name = item.user_id
             ? (names.get(item.user_id) ?? item.user_id.slice(0, 8))
             : "Deleted account";
@@ -125,16 +140,16 @@ export function PayoutRunPanel({
                   </p>
                 </div>
 
-                {canRetryBank(item) ? (
+                {action ? (
                   <TextureButton
                     variant="minimal"
                     size="sm"
                     className="w-auto shrink-0"
-                    loading={retrying === item.id}
-                    disabled={retrying !== null && retrying !== item.id}
-                    onClick={() => void retry(item)}
+                    loading={busy === item.id}
+                    disabled={busy !== null && busy !== item.id}
+                    onClick={() => void act(item, action.call)}
                   >
-                    {item.bank_status === null ? "Send to bank" : "Retry"}
+                    {action.label}
                   </TextureButton>
                 ) : null}
               </div>

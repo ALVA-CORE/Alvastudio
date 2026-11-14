@@ -4,10 +4,9 @@ import type { ApiLedgerEntry } from "./wallet";
 /**
  * Pay runs.
  *
- * Money moves in runs, not per contributor: one call pays everybody who is
- * eligible, matured and above the minimum. There is deliberately no
- * per-person advance — a withdrawal a contributor starts themselves goes
- * through this same machinery, so it cannot become a weaker second route to
+ * One call pays everybody who is eligible, matured and above the minimum, or
+ * with `user_id` one of them. A withdrawal, and paying one person, go through
+ * the same machinery as a full run, so neither is a weaker second route to
  * the same money.
  */
 
@@ -87,13 +86,32 @@ export const listPayoutRuns = (limit = 20) =>
 /**
  * Starts a run.
  *
- * An item that comes back `unknown` is not a failure and the money is not
- * lost: it settles by webhook or reconciliation later.
+ * `userId` pays that contributor only, and `offSchedule` lifts the
+ * Sundays-only rule, nothing else. A leg that comes back `unknown` is not a
+ * failure and the money is not lost: reconcile it, never pay again.
  */
-export const startPayoutRun = (notes?: string) =>
+export const startPayoutRun = ({
+  notes,
+  userId,
+  offSchedule,
+}: { notes?: string; userId?: string; offSchedule?: boolean } = {}) =>
   apiFetch<ApiPayoutRun>("/payouts/runs", {
     method: "POST",
-    body: notes ? { notes } : {},
+    body: {
+      ...(notes ? { notes } : {}),
+      ...(userId ? { user_id: userId } : {}),
+      ...(offSchedule ? { off_schedule: true } : {}),
+    },
+  });
+
+/**
+ * Settles a leg whose transfer outcome is unknown. Finds a transfer already
+ * made in this run for the account and records it; only otherwise resends,
+ * under the original key. Never sends money twice. Answers the leg.
+ */
+export const reconcilePayoutLeg = (runId: string, itemId: string) =>
+  apiFetch<ApiPayoutRunItem>(`/payouts/runs/${runId}/items/${itemId}/reconcile`, {
+    method: "POST",
   });
 
 /**

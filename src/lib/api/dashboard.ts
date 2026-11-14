@@ -218,7 +218,6 @@ export type ApiEarnings = {
 };
 
 export const earnings = () => apiFetch<ApiEarnings>("/payments/earnings");
-export const rates = () => apiFetch<unknown[]>("/payments/rates");
 
 /**
  * The podium.

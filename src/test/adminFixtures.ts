@@ -15,7 +15,7 @@ import {
   type AdminUser,
   type AdminUserRole,
 } from "@/data/admin/users";
-import type { Earning, PayoutStatus, Rate, RateUnit } from "@/data/admin/payments";
+import type { Earning, PayoutStatus } from "@/data/admin/payments";
 import {
   REJECTION_REASON_LABEL,
   type AdminRecording,
@@ -235,30 +235,6 @@ export function userMetrics(rows: AdminUser[]) {
     ),
   };
 }
-
-function buildRates(): Rate[] {
-  const random = seeded(1999);
-  const amounts: Record<RateUnit, number> = {
-    prompt_read: 15000,
-    stimuli_narration: 22500,
-    focus_group_minute: 8000,
-    annotation_minute: 12000,
-    review: 5000,
-  };
-
-  return (Object.keys(amounts) as RateUnit[]).map((unit) => {
-    const updated = daysAgo(Math.floor(random() * 90) + 5);
-    return {
-      unit,
-      amountKobo: amounts[unit],
-      updatedAt: updated.getTime(),
-      updatedLabel: relativeDays(updated),
-      updatedBy: "Alva Admin",
-    };
-  });
-}
-
-export const RATES: Rate[] = buildRates();
 
 function buildEarnings(): Earning[] {
   const random = seeded(2024);

@@ -1,30 +1,6 @@
 import type { PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { canRetryBank, type ApiPayoutRun } from "@/lib/api/payouts";
 
-export type RateUnit =
-  | "prompt_read"
-  | "stimuli_narration"
-  | "focus_group_minute"
-  | "annotation_minute"
-  | "review";
-
-export const RATE_UNIT_LABELS: Record<RateUnit, string> = {
-  prompt_read: "Prompt read",
-  stimuli_narration: "Stimuli narration",
-  focus_group_minute: "Focus group (per minute)",
-  annotation_minute: "Annotation (per minute)",
-  review: "Review",
-};
-
-export type Rate = {
-  unit: RateUnit;
-  /** Kobo, so the table never does float arithmetic on money. */
-  amountKobo: number;
-  updatedAt: number;
-  updatedLabel: string;
-  updatedBy: string;
-};
-
 const NAIRA = new Intl.NumberFormat("en-NG", {
   style: "currency",
   currency: "NGN",

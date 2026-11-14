@@ -41,6 +41,7 @@ const run: ApiPayoutRun = {
     leg("bayo", { bank_status: "processing" }),
     leg("chi", { bank_status: "failed", bank_failure_reason: "Account name mismatch" }),
     leg("dami", { bank_status: null }),
+    leg("eko", { status: "unknown", bank_status: null }),
   ],
 };
 
@@ -49,6 +50,7 @@ const names = new Map([
   ["bayo", "Bayo Ade"],
   ["chi", "Chi Eze"],
   ["dami", "Dami Ola"],
+  ["eko", "Eko Uche"],
 ]);
 
 const card = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
@@ -61,8 +63,16 @@ describe("PayoutRunPanel", () => {
 
   it("offers a retry only where the bank payout failed, was lost or never asked for", async () => {
     const onRetryBank = vi.fn(async () => leg("chi", { bank_status: "processing" }));
+    const onReconcile = vi.fn(async () => leg("eko", { bank_status: "processing" }));
     render(
-      <PayoutRunPanel open onOpenChange={() => {}} run={run} names={names} onRetryBank={onRetryBank} />
+      <PayoutRunPanel
+        open
+        onOpenChange={() => {}}
+        run={run}
+        names={names}
+        onRetryBank={onRetryBank}
+        onReconcile={onReconcile}
+      />
     );
 
     expect(within(card("Ada Obi")).queryByRole("button")).not.toBeInTheDocument();
@@ -72,5 +82,9 @@ describe("PayoutRunPanel", () => {
 
     await userEvent.click(within(card("Chi Eze")).getByRole("button", { name: "Retry" }));
     expect(onRetryBank).toHaveBeenCalledWith("run1", "chi");
+
+    /* An unknown transfer is reconciled, never paid again. */
+    await userEvent.click(within(card("Eko Uche")).getByRole("button", { name: "Reconcile" }));
+    expect(onReconcile).toHaveBeenCalledWith("run1", "eko");
   });
 });

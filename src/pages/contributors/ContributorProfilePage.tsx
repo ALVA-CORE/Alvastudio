@@ -18,6 +18,7 @@ import { IdentityProfileRow } from "@/components/contributors/wallet/IdentityPro
 import { AppVersionFooter } from "@/components/profile/AppVersionFooter";
 import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
 import { FeedbackRow } from "@/components/profile/FeedbackRow";
+import { InstallAppRow } from "@/components/profile/InstallAppRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -147,6 +148,8 @@ export default function ContributorProfilePage() {
             "A withdrawal paid or refused",
           ]}
         />
+
+        <InstallAppRow />
 
         <FeedbackRow />
 

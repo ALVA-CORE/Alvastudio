@@ -38,7 +38,7 @@ export const ADMIN_PERMISSIONS: Array<{
   { id: "reviews", label: "Reviews", detail: "Every recording and its verdict" },
   { id: "annotations", label: "Annotations", detail: "Every annotation and its status" },
   { id: "focus-groups", label: "Focus groups", detail: "Sessions across all interns" },
-  { id: "payments", label: "Payments", detail: "Rates, earnings and payment runs" },
+  { id: "payments", label: "Payments", detail: "Earnings and payment runs" },
   { id: "audio", label: "Audio QC", detail: "Run the ML scoring tools" },
   { id: "communications", label: "Emails", detail: "Write to and email contributors" },
 ];
