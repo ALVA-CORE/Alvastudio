@@ -49,7 +49,7 @@ export const CompleteSessionDialog = memo(function CompleteSessionDialog({
         className={cn(
           // Fully rounded rather than the card radius: this is a transient
           // object over the workspace, not another panel in it.
-          "max-w-md gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
+          "max-w-md gap-0 overflow-hidden border-alva-border bg-alva-card p-0",
           "[&>button]:hidden"
         )}
       >

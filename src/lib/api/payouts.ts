@@ -21,8 +21,11 @@ export type ApiPayRunPreview = {
   currency: string;
   recipient_count: number;
   total_amount: string;
-  /** Below this, a contributor is carried to the next run rather than paid. */
+  /** The threshold used: the configured one, or the one asked for. */
   minimum_amount: string;
+  /** What Alva adds to each payout for Bachs's bank fee, and for all of them. */
+  bank_fee_cover: string;
+  total_bank_fee_cover: string;
   recipients: ApiPayRunRecipient[];
 };
 
@@ -75,10 +78,16 @@ export type ApiPayoutRun = {
   failed_count: number;
   created_at: string;
   completed_at: string | null;
+  /** The admin's note, plus a line when the minimum was overridden. */
+  notes: string | null;
   items: ApiPayoutRunItem[];
 };
 
-export const payoutPreview = () => apiFetch<ApiPayRunPreview>("/payouts/preview");
+/** `minimumAmount`: preview a run with that threshold instead (14 Nov). */
+export const payoutPreview = (minimumAmount?: string) =>
+  apiFetch<ApiPayRunPreview>("/payouts/preview", {
+    query: minimumAmount ? { minimum_amount: minimumAmount } : undefined,
+  });
 
 export const listPayoutRuns = (limit = 20) =>
   apiFetch<ApiPayoutRun[]>("/payouts/runs", { query: { limit } });
@@ -86,21 +95,24 @@ export const listPayoutRuns = (limit = 20) =>
 /**
  * Starts a run.
  *
- * `userId` pays that contributor only, and `offSchedule` lifts the
- * Sundays-only rule, nothing else. A leg that comes back `unknown` is not a
+ * `userId` pays that contributor only, `offSchedule` lifts the Sundays-only
+ * rule, and `minimumAmount` (naira, e.g. "500.00") replaces the minimum for
+ * this run only. A leg that comes back `unknown` is not a
  * failure and the money is not lost: reconcile it, never pay again.
  */
 export const startPayoutRun = ({
   notes,
   userId,
   offSchedule,
-}: { notes?: string; userId?: string; offSchedule?: boolean } = {}) =>
+  minimumAmount,
+}: { notes?: string; userId?: string; offSchedule?: boolean; minimumAmount?: string } = {}) =>
   apiFetch<ApiPayoutRun>("/payouts/runs", {
     method: "POST",
     body: {
       ...(notes ? { notes } : {}),
       ...(userId ? { user_id: userId } : {}),
       ...(offSchedule ? { off_schedule: true } : {}),
+      ...(minimumAmount ? { minimum_amount: minimumAmount } : {}),
     },
   });
 

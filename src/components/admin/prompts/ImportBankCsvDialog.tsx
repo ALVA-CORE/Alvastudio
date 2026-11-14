@@ -99,7 +99,7 @@ export function ImportBankCsvDialog({
     >
       <DialogContent
         className={cn(
-          "flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
+          "flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden border-alva-border bg-alva-card p-0",
           "[&>button]:hidden"
         )}
       >

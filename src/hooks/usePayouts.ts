@@ -26,12 +26,15 @@ export function usePayouts() {
   const [payingUserId, setPayingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  /* A minimum for the next run only, in naira ("500.00"); null for the usual
+     one. The preview follows it, and every run started here sends it. */
+  const [minimum, setMinimum] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([payoutPreview(), listPayoutRuns()])
+    Promise.all([payoutPreview(minimum ?? undefined), listPayoutRuns()])
       .then(([next, history]) => {
         if (cancelled) return;
         setPreview(next);
@@ -48,7 +51,7 @@ export function usePayouts() {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, minimum]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 
@@ -64,7 +67,7 @@ export function usePayouts() {
       if (options.userId) setPayingUserId(options.userId);
       else setRunning(true);
       try {
-        const started = await startPayoutRun(options);
+        const started = await startPayoutRun({ ...options, minimumAmount: minimum ?? undefined });
         reload();
         return started;
       } finally {
@@ -72,7 +75,7 @@ export function usePayouts() {
         setPayingUserId(null);
       }
     },
-    [reload]
+    [reload, minimum]
   );
 
   /** Settles or retries one leg's bank payout, then reloads, as `run` does. */
@@ -98,6 +101,8 @@ export function usePayouts() {
   return {
     preview,
     runs,
+    minimum,
+    setMinimum,
     isLoading,
     isRunning,
     payingUserId,

@@ -104,7 +104,7 @@ export function BackPayDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="rounded-3xl border-alva-border bg-alva-card sm:max-w-md"
+        className="border-alva-border bg-alva-card sm:max-w-md"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg text-foreground">

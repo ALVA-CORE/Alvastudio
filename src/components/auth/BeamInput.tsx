@@ -26,6 +26,8 @@ export type BeamInputProps = Omit<ComponentProps<"input">, "placeholder"> & {
    * is the only arrangement where both are legible.
    */
   labelLifted?: boolean;
+  /** Shown before the value once the label lifts, like "₦". */
+  prefix?: string;
 };
 
 /**
@@ -50,6 +52,7 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
       type = "text",
       showPasswordToggle = false,
       labelLifted = false,
+      prefix,
       value,
       defaultValue,
       onFocus,
@@ -106,6 +109,11 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
           className="w-full overflow-hidden rounded-xl"
         >
           <div className="relative rounded-xl">
+            {prefix && active ? (
+              <span className="pointer-events-none absolute left-5 top-1/2 z-10 -translate-y-1/2 text-base text-muted-foreground">
+                {prefix}
+              </span>
+            ) : null}
             <input
               ref={ref}
               /* The visible label is a positioned span, not a `<label for>`,
@@ -124,6 +132,7 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
                 "focus-visible:outline-none",
                 "disabled:cursor-not-allowed disabled:opacity-50",
                 "px-5",
+                prefix && active && "pl-9",
                 showPasswordToggle && "pr-12",
                 className
               )}
