@@ -76,7 +76,7 @@ export function AssignPicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "flex max-h-[80vh] max-w-md flex-col gap-0 overflow-hidden rounded-3xl border-alva-border bg-alva-card p-0",
+          "flex max-h-[80vh] max-w-md flex-col gap-0 overflow-hidden border-alva-border bg-alva-card p-0",
           "[&>button]:hidden"
         )}
       >

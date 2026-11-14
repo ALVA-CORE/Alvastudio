@@ -36,6 +36,7 @@ const run: ApiPayoutRun = {
   failed_count: 0,
   created_at: new Date().toISOString(),
   completed_at: null,
+  notes: "Minimum payout overridden to 500.00 for this run.",
   items: [
     leg("ada", { bank_status: "paid" }),
     leg("bayo", { bank_status: "processing" }),
@@ -74,6 +75,9 @@ describe("PayoutRunPanel", () => {
         onReconcile={onReconcile}
       />
     );
+
+    /* Why a run paid below the usual minimum is on the run itself. */
+    expect(screen.getByText("Minimum payout overridden to 500.00 for this run.")).toBeInTheDocument();
 
     expect(within(card("Ada Obi")).queryByRole("button")).not.toBeInTheDocument();
     expect(within(card("Bayo Ade")).queryByRole("button")).not.toBeInTheDocument();

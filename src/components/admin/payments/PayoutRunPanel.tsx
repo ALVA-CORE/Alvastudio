@@ -111,6 +111,9 @@ export function PayoutRunPanel({
               {atBank}/{run.recipient_count} at the bank · {relativeDays(new Date(run.created_at))}
             </span>
           </div>
+          {run.notes ? (
+            <p className="mt-2 max-w-sm whitespace-pre-line text-xs text-muted-foreground">{run.notes}</p>
+          ) : null}
         </div>
       }
     >

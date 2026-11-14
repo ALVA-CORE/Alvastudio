@@ -388,8 +388,9 @@ export default function AdminPaymentsPage() {
                     <span className="block truncate text-xs text-foreground">
                       {run.reference}
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                       {relativeDays(new Date(run.created_at))}
+                      {run.notes ? ` · ${run.notes}` : ""}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-3">
@@ -424,8 +425,11 @@ export default function AdminPaymentsPage() {
         open={runOpen}
         onOpenChange={setRunOpen}
         preview={payouts.preview}
+        isUpdating={payouts.isLoading}
         isRunning={payouts.isRunning}
         payingUserId={payouts.payingUserId}
+        minimum={payouts.minimum}
+        onMinimumChange={payouts.setMinimum}
         onPay={async (recipient) => {
           try {
             const started = await payouts.run({ userId: recipient.user_id, offSchedule: true });

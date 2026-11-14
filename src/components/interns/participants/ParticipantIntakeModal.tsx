@@ -164,7 +164,7 @@ export function ParticipantIntakeModal({
       }}
     >
       <DialogContent
-        className="max-w-lg rounded-3xl border-alva-border bg-alva-card p-0"
+        className="max-w-lg border-alva-border bg-alva-card p-0"
         onPointerDownOutside={(event) => {
           const target = event.target as HTMLElement;
           if (target.closest("[data-radix-popper-content-wrapper]")) {

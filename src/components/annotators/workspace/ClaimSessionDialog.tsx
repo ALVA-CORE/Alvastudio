@@ -38,7 +38,7 @@ export function ClaimSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
-      <DialogContent className="max-w-md rounded-3xl border-alva-border bg-alva-card">
+      <DialogContent className="max-w-md border-alva-border bg-alva-card">
         <DialogHeader>
           <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-alva-surface">
             <ClipboardCheck size={22} weight="BoldDuotone" className="text-alva-accent" />
