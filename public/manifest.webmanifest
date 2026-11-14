@@ -1,0 +1,17 @@
+{
+  "id": "/contributor/dashboard",
+  "name": "Alvastudio",
+  "short_name": "Alvastudio",
+  "description": "Speech data collection for Nigerian English and Nigerian Pidgin",
+  "start_url": "/contributor/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090909",
+  "theme_color": "#090909",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

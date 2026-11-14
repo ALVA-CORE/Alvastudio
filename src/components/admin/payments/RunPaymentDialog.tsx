@@ -5,9 +5,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useState } from "react";
 import { TextureButton } from "@/components/ui/texture-button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { ApiPayRunPreview } from "@/lib/api/payouts";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import type { ApiPayRunPreview, ApiPayRunRecipient } from "@/lib/api/payouts";
 import { NO_VALUE } from "@/lib/no-value";
 
 function naira(amount: string) {
@@ -24,11 +26,9 @@ function naira(amount: string) {
 /**
  * What the next run would do, before anybody commits to it.
  *
- * A pay run is the one irreversible thing on the admin surface, so it is shown
- * in full first: how many people, how much in total, and how many are being
- * carried because they have not reached the minimum. Those last ones are the
- * reason this is a preview rather than a confirm — "38 people" and "38 people,
- * 4 of whom are being skipped" are different decisions.
+ * Moving money cannot be undone, so who and how much are shown in full first.
+ * Everyone listed can be paid in full now; each row can also be paid on its
+ * own, any day (13 Nov), while Send pays them all and stays Sundays-only.
  */
 export function RunPaymentDialog({
   open,
@@ -36,17 +36,20 @@ export function RunPaymentDialog({
   preview,
   isRunning,
   onConfirm,
+  payingUserId,
+  onPay,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preview: ApiPayRunPreview | null;
   isRunning: boolean;
   onConfirm: () => void;
+  /** The one row being paid on its own, if any. */
+  payingUserId: string | null;
+  onPay: (recipient: ApiPayRunRecipient) => void;
 }) {
-  const minimum = preview ? Number(preview.minimum_amount) : 0;
-  const belowMinimum = (preview?.recipients ?? []).filter(
-    (recipient) => Number(recipient.amount) < minimum
-  ).length;
+  const [confirming, setConfirming] = useState<ApiPayRunRecipient | null>(null);
+  const busy = isRunning || payingUserId !== null;
 
   const nothingToSend = preview != null && preview.recipient_count === 0;
 
@@ -72,30 +75,33 @@ export function RunPaymentDialog({
               ))}
             </div>
           ) : (
-            <>
-              {belowMinimum > 0 ? (
-                <p className="mb-3 rounded-xl bg-alva-surface px-3 py-2.5 text-xs text-muted-foreground">
-                  {belowMinimum} below the {naira(preview.minimum_amount)} minimum,
-                  carried to the next run rather than paid.
-                </p>
-              ) : null}
-
-              <dl>
-                {preview.recipients.map((recipient) => (
-                  <div
-                    key={recipient.user_id}
-                    className="flex items-baseline justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
-                  >
-                    <dt className="min-w-0 truncate text-xs text-foreground">
-                      {recipient.email}
-                    </dt>
-                    <dd className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            <dl>
+              {preview.recipients.map((recipient) => (
+                <div
+                  key={recipient.user_id}
+                  className="flex items-center justify-between gap-3 border-b border-alva-border/50 py-2 last:border-0"
+                >
+                  <dt className="min-w-0 truncate text-xs text-foreground">
+                    {recipient.email}
+                  </dt>
+                  <dd className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs tabular-nums text-muted-foreground">
                       {naira(recipient.amount)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </>
+                    </span>
+                    <TextureButton
+                      variant="minimal"
+                      size="sm"
+                      className="w-auto"
+                      loading={payingUserId === recipient.user_id}
+                      disabled={busy && payingUserId !== recipient.user_id}
+                      onClick={() => setConfirming(recipient)}
+                    >
+                      Pay
+                    </TextureButton>
+                  </dd>
+                </div>
+              ))}
+            </dl>
           )}
         </div>
 
@@ -111,7 +117,7 @@ export function RunPaymentDialog({
             variant="alva"
             size="sm"
             className="w-auto"
-            disabled={!preview || nothingToSend}
+            disabled={!preview || nothingToSend || payingUserId !== null}
             loading={isRunning}
             onClick={onConfirm}
           >
@@ -121,6 +127,18 @@ export function RunPaymentDialog({
           </TextureButton>
         </div>
       </DialogContent>
+
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(next) => !next && setConfirming(null)}
+        title={confirming ? `Pay ${confirming.email} ${naira(confirming.amount)} now?` : ""}
+        description="Alva also pays Bachs's bank fee, about ₦100, on top. This cannot be cancelled."
+        confirmLabel="Pay now"
+        onConfirm={() => {
+          if (confirming) onPay(confirming);
+          setConfirming(null);
+        }}
+      />
     </Dialog>
   );
 }

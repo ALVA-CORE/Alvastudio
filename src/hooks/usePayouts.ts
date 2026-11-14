@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   listPayoutRuns,
   payoutPreview,
+  reconcilePayoutLeg,
   retryBankPayout,
   startPayoutRun,
   type ApiPayRunPreview,
@@ -21,6 +22,8 @@ export function usePayouts() {
   const [runs, setRuns] = useState<ApiPayoutRun[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [isRunning, setRunning] = useState(false);
+  /* Paying one person: only their row spins, the rest wait. */
+  const [payingUserId, setPayingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -56,16 +59,21 @@ export function usePayouts() {
    * contributor's buckets as well as its own row, and guessing at that would
    * put two versions of the same money on one screen.
    */
-  const run = useCallback(async () => {
-    setRunning(true);
-    try {
-      const started = await startPayoutRun();
-      reload();
-      return started;
-    } finally {
-      setRunning(false);
-    }
-  }, [reload]);
+  const run = useCallback(
+    async (options: Parameters<typeof startPayoutRun>[0] = {}) => {
+      if (options.userId) setPayingUserId(options.userId);
+      else setRunning(true);
+      try {
+        const started = await startPayoutRun(options);
+        reload();
+        return started;
+      } finally {
+        setRunning(false);
+        setPayingUserId(null);
+      }
+    },
+    [reload]
+  );
 
   /** Settles or retries one leg's bank payout, then reloads, as `run` does. */
   const retryBank = useCallback(
@@ -77,5 +85,26 @@ export function usePayouts() {
     [reload]
   );
 
-  return { preview, runs, isLoading, isRunning, error, reload, run, retryBank };
+  /** Settles a leg whose transfer is unknown, then reloads. */
+  const reconcile = useCallback(
+    async (runId: string, itemId: string) => {
+      const leg = await reconcilePayoutLeg(runId, itemId);
+      reload();
+      return leg;
+    },
+    [reload]
+  );
+
+  return {
+    preview,
+    runs,
+    isLoading,
+    isRunning,
+    payingUserId,
+    error,
+    reload,
+    run,
+    retryBank,
+    reconcile,
+  };
 }

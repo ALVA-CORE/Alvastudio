@@ -48,8 +48,34 @@ import {
 import { downloadCsv } from "@/lib/download-csv";
 import { alvaToast } from "@/lib/alva-toast";
 import { relativeDays } from "@/data/admin/shared";
+import { ApiError } from "@/lib/api/client";
+import type { ApiPayoutRunItem } from "@/lib/api/payouts";
 
 type Tab = "earnings" | "runs";
+
+/**
+ * What paying one person did, from its one leg. `open`: the leg needs a
+ * retry or a reconcile, which its run's panel offers.
+ */
+function payOneOutcome(leg: ApiPayoutRunItem | undefined) {
+  if (leg?.status === "transferred") {
+    if (leg.bank_status === "paid") return { good: true, text: "Paid to their bank." };
+    if (leg.bank_status === "processing" || leg.bank_status === "sending")
+      return { good: true, text: "Sent. It is on its way to their bank." };
+    return {
+      good: false,
+      open: true,
+      text: "Their money is at Bachs but the bank payout needs a retry.",
+    };
+  }
+  if (leg?.status === "unknown")
+    return {
+      good: false,
+      open: true,
+      text: "We could not confirm the transfer. Do not pay again; reconcile it.",
+    };
+  return { good: false, text: leg?.failure_reason ?? "Nothing was sent." };
+}
 
 type StatusFilter = PayoutStatus | "all";
 
@@ -438,6 +464,29 @@ export default function AdminPaymentsPage() {
         onOpenChange={setRunOpen}
         preview={payouts.preview}
         isRunning={payouts.isRunning}
+        payingUserId={payouts.payingUserId}
+        onPay={async (recipient) => {
+          try {
+            const started = await payouts.run({ userId: recipient.user_id, offSchedule: true });
+            reloadEarnings();
+            const outcome = payOneOutcome(started.items[0]);
+            if (outcome.good) alvaToast.success(outcome.text);
+            else alvaToast.error(outcome.text);
+            /* Retry and reconcile live on the run's panel. */
+            if (outcome.open) {
+              setRunOpen(false);
+              setOpenRunId(started.id);
+            }
+          } catch (cause) {
+            if (cause instanceof ApiError && cause.status === 404) {
+              alvaToast.error("That contributor no longer exists.");
+              payouts.reload();
+              return;
+            }
+            const message = reportApiError(cause, "Could not pay them.");
+            if (message) alvaToast.error(message);
+          }
+        }}
         onConfirm={async () => {
           try {
             const started = await payouts.run();
@@ -466,6 +515,7 @@ export default function AdminPaymentsPage() {
         run={openRun}
         names={names}
         onRetryBank={payouts.retryBank}
+        onReconcile={payouts.reconcile}
       />
         </>
       )}

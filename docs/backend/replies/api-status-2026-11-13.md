@@ -14,7 +14,7 @@ Asks live in [`endpoints-needed.md`](../endpoints-needed.md), never here.
 | 2 Retry | On legs where `status` is `transferred` and `bank_status` is `failed`, `unknown` or null: "Retry", or "Send to bank" when none was asked for. The answer replaces the leg in place. A 409 is shown as it is. |
 | 3 Link bank | Once identity is on file and `next_action` is `add_payout_destination`, the wallet is blurred behind "Add your bank account", with "In your own name. We can't pay you until it's linked." and one button, Link bank. A document that answers `passed` opens the bank form straight after the API's sentence. The form says "It must be in your own name." before anything is typed. A withdrawal's new 409 is shown as it is. `submitted` is still shown as a wait. |
 | 4 Withdrawal bank step | The withdrawal toast reads from the leg's `bank_status`: "On its way to your bank.", "Paid to your bank.", or "We are sorting out a delay. Your money is safe." for `failed` and `unknown`. The "Paid out" card already says "sent". |
-| 5 Pay one person | Not built: optional, and the weekly run doesn't need it. |
+| 5 Pay one person | Built from the second 13 Nov note; see [`api-status-2026-11-13b.md`](api-status-2026-11-13b.md). |
 
 Copy that was no longer true went with it: "A person reads this" on the identity document step, and "Submit for review" (now "Submit").
 

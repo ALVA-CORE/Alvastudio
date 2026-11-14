@@ -19,6 +19,7 @@ the other document points here.
 | 15 | Email interns and annotators, not only contributors | The composer's To row can reach contributors only | High |
 | 16 | Delete chosen prompts and stimuli by id | Ticked rows on the Prompts page can only be retired, not deleted | Medium |
 | 17 | Whether a weekly-run payment reached the contributor's bank | The wallet can only say "sent" for those | Medium |
+| 18 | Is Bachs's hosted onboarding still a step after 13 Nov? | Contributors with a bank linked are sent to a Bachs page that says "Send for review" | High |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -100,3 +101,28 @@ and until it closes the wallet says "sent".
 **What we need:** the same `bank_status` for the contributor's own payments,
 whichever route sent them. For example, on `GET /wallet`, the latest payment's
 amount, `bank_status` and when it arrived.
+
+---
+
+## 18. Bachs's hosted onboarding, after 13 Nov
+
+**What we see:** a contributor with identity on file and a bank linked gets
+`next_action: complete_onboarding` ("Finish setting up your payout account")
+until their wallet is `active`, which needs Bachs's `transfers` capability.
+Our wallet shows that as a "Finish" button, which calls
+`POST /wallet/onboarding-link` and sends them to Bachs. That page shows their
+identity and payout account and ends in "Send for review": "You can't edit
+while it is being reviewed".
+
+**Why we ask:** the 13 Nov handoff says Bachs reviews no identity for
+accounts that only receive money, and says nothing about this step. Pay runs
+and withdrawals both require `active`, so a contributor who skips the page is
+never paid.
+
+**Questions:**
+
+1. Is the hosted page still required for every contributor? If so, what does
+   "review" mean there, and how long does it take?
+2. If it isn't, what makes a wallet `active` now?
+3. Either way, is there a sentence for the wallet to show while Bachs has it?
+   Today the contributor comes back to the same "Finish" button.
