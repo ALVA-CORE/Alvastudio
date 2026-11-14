@@ -147,19 +147,6 @@ vi.mock("@/hooks/useEarnings", async () => {
   };
 });
 
-vi.mock("@/hooks/useRates", async () => {
-  const { RATES } = await import("@/test/adminFixtures");
-  return {
-    useRates: () => ({
-      rates: RATES,
-      isLoading: false,
-      error: null,
-      reload: vi.fn(),
-      save: vi.fn(),
-    }),
-  };
-});
-
 vi.mock("@/lib/api/corpus", () => ({
   corpusSummary: vi.fn(async () => ({
     total_hours: 412.5,

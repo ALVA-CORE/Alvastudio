@@ -6,8 +6,6 @@ import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import Upload from "@solar-icons/react/arrows-action/Upload";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
-import { RateRings } from "@/components/admin/payments/RateRings";
-import { useRates } from "@/hooks/useRates";
 import { useEarnings } from "@/hooks/useEarnings";
 import { usePayouts } from "@/hooks/usePayouts";
 import { RunPaymentDialog } from "@/components/admin/payments/RunPaymentDialog";
@@ -15,7 +13,6 @@ import BillCheck from "@solar-icons/react/money/BillCheck";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -86,20 +83,13 @@ const STATUS_TONE: Record<PayoutStatus, PillTone> = {
 };
 
 /**
- * Rates and what they add up to.
+ * What each contributor is owed, and what has gone out.
  *
- * Rates sit above earnings because changing one is the only write on this page
- * and it changes every number below it. Money is held in kobo throughout — a
+ * Money is held in kobo throughout — a
  * payment run that does float arithmetic on naira will eventually be a rounding
  * complaint from someone who was underpaid by a kobo.
  */
 export default function AdminPaymentsPage() {
-  const {
-    rates,
-    isLoading: loadingRates,
-    error: ratesError,
-    reload: reloadRates,
-  } = useRates();
   const [status, setStatus] = useState<StatusFilter>("all");
   /* Two tables, one at a time. They answer different questions — what each
    * contributor is owed, and what has actually gone out — and stacking them
@@ -243,7 +233,8 @@ export default function AdminPaymentsPage() {
               variant="alva"
               size="sm"
               className="w-auto"
-              disabled={(payouts.preview?.recipient_count ?? 0) === 0}
+              /* Open even when nobody can be paid: the dialog says why. */
+              disabled={!payouts.preview}
               onClick={() => setRunOpen(true)}
             >
               <BillCheck size={15} weight="Outline" />
@@ -253,15 +244,18 @@ export default function AdminPaymentsPage() {
         }
       />
 
-      {earningsError ? (
+      {earningsError || payouts.error ? (
         <div
           role="alert"
           className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
         >
-          {earningsError}
+          {earningsError ?? payouts.error}
           <button
             type="button"
-            onClick={reloadEarnings}
+            onClick={() => {
+              reloadEarnings();
+              payouts.reload();
+            }}
             className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
           >
             Retry
@@ -270,7 +264,7 @@ export default function AdminPaymentsPage() {
       ) : null}
 
       {isLoading ? (
-        <AdminPageSkeleton charts={1} chartColumns={1} table={true} />
+        <AdminPageSkeleton charts={0} chartColumns={1} table={true} />
       ) : (
         <>
 
@@ -298,39 +292,6 @@ export default function AdminPaymentsPage() {
           icon={ClockCircle}
         />
       </div>
-
-      <AlvaChartCard
-        title="Historic rates"
-        subtitle="What clips paid before 29 Oct. Contributors now earn ₦10 a sentence and ₦5,000 per 60 approved minutes of speech"
-        className="mt-2"
-      >
-        {ratesError ? (
-          /* The rates are the one thing on this page an admin can change, so a
-             failed load needs saying rather than leaving an empty card that
-             looks like nothing has been set. */
-          <div
-            role="alert"
-            className="flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
-          >
-            {ratesError}
-            <button
-              type="button"
-              onClick={reloadRates}
-              className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-            >
-              Retry
-            </button>
-          </div>
-        ) : !loadingRates && rates.length === 0 ? (
-          <AlvaEmptyState
-            icon={<BillList size={20} weight="Outline" />}
-            title="No rates set"
-            description="Nothing is being paid out until a rate exists for at least one unit of work."
-          />
-        ) : (
-          <RateRings rates={rates} />
-        )}
-      </AlvaChartCard>
 
       <Tabs
         className="mt-3"
@@ -506,7 +467,6 @@ export default function AdminPaymentsPage() {
         open={detail !== null}
         onOpenChange={(next) => !next && setDetail(null)}
         earning={detail}
-        rates={rates}
       />
 
       <PayoutRunPanel

@@ -61,7 +61,7 @@ export function RunPaymentDialog({
           <DialogDescription className="text-sm text-muted-foreground">
             {preview
               ? nothingToSend
-                ? "Nothing has matured above the minimum yet, so a run would send nothing."
+                ? `Nobody can be paid yet. Each person needs their ID on file, a linked bank, Bachs setup finished, and ${naira(preview.minimum_amount)} or more approved before this Sunday.`
                 : `${preview.recipient_count} contributors, ${naira(preview.total_amount)} in total.`
               : "Working out who would be paid."}
           </DialogDescription>

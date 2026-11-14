@@ -9,13 +9,10 @@ import {
 } from "@/components/admin/shared/detail";
 import {
   PAYOUT_STATUS_LABELS,
-  RATE_UNIT_LABELS,
   formatNaira,
   type Earning,
   type PayoutStatus,
-  type Rate,
 } from "@/data/admin/payments";
-import { NO_VALUE } from "@/lib/no-value";
 import { cn } from "@/lib/utils";
 import { useContributorLedger, canVoid } from "@/hooks/useContributorLedger";
 import { VoidEarningDialog } from "@/components/admin/payments/VoidEarningDialog";
@@ -31,8 +28,7 @@ const STATUS_TONE: Record<PayoutStatus, PillTone> = {
  *
  * The breakdown matters more than the total: a contributor querying their
  * payment is asking "which of my recordings counted", and a single number
- * cannot answer that. Rates are shown as they stand today, which is also the
- * fastest way to spot that someone was paid under an older one.
+ * cannot answer that.
  */
 const TABS = [
   { id: "summary", label: "Summary" },
@@ -43,13 +39,10 @@ export function EarningDetailPanel({
   open,
   onOpenChange,
   earning,
-  rates = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   earning: Earning | null;
-  /** Live, from `GET /payments/rates`, so the panel and the card above agree. */
-  rates?: Rate[];
 }) {
   const [tab, setTab] = useState("summary");
   const [voiding, setVoiding] = useState<{
@@ -75,8 +68,6 @@ export function EarningDetailPanel({
 
   if (!earning) return null;
 
-  const perRecording = rates.find((rate) => rate.unit === "prompt_read");
-  const perMinute = rates.find((rate) => rate.unit === "focus_group_minute");
 
   return (
     <>
@@ -125,17 +116,6 @@ export function EarningDetailPanel({
             label="Status"
             value={PAYOUT_STATUS_LABELS[earning.status]}
             tone={earning.status === "paid" ? "accent" : "default"}
-          />
-        </DetailGroup>
-
-        <DetailGroup title="Rates applied">
-          <DetailField
-            label={RATE_UNIT_LABELS.prompt_read}
-            value={perRecording ? formatNaira(perRecording.amountKobo) : NO_VALUE}
-          />
-          <DetailField
-            label={RATE_UNIT_LABELS.focus_group_minute}
-            value={perMinute ? formatNaira(perMinute.amountKobo) : NO_VALUE}
           />
         </DetailGroup>
 
