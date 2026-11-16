@@ -11,9 +11,8 @@ import { usePayouts } from "@/hooks/usePayouts";
 import { RunPaymentDialog } from "@/components/admin/payments/RunPaymentDialog";
 import BillCheck from "@solar-icons/react/money/BillCheck";
 import { reportApiError } from "@/lib/api/reportApiError";
-import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
+import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { TextureButton } from "@/components/ui/texture-button";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AdminPageSkeleton } from "@/components/admin/shared/AdminPageSkeleton";
@@ -47,7 +46,7 @@ import { downloadCsv } from "@/lib/download-csv";
 import { alvaToast } from "@/lib/alva-toast";
 import { relativeDays } from "@/data/admin/shared";
 import { ApiError } from "@/lib/api/client";
-import type { ApiPayoutRunItem } from "@/lib/api/payouts";
+import type { ApiPayoutRun, ApiPayoutRunItem } from "@/lib/api/payouts";
 
 type Tab = "earnings" | "runs";
 
@@ -177,6 +176,66 @@ export default function AdminPaymentsPage() {
           {row.lastActivityLabel}
         </span>
       ),
+    },
+  ];
+
+  /* A completed run means every transfer landed, not that the money reached
+     every bank: each row says how many it reached, and the panel shows
+     every leg's bank payout. */
+  const runColumns = [
+    {
+      key: "reference",
+      header: "Run",
+      sortValue: (run: ApiPayoutRun) => run.reference,
+      render: (run: ApiPayoutRun) => (
+        <TruncateCell className="text-foreground" title={run.notes ?? run.reference}>
+          {run.reference}
+        </TruncateCell>
+      ),
+    },
+    {
+      key: "created",
+      header: "Sent",
+      sortValue: (run: ApiPayoutRun) => run.created_at,
+      render: (run: ApiPayoutRun) => (
+        <span className="whitespace-nowrap text-muted-foreground">
+          {relativeDays(new Date(run.created_at))}
+        </span>
+      ),
+    },
+    {
+      key: "total",
+      header: "Amount",
+      sortValue: (run: ApiPayoutRun) => Number(run.total_amount),
+      render: (run: ApiPayoutRun) => (
+        <span className="whitespace-nowrap tabular-nums text-foreground">
+          {formatNairaAmount(run.total_amount)}
+        </span>
+      ),
+    },
+    {
+      key: "bank",
+      header: "At the bank",
+      sortValue: (run: ApiPayoutRun) => bankSummary(run).atBank,
+      render: (run: ApiPayoutRun) => (
+        <span className="tabular-nums text-muted-foreground">
+          {bankSummary(run).atBank}/{run.recipient_count}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortValue: (run: ApiPayoutRun) => run.status,
+      render: (run: ApiPayoutRun) => {
+        const { toRetry } = bankSummary(run);
+        return (
+          <span className="flex items-center gap-1.5">
+            <AdminStatusPill tone={RUN_TONE[run.status]}>{RUN_LABEL[run.status]}</AdminStatusPill>
+            {toRetry > 0 ? <AdminStatusPill tone="bad">{toRetry} to retry</AdminStatusPill> : null}
+          </span>
+        );
+      },
     },
   ];
 
@@ -357,57 +416,23 @@ export default function AdminPaymentsPage() {
         {/* Every run already made. Nothing else on the admin surface shows
             these, so a failed leg had nowhere to be noticed. */}
         <TabsContent value="runs" className="mt-2">
-        <AlvaChartCard
-          title="Payment runs"
-          subtitle="What has gone out, and how it landed"
-          className="min-h-[12rem]"
-          emptyMessage={
-            payouts.runs.length === 0
-              ? { title: "No runs yet", description: "Nothing has been sent." }
-              : undefined
-          }
-        >
-          <div className="alva-thin-scrollbar max-h-[15rem] space-y-1 overflow-y-auto pr-1">
-            {/* A completed run means every transfer landed, not that the
-                money reached every bank: each row says how many it reached,
-                and the panel shows every leg's bank payout. */}
-            {payouts.runs.map((run) => {
-              const { atBank, toRetry } = bankSummary(run);
-              return (
-                <button
-                  key={run.id}
-                  type="button"
-                  onClick={() => setOpenRunId(run.id)}
-                  className="flex w-full items-center justify-between gap-3 rounded-lg border-b border-alva-border/50 px-1 py-2 text-left transition-colors last:border-0 hover:bg-alva-surface/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs text-foreground">
-                      {run.reference}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                      {relativeDays(new Date(run.created_at))}
-                      {run.notes ? ` · ${run.notes}` : ""}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-3">
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {atBank}/{run.recipient_count} at the bank
-                    </span>
-                    <span className="text-xs tabular-nums text-foreground">
-                      {formatNairaAmount(run.total_amount)}
-                    </span>
-                    {toRetry > 0 ? (
-                      <AdminStatusPill tone="bad">{toRetry} to retry</AdminStatusPill>
-                    ) : null}
-                    <AdminStatusPill tone={RUN_TONE[run.status]}>
-                      {RUN_LABEL[run.status]}
-                    </AdminStatusPill>
-                  </span>
-                </button>
-              );
+          <AlvaDataTable
+            title="Payment runs"
+            rows={payouts.runs}
+            columns={runColumns}
+            pageSize={10}
+            searchPlaceholder="Search"
+            onRowClick={(run) => setOpenRunId(run.id)}
+            mobilePrimary={(run) => ({
+              title: run.reference,
+              subtitle: `${formatNairaAmount(run.total_amount)} · ${RUN_LABEL[run.status]}`,
             })}
-          </div>
-        </AlvaChartCard>
+            emptyState={{
+              icon: <BillList size={20} weight="Outline" />,
+              title: "No runs yet",
+              description: "Nothing has been sent.",
+            }}
+          />
         </TabsContent>
       </Tabs>
 

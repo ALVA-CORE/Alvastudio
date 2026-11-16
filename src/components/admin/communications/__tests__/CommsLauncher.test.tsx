@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 
 /* ProseMirror measures the page as it types, and jsdom has no layout. */
@@ -73,7 +74,39 @@ vi.mock("@/lib/api/communications", async (original) => ({
 
 const { CommsLauncher } = await import("../CommsLauncher");
 
+const navigated = vi.fn();
+function Where() {
+  navigated(useLocation());
+  return null;
+}
+
+/* The launcher navigates, for Announcement, so it sits in a router. */
+const renderLauncher = () =>
+  render(
+    <MemoryRouter>
+      <CommsLauncher />
+      <Where />
+    </MemoryRouter>
+  );
+
+/* One button springs out Email and Announcement; Email opens the panel. */
+const openEmail = async () => {
+  await userEvent.click(screen.getByRole("button", { name: "Messages" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Email" }));
+};
+
 describe("CommsLauncher", () => {
+  it("springs out Email and Announcement, and Announcement opens a new one", async () => {
+    renderLauncher();
+    await userEvent.click(screen.getByRole("button", { name: "Messages" }));
+    expect(await screen.findByRole("button", { name: "Email" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Announcement" }));
+    expect(navigated).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pathname: "/admin/announcements", state: { compose: true } })
+    );
+  });
+
   beforeEach(() => {
     permissions = undefined;
     create.mockClear();
@@ -82,13 +115,13 @@ describe("CommsLauncher", () => {
 
   it("is hidden from an admin without the Emails permission", () => {
     permissions = ["prompts"];
-    render(<CommsLauncher />);
-    expect(screen.queryByRole("button", { name: "Email contributors" })).not.toBeInTheDocument();
+    renderLauncher();
+    expect(screen.queryByRole("button", { name: "Messages" })).not.toBeInTheDocument();
   });
 
   it("opens into compose, preview and sent", async () => {
-    render(<CommsLauncher />);
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    renderLauncher();
+    await openEmail();
     expect(screen.getByRole("tab", { name: "Compose" })).toHaveAttribute("aria-selected", "true");
 
     await userEvent.type(screen.getByLabelText("Header"), "Guidance update");
@@ -101,8 +134,8 @@ describe("CommsLauncher", () => {
 
   /* One press saves and counts; only the second sends. */
   it("sends on the second press, against the previewed revision", async () => {
-    render(<CommsLauncher />);
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    renderLauncher();
+    await openEmail();
     await userEvent.type(screen.getByLabelText("Header"), "Guidance update");
     await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
     await userEvent.keyboard("Please read it.");
@@ -117,8 +150,8 @@ describe("CommsLauncher", () => {
 
   /* The To row: a state, however it was typed, or a person, as chips. */
   it("picks a whole state or one person in the To row", async () => {
-    render(<CommsLauncher />);
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    renderLauncher();
+    await openEmail();
     const to = screen.getByRole("combobox", { name: "To" });
 
     await userEvent.type(to, "lag");
@@ -149,8 +182,8 @@ describe("CommsLauncher", () => {
 
   /* Hand-picked people go as `selected_people`, whatever their role. */
   it("sends a contributor and an intern picked by name as selected_people", async () => {
-    render(<CommsLauncher />);
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    renderLauncher();
+    await openEmail();
     await userEvent.type(screen.getByLabelText("Header"), "Hello");
     await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
     await userEvent.keyboard("Read it.");
@@ -171,8 +204,8 @@ describe("CommsLauncher", () => {
 
   /* "Everyone" is all three roles now; contributors alone are "Contributors". */
   it("starts on Contributors and sends Everyone as a group", async () => {
-    render(<CommsLauncher />);
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    renderLauncher();
+    await openEmail();
     await userEvent.type(screen.getByLabelText("Header"), "Hello");
     await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
     await userEvent.keyboard("Read it.");
@@ -190,8 +223,8 @@ describe("CommsLauncher", () => {
 
   it("fills Send with the upload while the hero goes up", async () => {
     upload.mockImplementation(() => new Promise(() => undefined));
-    render(<CommsLauncher />);
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    renderLauncher();
+    await openEmail();
     const file = new File(["x"], "hero.png", { type: "image/png" });
     const picker = document.querySelector('input[type="file"]') as HTMLInputElement;
     await userEvent.upload(picker, file);
@@ -200,18 +233,18 @@ describe("CommsLauncher", () => {
 
   it("closes on a press outside, and keeps what was written", async () => {
     render(
-      <>
+      <MemoryRouter>
         <p>Page</p>
         <CommsLauncher />
-      </>
+      </MemoryRouter>
     );
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    await openEmail();
     await userEvent.type(screen.getByLabelText("Header"), "Kept");
 
     await userEvent.click(screen.getByText("Page"));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    await openEmail();
     expect(screen.getByLabelText("Header")).toHaveValue("Kept");
   });
 
@@ -222,8 +255,8 @@ describe("CommsLauncher", () => {
     const realFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async () => new Response(new Blob(["png"], { type: "image/png" }))) as typeof fetch;
     try {
-      render(<CommsLauncher />);
-      await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+      renderLauncher();
+      await openEmail();
 
       await userEvent.click(screen.getByRole("radio", { name: "Everyday image" }));
       await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));

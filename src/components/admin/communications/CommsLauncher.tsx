@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Letter from "@solar-icons/react/messages/Letter";
+import Bell from "@solar-icons/react/notifications/Bell";
+import { useNavigate } from "react-router-dom";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
 import Plain from "@solar-icons/react/messages/Plain";
 import { BorderBeam } from "border-beam";
@@ -35,7 +37,8 @@ const TABS: { id: Tab; label: string }[] = [
 const SPRING = { type: "spring" as const, stiffness: 420, damping: 38, mass: 0.9 };
 
 /**
- * Email contributors from anywhere on the admin surface.
+ * Email, or an announcement, from anywhere on the admin surface. One button:
+ * pressing it springs out the two, and Email grows into the panel.
  *
  * A textured button bottom right of every admin screen. It grows into the
  * panel (one shared layout, so the button becomes the panel rather than a
@@ -52,6 +55,10 @@ export function CommsLauncher() {
     user?.role === "admin" && (permissions === undefined || permissions.includes("communications"));
 
   const [open, setOpen] = useState(false);
+  /* The two choices sprung out of the button: Email and Announcement. */
+  const [choosing, setChoosing] = useState(false);
+  const navigate = useNavigate();
+  const launcher = useRef<HTMLDivElement>(null);
   const [everOpened, setEverOpened] = useState(false);
   const [tab, setTab] = useState<Tab>("compose");
   const [sentVersion, setSentVersion] = useState(0);
@@ -91,6 +98,23 @@ export function CommsLauncher() {
       document.removeEventListener("pointerdown", onPointer, true);
     };
   }, [open]);
+
+  /* Escape, or a press anywhere else, folds the choices back in. */
+  useEffect(() => {
+    if (!choosing) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setChoosing(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (!launcher.current?.contains(event.target as Node)) setChoosing(false);
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, [choosing]);
 
   const { fields } = composer;
 
@@ -376,35 +400,84 @@ export function CommsLauncher() {
              clipped back to a flat ring. */
           <motion.div
             key="launcher"
+            ref={launcher}
             layoutId="comms-launcher"
             transition={SPRING}
             style={{ borderRadius: 999 }}
-            whileHover={reduceMotion ? undefined : { scale: 1.06 }}
-            whileTap={reduceMotion ? undefined : { scale: 0.94 }}
-            className="pointer-events-auto overflow-visible rounded-full"
+            className="pointer-events-auto relative overflow-visible rounded-full"
           >
-            <BorderBeam
-              size="sm"
-              colorVariant="mono"
-              theme="dark"
-              strength={1}
-              duration={2.4}
-              borderRadius={999}
+            <AnimatePresence>
+              {choosing ? (
+                <div className="absolute bottom-full right-0 mb-3 flex flex-col items-end gap-2.5">
+                  {[
+                    {
+                      label: "Announcement",
+                      Icon: Bell,
+                      pick: () => navigate("/admin/announcements", { state: { compose: true } }),
+                    },
+                    { label: "Email", Icon: Letter, pick: () => setOpen(true) },
+                  ].map(({ label, Icon, pick }, index) => (
+                    <motion.div
+                      key={label}
+                      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.6 }}
+                      animate={{ opacity: 1, y: 0, scale: 1, transition: { ...SPRING, delay: (1 - index) * 0.04 } }}
+                      exit={{ opacity: 0, y: 10, scale: 0.6, transition: { duration: 0.12 } }}
+                      className="flex items-center gap-2"
+                    >
+                      <span className="rounded-full bg-alva-card px-3 py-1 text-xs text-foreground shadow-[0_8px_24px_-12px_rgba(0,0,0,0.9)]">
+                        {label}
+                      </span>
+                      <TextureButton
+                        variant="icon"
+                        size="icon"
+                        aria-label={label}
+                        onClick={() => {
+                          setChoosing(false);
+                          pick();
+                        }}
+                        className="shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)]"
+                      >
+                        <Icon size={18} weight="Bold" className="text-alva-accent" />
+                      </TextureButton>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : null}
+            </AnimatePresence>
+
+            <motion.div
+              whileHover={reduceMotion ? undefined : { scale: 1.06 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.94 }}
               className="overflow-visible rounded-full"
             >
-              {/* The grey textured face every icon button wears. */}
-              <TextureButton
-                variant="icon"
-                size="icon"
-                aria-label="Email contributors"
-                onClick={() => setOpen(true)}
-                className="relative z-[1] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)]"
+              <BorderBeam
+                size="sm"
+                colorVariant="mono"
+                theme="dark"
+                strength={1}
+                duration={2.4}
+                borderRadius={999}
+                className="overflow-visible rounded-full"
               >
-                <span className="flex size-8 items-center justify-center">
-                  <Letter size={22} weight="Bold" className="text-alva-accent" />
-                </span>
-              </TextureButton>
-            </BorderBeam>
+                {/* The grey textured face every icon button wears. */}
+                <TextureButton
+                  variant="icon"
+                  size="icon"
+                  aria-label="Messages"
+                  aria-expanded={choosing}
+                  onClick={() => setChoosing((value) => !value)}
+                  className="relative z-[1] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)]"
+                >
+                  <span className="flex size-8 items-center justify-center">
+                    {choosing ? (
+                      <CloseCircle size={22} weight="Bold" className="text-alva-accent" />
+                    ) : (
+                      <Plain size={22} weight="Bold" className="text-alva-accent" />
+                    )}
+                  </span>
+                </TextureButton>
+              </BorderBeam>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

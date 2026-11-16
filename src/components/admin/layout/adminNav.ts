@@ -45,6 +45,8 @@ export type AdminNavItem = {
   /** What is still missing, for the areas that are not ready. */
   blockedBy?: string;
   Icon: ComponentType<IconProps>;
+  /** False for an area reached another way, so it is not in the rail. */
+  inRail?: false;
 };
 
 /**
@@ -143,6 +145,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     blurb: "Write a notification and send it to people in the studio.",
     status: "ready",
     Icon: Bell,
+    /* Opened from the message button bottom right, beside email. */
+    inRail: false,
   },
   {
     id: "settings",

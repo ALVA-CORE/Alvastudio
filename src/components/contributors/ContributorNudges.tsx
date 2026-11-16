@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ChatRoundLike from "@solar-icons/react/messages/ChatRoundLike";
 import {
   Sheet,
@@ -11,6 +12,7 @@ import { submitIdentityDocument, useWallet } from "@/data/contributors/walletSto
 import { useNudge, DAYS, MINUTES } from "@/hooks/useNudge";
 import { useAuth } from "@/lib/auth/context";
 import { alvaToast } from "@/lib/alva-toast";
+import { cn } from "@/lib/utils";
 
 /**
  * The two things worth interrupting a contributor for, and nothing else.
@@ -66,6 +68,7 @@ export function ContributorNudges() {
     enabled: knowIdentity && !identity.open,
     done: false,
   });
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   return (
     <>
@@ -100,15 +103,16 @@ export function ContributorNudges() {
           aria-describedby={undefined}
           className="rounded-t-[28px] border-alva-border bg-alva-card px-5 pb-8 pt-8"
         >
-          <SheetHeader className="px-10 text-center sm:text-center">
+          {/* Once sent, the thank-you says it all. */}
+          <SheetHeader className={cn("px-10 text-center sm:text-center", feedbackSent && "sr-only")}>
             <SheetTitle className="flex items-center justify-center gap-2">
               <ChatRoundLike size={18} weight="Outline" />
               How is it going?
             </SheetTitle>
           </SheetHeader>
 
-          <div className="mt-6">
-            <FeedbackForm />
+          <div className={cn(!feedbackSent && "mt-6")}>
+            <FeedbackForm onSentChange={setFeedbackSent} />
           </div>
         </SheetContent>
       </Sheet>

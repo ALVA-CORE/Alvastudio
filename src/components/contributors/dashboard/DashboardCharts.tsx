@@ -29,7 +29,7 @@ import {
   EMPTY_WEEKLY_SESSIONS,
 } from "@/data/contributors/dashboard";
 import { CarouselDots } from "@/components/shared/CarouselDots";
-import { formatWalletNaira } from "@/data/contributors/wallet";
+import { formatWalletNaira, formatWalletNairaShort } from "@/data/contributors/wallet";
 import { useCarouselAutoplay } from "@/components/shared/useCarouselAutoplay";
 import { cn } from "@/lib/utils";
 
@@ -356,8 +356,8 @@ export function DashboardCharts({
                     }
                     label={
                       pay.next_run_kobo > 0
-                        ? `${formatWalletNaira(pay.next_run_kobo)} on the way`
-                        : `${formatWalletNaira(pay.to_minimum_kobo)} to go`
+                        ? `${formatWalletNairaShort(pay.next_run_kobo)} on the way`
+                        : `${formatWalletNairaShort(pay.to_minimum_kobo)} to go`
                     }
                   />
                 </div>

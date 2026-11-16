@@ -132,6 +132,19 @@ export function formatWalletNaira(kobo: number) {
   return NAIRA.format(kobo / 100);
 }
 
+const NAIRA_SHORT = new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  notation: "compact",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1,
+});
+
+/** "₦5K", for the few places a full figure will not fit. */
+export function formatWalletNairaShort(kobo: number) {
+  return NAIRA_SHORT.format(kobo / 100);
+}
+
 export const EMPTY_WALLET: Wallet = {
   balanceKobo: 0,
   pendingKobo: 0,

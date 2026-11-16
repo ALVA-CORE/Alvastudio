@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import ChatRoundLike from "@solar-icons/react/messages/ChatRoundLike";
 import Plain2 from "@solar-icons/react/messages/Plain2";
@@ -49,14 +49,16 @@ const MIN_LENGTH = 10;
  * enough to find it.
  */
 export function FeedbackRow({ hideDivider }: { hideDivider?: boolean }) {
+  const [sent, setSent] = useState(false);
   return (
     <ProfileActionRow
       icon={<ChatRoundLike size={20} weight="Outline" />}
       title="Give feedback"
       sheetTitle="Give feedback"
+      hideHeader={sent}
       hideDivider={hideDivider}
     >
-      <FeedbackForm />
+      <FeedbackForm onSentChange={setSent} />
     </ProfileActionRow>
   );
 }
@@ -68,7 +70,12 @@ export function FeedbackRow({ hideDivider }: { hideDivider?: boolean }) {
  * on a profile page, or offered once a day by a prompt. One form, so the two
  * cannot drift into asking different questions.
  */
-export function FeedbackForm() {
+export function FeedbackForm({
+  onSentChange,
+}: {
+  /** So the sheet around it can drop its header once it is sent. */
+  onSentChange?: (sent: boolean) => void;
+} = {}) {
   const { user } = useAuth();
   const location = useLocation();
   const keyboardInset = useKeyboardInset();
@@ -79,6 +86,7 @@ export function FeedbackForm() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => onSentChange?.(sent), [sent, onSentChange]);
 
   /* Contributors with no answer on file, which is everyone who signed up
      before sign-up asked. Hidden for anyone who answered there. */

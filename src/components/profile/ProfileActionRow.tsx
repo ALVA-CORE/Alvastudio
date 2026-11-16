@@ -19,6 +19,8 @@ type ProfileActionRowProps = {
   children: ReactNode;
   className?: string;
   hideDivider?: boolean;
+  /** Keeps the title for screen readers only, for a sheet whose content now says it all. */
+  hideHeader?: boolean;
 };
 
 export function ProfileActionRow({
@@ -29,6 +31,7 @@ export function ProfileActionRow({
   children,
   className,
   hideDivider = false,
+  hideHeader = false,
 }: ProfileActionRowProps) {
   return (
     <Sheet>
@@ -68,11 +71,11 @@ export function ProfileActionRow({
         {/* Padded both sides rather than just the right: the close button
             sits top-right, and clearing only that side leaves a centred
             title centred on the wrong thing. */}
-        <SheetHeader className="px-10 text-center sm:text-center">
+        <SheetHeader className={cn("px-10 text-center sm:text-center", hideHeader && "sr-only")}>
           <SheetTitle>{sheetTitle}</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6">{children}</div>
+        <div className={cn(!hideHeader && "mt-6")}>{children}</div>
       </SheetContent>
     </Sheet>
   );

@@ -25,7 +25,7 @@ export function AdminSidebar() {
   /* Hiding a rail item an admin cannot use is the point of scoped access —
    * showing it and failing on click would be worse than not scoping at all. */
   const items = allowedAdminAreas(
-    ADMIN_NAV_ITEMS,
+    ADMIN_NAV_ITEMS.filter((item) => item.inRail !== false),
     user?.adminPermissions as AdminPermission[] | undefined
   );
 

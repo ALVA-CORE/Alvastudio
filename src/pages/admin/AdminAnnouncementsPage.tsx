@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Bell from "@solar-icons/react/notifications/Bell";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaDataTable, TruncateCell, type AlvaTableColumn } from "@/components/shared/AlvaDataTable";
@@ -54,7 +55,18 @@ export default function AdminAnnouncementsPage() {
   const { rows, total, isLoading, isFetching, error, reload, save, send, withdraw, remove } =
     useAnnouncements({ status: tab, page, pageSize });
 
-  const [composing, setComposing] = useState(false);
+  /* Arriving from the message button bottom right opens a new one at once. */
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [composing, setComposing] = useState(
+    () => (location.state as { compose?: boolean } | null)?.compose === true
+  );
+  useEffect(() => {
+    /* Once, so a refresh or Back does not open it again. */
+    if ((location.state as { compose?: boolean } | null)?.compose) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, location.pathname, navigate]);
   const [editing, setEditing] = useState<ApiAnnouncement | null>(null);
   const [detail, setDetail] = useState<ApiAnnouncement | null>(null);
   const [sending, setSending] = useState<ApiAnnouncement | null>(null);
