@@ -12,7 +12,7 @@ vi.mock("@/lib/api/announcements", async (importOriginal) => ({
   sendAnnouncement: (...args: unknown[]) => sendAnnouncement(...args),
 }));
 
-const { EMPTY_ANNOUNCEMENT, formProblem, toBody, useAnnouncementComposer } = await import(
+const { EMPTY_ANNOUNCEMENT, formProblems, toCreate, toPatch, useAnnouncementComposer } = await import(
   "../useAnnouncements"
 );
 
@@ -23,42 +23,55 @@ const form = (over: Partial<typeof EMPTY_ANNOUNCEMENT>) => ({
   ...over,
 });
 
-describe("toBody", () => {
+const saved = (over: Record<string, unknown> = {}) => ({
+  id: "a1",
+  title: "Studio closed Monday",
+  body: "We are closed.",
+  audience: {},
+  action_label: null,
+  action_url: null,
+  expires_at: null,
+  status: "draft",
+  recipient_count: 42,
+  read_count: 0,
+  ...over,
+});
+
+describe("toCreate", () => {
   /* An empty list is a 422: nothing chosen is left out, which is everybody. */
   it("never sends an empty list", () => {
-    expect(toBody(form({})).audience).toEqual({});
-    expect(toBody(form({ roles: ["intern", "contributor"], approved: "waiting" })).audience).toEqual({
-      roles: ["contributor", "intern"],
-      approved: false,
-    });
-  });
-
-  it("sets or clears the button and link together", () => {
-    expect(toBody(form({ actionLabel: "Open", actionUrl: "/contributor/studio" }))).toMatchObject({
-      action_label: "Open",
-      action_url: "/contributor/studio",
-    });
-    expect(toBody(form({ actionLabel: "Open" }))).toMatchObject({ action_label: null, action_url: null });
+    expect(toCreate(form({})).audience).toBeUndefined();
+    expect(
+      toCreate(form({ roles: ["intern"], approved: "waiting", emails: "Ada@x.test\nada@x.test" })).audience
+    ).toEqual({ roles: ["intern"], approved: false, emails: ["ada@x.test"] });
   });
 });
 
-describe("formProblem", () => {
-  it("asks for both the button and the link, or neither", () => {
-    expect(formProblem(form({ actionLabel: "Open" }))).toMatch(/both/);
-    expect(formProblem(form({ actionLabel: "Open", actionUrl: "/contributor/studio" }))).toBeNull();
-    expect(formProblem(form({ title: "" }))).toMatch(/title/);
+describe("toPatch", () => {
+  it("sends only what changed", () => {
+    const before = form({});
+    expect(toPatch(form({ title: "Studio open" }), before)).toEqual({ title: "Studio open" });
+    expect(toPatch(before, before)).toEqual({});
+  });
+});
+
+describe("formProblems", () => {
+  it("asks for both the button and the link, and a future end", () => {
+    expect(formProblems(form({ actionLabel: "Open" })).action_url).toMatch(/both/);
+    expect(formProblems(form({ expiresAt: "2000-01-01T00:00" })).expires_at).toBeTruthy();
+    expect(formProblems(form({}))).toEqual({});
   });
 });
 
 /* As email: the first press saves and shows who it reaches; the second sends. */
 describe("useAnnouncementComposer", () => {
   beforeEach(() => {
-    createAnnouncement.mockReset().mockResolvedValue({ id: "a1", recipient_count: 42 });
-    updateAnnouncement.mockReset().mockResolvedValue({ id: "a1", recipient_count: 40 });
-    sendAnnouncement.mockReset().mockResolvedValue({ id: "a1", recipient_count: 40, status: "sent" });
+    createAnnouncement.mockReset().mockResolvedValue(saved());
+    updateAnnouncement.mockReset().mockResolvedValue(saved({ recipient_count: 40, audience: { roles: ["intern"] } }));
+    sendAnnouncement.mockReset().mockResolvedValue(saved({ status: "sent", recipient_count: 40 }));
   });
 
-  it("saves, shows the count, and changes the same draft after an edit", async () => {
+  it("saves, shows the count, then patches only the change and sends", async () => {
     const { result } = renderHook(() => useAnnouncementComposer());
     act(() => {
       result.current.set("title", "Studio closed Monday");
@@ -69,16 +82,29 @@ describe("useAnnouncementComposer", () => {
     expect(createAnnouncement).toHaveBeenCalledTimes(1);
     expect(result.current.stage).toEqual({ kind: "confirm", count: 42 });
 
-    /* An edit after the count needs counting again, on the same draft. */
     act(() => result.current.set("roles", ["intern"]));
     expect(result.current.stage).toEqual({ kind: "idle" });
     await act(() => result.current.prepare());
-    expect(updateAnnouncement).toHaveBeenCalledWith("a1", expect.objectContaining({ audience: { roles: ["intern"] } }));
+    expect(updateAnnouncement).toHaveBeenCalledWith("a1", { audience: { roles: ["intern"] } });
 
     await act(async () => {
       await result.current.send();
     });
     expect(sendAnnouncement).toHaveBeenCalledWith("a1");
     expect(result.current.fields).toEqual(EMPTY_ANNOUNCEMENT);
+  });
+
+  it("edits a saved draft instead of making a new one", async () => {
+    const { result } = renderHook(() => useAnnouncementComposer());
+    act(() => result.current.edit(saved() as never));
+    expect(result.current.fields.title).toBe("Studio closed Monday");
+
+    act(() => result.current.set("body", "We are open after all."));
+    await act(async () => {
+      await result.current.saveDraft();
+    });
+    expect(createAnnouncement).not.toHaveBeenCalled();
+    expect(updateAnnouncement).toHaveBeenCalledWith("a1", { body: "We are open after all." });
+    expect(result.current.draft).toBeNull();
   });
 });
