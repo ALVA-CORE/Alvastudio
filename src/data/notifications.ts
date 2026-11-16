@@ -126,8 +126,9 @@ export function toContributorNotification(
     timestampTs: new Date(api.created_at).getTime(),
     status: contributorStatus(api.kind),
     read: api.read ?? false,
-    /* The admin's own words, which the detail sheet shows in full. */
-    body: api.kind === "announcement" ? api.body : undefined,
+    /* Shown in full in the detail sheet, whatever the kind: the list cuts it
+       to a line. */
+    body: api.body,
     action: actionOf(api),
     studioMode: studioModeOf(api),
   };

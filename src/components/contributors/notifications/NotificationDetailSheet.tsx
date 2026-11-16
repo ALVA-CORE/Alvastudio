@@ -56,7 +56,6 @@ export function NotificationDetailSheet({
         }))
       : [];
 
-  const message = notification.prompt ?? notification.body;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -64,30 +63,36 @@ export function NotificationDetailSheet({
         side="bottom"
         className="max-h-[85vh] overflow-y-auto rounded-t-[28px] border-alva-border bg-alva-card px-4 pb-8 pt-8"
       >
-        <SheetHeader className="pr-8 text-left">
-          <div className="flex items-start justify-between gap-3">
-            <SheetTitle className="text-xl text-foreground">
-              {notification.title}
-            </SheetTitle>
-            {notification.status ? (
-              <NotificationStatusTag status={notification.status} />
-            ) : null}
-          </div>
+        {/* Centred, as the profile sheets: padded both sides to clear the
+            close button. */}
+        <SheetHeader className="items-center px-10 text-center sm:text-center">
+          <SheetTitle className="text-xl text-foreground">{notification.title}</SheetTitle>
+          {notification.status ? <NotificationStatusTag status={notification.status} /> : null}
         </SheetHeader>
 
         {/* The message is the one piece of prose here, so it sits above the
             rules rather than inside a labelled section. Plain text with its
             line breaks: an announcement is written that way. */}
-        {message ? (
-          <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-foreground">
-            {message}
+        {notification.body ? (
+          <p className="mt-3 whitespace-pre-line text-center text-sm leading-relaxed text-muted-foreground">
+            {notification.body}
           </p>
         ) : null}
 
         {notification.action ? (
-          <div className="mt-4">
+          <div className="mt-5 flex justify-center">
             <NotificationActionButton action={notification.action} />
           </div>
+        ) : null}
+
+        {/* What was read, for a review: the subject of the verdict. */}
+        {notification.prompt ? (
+          <>
+            <PanelDivider />
+            <PanelSection title="What you read">
+              <p className="text-sm leading-relaxed text-foreground">{notification.prompt}</p>
+            </PanelSection>
+          </>
         ) : null}
 
         {detailRows.length > 0 ? (

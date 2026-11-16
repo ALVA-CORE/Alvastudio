@@ -98,3 +98,12 @@ describe("queue items", () => {
     expect(mapped.studioMode).toBe(mode);
   });
 });
+
+/* The sheet shows every kind's text, not only an announcement's. */
+describe("the message", () => {
+  it("is kept for every kind", () => {
+    expect(toContributorNotification({ ...row("queue"), body: "New sentences have been added." }).body).toBe(
+      "New sentences have been added."
+    );
+  });
+});
