@@ -9,6 +9,17 @@ import { apiFetch } from "./client";
  * would leave a badge showing a number nobody could clear.
  */
 
+/** The contract's kinds. Any other string still reads, as an announcement. */
+export type ApiNotificationKind =
+  | "review"
+  | "annotation"
+  | "earning"
+  | "queue"
+  | "approval"
+  | "feedback"
+  | "identity"
+  | "announcement";
+
 export type ApiNotification = {
   /**
    * Opaque, and sent back verbatim. It encodes which table the notification
@@ -18,7 +29,7 @@ export type ApiNotification = {
    * meaning.
    */
   key: string;
-  kind: string;
+  kind: ApiNotificationKind | (string & {});
   /** Set on `kind: "approval"`: the person waiting on an admin. */
   user_id?: string | null;
   title: string;
@@ -28,6 +39,10 @@ export type ApiNotification = {
   recording_id?: string | null;
   annotation_id?: string | null;
   session_id?: string | null;
+  /** Announcements only: the button's words and where it goes. Null is no button. */
+  action_label?: string | null;
+  /** A studio path starting with "/", or an https URL. */
+  action_url?: string | null;
 };
 
 export type ApiNotificationPage = {

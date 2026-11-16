@@ -39,12 +39,28 @@ import { BatchImportError, importInBatches } from "@/lib/admin/bankCsv";
 import { useBank } from "@/hooks/useBank";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { ApiError } from "@/lib/api/client";
+import type { ApiBankBulkDelete } from "@/lib/api/catalog";
 
 type ActiveFilter = "all" | "active" | "retired";
 type RecordedFilter = "all" | "recorded" | "never";
 
 /** Rows per page to start with, and per request for prompts and stimuli. */
 const PAGE_SIZE = 25;
+
+/** What a bulk delete did, or would do: "12 deleted, 8 retired because they were used". */
+function deleteSplit(result: ApiBankBulkDelete) {
+  const parts: string[] = [];
+  if (result.deleted > 0) parts.push(`${result.deleted.toLocaleString()} deleted`);
+  if (result.retired > 0) {
+    parts.push(
+      `${result.retired.toLocaleString()} retired because ${result.retired === 1 ? "it was" : "they were"} used`
+    );
+  }
+  if (result.already_retired > 0) parts.push(`${result.already_retired.toLocaleString()} already retired`);
+  const gone = result.not_found?.length ?? 0;
+  if (gone > 0) parts.push(`${gone.toLocaleString()} already gone`);
+  return parts.join(", ");
+}
 
 /** A count the API did not give reads as a dash, not as a confident zero. */
 function count(value: number | null) {
@@ -72,8 +88,10 @@ export default function AdminPromptsPage() {
   /* Rows picked with the boxes. Only what is on screen: any change of what
      is listed clears it, so what you confirm is what you can see. */
   const [selected, setSelected] = useState<string[]>([]);
-  const [confirmBulk, setConfirmBulk] = useState(false);
-  const [retiring, setRetiring] = useState(false);
+  /* The ticked ids and their preview, while the confirm is open. */
+  const [plan, setPlan] = useState<{ ids: string[]; result: ApiBankBulkDelete } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   /* Any change of what is listed starts again from the first page. Page 40
      of the unrecorded prompts is not page 40 of the recorded ones. Done in
@@ -115,7 +133,7 @@ export default function AdminPromptsPage() {
     create,
     save,
     retire,
-    retireMany,
+    deleteMany,
     importCsv,
   } = useBank({
     kind,
@@ -186,26 +204,45 @@ export default function AdminPromptsPage() {
       : kind === "stimulus"
         ? n === 1 ? "stimulus" : "stimuli"
         : n === 1 ? "prompt" : "prompts";
-  const pickedRows = items.filter((item) => selected.includes(item.id));
-  const pickedRecordings = pickedRows.reduce((sum, item) => sum + item.usedByCount, 0);
-
-  const handleRetireSelected = async () => {
-    const ids = selected;
-    setRetiring(true);
+  /* Preview first: the confirm shows what will be deleted and what retired. */
+  const previewDelete = async (ids: string[]) => {
+    setChecking(true);
     try {
-      const { failed, firstError } = await retireMany(kind, ids);
-      const done = ids.length - failed.length;
-      if (failed.length === 0) {
-        alvaToast.show(`${done.toLocaleString()} ${nouns(done)} retired`, { variant: "default" });
-      } else {
-        const why = reportApiError(firstError, "Some could not be retired.");
-        if (why) alvaToast.error(`${done} of ${ids.length} retired. ${why}`);
+      const result = await deleteMany(kind, ids);
+      if (result.matched === 0) {
+        alvaToast.show("These are already gone", { variant: "default" });
+        setPlan(null);
+        setSelected([]);
+        reload();
+        return;
       }
-      /* What failed stays picked, to try again. */
-      setSelected(failed);
-      setConfirmBulk(false);
+      setPlan({ ids, result });
+    } catch (cause) {
+      report(cause, "Could not check those items.");
     } finally {
-      setRetiring(false);
+      setChecking(false);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!plan) return;
+    setDeleting(true);
+    try {
+      const done = await deleteMany(kind, plan.ids, plan.result.matched);
+      alvaToast.success(deleteSplit(done));
+      setPlan(null);
+      setSelected([]);
+    } catch (cause) {
+      /* Someone deleted some meanwhile and nothing changed: new numbers. */
+      if (cause instanceof ApiError && cause.status === 409) {
+        alvaToast.error(cause.message);
+        setDeleting(false);
+        await previewDelete(plan.ids);
+        return;
+      }
+      report(cause, "Could not delete those items.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -456,16 +493,15 @@ export default function AdminPromptsPage() {
             selection={{
               selected,
               onChange: setSelected,
-              /* Retired rows have nothing left to retire. */
-              canSelect: (row) => row.isActive,
               actions: (
                 <TextureButton
                   variant="destructive"
                   size="sm"
                   className="ml-1 w-auto"
-                  onClick={() => setConfirmBulk(true)}
+                  loading={checking}
+                  onClick={() => void previewDelete(selected)}
                 >
-                  Retire
+                  Delete
                 </TextureButton>
               ),
             }}
@@ -563,27 +599,15 @@ export default function AdminPromptsPage() {
       />
 
       <ConfirmDialog
-        open={confirmBulk}
+        open={plan !== null}
         onOpenChange={(open) => {
-          if (!retiring) setConfirmBulk(open);
+          if (!open && !deleting && !checking) setPlan(null);
         }}
-        title={`Retire ${selected.length.toLocaleString()} ${nouns(selected.length)}?`}
-        description={
-          kind === "topic"
-            ? "They stop being offered for new sessions. Sessions already run from them keep their link."
-            : "They stop being handed out to contributors. Recordings already made against them are kept."
-        }
-        detail={
-          kind === "topic" ? undefined : (
-            <span className="tabular-nums">
-              {pickedRecordings.toLocaleString()}{" "}
-              {pickedRecordings === 1 ? "recording" : "recordings"} kept
-            </span>
-          )
-        }
-        confirmLabel={`Retire ${selected.length.toLocaleString()}`}
-        isPending={retiring}
-        onConfirm={() => void handleRetireSelected()}
+        title={`Delete ${(plan?.result.matched ?? 0).toLocaleString()} ${nouns(plan?.result.matched ?? 0)}?`}
+        description={plan ? deleteSplit(plan.result) : ""}
+        confirmLabel="Delete"
+        isPending={deleting || checking}
+        onConfirm={() => void handleDeleteSelected()}
       />
         </>
       )}

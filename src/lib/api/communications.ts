@@ -1,7 +1,8 @@
 import { apiFetch, apiUpload } from "./client";
 
 /**
- * Admin email to contributors (4 Nov handoff, `/communications`).
+ * Admin email to contributors (4 Nov handoff, `/communications`), and since
+ * 15 Nov to interns and annotators too. No audience ever reaches an admin.
  *
  * The subject is the email subject and the heading inside the layout. The
  * body is plain text, or since 5 Nov a fixed Markdown subset
@@ -14,7 +15,19 @@ import { apiFetch, apiUpload } from "./client";
  * "delivered".
  */
 
-export type ApiCommunicationAudience = "all_contributors" | "selected_contributors";
+/**
+ * The groups take no `recipient_ids`: contributors (waitlisted included),
+ * approved interns, approved annotators, or all three. `selected_people` is
+ * anyone of those roles, approved or not. `selected_contributors` is older
+ * and only read back, never sent.
+ */
+export type ApiCommunicationAudience =
+  | "everyone"
+  | "all_contributors"
+  | "all_interns"
+  | "all_annotators"
+  | "selected_people"
+  | "selected_contributors";
 export type ApiCommunicationStatus = "draft" | "queued" | "sending" | "completed";
 export type ApiCommunicationDeliveryStatus =
   | "pending"
@@ -102,7 +115,7 @@ export type ApiCommunicationDraft = {
   subject: string;
   body: string;
   audience: ApiCommunicationAudience;
-  /** Selected contributors only, 1 to 1,000. Never sent for all contributors. */
+  /** Chosen people only, 1 to 1,000. Never sent for a group. */
   recipient_ids?: string[];
   /** Both or neither. Neither means the standard "Open Alva Studio" button. */
   action_label?: string | null;

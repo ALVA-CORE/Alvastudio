@@ -43,6 +43,7 @@ const TITLES: Array<[path: string, title: string]> = [
   ["/admin/focus-groups", "Focus groups"],
   ["/admin/payments", "Payments"],
   ["/admin/audio", "Audio QC"],
+  ["/admin/announcements", "Announcements"],
   ["/admin/settings", "Settings"],
 ];
 

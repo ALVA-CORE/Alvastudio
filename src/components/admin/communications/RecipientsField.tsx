@@ -7,16 +7,26 @@ import { NIGERIAN_STATES } from "@/data/interns/participants";
 import { COMMUNICATION_LIMITS } from "@/lib/api/communications";
 import { alvaToast } from "@/lib/alva-toast";
 import type { ComposerFields } from "@/hooks/useCommsComposer";
-import type { DirectoryContributor } from "@/hooks/useContributorDirectory";
+import type { DirectoryPerson } from "@/hooks/usePeopleDirectory";
 import { alvaAccentTexture } from "@/lib/alva-texture";
 import { cn } from "@/lib/utils";
 
 type Set_ = <K extends keyof ComposerFields>(key: K, value: ComposerFields[K]) => void;
 
+type Group = "everyone" | "all_contributors" | "all_interns" | "all_annotators";
+
+/** The groups the API sends to by itself. `match` is what typing finds them by. */
+const GROUPS: { audience: Group; label: string; match: string }[] = [
+  { audience: "everyone", label: "Everyone", match: "everyone all" },
+  { audience: "all_contributors", label: "Contributors", match: "all contributors" },
+  { audience: "all_interns", label: "Interns", match: "all interns" },
+  { audience: "all_annotators", label: "Annotators", match: "all annotators" },
+];
+
 type Suggestion =
-  | { kind: "everyone"; key: string; count: number }
+  | { kind: "group"; key: string; group: Group; label: string; count: number }
   | { kind: "state"; key: string; state: string; count: number }
-  | { kind: "person"; key: string; person: DirectoryContributor };
+  | { kind: "person"; key: string; person: DirectoryPerson };
 
 /**
  * People drawn in the list at once. More than this and the list asks for a
@@ -27,14 +37,14 @@ const PEOPLE_SHOWN = 150;
 /** People chips shown before the rest fold into "+N". */
 const CHIPS_SHOWN = 6;
 
-const inState = (person: DirectoryContributor, state: string) =>
+const inState = (person: DirectoryPerson, state: string) =>
   person.stateOfOrigin === state || person.stateOfResidence === state;
 
 /** Picked people and whole states, as the ids they come to, capped. */
-function resolve(people: string[], states: string[], contributors: DirectoryContributor[]) {
+function resolve(people: string[], states: string[], directory: DirectoryPerson[]) {
   const ids = new Set(people);
   if (states.length) {
-    for (const person of contributors) {
+    for (const person of directory) {
       if (states.some((state) => inState(person, state))) ids.add(person.id);
     }
   }
@@ -45,44 +55,61 @@ function resolve(people: string[], states: string[], contributors: DirectoryCont
 /**
  * The To row, as an inbox has it: chips, and a field to type into.
  *
- * Everyone, a whole state, or people one at a time, in any mix. Typing
+ * One group, or whole states and people one at a time, in any mix. Typing
  * suggests all three; Enter or a press picks one; Backspace on an empty
- * field takes the last chip off. Picking Everyone clears the rest, and
- * picking anyone else replaces Everyone. A state is everyone whose state of
- * origin or residence it is, and is counted when picked.
+ * field takes the last chip off. Picking a group clears the rest, and
+ * picking anyone else replaces the group. A state is the contributors whose
+ * state of origin or residence it is, and is counted when picked.
  */
 export function RecipientsField({
   fields,
   set,
-  contributors,
+  directory,
 }: {
   fields: ComposerFields;
   set: Set_;
-  contributors: DirectoryContributor[];
+  directory: DirectoryPerson[];
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [showAll, setShowAll] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const everyone = fields.audience === "all_contributors";
+  const group = GROUPS.find((entry) => entry.audience === fields.audience) ?? null;
 
-  const byId = useMemo(() => new Map(contributors.map((person) => [person.id, person])), [contributors]);
+  const byId = useMemo(() => new Map(directory.map((person) => [person.id, person])), [directory]);
+  /* Who each group reaches at the API: every contributor, but only approved
+     interns and annotators. */
+  const groupCount = useMemo(() => {
+    const count = (role: DirectoryPerson["role"]) =>
+      directory.filter((person) => person.role === role && (role === "contributor" || person.approved)).length;
+    const contributors = count("contributor");
+    const interns = count("intern");
+    const annotators = count("annotator");
+    return {
+      everyone: contributors + interns + annotators,
+      all_contributors: contributors,
+      all_interns: interns,
+      all_annotators: annotators,
+    } satisfies Record<Group, number>;
+  }, [directory]);
   const perState = useMemo(() => {
     const counts = new Map<string, number>();
     for (const state of NIGERIAN_STATES) counts.set(state, 0);
-    for (const person of contributors) {
+    for (const person of directory) {
       for (const state of new Set([person.stateOfOrigin, person.stateOfResidence])) {
         if (state) counts.set(state, (counts.get(state) ?? 0) + 1);
       }
     }
     return counts;
-  }, [contributors]);
+  }, [directory]);
 
+  /* Chosen people always go as `selected_people`: it takes contributors
+     too, so one shape covers any mix of roles and states. */
   const commit = (people: string[], states: string[]) => {
-    const { ids, capped } = resolve(people, states, contributors);
+    const { ids, capped } = resolve(people, states, directory);
     if (capped) alvaToast.error(`One email can go to ${COMMUNICATION_LIMITS.recipients.toLocaleString()} people at most`);
-    set("audience", "selected_contributors");
+    set("audience", "selected_people");
     set("people", people);
     set("states", states);
     set("selected", ids);
@@ -91,18 +118,26 @@ export function RecipientsField({
   /* States resolve against the directory, which may land after they are
      picked (a draft carried across pages, say). */
   useEffect(() => {
-    if (everyone || fields.states.length === 0) return;
-    const { ids } = resolve(fields.people, fields.states, contributors);
+    if (group || fields.states.length === 0) return;
+    const { ids } = resolve(fields.people, fields.states, directory);
     if (ids.join() !== fields.selected.join()) set("selected", ids);
-  }, [everyone, contributors, fields.people, fields.states, fields.selected, set]);
+  }, [group, directory, fields.people, fields.states, fields.selected, set]);
 
-  /* Everything that can be picked, narrowed by what is typed: Everyone,
+  /* Everything that can be picked, narrowed by what is typed: the groups,
      then every state that has someone in it, then people. */
   const { suggestions, morePeople } = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const out: Suggestion[] = [];
-    if (!everyone && (!needle || "everyone all contributors".includes(needle))) {
-      out.push({ kind: "everyone", key: "everyone", count: contributors.length });
+    for (const entry of GROUPS) {
+      if (entry.audience === group?.audience) continue;
+      if (needle && !entry.match.includes(needle)) continue;
+      out.push({
+        kind: "group",
+        key: entry.audience,
+        group: entry.audience,
+        label: entry.label,
+        count: groupCount[entry.audience],
+      });
     }
     NIGERIAN_STATES.filter(
       (state) =>
@@ -116,8 +151,8 @@ export function RecipientsField({
       );
     let people = 0;
     let more = 0;
-    for (const person of contributors) {
-      if (!everyone && fields.people.includes(person.id)) continue;
+    for (const person of directory) {
+      if (!group && fields.people.includes(person.id)) continue;
       if (
         needle &&
         !person.name.toLowerCase().includes(needle) &&
@@ -133,7 +168,7 @@ export function RecipientsField({
       out.push({ kind: "person", key: person.id, person });
     }
     return { suggestions: out, morePeople: more };
-  }, [query, everyone, contributors, fields.states, fields.people, perState]);
+  }, [query, group, directory, groupCount, fields.states, fields.people, perState]);
 
   const list = useRef<HTMLUListElement>(null);
   /* The highlighted row stays in view as the arrows move through a list
@@ -147,22 +182,22 @@ export function RecipientsField({
   useEffect(() => setActive(0), [query]);
 
   const pick = (choice: Suggestion) => {
-    if (choice.kind === "everyone") {
-      set("audience", "all_contributors");
+    if (choice.kind === "group") {
+      set("audience", choice.group);
       set("people", []);
       set("states", []);
       set("selected", []);
     } else if (choice.kind === "state") {
-      commit(everyone ? [] : fields.people, [...(everyone ? [] : fields.states), choice.state]);
+      commit(group ? [] : fields.people, [...(group ? [] : fields.states), choice.state]);
     } else {
-      commit([...(everyone ? [] : fields.people), choice.person.id], everyone ? [] : fields.states);
+      commit([...(group ? [] : fields.people), choice.person.id], group ? [] : fields.states);
     }
     setQuery("");
     input.current?.focus();
   };
 
   const removeLast = () => {
-    if (everyone) {
+    if (group) {
       commit([], []);
       return;
     }
@@ -182,13 +217,15 @@ export function RecipientsField({
         <span className="mr-1 text-sm text-muted-foreground">To</span>
 
         <AnimatePresence initial={false}>
-          {everyone ? (
-            <Chip key="everyone" icon={<UsersGroupRounded size={13} weight="Bold" />} onRemove={() => commit([], [])}>
-              Everyone
-              {contributors.length ? <span className="tabular-nums text-muted-foreground"> · {contributors.length}</span> : null}
+          {group ? (
+            <Chip key={group.audience} icon={<UsersGroupRounded size={13} weight="Bold" />} onRemove={() => commit([], [])}>
+              {group.label}
+              {groupCount[group.audience] ? (
+                <span className="tabular-nums text-muted-foreground"> · {groupCount[group.audience]}</span>
+              ) : null}
             </Chip>
           ) : null}
-          {!everyone
+          {!group
             ? fields.states.map((state) => (
                 <Chip
                   key={`state:${state}`}
@@ -200,7 +237,7 @@ export function RecipientsField({
                 </Chip>
               ))
             : null}
-          {!everyone
+          {!group
             ? people.map((id) => (
                 <Chip
                   key={id}
@@ -277,7 +314,7 @@ export function RecipientsField({
           >
             {suggestions.map((choice, index) => {
               const heading =
-                choice.kind !== suggestions[index - 1]?.kind && choice.kind !== "everyone"
+                choice.kind !== suggestions[index - 1]?.kind && choice.kind !== "group"
                   ? choice.kind === "state"
                     ? "States"
                     : "People"
@@ -302,8 +339,8 @@ export function RecipientsField({
                   >
                     <Badge choice={choice} />
                     <span className="min-w-0 flex-1 truncate">
-                      {choice.kind === "everyone"
-                        ? "Everyone"
+                      {choice.kind === "group"
+                        ? choice.label
                         : choice.kind === "state"
                           ? choice.state
                           : choice.person.name}
@@ -378,7 +415,7 @@ function initialOf(name: string) {
 function Badge({ choice }: { choice: Suggestion }) {
   return (
     <Dot className="size-6">
-      {choice.kind === "everyone" ? (
+      {choice.kind === "group" ? (
         <UsersGroupRounded size={13} weight="Bold" />
       ) : choice.kind === "state" ? (
         <MapPoint size={13} weight="Bold" />

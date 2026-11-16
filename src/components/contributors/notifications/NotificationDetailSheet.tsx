@@ -4,7 +4,10 @@ import {
   getRubricFeedback,
   type ContributorNotification,
 } from "@/data/contributor-notifications";
-import { NotificationStatusTag } from "@/components/contributors/notifications/notification-ui";
+import {
+  NotificationActionButton,
+  NotificationStatusTag,
+} from "@/components/contributors/notifications/notification-ui";
 import { PanelDivider, PanelRow, PanelSection } from "@/components/shared/PanelPrimitives";
 import {
   Sheet,
@@ -73,9 +76,18 @@ export function NotificationDetailSheet({
         </SheetHeader>
 
         {/* The message is the one piece of prose here, so it sits above the
-            rules rather than inside a labelled section. */}
+            rules rather than inside a labelled section. Plain text with its
+            line breaks: an announcement is written that way. */}
         {message ? (
-          <p className="mt-4 text-sm leading-relaxed text-foreground">{message}</p>
+          <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-foreground">
+            {message}
+          </p>
+        ) : null}
+
+        {notification.action ? (
+          <div className="mt-4">
+            <NotificationActionButton action={notification.action} />
+          </div>
         ) : null}
 
         {detailRows.length > 0 ? (

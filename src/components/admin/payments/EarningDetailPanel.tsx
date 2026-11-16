@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Wallet from "@solar-icons/react/money/Wallet";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
-import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import {
   DetailField,
   DetailGroup,
@@ -9,19 +9,14 @@ import {
 } from "@/components/admin/shared/detail";
 import {
   PAYOUT_STATUS_LABELS,
+  PAYOUT_STATUS_TONE,
   formatNaira,
   type Earning,
-  type PayoutStatus,
 } from "@/data/admin/payments";
 import { cn } from "@/lib/utils";
 import { useContributorLedger, canVoid } from "@/hooks/useContributorLedger";
 import { VoidEarningDialog } from "@/components/admin/payments/VoidEarningDialog";
 
-const STATUS_TONE: Record<PayoutStatus, PillTone> = {
-  paid: "good",
-  processing: "pending",
-  pending: "neutral",
-};
 
 /**
  * What one contributor is owed, and where the figure came from.
@@ -90,7 +85,7 @@ export function EarningDetailPanel({
               {formatNaira(earning.earnedKobo)}
             </p>
             <div className="mt-2">
-              <AdminStatusPill tone={STATUS_TONE[earning.status]}>
+              <AdminStatusPill tone={PAYOUT_STATUS_TONE[earning.status]}>
                 {PAYOUT_STATUS_LABELS[earning.status]}
               </AdminStatusPill>
             </div>
@@ -126,12 +121,10 @@ export function EarningDetailPanel({
             value={formatNaira(earning.paidKobo)}
             tone={earning.paidKobo > 0 ? "accent" : "muted"}
           />
-          <DetailField
-            label="Outstanding"
-            value={formatNaira(earning.earnedKobo - earning.paidKobo)}
-            tone={earning.earnedKobo > earning.paidKobo ? "danger" : "muted"}
-            span
-          />
+          {/* Where the rest is: the same buckets as their own wallet. */}
+          <DetailField label="On hold" value={formatNaira(earning.heldKobo)} />
+          <DetailField label="Ready to pay" value={formatNaira(earning.payableKobo)} />
+          <DetailField label="On the way" value={formatNaira(earning.inFlightKobo)} />
         </DetailGroup>
         </>
         )}

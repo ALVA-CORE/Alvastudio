@@ -101,8 +101,6 @@ type AlvaDataTableProps<T extends { id: string }> = {
   selection?: {
     selected: string[];
     onChange: (ids: string[]) => void;
-    /** Rows this says no to get no box. */
-    canSelect?: (row: T) => boolean;
     actions: ReactNode;
   };
 };
@@ -290,9 +288,7 @@ export function AlvaDataTable<T extends { id: string }>({
 
   /* The header box covers the rows on screen, never the pages behind them. */
   const picked = useMemo(() => new Set(selection?.selected ?? []), [selection?.selected]);
-  const pickable = selection
-    ? paged.filter((row) => selection.canSelect?.(row) ?? true)
-    : [];
+  const pickable = selection ? paged : [];
   const allPicked = pickable.length > 0 && pickable.every((row) => picked.has(row.id));
   const somePicked = pickable.some((row) => picked.has(row.id));
   const togglePage = () => {
@@ -313,7 +309,7 @@ export function AlvaDataTable<T extends { id: string }>({
     );
   };
   const rowBox = (row: T) =>
-    selection && (selection.canSelect?.(row) ?? true) ? (
+    selection ? (
       <AuthCheckbox
         className="size-4"
         checked={picked.has(row.id)}

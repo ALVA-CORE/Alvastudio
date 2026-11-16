@@ -16,7 +16,7 @@ import {
 } from "@/lib/admin/emailTemplate";
 import { alvaToast } from "@/lib/alva-toast";
 import type { ComposerFields } from "@/hooks/useCommsComposer";
-import type { DirectoryContributor } from "@/hooks/useContributorDirectory";
+import type { DirectoryPerson } from "@/hooks/usePeopleDirectory";
 import { cn } from "@/lib/utils";
 
 const HERO_MAX_BYTES = 5 * 1024 * 1024;
@@ -56,11 +56,11 @@ type Set_ = <K extends keyof ComposerFields>(key: K, value: ComposerFields[K]) =
 export function ComposeTab({
   fields,
   set,
-  contributors,
+  directory,
 }: {
   fields: ComposerFields;
   set: Set_;
-  contributors: DirectoryContributor[];
+  directory: DirectoryPerson[];
 }) {
   const linkProblem = fields.link.trim() ? actionUrlProblem(fields.link.trim()) : null;
 
@@ -165,7 +165,7 @@ export function ComposeTab({
       {/* To and the header as an inbox has them: label and field on a line,
           a hairline between, no boxes. */}
       <div className="divide-y divide-alva-border border-b border-alva-border">
-        <RecipientsField fields={fields} set={set} contributors={contributors} />
+        <RecipientsField fields={fields} set={set} directory={directory} />
 
         <input
           aria-label="Header"

@@ -32,6 +32,7 @@ import AdminFocusGroupsPage from "@/pages/admin/AdminFocusGroupsPage";
 import AdminPaymentsPage from "@/pages/admin/AdminPaymentsPage";
 import AdminAudioPage from "@/pages/admin/AdminAudioPage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
+import AdminAnnouncementsPage from "@/pages/admin/AdminAnnouncementsPage";
 import NotFoundPage from "@/pages/errors/NotFoundPage";
 import { ProtectedRoute, GuestRoute, RoleRoute, AdminAreaRoute } from "@/routes/guards";
 import { useAuth } from "@/lib/auth/context";
@@ -156,6 +157,9 @@ export function AppRoutes() {
             </Route>
               <Route element={<AdminAreaRoute area="audio" />}>
               <Route path="/admin/audio" element={<AdminAudioPage />} />
+            </Route>
+              <Route element={<AdminAreaRoute area="announcements" />}>
+              <Route path="/admin/announcements" element={<AdminAnnouncementsPage />} />
             </Route>
               <Route path="/admin/settings" element={<AdminSettingsPage />} />
             </Route>

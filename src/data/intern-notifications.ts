@@ -1,3 +1,5 @@
+import type { NotificationAction } from "@/data/contributor-notifications";
+
 export type InternNotificationCategory =
   | "review-queue"
   | "participant-added"
@@ -17,5 +19,8 @@ export type InternNotification = {
   timestamp: string;
   timestampTs: number;
   meta?: string[];
+  action?: NotificationAction;
+  /** Where opening it goes, when it is about one place. */
+  link?: string;
 };
 

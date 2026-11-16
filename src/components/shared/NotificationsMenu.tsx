@@ -1,7 +1,9 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import Bell from "@solar-icons/react/notifications/Bell";
 import {
   InternNotificationCategoryIcon,
+  NotificationActionButton,
   StackedMetaLines,
 } from "@/components/contributors/notifications/notification-ui";
 import { Button } from "@/components/ui/button";
@@ -20,53 +22,65 @@ import { cn } from "@/lib/utils";
 function MenuItem({
   notification,
   onOpen,
+  onFollow,
 }: {
   notification: InternNotification;
   onOpen: () => void;
+  onFollow: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="w-full px-4 py-3.5 text-left transition-colors hover:bg-alva-surface/60 focus-visible:outline-none focus-visible:bg-alva-surface/60"
-    >
-      <div className="flex items-start gap-3">
-        <InternNotificationCategoryIcon category={notification.category} />
+    <div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full px-4 py-3.5 text-left transition-colors hover:bg-alva-surface/60 focus-visible:outline-none focus-visible:bg-alva-surface/60"
+      >
+        <div className="flex items-start gap-3">
+          <InternNotificationCategoryIcon category={notification.category} />
 
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">
-                {notification.title}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {notification.subtitle}
-              </p>
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">
+                  {notification.title}
+                </p>
+                {/* Plain text; an announcement's line breaks are the admin's. */}
+                <p className="mt-0.5 whitespace-pre-line text-xs text-muted-foreground">
+                  {notification.subtitle}
+                </p>
+              </div>
+
+              {/* A dot, not a pill. The row is already the thing being read. */}
+              {notification.read ? null : (
+                <span
+                  aria-label="Unread"
+                  className="mt-1.5 size-2 shrink-0 rounded-full bg-alva-accent"
+                />
+              )}
             </div>
 
-            {/* A dot, not a pill. The row is already the thing being read. */}
-            {notification.read ? null : (
-              <span
-                aria-label="Unread"
-                className="mt-1.5 size-2 shrink-0 rounded-full bg-alva-accent"
-              />
-            )}
+            {notification.body ? (
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {notification.body}
+              </p>
+            ) : null}
+
+            {notification.meta && notification.meta.length > 0 ? (
+              <StackedMetaLines items={notification.meta} />
+            ) : null}
+
+            <p className="text-xs text-muted-foreground">{notification.timestamp}</p>
           </div>
-
-          {notification.body ? (
-            <p className="text-sm leading-relaxed text-foreground/90">
-              {notification.body}
-            </p>
-          ) : null}
-
-          {notification.meta && notification.meta.length > 0 ? (
-            <StackedMetaLines items={notification.meta} />
-          ) : null}
-
-          <p className="text-xs text-muted-foreground">{notification.timestamp}</p>
         </div>
-      </div>
-    </button>
+      </button>
+      {/* Beside the row rather than in it: a button cannot hold a button.
+          Indented to the text column (padding, icon, gap). */}
+      {notification.action ? (
+        <div className="pb-3.5 pl-[4.25rem] pr-4">
+          <NotificationActionButton action={notification.action} onFollow={onFollow} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -87,6 +101,7 @@ export function NotificationsMenu({ className }: { className?: string }) {
     useNotifications({ limit: 30 });
 
   const notifications = useMemo(() => items.map(toStaffNotification), [items]);
+  const navigate = useNavigate();
 
   return (
     <DropdownMenu>
@@ -156,7 +171,11 @@ export function NotificationsMenu({ className }: { className?: string }) {
               <div key={notification.id}>
                 <MenuItem
                   notification={notification}
-                  onOpen={() => void markOneRead(notification.id)}
+                  onOpen={() => {
+                    void markOneRead(notification.id);
+                    if (notification.link) navigate(notification.link);
+                  }}
+                  onFollow={() => void markOneRead(notification.id)}
                 />
                 {index < notifications.length - 1 ? (
                   <Separator className="mx-4 bg-alva-border" />

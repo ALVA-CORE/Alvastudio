@@ -15,24 +15,29 @@ vi.mock("@/lib/auth/context", () => ({
   useAuth: () => ({ user: { role: "admin", adminPermissions: permissions } }),
 }));
 
+const person = (user_id: string, role: string, full_name: string, state: string | null) => ({
+  user_id,
+  role,
+  approved: true,
+  is_active: true,
+  full_name,
+  email: `${user_id}@example.com`,
+  created_at: "2026-11-01T00:00:00Z",
+  profile: state ? { state_of_origin: state, state_of_residence: null } : null,
+  intern_profile: null,
+  annotator_profile: null,
+});
+const directory: Record<string, ReturnType<typeof person>[]> = {
+  contributor: [person("c1", "contributor", "Esther Obi", "lagos state")],
+  intern: [person("i1", "intern", "Ifeoma Ade", null)],
+  annotator: [],
+};
+
 vi.mock("@/lib/api/users", () => ({
   USER_PROFILES_MAX_LIMIT: 500,
-  listUserProfilesPage: vi.fn(async () => ({
-    items: [
-      {
-        user_id: "c1",
-        role: "contributor",
-        approved: true,
-        is_active: true,
-        full_name: "Esther Obi",
-        email: "esther@example.com",
-        created_at: "2026-11-01T00:00:00Z",
-        profile: { state_of_origin: "lagos state", state_of_residence: null },
-        intern_profile: null,
-        annotator_profile: null,
-      },
-    ],
-    total: 1,
+  listUserProfilesPage: vi.fn(async ({ role }: { role: string }) => ({
+    items: directory[role] ?? [],
+    total: (directory[role] ?? []).length,
     limit: 500,
     offset: 0,
   })),
@@ -140,6 +145,47 @@ describe("CommsLauncher", () => {
         screen.queryAllByText("Esther Obi").every((node) => node.closest('[role="listbox"]'))
       ).toBe(true)
     );
+  });
+
+  /* Hand-picked people go as `selected_people`, whatever their role. */
+  it("sends a contributor and an intern picked by name as selected_people", async () => {
+    render(<CommsLauncher />);
+    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    await userEvent.type(screen.getByLabelText("Header"), "Hello");
+    await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
+    await userEvent.keyboard("Read it.");
+
+    const to = screen.getByRole("combobox", { name: "To" });
+    await userEvent.click(to);
+    await userEvent.click(await screen.findByRole("option", { name: /Esther Obi/ }));
+    await userEvent.click(to);
+    await userEvent.click(await screen.findByRole("option", { name: /Ifeoma Ade/ }));
+
+    await userEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect((create.mock.calls.at(-1) as unknown[] | undefined)?.[0]).toMatchObject({
+      audience: "selected_people",
+      recipient_ids: ["c1", "i1"],
+    });
+  });
+
+  /* "Everyone" is all three roles now; contributors alone are "Contributors". */
+  it("starts on Contributors and sends Everyone as a group", async () => {
+    render(<CommsLauncher />);
+    await userEvent.click(screen.getByRole("button", { name: "Email contributors" }));
+    await userEvent.type(screen.getByLabelText("Header"), "Hello");
+    await userEvent.click(screen.getByRole("textbox", { name: "Body" }));
+    await userEvent.keyboard("Read it.");
+    expect(screen.getByText("Contributors")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("combobox", { name: "To" }), "every");
+    await userEvent.click(await screen.findByRole("option", { name: /Everyone/ }));
+
+    await userEvent.click(screen.getByRole("button", { name: /^Send$/ }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    const draft = (create.mock.calls.at(-1) as unknown[] | undefined)?.[0];
+    expect(draft).toMatchObject({ audience: "everyone" });
+    expect(draft).not.toHaveProperty("recipient_ids");
   });
 
   it("fills Send with the upload while the hero goes up", async () => {

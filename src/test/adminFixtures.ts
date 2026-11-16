@@ -15,7 +15,7 @@ import {
   type AdminUser,
   type AdminUserRole,
 } from "@/data/admin/users";
-import type { Earning, PayoutStatus } from "@/data/admin/payments";
+import { payoutStatus, type Earning } from "@/data/admin/payments";
 import {
   REJECTION_REASON_LABEL,
   type AdminRecording,
@@ -69,7 +69,6 @@ export function daysAgo(n: number): Date {
 
 /** "3d ago" / "Yesterday" / "Just now" — the grammar the other tables use. */
 
-import { formatNaira } from "@/data/admin/payments";
 import {
   RUBRIC_QUESTIONS,
   type AdminAnnotation,
@@ -244,8 +243,14 @@ function buildEarnings(): Earning[] {
     const minutes = round1(recordings * (0.4 + random() * 1.2));
     const earnedKobo = Math.round(recordings * 15000 + minutes * 800);
     const roll = random();
-    const status: PayoutStatus =
-      roll > 0.62 ? "paid" : roll > 0.38 ? "processing" : "pending";
+    /* All in one bucket, by roll: paid, on its way, or still owed. */
+    const where = roll > 0.62 ? "paid" : roll > 0.38 ? "inFlight" : "payable";
+    const buckets = {
+      heldKobo: 0,
+      payableKobo: where === "payable" ? earnedKobo : 0,
+      inFlightKobo: where === "inFlight" ? earnedKobo : 0,
+      paidKobo: where === "paid" ? earnedKobo : 0,
+    };
     const activity = daysAgo(Math.floor(random() * 21));
 
     return {
@@ -254,9 +259,8 @@ function buildEarnings(): Earning[] {
       recordings,
       minutes,
       earnedKobo,
-      // Only a settled payout has money against it.
-      paidKobo: status === "paid" ? earnedKobo : 0,
-      status,
+      ...buckets,
+      status: payoutStatus(buckets),
       lastActivityAt: activity.getTime(),
       lastActivityLabel: relativeDays(activity),
     };
@@ -264,19 +268,6 @@ function buildEarnings(): Earning[] {
 }
 
 export const EARNINGS: Earning[] = buildEarnings();
-
-export function paymentMetrics(rows: Earning[]) {
-  const owed = rows
-    .filter((row) => row.status !== "paid")
-    .reduce((sum, row) => sum + row.earnedKobo, 0);
-
-  return {
-    owed: formatNaira(owed),
-    paid: formatNaira(rows.reduce((sum, row) => sum + row.paidKobo, 0)),
-    contributors: String(rows.length),
-    pending: String(rows.filter((row) => row.status === "pending").length),
-  };
-}
 
 function buildRecordings(count: number): AdminRecording[] {
   const random = seeded(31337);

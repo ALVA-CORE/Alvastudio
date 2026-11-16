@@ -45,3 +45,56 @@ describe("notification mapping", () => {
     expect(toStaffNotification(row("payout_sent")).id).toBe("k:payout_sent");
   });
 });
+
+describe("announcements", () => {
+  const announcement = {
+    ...row("announcement"),
+    body: "Line one\nLine two",
+    action_label: "Open wallet",
+    action_url: "/contributor/dashboard",
+  };
+
+  it("maps to an announcement for every role, with its button", () => {
+    const contributor = toContributorNotification(announcement);
+    const staff = toStaffNotification(announcement);
+    expect(contributor.category).toBe("announcement");
+    expect(staff.category).toBe("announcement");
+    expect(contributor.action).toEqual({ label: "Open wallet", url: "/contributor/dashboard" });
+    expect(staff.action).toEqual({ label: "Open wallet", url: "/contributor/dashboard" });
+    /* The sheet shows the body in full, line breaks and all. */
+    expect(contributor.body).toBe("Line one\nLine two");
+  });
+
+  it("has no button without both halves, or with a link the bell cannot follow", () => {
+    expect(toStaffNotification({ ...announcement, action_url: null }).action).toBeUndefined();
+    expect(toStaffNotification({ ...announcement, action_url: "//evil.example" }).action).toBeUndefined();
+    expect(toStaffNotification({ ...announcement, action_url: "http://a.example" }).action).toBeUndefined();
+    expect(toStaffNotification({ ...announcement, action_url: "https://a.example" }).action).toEqual({
+      label: "Open wallet",
+      url: "https://a.example",
+    });
+  });
+});
+
+describe("queue items", () => {
+  it("sends an intern's clips to the review desk", () => {
+    const mapped = toStaffNotification({ ...row("queue"), recording_id: "r1" });
+    expect(mapped.category).toBe("review-queue");
+    expect(mapped.link).toBe("/intern/review");
+  });
+
+  it("leaves an annotator's session item as it was", () => {
+    const mapped = toStaffNotification({ ...row("queue"), session_id: "s1" });
+    expect(mapped.category).toBe("review-queue");
+    expect(mapped.link).toBeUndefined();
+  });
+
+  it.each([
+    ["prompts:u1", "prompt"],
+    ["stimuli:u1", "stimuli"],
+  ])("tells a contributor's %s apart by its key", (key, mode) => {
+    const mapped = toContributorNotification({ ...row("queue"), key });
+    expect(mapped.category).toBe("new-work");
+    expect(mapped.studioMode).toBe(mode);
+  });
+});

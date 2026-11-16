@@ -54,8 +54,20 @@ export type WalletNextAction =
   | "await_review"
   | "add_payout_destination"
   | "complete_onboarding"
+  | "await_activation"
+  | "contact_support"
   | "none"
   | (string & {});
+
+/** One payment to them, by withdrawal or pay run. */
+export type WalletPayment = {
+  id: string;
+  amountKobo: number;
+  /** The API's own words for where it is. Shown as they are. */
+  message: string;
+  /** When it left Alva, or when it was started while that is confirmed. */
+  at: number;
+};
 
 export type PayoutAccount = {
   bank: string;
@@ -93,9 +105,15 @@ export type Wallet = {
    * a withdrawal that the next call refuses.
    */
   nextAction: WalletNextAction | null;
+  /** The API's sentence for `nextAction`. */
+  nextActionDetail?: string | null;
   /** Null until a bank is linked. */
   payoutAccount: PayoutAccount | null;
   entries: WalletEntry[];
+  /** Newest first. */
+  payments: WalletPayment[];
+  /** The newest payment, from `GET /wallet`. Null when never paid. */
+  latestPayment: WalletPayment | null;
 };
 
 const NAIRA = new Intl.NumberFormat("en-NG", {
@@ -124,6 +142,8 @@ export const EMPTY_WALLET: Wallet = {
   nextAction: null,
   payoutAccount: null,
   entries: [],
+  payments: [],
+  latestPayment: null,
 };
 
 /**

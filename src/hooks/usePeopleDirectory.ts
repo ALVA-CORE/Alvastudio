@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
-import { listUserProfilesPage, USER_PROFILES_MAX_LIMIT } from "@/lib/api/users";
+import { listUserProfilesPage, USER_PROFILES_MAX_LIMIT, type ApiUserRole } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NIGERIAN_STATES } from "@/data/interns/participants";
 
-export type DirectoryContributor = {
+export type DirectoryRole = Exclude<ApiUserRole, "admin">;
+
+export type DirectoryPerson = {
   id: string;
   name: string;
   email: string;
-  /** Canonical state name, or null when blank or unrecognised. */
+  role: DirectoryRole;
+  /** Canonical state name, or null when blank or unrecognised. Contributors only. */
   stateOfOrigin: string | null;
   stateOfResidence: string | null;
-  /** False while on the waiting list. They still receive email. */
+  /**
+   * A contributor: false while on the waiting list, and still emailed. An
+   * intern or annotator: false while their signup waits, and left out of
+   * their group (but can still be chosen by name).
+   */
   approved: boolean;
 };
+
+const ROLES: DirectoryRole[] = ["contributor", "intern", "annotator"];
 
 const CANONICAL = new Map<string, string>(
   NIGERIAN_STATES.map((state) => [state.toLowerCase(), state])
@@ -40,16 +49,16 @@ export function canonicalState(value: string | null | undefined): string | null 
 }
 
 /**
- * Every active contributor, with the states they gave, for the recipient
- * picker.
+ * Every active contributor, intern and annotator, for the recipient picker.
+ * Contributors carry the states they gave.
  *
  * From `GET /users/profiles`, 500 a request, so a few thousand people is a
  * few requests. Inactive accounts are dropped here, because the send route
  * refuses them. The waiting list stays: the API mails them too, and leaving
  * them out unasked would be a decision nobody made.
  */
-export function useContributorDirectory(enabled = true) {
-  const [contributors, setContributors] = useState<DirectoryContributor[]>([]);
+export function usePeopleDirectory(enabled = true) {
+  const [people, setPeople] = useState<DirectoryPerson[]>([]);
   const [isLoading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -59,13 +68,13 @@ export function useContributorDirectory(enabled = true) {
     let cancelled = false;
     setLoading(true);
 
-    const load = async () => {
-      const rows: DirectoryContributor[] = [];
+    const loadRole = async (role: DirectoryRole) => {
+      const rows: DirectoryPerson[] = [];
       let offset = 0;
       let total = Infinity;
       while (offset < total) {
         const page = await listUserProfilesPage({
-          role: "contributor",
+          role,
           limit: USER_PROFILES_MAX_LIMIT,
           offset,
         });
@@ -74,27 +83,34 @@ export function useContributorDirectory(enabled = true) {
         offset += page.items.length;
         for (const row of page.items) {
           if (!row.is_active) continue;
+          /* A state reaches contributors only (15 Nov), so nobody else
+             carries one. */
+          const contributor = role === "contributor";
           rows.push({
             id: row.user_id,
             name: row.full_name,
             email: row.email,
-            stateOfOrigin: canonicalState(row.profile?.state_of_origin),
-            stateOfResidence: canonicalState(row.profile?.state_of_residence),
+            role,
+            stateOfOrigin: contributor ? canonicalState(row.profile?.state_of_origin) : null,
+            stateOfResidence: contributor ? canonicalState(row.profile?.state_of_residence) : null,
             approved: row.approved,
           });
         }
       }
-      return rows.sort((a, b) => a.name.localeCompare(b.name));
+      return rows;
     };
+
+    const load = async () =>
+      (await Promise.all(ROLES.map(loadRole))).flat().sort((a, b) => a.name.localeCompare(b.name));
 
     load()
       .then((rows) => {
         if (cancelled) return;
-        setContributors(rows);
+        setPeople(rows);
         setError(null);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(reportApiError(cause, "Could not load contributors."));
+        if (!cancelled) setError(reportApiError(cause, "Could not load people."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -107,5 +123,5 @@ export function useContributorDirectory(enabled = true) {
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 
-  return { contributors, isLoading, error, reload };
+  return { people, isLoading, error, reload };
 }

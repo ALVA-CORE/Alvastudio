@@ -59,7 +59,7 @@ export function WalletHistorySheet({
           </p>
         </SheetHeader>
 
-        {wallet.entries.length === 0 ? (
+        {wallet.entries.length === 0 && wallet.payments.length === 0 ? (
           <div className="flex flex-col items-center py-12 text-center">
             <span className="flex size-12 items-center justify-center rounded-full bg-alva-surface">
               <Wallet size={22} weight="Outline" className="text-muted-foreground" />
@@ -70,30 +70,62 @@ export function WalletHistorySheet({
             </p>
           </div>
         ) : (
-          <ul className="mt-5">
-            {wallet.entries.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex items-center justify-between gap-3 border-b border-alva-border/60 py-3 last:border-0"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-foreground">{entry.label}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {KIND_LABEL[entry.kind]} · {formatEntryDate(entry.at)}
-                  </p>
-                </div>
+          <>
+            {/* Each payment says where it is in the API's own words. */}
+            {wallet.payments.length > 0 ? (
+              <section className="mt-5">
+                <p className="text-xs text-muted-foreground">Payments</p>
+                <ul>
+                  {wallet.payments.map((payment) => (
+                    <li
+                      key={payment.id}
+                      className="flex items-center justify-between gap-3 border-b border-alva-border/60 py-3 last:border-0"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm text-foreground">{payment.message}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {formatEntryDate(payment.at)}
+                        </p>
+                      </div>
+                      <Money kobo={payment.amountKobo} className="shrink-0 text-sm text-foreground" />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
-                <Money
-                  kobo={entry.amountKobo}
-                  signed
-                  className={cn(
-                    "shrink-0 text-sm",
-                    entry.amountKobo > 0 ? "text-alva-accent" : "text-foreground"
-                  )}
-                />
-              </li>
-            ))}
-          </ul>
+            {wallet.entries.length > 0 ? (
+              <section className="mt-5">
+                {wallet.payments.length > 0 ? (
+                  <p className="text-xs text-muted-foreground">Earnings</p>
+                ) : null}
+                <ul>
+                  {wallet.entries.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-center justify-between gap-3 border-b border-alva-border/60 py-3 last:border-0"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-foreground">{entry.label}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {KIND_LABEL[entry.kind]} · {formatEntryDate(entry.at)}
+                        </p>
+                      </div>
+
+                      <Money
+                        kobo={entry.amountKobo}
+                        signed
+                        className={cn(
+                          "shrink-0 text-sm",
+                          entry.amountKobo > 0 ? "text-alva-accent" : "text-foreground"
+                        )}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </>
         )}
       </SheetContent>
     </Sheet>

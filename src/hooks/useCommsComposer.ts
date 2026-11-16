@@ -38,7 +38,7 @@ export type ComposerFields = {
   audience: ApiCommunicationAudience;
   /** People picked one by one in the To row. */
   people: string[];
-  /** Whole states picked in the To row: everyone whose state it is. */
+  /** Whole states picked in the To row: the contributors whose state it is. */
   states: string[];
   /** Both, resolved to ids: what is sent as `recipient_ids`. */
   selected: string[];
@@ -98,12 +98,12 @@ export function useCommsComposer() {
     if (fields.heroUploading) return false;
     const link = fields.link.trim();
     if (link && actionUrlProblem(link)) return false;
-    if (fields.audience === "selected_contributors" && fields.selected.length === 0) return false;
+    if (fields.audience === "selected_people" && fields.selected.length === 0) return false;
     return true;
   }, [fields]);
 
   const toDraft = (forPatch: boolean): ApiCommunicationDraft => {
-    const chosen = fields.audience === "selected_contributors";
+    const chosen = fields.audience === "selected_people";
     /* The API takes both or neither. Either one set means a custom button,
        with the default standing in for whichever was left empty: new words
        on the studio link, or the usual words on a new link. */

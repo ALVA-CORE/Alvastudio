@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import Diskette from "@solar-icons/react/devices/Diskette";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
@@ -71,7 +71,11 @@ export default function ContributorStudioPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isStaff = isStaffRole(user?.role);
-  const [mode, setMode] = useState<Exclude<StudioMode, "focus">>("prompt");
+  const location = useLocation();
+  /* A "new topics" notification opens narration; everything else starts on reading. */
+  const [mode, setMode] = useState<Exclude<StudioMode, "focus">>(() =>
+    (location.state as { mode?: string } | null)?.mode === "stimuli" ? "stimuli" : "prompt"
+  );
 
   const [isSaving, setSaving] = useState(false);
 

@@ -2,6 +2,7 @@ import type { ApiNotification } from "@/lib/api/notifications";
 import type { ApiRecording } from "@/lib/api/recordings";
 import type {
   ContributorNotification,
+  NotificationAction,
   NotificationCategory,
   NotificationStatus,
 } from "@/data/contributor-notifications";
@@ -11,11 +12,10 @@ import { formatDuration } from "@/lib/duration";
 /**
  * Maps the API's notifications onto the two shapes the screens already speak.
  *
- * `kind` is an enum — `review`, `annotation`, `earning`, `queue`, `approval` — so the
- * four known values are matched directly. The substring fallback stays for
- * anything added later: a notification with a kind we have never seen should
- * still be readable, and losing it because its icon is unknown would be the
- * worse failure.
+ * `kind` is an enum (see `ApiNotificationKind`), so the known values are
+ * matched directly. The substring fallback stays for anything added later: a
+ * notification with a kind we have never seen should still be readable, and
+ * losing it because its icon is unknown would be the worse failure.
  *
  * `key` becomes the id. It is opaque, unique, and the value that has to go
  * back to `POST /notifications/read`, so carrying anything else would mean
@@ -28,6 +28,8 @@ function has(kind: string, ...needles: string[]) {
 }
 
 function contributorCategory(kind: string): NotificationCategory {
+  if (kind === "announcement") return "announcement";
+  if (kind === "queue") return "new-work";
   if (kind === "earning") return "payout";
   /* `identity` arrived with the 27 Oct document-review change. It carries no
      id to link to, so the row opens the wallet, which is where the thing it
@@ -53,6 +55,7 @@ function staffCategory(kind: string): InternNotificationCategory {
    * rather than a queue item because the queue categories are about work, and
    * this is about a person. */
   if (kind === "approval") return "announcement";
+  if (kind === "announcement") return "announcement";
   if (kind === "queue") return "review-queue";
   if (kind === "earning") return "payout-summary";
   if (kind === "annotation") return "session-submitted";
@@ -62,6 +65,30 @@ function staffCategory(kind: string): InternNotificationCategory {
   if (has(kind, "flag", "quality", "rework")) return "quality-flag";
   if (has(kind, "payout", "payment", "earning")) return "payout-summary";
   return "announcement";
+}
+
+/**
+ * The button, when both halves are there and the link is one the bell can
+ * follow: a studio path (never `//`, which a browser reads as another site)
+ * or https.
+ */
+function actionOf(api: ApiNotification): NotificationAction | undefined {
+  const label = api.action_label;
+  const url = api.action_url;
+  if (!label || !url) return undefined;
+  const inStudio = url.startsWith("/") && !url.startsWith("//");
+  return inStudio || url.startsWith("https://") ? { label, url } : undefined;
+}
+
+/**
+ * A contributor's two `queue` items carry no id, so the key's prefix is the
+ * one way to tell sentences from topics.
+ */
+function studioModeOf(api: ApiNotification): ContributorNotification["studioMode"] {
+  if (api.kind !== "queue") return undefined;
+  if (api.key.startsWith("prompts:")) return "prompt";
+  if (api.key.startsWith("stimuli:")) return "stimuli";
+  return undefined;
 }
 
 /** "Today, 8:45 AM" for anything from today, "12 Oct, 8:45 AM" before that. */
@@ -99,6 +126,10 @@ export function toContributorNotification(
     timestampTs: new Date(api.created_at).getTime(),
     status: contributorStatus(api.kind),
     read: api.read ?? false,
+    /* The admin's own words, which the detail sheet shows in full. */
+    body: api.kind === "announcement" ? api.body : undefined,
+    action: actionOf(api),
+    studioMode: studioModeOf(api),
   };
 }
 
@@ -111,6 +142,9 @@ export function toStaffNotification(api: ApiNotification): InternNotification {
     timestamp: formatNotificationTime(api.created_at),
     timestampTs: new Date(api.created_at).getTime(),
     read: api.read ?? false,
+    action: actionOf(api),
+    /* An intern's clips waiting, not an annotator's session: told apart by the id set. */
+    link: api.kind === "queue" && api.recording_id ? "/intern/review" : undefined,
   };
 }
 

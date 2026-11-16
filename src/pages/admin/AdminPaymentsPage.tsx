@@ -26,12 +26,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BackPayDialog } from "@/components/admin/payments/BackPayDialog";
-import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
+import { AdminStatusPill } from "@/components/admin/shared/AdminStatusPill";
 import { EarningDetailPanel } from "@/components/admin/payments/EarningDetailPanel";
 import { PayoutRunPanel } from "@/components/admin/payments/PayoutRunPanel";
 import {
   EMPTY_PAYMENT_METRICS,
   PAYOUT_STATUS_LABELS,
+  PAYOUT_STATUS_TONE,
   RUN_LABEL,
   RUN_TONE,
   bankSummary,
@@ -76,11 +77,6 @@ function payOneOutcome(leg: ApiPayoutRunItem | undefined) {
 
 type StatusFilter = PayoutStatus | "all";
 
-const STATUS_TONE: Record<PayoutStatus, PillTone> = {
-  paid: "good",
-  processing: "pending",
-  pending: "neutral",
-};
 
 /**
  * What each contributor is owed, and what has gone out.
@@ -167,7 +163,7 @@ export default function AdminPaymentsPage() {
       header: "Payout",
       sortValue: (row: Earning) => row.status,
       render: (row: Earning) => (
-        <AdminStatusPill tone={STATUS_TONE[row.status]}>
+        <AdminStatusPill tone={PAYOUT_STATUS_TONE[row.status]}>
           {PAYOUT_STATUS_LABELS[row.status]}
         </AdminStatusPill>
       ),
@@ -338,7 +334,7 @@ export default function AdminPaymentsPage() {
               <DropdownMenuLabel className="text-xs text-muted-foreground">
                 Payout status
               </DropdownMenuLabel>
-              {(["all", "pending", "processing", "paid"] as StatusFilter[]).map((value) => (
+              {(["all", "pending", "in_flight", "paid"] as StatusFilter[]).map((value) => (
                 <DropdownMenuCheckboxItem
                   key={value}
                   checked={status === value}

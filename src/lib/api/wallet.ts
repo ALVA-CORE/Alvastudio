@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { ApiBankPayoutStatus } from "./payouts";
+import type { ApiBankPayoutStatus, ApiPayoutRunItem } from "./payouts";
 
 /**
  * The contributor's wallet.
@@ -72,7 +72,34 @@ export type ApiWalletStatusOut = {
    */
   next_action: ApiNextAction | null;
   next_action_detail: string | null;
+  /** The newest payment (15 Nov); null when never paid. */
+  latest_payment?: ApiWalletPayment | null;
 };
+
+/**
+ * `WalletPaymentOut` (15 Nov): one payment to them, from their withdrawal or
+ * a pay run. Only payments that were sent, or may have been.
+ */
+export type ApiWalletPayment = {
+  id: string;
+  amount: string;
+  amount_kobo: number;
+  currency: string;
+  via: "withdrawal" | "pay_run";
+  /** `transferred` once it left Alva; `sending` or `unknown` while being confirmed. */
+  status: ApiPayoutRunItem["status"];
+  created_at: string;
+  /** When it left Alva; null while being confirmed. */
+  sent_at: string | null;
+  bank_status: ApiBankPayoutStatus | null;
+  bank_settled_at: string | null;
+  /** Where it is, in words. Shown as it is. */
+  message: string;
+};
+
+/** Newest first. `limit` up to 100. */
+export const listWalletPayments = (query: { limit?: number; offset?: number } = {}) =>
+  apiFetch<ApiWalletPayment[]>("/wallet/payments", { query });
 
 export type ApiNextAction =
   | "create_account"
@@ -81,6 +108,10 @@ export type ApiNextAction =
   | "await_review"
   | "add_payout_destination"
   | "complete_onboarding"
+  /** 15 Nov: Bachs is checking the bank account. Nothing to do. */
+  | "await_activation"
+  /** 15 Nov: Bachs has paused the account. */
+  | "contact_support"
   | "none"
   | (string & {});
 

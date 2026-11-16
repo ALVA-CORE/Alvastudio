@@ -45,4 +45,6 @@ export const WALLET_FIXTURE: Wallet = {
     accountName: "Chioma Okafor",
   },
   entries: ENTRIES,
+  payments: [],
+  latestPayment: null,
 };

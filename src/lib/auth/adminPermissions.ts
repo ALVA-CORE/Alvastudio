@@ -15,6 +15,11 @@ import type { AdminPermission } from "@/data/admin/users";
  */
 const ALWAYS_ALLOWED: AdminNavId[] = ["overview", "settings"];
 
+/* Announcements write to people, as emails do, so one permission covers both. */
+const AREA_PERMISSION: Partial<Record<AdminNavId, AdminPermission>> = {
+  announcements: "communications",
+};
+
 export function canOpenAdminArea(
   area: AdminNavId,
   /** Undefined means unrestricted — the bootstrap admin, and anyone pre-dating
@@ -23,7 +28,7 @@ export function canOpenAdminArea(
 ): boolean {
   if (ALWAYS_ALLOWED.includes(area)) return true;
   if (permissions === undefined) return true;
-  return permissions.includes(area as AdminPermission);
+  return permissions.includes(AREA_PERMISSION[area] ?? (area as AdminPermission));
 }
 
 export function allowedAdminAreas<T extends { id: AdminNavId }>(

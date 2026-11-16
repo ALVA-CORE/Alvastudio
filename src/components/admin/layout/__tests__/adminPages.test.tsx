@@ -12,6 +12,7 @@ import AdminAnnotationsPage from "@/pages/admin/AdminAnnotationsPage";
 import AdminFocusGroupsPage from "@/pages/admin/AdminFocusGroupsPage";
 import AdminPaymentsPage from "@/pages/admin/AdminPaymentsPage";
 import AdminAudioPage from "@/pages/admin/AdminAudioPage";
+import AdminAnnouncementsPage from "@/pages/admin/AdminAnnouncementsPage";
 
 
 /* The users screen reads from `GET /users` now. Nothing here is testing the
@@ -105,6 +106,11 @@ vi.mock("@/lib/api/focusGroups", async () => {
     addParticipant: vi.fn(),
   };
 });
+
+vi.mock("@/lib/api/announcements", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/announcements")>()),
+  listAnnouncements: vi.fn(async () => ({ items: [], total: 0, limit: 10, offset: 0 })),
+}));
 
 /* The overview, corpus and prompts screens read from these. */
 vi.mock("@/lib/api/adminDashboard", () => ({
@@ -255,6 +261,7 @@ const PAGES = [
   ["focus-groups", AdminFocusGroupsPage],
   ["payments", AdminPaymentsPage],
   ["audio", AdminAudioPage],
+  ["announcements", AdminAnnouncementsPage],
 ] as const;
 
 /**

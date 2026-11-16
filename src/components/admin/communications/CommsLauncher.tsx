@@ -10,7 +10,7 @@ import { ComposeTab } from "@/components/admin/communications/ComposeTab";
 import { SentTab } from "@/components/admin/communications/SentTab";
 import { EmailPreviewFrame } from "@/components/admin/communications/EmailPreviewFrame";
 import { useCommsComposer } from "@/hooks/useCommsComposer";
-import { useContributorDirectory } from "@/hooks/useContributorDirectory";
+import { usePeopleDirectory } from "@/hooks/usePeopleDirectory";
 import { useAuth } from "@/lib/auth/context";
 import {
   COMMUNICATION_HERO,
@@ -59,7 +59,7 @@ export function CommsLauncher() {
   const reduceMotion = useReducedMotion();
 
   const composer = useCommsComposer();
-  const directory = useContributorDirectory(allowed && everOpened);
+  const directory = usePeopleDirectory(allowed && everOpened);
 
   const panel = useRef<HTMLElement>(null);
 
@@ -244,7 +244,7 @@ export function CommsLauncher() {
                           <ComposeTab
                             fields={fields}
                             set={composer.set}
-                            contributors={directory.contributors}
+                            directory={directory.people}
                           />
                         ) : (
                           <SentTab version={sentVersion} />

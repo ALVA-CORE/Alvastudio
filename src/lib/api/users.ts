@@ -178,6 +178,8 @@ export type ApiUserProfiles = {
     wallet_status: string | null;
     next_action: string | null;
     next_action_detail: string | null;
+    /** What Bachs says the payout account still owes (15 Nov). `[]` nothing, null not read yet. */
+    requirements_due?: string[] | null;
   } | null;
   annotator_profile: {
     language_varieties?: string[] | null;
