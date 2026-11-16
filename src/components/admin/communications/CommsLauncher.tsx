@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Letter from "@solar-icons/react/messages/Letter";
 import Bell from "@solar-icons/react/notifications/Bell";
-import { useNavigate } from "react-router-dom";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
 import Plain from "@solar-icons/react/messages/Plain";
 import { BorderBeam } from "border-beam";
@@ -13,6 +12,9 @@ import { SentTab } from "@/components/admin/communications/SentTab";
 import { EmailPreviewFrame } from "@/components/admin/communications/EmailPreviewFrame";
 import { useCommsComposer } from "@/hooks/useCommsComposer";
 import { usePeopleDirectory } from "@/hooks/usePeopleDirectory";
+import { useAnnouncementComposer } from "@/hooks/useAnnouncements";
+import { AnnouncementPanel } from "@/components/admin/announcements/AnnouncementPanel";
+import { PanelHeader } from "@/components/admin/communications/PanelHeader";
 import { useAuth } from "@/lib/auth/context";
 import {
   COMMUNICATION_HERO,
@@ -36,9 +38,12 @@ const TABS: { id: Tab; label: string }[] = [
 
 const SPRING = { type: "spring" as const, stiffness: 420, damping: 38, mass: 0.9 };
 
+/** How far the two choices sit from the button's centre, in pixels. */
+const ORBIT = 72;
+
 /**
  * Email, or an announcement, from anywhere on the admin surface. One button:
- * pressing it springs out the two, and Email grows into the panel.
+ * pressing it springs the two out round it, and either grows into its panel.
  *
  * A textured button bottom right of every admin screen. It grows into the
  * panel (one shared layout, so the button becomes the panel rather than a
@@ -54,11 +59,14 @@ export function CommsLauncher() {
   const allowed =
     user?.role === "admin" && (permissions === undefined || permissions.includes("communications"));
 
-  const [open, setOpen] = useState(false);
-  /* The two choices sprung out of the button: Email and Announcement. */
+  /* Which panel the button has grown into, if any. */
+  const [panelKind, setPanelKind] = useState<"email" | "announcement" | null>(null);
+  const open = panelKind !== null;
+  const setOpen = (next: boolean) => setPanelKind(next ? "email" : null);
+  /* Email and Announcement, sprung out round the button. */
   const [choosing, setChoosing] = useState(false);
-  const navigate = useNavigate();
   const launcher = useRef<HTMLDivElement>(null);
+  const announcement = useAnnouncementComposer();
   const [everOpened, setEverOpened] = useState(false);
   const [tab, setTab] = useState<Tab>("compose");
   const [sentVersion, setSentVersion] = useState(0);
@@ -84,7 +92,7 @@ export function CommsLauncher() {
       if (!target || panel.current?.contains(target)) return;
       if (
         target.closest(
-          '[data-radix-popper-content-wrapper],[role="listbox"],[role="menu"],[data-sonner-toaster],[data-alva-toaster]'
+          '[data-radix-popper-content-wrapper],[role="listbox"],[role="menu"],[role="dialog"],[data-sonner-toaster],[data-alva-toaster]'
         )
       ) {
         return;
@@ -204,7 +212,7 @@ export function CommsLauncher() {
             key="panel"
             layoutId="comms-launcher"
             role="dialog"
-            aria-label="Email contributors"
+            aria-label={panelKind === "announcement" ? "Announcement" : "Email"}
             initial={reduceMotion ? { opacity: 0 } : undefined}
             transition={SPRING}
             style={{ borderRadius: 28 }}
@@ -216,37 +224,11 @@ export function CommsLauncher() {
               exit={{ opacity: 0, transition: { duration: 0.1 } }}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <header className="flex shrink-0 items-center gap-2 px-4 pb-2 pt-4">
-                <div role="tablist" className="flex flex-1 items-center gap-1 rounded-full bg-alva-surface p-1">
-                  {TABS.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === item.id}
-                      onClick={() => setTab(item.id)}
-                      className="relative flex-1 rounded-full py-1.5 text-sm text-muted-foreground transition-colors aria-selected:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                    >
-                      {tab === item.id ? (
-                        <motion.span
-                          layoutId="comms-tab"
-                          className="absolute inset-0 rounded-full bg-alva-card"
-                          transition={SPRING}
-                        />
-                      ) : null}
-                      <span className="relative">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  aria-label="Close"
-                  onClick={() => setOpen(false)}
-                  className="rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-                >
-                  <CloseCircle size={22} weight="Outline" />
-                </button>
-              </header>
+              {panelKind === "announcement" ? (
+                <AnnouncementPanel composer={announcement} onClose={() => setPanelKind(null)} />
+              ) : (
+              <>
+              <PanelHeader<Tab> tabs={TABS} value={tab} onChange={setTab} onClose={() => setOpen(false)} />
 
               <div className="relative min-h-0 flex-1">
                 <div
@@ -392,6 +374,8 @@ export function CommsLauncher() {
                   </motion.footer>
                 ) : null}
               </AnimatePresence>
+              </>
+              )}
             </motion.div>
           </motion.section>
         ) : (
@@ -406,43 +390,50 @@ export function CommsLauncher() {
             style={{ borderRadius: 999 }}
             className="pointer-events-auto relative overflow-visible rounded-full"
           >
+            {/* Round the button on a quarter circle, up and to the left,
+                where there is room. Icons only. */}
             <AnimatePresence>
-              {choosing ? (
-                <div className="absolute bottom-full right-0 mb-3 flex flex-col items-end gap-2.5">
-                  {[
+              {choosing
+                ? [
+                    { label: "Email", Icon: Letter, angle: 90, pick: () => setPanelKind("email") },
                     {
                       label: "Announcement",
                       Icon: Bell,
-                      pick: () => navigate("/admin/announcements", { state: { compose: true } }),
+                      angle: 180,
+                      pick: () => setPanelKind("announcement"),
                     },
-                    { label: "Email", Icon: Letter, pick: () => setOpen(true) },
-                  ].map(({ label, Icon, pick }, index) => (
-                    <motion.div
-                      key={label}
-                      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.6 }}
-                      animate={{ opacity: 1, y: 0, scale: 1, transition: { ...SPRING, delay: (1 - index) * 0.04 } }}
-                      exit={{ opacity: 0, y: 10, scale: 0.6, transition: { duration: 0.12 } }}
-                      className="flex items-center gap-2"
-                    >
-                      <span className="rounded-full bg-alva-card px-3 py-1 text-xs text-foreground shadow-[0_8px_24px_-12px_rgba(0,0,0,0.9)]">
-                        {label}
-                      </span>
-                      <TextureButton
-                        variant="icon"
-                        size="icon"
-                        aria-label={label}
-                        onClick={() => {
-                          setChoosing(false);
-                          pick();
+                  ].map(({ label, Icon, angle, pick }, index) => {
+                    const radians = (angle * Math.PI) / 180;
+                    return (
+                      <motion.div
+                        key={label}
+                        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 0, y: 0, scale: 0.4 }}
+                        animate={{
+                          opacity: 1,
+                          x: Math.cos(radians) * ORBIT,
+                          y: -Math.sin(radians) * ORBIT,
+                          scale: 1,
+                          transition: { ...SPRING, delay: index * 0.04 },
                         }}
-                        className="shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)]"
+                        exit={{ opacity: 0, x: 0, y: 0, scale: 0.4, transition: { duration: 0.14 } }}
+                        className="absolute inset-0 flex items-center justify-center"
                       >
-                        <Icon size={18} weight="Bold" className="text-alva-accent" />
-                      </TextureButton>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : null}
+                        <TextureButton
+                          variant="icon"
+                          size="icon"
+                          aria-label={label}
+                          onClick={() => {
+                            setChoosing(false);
+                            pick();
+                          }}
+                          className="shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)]"
+                        >
+                          <Icon size={18} weight="Bold" className="text-alva-accent" />
+                        </TextureButton>
+                      </motion.div>
+                    );
+                  })
+                : null}
             </AnimatePresence>
 
             <motion.div

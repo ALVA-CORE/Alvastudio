@@ -30,7 +30,6 @@ export const ANNOUNCEMENT_LIMITS = {
   body: 2000,
   actionLabel: 80,
   actionUrl: 2048,
-  emails: 1000,
 } as const;
 
 export type ApiAnnouncement = {
@@ -75,20 +74,7 @@ export type ApiAnnouncementPatch = {
   expires_at?: string | null;
 };
 
-export type ApiAudiencePreview = {
-  recipient_count: number;
-  /** Addresses that belong to no active account. Skipped at sending. */
-  unmatched_emails: string[];
-};
-
 type Page<T> = { items: T[]; total: number; limit: number; offset: number };
-
-export const previewAudience = (audience: ApiAnnouncementAudience, signal?: AbortSignal) =>
-  apiFetch<ApiAudiencePreview>("/announcements/audience-preview", {
-    method: "POST",
-    body: audience,
-    signal,
-  });
 
 /** `sent` lists everything ever sent, withdrawn and expired included. */
 export const listAnnouncements = (
@@ -103,9 +89,6 @@ export const createAnnouncement = (draft: ApiAnnouncementIn) =>
 
 export const updateAnnouncement = (id: string, patch: ApiAnnouncementPatch) =>
   apiFetch<ApiAnnouncement>(`/announcements/${id}`, { method: "PATCH", body: patch });
-
-export const deleteAnnouncement = (id: string) =>
-  apiFetch<void>(`/announcements/${id}`, { method: "DELETE" });
 
 /** Safe to repeat: a second call reaches nobody new. 409 when nobody matches. */
 export const sendAnnouncement = (id: string) =>

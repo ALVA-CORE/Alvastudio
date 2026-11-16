@@ -9,7 +9,6 @@ import DocumentText from "@solar-icons/react/notes/DocumentText";
 import UsersGroupTwoRounded from "@solar-icons/react/users/UsersGroupTwoRounded";
 import Wallet from "@solar-icons/react/money/Wallet";
 import Soundwave from "@solar-icons/react/video/Soundwave";
-import Bell from "@solar-icons/react/notifications/Bell";
 import Settings from "@solar-icons/react/settings/Settings";
 
 export type AdminNavId =
@@ -22,7 +21,6 @@ export type AdminNavId =
   | "focus-groups"
   | "payments"
   | "audio"
-  | "announcements"
   | "settings";
 
 /**
@@ -45,8 +43,6 @@ export type AdminNavItem = {
   /** What is still missing, for the areas that are not ready. */
   blockedBy?: string;
   Icon: ComponentType<IconProps>;
-  /** False for an area reached another way, so it is not in the rail. */
-  inRail?: false;
 };
 
 /**
@@ -136,17 +132,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     blurb: "Run analysis, transcription and quality scoring over submitted audio.",
     status: "ready",
     Icon: Soundwave,
-  },
-  {
-    id: "announcements",
-    path: "/admin/announcements",
-    label: "Announcements",
-    title: "Announcements",
-    blurb: "Write a notification and send it to people in the studio.",
-    status: "ready",
-    Icon: Bell,
-    /* Opened from the message button bottom right, beside email. */
-    inRail: false,
   },
   {
     id: "settings",

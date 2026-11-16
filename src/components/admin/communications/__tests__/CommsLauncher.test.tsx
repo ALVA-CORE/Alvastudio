@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 
 /* ProseMirror measures the page as it types, and jsdom has no layout. */
@@ -74,20 +73,7 @@ vi.mock("@/lib/api/communications", async (original) => ({
 
 const { CommsLauncher } = await import("../CommsLauncher");
 
-const navigated = vi.fn();
-function Where() {
-  navigated(useLocation());
-  return null;
-}
-
-/* The launcher navigates, for Announcement, so it sits in a router. */
-const renderLauncher = () =>
-  render(
-    <MemoryRouter>
-      <CommsLauncher />
-      <Where />
-    </MemoryRouter>
-  );
+const renderLauncher = () => render(<CommsLauncher />);
 
 /* One button springs out Email and Announcement; Email opens the panel. */
 const openEmail = async () => {
@@ -96,15 +82,17 @@ const openEmail = async () => {
 };
 
 describe("CommsLauncher", () => {
-  it("springs out Email and Announcement, and Announcement opens a new one", async () => {
+  it("springs out Email and Announcement, and Announcement grows into its panel", async () => {
     renderLauncher();
     await userEvent.click(screen.getByRole("button", { name: "Messages" }));
     expect(await screen.findByRole("button", { name: "Email" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Announcement" }));
-    expect(navigated).toHaveBeenLastCalledWith(
-      expect.objectContaining({ pathname: "/admin/announcements", state: { compose: true } })
-    );
+    const panel = await screen.findByRole("dialog", { name: "Announcement" });
+    expect(panel).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Roles" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approved" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toBeInTheDocument();
   });
 
   beforeEach(() => {
@@ -233,10 +221,10 @@ describe("CommsLauncher", () => {
 
   it("closes on a press outside, and keeps what was written", async () => {
     render(
-      <MemoryRouter>
+      <>
         <p>Page</p>
         <CommsLauncher />
-      </MemoryRouter>
+      </>
     );
     await openEmail();
     await userEvent.type(screen.getByLabelText("Header"), "Kept");

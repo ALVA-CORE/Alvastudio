@@ -10,12 +10,11 @@ Asks live in [`endpoints-needed.md`](../endpoints-needed.md), never here.
 
 | Item | Our handling |
 | --- | --- |
-| Admin screen | New page, Announcements, in the admin rail at `/admin/announcements`. It opens for admins who may send emails (the `communications` area), since both write to people. Two tabs, Drafts and Sent, each one page of `GET /announcements?status=` with paging. Drafts show who they reach (`recipient_count`) and when they were edited; Sent shows the status, "Read by X of Y" and when it was sent. |
-| Writing | A dialog with title, message, audience, button and expiry. The message is a plain text box and keeps its line breaks. Save creates a draft (`POST`) or sends only the changed fields (`PATCH`); the button pair is set or cleared together. Send saves first, then asks. |
-| Audience | Roles, approval (anyone, approved, waiting) and identity check (the wallet's `IdentityStatus` values), plus a box for emails. A field with nothing chosen is left out, never sent as `[]`; nothing chosen at all leaves `audience` out. `user_ids` isn't offered; a draft that has them keeps them on save. |
-| Live count | `POST /announcements/audience-preview` 400 ms after the audience stops changing: "This reaches 42 people." `unmatched_emails` are listed under it as "No account: …". |
-| Send, withdraw, delete | Through the shared confirm. Send uses your wording: "Send to 42 people now? People who join later will not get it, and it cannot be edited once sent." Withdraw is offered on sent and expired rows and in a sent row's panel. Edit and delete are offered on drafts only. |
-| Errors | 404: "That announcement no longer exists." 409: `detail` as it is. Both reload the list, as every write does. 422: field errors under their fields, the rest (and a string `detail`, such as a past `expires_at`) above the buttons. |
+| Admin screen | No page. The message button bottom right of every admin screen springs out Email and Announcement; Announcement grows into a panel like email's, with Compose and Sent tabs. Same `communications` permission as email. |
+| Writing | Roles and approval (anyone, approved, waiting) side by side where email has To, then title, a plain-text message that keeps its line breaks, button and link. A field with nothing chosen is left out, never `[]`. Identity, emails, `user_ids` and expiry aren't offered. |
+| Send | As email: the first press saves the draft (`POST`, then `PATCH` with the whole announcement on later presses) and shows "Send to N" from its `recipient_count`, with your wording: "People who join later won't get it, and it can't be changed once sent." The second press sends. `audience-preview` isn't used. |
+| Sent, withdraw | Sent lists `status=sent` with "Read by X of Y". A sent or expired row withdraws through the shared confirm. |
+| Errors | 404: "That announcement no longer exists." Anything else: `detail` as it is. |
 | Bell, kind `announcement` | Added to our kinds with `action_label` and `action_url`. Mapped explicitly for every role. The body is shown as plain text with its line breaks. The button shows when both fields are set and the link starts with one `/` (opens in the studio) or `https://` (opens in a new tab). In the staff bell it sits under the row; for contributors it's in the notification's sheet. |
 | Kind `queue`, interns | An item with `recording_id` opens `/intern/review`. Annotator items are unchanged. |
 | Kind `queue`, contributors | A new "new work" category. `prompts:` opens the studio on Prompt reader, `stimuli:` on Stimuli. |

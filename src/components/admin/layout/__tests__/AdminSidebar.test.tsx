@@ -19,14 +19,12 @@ function renderAt(pathname: string) {
 }
 
 describe("AdminSidebar", () => {
-  it("renders every area meant for the rail", () => {
+  it("renders every area", () => {
     renderAt("/admin/dashboard");
     const nav = screen.getByRole("navigation", { name: "Admin navigation" });
-    const rail = ADMIN_NAV_ITEMS.filter((item) => item.inRail !== false);
-    expect(nav.querySelectorAll("button")).toHaveLength(rail.length);
-    expect(screen.queryByRole("button", { name: "Announcements" })).not.toBeInTheDocument();
+    expect(nav.querySelectorAll("button")).toHaveLength(ADMIN_NAV_ITEMS.length);
 
-    for (const item of rail) {
+    for (const item of ADMIN_NAV_ITEMS) {
       expect(screen.getByRole("button", { name: item.label })).toBeInTheDocument();
     }
   });

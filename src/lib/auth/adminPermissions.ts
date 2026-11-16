@@ -17,7 +17,6 @@ const ALWAYS_ALLOWED: AdminNavId[] = ["overview", "settings"];
 
 /* Announcements write to people, as emails do, so one permission covers both. */
 const AREA_PERMISSION: Partial<Record<AdminNavId, AdminPermission>> = {
-  announcements: "communications",
 };
 
 export function canOpenAdminArea(

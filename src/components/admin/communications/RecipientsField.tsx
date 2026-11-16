@@ -364,7 +364,8 @@ export function RecipientsField({
   );
 }
 
-function Chip({
+/** A choice in a To-style field: a dot, the words, and a way to remove it. */
+export function Chip({
   icon,
   children,
   onRemove,
