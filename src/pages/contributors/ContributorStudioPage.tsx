@@ -29,6 +29,8 @@ import { StudioTakeActions } from "@/components/contributors/studio/StudioTakeAc
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
+import { StimuliIntroSheet } from "@/components/contributors/studio/StimuliIntroSheet";
+import { stimuliIntroSeen } from "@/lib/stimuli-intro";
 
 /**
  * When uploads reopen, in the contributor's own time.
@@ -75,6 +77,10 @@ export default function ContributorStudioPage() {
   /* A "new topics" notification opens narration; everything else starts on reading. */
   const [mode, setMode] = useState<Exclude<StudioMode, "focus">>(() =>
     (location.state as { mode?: string } | null)?.mode === "stimuli" ? "stimuli" : "prompt"
+  );
+  /* Stimuli is talking, not reading: said once, the first time they get here. */
+  const [explainStimuli, setExplainStimuli] = useState(
+    () => mode === "stimuli" && !stimuliIntroSeen()
   );
 
   const [isSaving, setSaving] = useState(false);
@@ -240,6 +246,7 @@ export default function ContributorStudioPage() {
   const handleModeChange = (nextMode: StudioMode) => {
     if (nextMode === "focus") return;
     setMode(nextMode);
+    if (nextMode === "stimuli" && !stimuliIntroSeen()) setExplainStimuli(true);
     recorder.discardRecording();
     alvaToast.show(`Switched to ${MODE_LABEL[nextMode]}`, { variant: "default" });
   };
@@ -488,6 +495,8 @@ export default function ContributorStudioPage() {
         phase={recorder.phase}
         processing={isSaving}
       />
+
+      <StimuliIntroSheet open={explainStimuli} onOpenChange={setExplainStimuli} />
     </>
   );
 }

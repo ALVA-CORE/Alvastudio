@@ -76,12 +76,6 @@ export function ModeSwitcher({
         observer.disconnect();
 
         setOpen(true);
-        /* The part the menu cannot say. "Stimuli" is the Record page's own
-           word, which is right, and means nothing the first time it is
-           read. */
-        alvaToast.accent(
-          "Prompt reader is reading sentences aloud. Stimuli is telling a story in your own words. Pick one to see its rules."
-        );
       },
       { threshold: IN_VIEW }
     );

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { FloatingBottomNav } from "./FloatingBottomNav";
 import { ContributorNudges } from "@/components/contributors/ContributorNudges";
@@ -13,6 +14,11 @@ type AppShellProps = {
 };
 
 export function AppShell({ surface = "contributor", children }: AppShellProps) {
+  /* Notifications is a page you come back from, with its own back arrow:
+     no bottom nav there, and no room kept for it. */
+  const { pathname } = useLocation();
+  const showNav = !pathname.startsWith("/contributor/notifications");
+
   if (surface === "admin") {
     // Desktop-only, and gated inside AdminShell rather than per page.
     return <AdminShell>{children}</AdminShell>;
@@ -53,10 +59,16 @@ export function AppShell({ surface = "contributor", children }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <main className="isolate flex-1 overflow-x-clip pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+      <main
+        className={
+          showNav
+            ? "isolate flex-1 overflow-x-clip pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
+            : "isolate flex-1 overflow-x-clip pb-[env(safe-area-inset-bottom)]"
+        }
+      >
         {children}
       </main>
-      <FloatingBottomNav />
+      {showNav ? <FloatingBottomNav /> : null}
 
       {/* Two prompts, both on a timer, both per account. They live at the
           shell so they follow somebody around the app rather than only

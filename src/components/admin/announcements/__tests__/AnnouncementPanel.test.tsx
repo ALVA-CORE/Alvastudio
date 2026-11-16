@@ -83,6 +83,17 @@ describe("AnnouncementPanel", () => {
     expect(screen.getByText("ada@x.test")).toBeInTheDocument();
   });
 
+  /* A link with no https:// is refused; say so on the field, not only on Send. */
+  it("turns the link red when it is not a studio path or a full https link", async () => {
+    render(<Panel />);
+    const link = screen.getByRole("textbox", { name: "Link" });
+    await userEvent.type(link, "studio.alvacoreai.com/contributor/profile");
+    expect(link).toHaveAttribute("aria-invalid", "true");
+    await userEvent.clear(link);
+    await userEvent.type(link, "/contributor/profile");
+    expect(link).not.toHaveAttribute("aria-invalid");
+  });
+
   it("saves a draft, and a draft picked from Drafts is edited, not copied", async () => {
     render(<Panel />);
     await userEvent.type(screen.getByLabelText("Title"), "Hello");
