@@ -11,6 +11,7 @@ import Bell from "@solar-icons/react/notifications/Bell";
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import type { DirectoryPerson } from "@/hooks/usePeopleDirectory";
 import { BeamInput } from "@/components/auth/BeamInput";
+import { DateTimeField } from "@/components/shared/DateTimeField";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { TextureButton } from "@/components/ui/texture-button";
 import {
@@ -395,12 +396,11 @@ function Compose({
         />
       </div>
 
-      <BeamInput
+      <DateTimeField
         label="Ends"
-        type="datetime-local"
-        labelLifted
         value={fields.expiresAt}
-        onChange={(event) => set("expiresAt", event.target.value)}
+        fromDate={new Date()}
+        onChange={(value) => set("expiresAt", value)}
       />
     </div>
   );
@@ -428,18 +428,25 @@ function PickField({
           tabIndex={0}
           aria-label={label}
           className={cn(
-            "flex min-h-12 cursor-pointer flex-wrap items-center gap-1.5 py-2 focus-visible:outline-none",
+            "flex min-h-12 cursor-pointer items-center gap-1.5 py-2 focus-visible:outline-none",
             className
           )}
         >
-          <span className="mr-1 text-sm text-muted-foreground">{label}</span>
+          <span className="mr-1 shrink-0 text-sm text-muted-foreground">{label}</span>
           {chips.length ? (
-            /* Removing a chip must not open the menu. */
-            <span className="contents" onPointerDown={(event) => event.stopPropagation()}>
-              <AnimatePresence initial={false}>{chips}</AnimatePresence>
+            /* One line, as To: the first chip, then how many more. Removing
+               a chip must not open the menu. */
+            <span
+              className="flex min-w-0 items-center gap-1.5"
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <AnimatePresence initial={false}>{chips[0]}</AnimatePresence>
+              {chips.length > 1 ? (
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">+{chips.length - 1}</span>
+              ) : null}
             </span>
           ) : (
-            <span className="text-sm text-muted-foreground/60">{empty}</span>
+            <span className="truncate text-sm text-muted-foreground/60">{empty}</span>
           )}
         </div>
       </DropdownMenuTrigger>

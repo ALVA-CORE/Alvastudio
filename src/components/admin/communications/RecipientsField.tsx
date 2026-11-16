@@ -381,10 +381,10 @@ export function Chip({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.14 }}
-      className="inline-flex items-center gap-1.5 rounded-full bg-alva-surface py-1 pl-1 pr-1.5 text-xs text-foreground"
+      className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-alva-surface py-1 pl-1 pr-1.5 text-xs text-foreground"
     >
       <Dot>{icon}</Dot>
-      <span className="max-w-[12rem] truncate">{children}</span>
+      <span className="min-w-0 max-w-[12rem] truncate">{children}</span>
       <button
         type="button"
         aria-label="Remove"
