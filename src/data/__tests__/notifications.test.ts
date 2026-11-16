@@ -98,3 +98,31 @@ describe("queue items", () => {
     expect(mapped.studioMode).toBe(mode);
   });
 });
+
+/* The sheet shows every kind's text, not only an announcement's. */
+describe("the message", () => {
+  it("is kept for every kind", () => {
+    expect(toContributorNotification({ ...row("queue"), body: "New sentences have been added." }).body).toBe(
+      "New sentences have been added."
+    );
+  });
+});
+
+/* Opening our own site in a new window signed people out of the installed app. */
+describe("links to this studio", () => {
+  it("are followed inside the app, even written in full", () => {
+    const own = toContributorNotification({
+      ...row("announcement"),
+      action_label: "Open",
+      action_url: `${window.location.origin}/contributor/dashboard?tab=wallet`,
+    });
+    expect(own.action).toEqual({ label: "Open", url: "/contributor/dashboard?tab=wallet" });
+
+    const other = toContributorNotification({
+      ...row("announcement"),
+      action_label: "Read",
+      action_url: "https://example.org/news",
+    });
+    expect(other.action).toEqual({ label: "Read", url: "https://example.org/news" });
+  });
+});

@@ -77,7 +77,20 @@ function actionOf(api: ApiNotification): NotificationAction | undefined {
   const url = api.action_url;
   if (!label || !url) return undefined;
   const inStudio = url.startsWith("/") && !url.startsWith("//");
-  return inStudio || url.startsWith("https://") ? { label, url } : undefined;
+  if (inStudio) return { label, url };
+  /* A full link to this studio is followed inside it. Opened as a new
+     window it lands without the sign-in: an installed app's links open in
+     the browser, which shares none of its storage. */
+  let target: URL;
+  try {
+    target = new URL(url);
+  } catch {
+    return undefined;
+  }
+  if (target.origin === window.location.origin) {
+    return { label, url: `${target.pathname}${target.search}${target.hash}` };
+  }
+  return target.protocol === "https:" ? { label, url } : undefined;
 }
 
 /**
@@ -126,8 +139,9 @@ export function toContributorNotification(
     timestampTs: new Date(api.created_at).getTime(),
     status: contributorStatus(api.kind),
     read: api.read ?? false,
-    /* The admin's own words, which the detail sheet shows in full. */
-    body: api.kind === "announcement" ? api.body : undefined,
+    /* Shown in full in the detail sheet, whatever the kind: the list cuts it
+       to a line. */
+    body: api.body,
     action: actionOf(api),
     studioMode: studioModeOf(api),
   };

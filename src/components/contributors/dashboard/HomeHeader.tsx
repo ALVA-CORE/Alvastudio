@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Bell from "@solar-icons/react/notifications/Bell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { diceBearAvatarUrl } from "@/lib/dicebear";
 import { cn } from "@/lib/utils";
+import { unreadCount } from "@/lib/api/notifications";
 
 type HomeHeaderProps = {
   firstName: string;
@@ -18,6 +20,19 @@ export function HomeHeader({
   fullName,
   className,
 }: HomeHeaderProps) {
+  /* The cheap count, read when the home screen opens; reading them on the
+     notifications page brings the number down next time. */
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    unreadCount()
+      .then((answer) => !cancelled && setUnread(answer.unread))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <header className={cn("flex items-center justify-between gap-3", className)}>
       <div className="flex min-w-0 items-center gap-3">
@@ -43,10 +58,16 @@ export function HomeHeader({
 
       <Link
         to="/contributor/notifications"
-        aria-label="Notifications"
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-alva-surface text-muted-foreground transition-colors hover:text-foreground"
+        aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+        className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-alva-surface text-muted-foreground transition-colors hover:text-foreground"
       >
         <Bell size={22} weight="Outline" />
+        {/* The same count the staff bell wears. */}
+        {unread > 0 ? (
+          <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-alva-accent px-1 text-[10px] font-semibold tabular-nums text-alva-bg ring-2 ring-alva-bg">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        ) : null}
       </Link>
     </header>
   );
