@@ -82,6 +82,8 @@ const NEXT_ACTION_LABEL: Record<string, string> = {
   verify_identity: "Needs to send an ID document",
   add_payout_destination: "Needs a bank account",
   complete_onboarding: "Needs to finish setting up",
+  await_activation: "Payment provider is checking the bank account",
+  contact_support: "Payment provider paused the account",
   none: "Nothing outstanding",
 };
 
@@ -134,6 +136,10 @@ export function IdentitySection({ profiles }: { profiles: ApiUserProfiles | null
           value={identity.next_action_detail ?? identity.identity_failure_reason ?? ""}
           span
         />
+      ) : null}
+      {/* Bachs's own field names, never values. */}
+      {identity.requirements_due?.length ? (
+        <DetailField label="Payment provider needs" value={identity.requirements_due.join(", ")} span />
       ) : null}
     </DetailGroup>
   );

@@ -115,6 +115,42 @@ export const updateBankItem = (
 export const deleteBankItem = (kind: "prompt" | "stimulus", id: string) =>
   apiFetch<ApiPrompt>(`${bank(kind)}/${id}`, { method: "DELETE" });
 
+/**
+ * `POST .../bulk-delete` with `ids` (15 Nov). Unused items are deleted, used
+ * ones retired, and hand-outs taken back. `matched == deleted + retired +
+ * already_retired`.
+ */
+export type ApiBankBulkDelete = {
+  /** False: a preview, nothing changed. */
+  applied: boolean;
+  /** The ids that exist. Sent back as `expected` to apply. */
+  matched: number;
+  deleted: number;
+  retired: number;
+  already_retired: number;
+  holds_released: number;
+  /** Ids that match nothing, such as rows deleted since the page loaded. */
+  not_found?: string[];
+};
+
+/**
+ * Previews without `expected`; applies with it. Up to 100 ids. A 409 means
+ * the ids now match a different number: nothing changed, preview again.
+ */
+export const bulkDeleteBankItems = (
+  kind: "prompt" | "stimulus" | "topic",
+  ids: string[],
+  expected?: number
+) =>
+  apiFetch<ApiBankBulkDelete>(
+    `${kind === "topic" ? "/focus-group-topics" : bank(kind)}/bulk-delete`,
+    {
+      method: "POST",
+      body: { ids },
+      query: expected === undefined ? undefined : { apply: true, expected },
+    }
+  );
+
 export type ImportResult = {
   added: number;
   skipped: number;

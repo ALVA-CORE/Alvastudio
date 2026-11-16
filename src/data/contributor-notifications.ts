@@ -19,9 +19,14 @@ export type NotificationCategory =
    */
   | "identity"
   | "announcement"
+  /** Sentences or topics nobody has recorded yet (kind `queue`). */
+  | "new-work"
   | "leaderboard";
 
 export type NotificationStatus = "accepted" | "rejected" | "pending";
+
+/** An announcement's button: a studio path or an https link. */
+export type NotificationAction = { label: string; url: string };
 
 export type ContributorNotification = {
   /** False until the person has seen it. Drives the unread dot. */
@@ -43,6 +48,9 @@ export type ContributorNotification = {
   body?: string;
   leaderboardMonth?: string;
   leaderboardPoints?: number;
+  action?: NotificationAction;
+  /** New work: which studio task it is about. */
+  studioMode?: "prompt" | "stimuli";
 };
 
 export type RubricFeedbackItem = {

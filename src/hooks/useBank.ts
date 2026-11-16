@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  bulkDeleteBankItems,
   createBankItem,
   createTopic,
   deleteBankItem,
@@ -25,9 +26,6 @@ import {
 } from "@/data/admin/prompts";
 import type { Variety } from "@/data/admin/shared";
 import type { BankDraft } from "@/components/admin/prompts/BankItemForm";
-
-/** Retire requests in flight at once. A page can hold a hundred rows. */
-const RETIRE_AT_ONCE = 5;
 
 const TO_VARIETY: Record<ApiLanguageVariety, Variety> = {
   nigerian_english: "Nigerian English",
@@ -251,27 +249,14 @@ export function useBank(view: BankView) {
   }, [reload]);
 
   /**
-   * Retires each id, a few requests at a time, then reloads once. There is no
-   * route that takes a list of ids, so it is one `DELETE` each. Returns the ids
-   * that failed and the first reason.
+   * The ticked rows, by id: a preview without `expected`, applied with the
+   * preview's `matched`. Reloads only once something has changed.
    */
-  const retireMany = useCallback(
-    async (kind: BankKind, ids: string[]) => {
-      const failed: string[] = [];
-      let firstError: unknown;
-      for (let start = 0; start < ids.length; start += RETIRE_AT_ONCE) {
-        const chunk = ids.slice(start, start + RETIRE_AT_ONCE);
-        const results = await Promise.allSettled(
-          chunk.map((id) => (kind === "topic" ? deleteTopic(id) : deleteBankItem(kind, id)))
-        );
-        results.forEach((result, index) => {
-          if (result.status === "fulfilled") return;
-          failed.push(chunk[index]);
-          firstError ??= result.reason;
-        });
-      }
-      reload();
-      return { failed, firstError };
+  const deleteMany = useCallback(
+    async (kind: BankKind, ids: string[], expected?: number) => {
+      const result = await bulkDeleteBankItems(kind, ids, expected);
+      if (result.applied) reload();
+      return result;
     },
     [reload]
   );
@@ -300,7 +285,7 @@ export function useBank(view: BankView) {
     create,
     save,
     retire,
-    retireMany,
+    deleteMany,
     importCsv,
   };
 }

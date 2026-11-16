@@ -6,11 +6,13 @@ import {
   listPayoutDestinations,
   getWallet,
   listEarnings,
+  listWalletPayments,
   setPayoutDestination,
   submitIdentityDocument as postIdentityDocument,
   withdraw,
   type ApiIdentityStatus,
   type ApiLedgerEntry,
+  type ApiWalletPayment,
 } from "@/lib/api/wallet";
 import type { IdentitySubmission } from "@/components/contributors/wallet/VerifyIdentitySheet";
 import { reportApiError } from "@/lib/api/reportApiError";
@@ -20,12 +22,14 @@ import {
   type Wallet,
   type WalletEntry,
   type WalletEntryKind,
+  type WalletPayment,
 } from "@/data/contributors/wallet";
 
 /**
  * The contributor's wallet, read from the API.
  *
- * Three calls: the wallet itself, where money would land, and the ledger.
+ * Four calls: the wallet itself, where money would land, the ledger and the
+ * payments.
  * They are separate endpoints because they are separately authorised — the
  * destination is only collectable once identity passes — and joining them here
  * keeps the screens reading one object.
@@ -115,6 +119,15 @@ function toEntry(api: ApiLedgerEntry): WalletEntry {
   };
 }
 
+function toPayment(api: ApiWalletPayment): WalletPayment {
+  return {
+    id: api.id,
+    amountKobo: api.amount_kobo,
+    message: api.message,
+    at: new Date(api.sent_at ?? api.created_at).getTime(),
+  };
+}
+
 export function useWallet({ watch = false }: { watch?: boolean } = {}) {
   const [wallet, setWallet] = useState<Wallet>(EMPTY_WALLET);
   const [isLoading, setLoading] = useState(true);
@@ -135,8 +148,10 @@ export function useWallet({ watch = false }: { watch?: boolean } = {}) {
       /* Only for turning a bank code into a name: the destination carries the
        * code and nothing else readable. Failing is fine, the code shows. */
       listBanks().catch(() => []),
+      /* History only: the wallet still works without it. */
+      listWalletPayments({ limit: 50 }).catch(() => []),
     ])
-      .then(([status, destinations, earnings, banks]) => {
+      .then(([status, destinations, earnings, banks, payments]) => {
         if (cancelled) return;
 
         /* A usable one first. An account can have several on file, and one
@@ -161,6 +176,7 @@ export function useWallet({ watch = false }: { watch?: boolean } = {}) {
           identityDetail:
             status.wallet?.identity_failure_reason ?? status.next_action_detail,
           nextAction: status.next_action,
+          nextActionDetail: status.next_action_detail,
           /* The number itself never comes back, only its last four digits,
            * so what is shown is a mask rather than the account. */
           payoutAccount: destination
@@ -171,6 +187,8 @@ export function useWallet({ watch = false }: { watch?: boolean } = {}) {
               }
             : null,
           entries: (earnings?.entries ?? []).map(toEntry),
+          payments: payments.map(toPayment),
+          latestPayment: status.latest_payment ? toPayment(status.latest_payment) : null,
         });
         setError(null);
       })

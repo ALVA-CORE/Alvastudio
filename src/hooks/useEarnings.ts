@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
+import { fetchAllPages } from "@/lib/api/fetchAll";
+import type { ApiPage } from "@/lib/api/recordings";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { relativeDays } from "@/data/admin/shared";
-import type { Earning, PayoutStatus } from "@/data/admin/payments";
+import { payoutStatus, type Earning } from "@/data/admin/payments";
 
 type ApiEarningsRow = {
   contributor_id: string;
@@ -16,18 +18,28 @@ type ApiEarningsRow = {
   in_flight_kobo: number;
   paid_kobo: number;
   earned_kobo: number;
-  payout_status: string;
   last_activity_at: string | null;
 };
 
-const listEarningsSummary = (limit = 200) =>
-  apiFetch<{ items: ApiEarningsRow[]; total: number }>(
-    "/payments/earnings/summary",
-    { query: { limit, envelope: true } }
+/* Every page: the route serves at most 200 rows a request, and the totals
+   on the page are summed from these rows. */
+const listEarningsSummary = (stop: () => boolean) =>
+  fetchAllPages(
+    ({ limit, offset }) =>
+      apiFetch<ApiPage<ApiEarningsRow>>("/payments/earnings/summary", {
+        query: { limit, offset, envelope: true },
+      }),
+    { pageSize: 200, cap: Infinity, stop }
   );
 
 function toEarning(api: ApiEarningsRow): Earning {
   const last = api.last_activity_at ? new Date(api.last_activity_at) : null;
+  const buckets = {
+    heldKobo: api.held_kobo,
+    payableKobo: api.payable_kobo,
+    inFlightKobo: api.in_flight_kobo,
+    paidKobo: api.paid_kobo,
+  };
 
   return {
     id: api.contributor_id,
@@ -35,8 +47,8 @@ function toEarning(api: ApiEarningsRow): Earning {
     recordings: api.recordings,
     minutes: Math.round(api.minutes),
     earnedKobo: api.earned_kobo,
-    paidKobo: api.paid_kobo,
-    status: api.payout_status as PayoutStatus,
+    ...buckets,
+    status: payoutStatus(buckets),
     lastActivityAt: last?.getTime() ?? 0,
     lastActivityLabel: last ? relativeDays(last) : "Never",
   };
@@ -63,7 +75,7 @@ export function useEarnings() {
 
     setLoading(true);
 
-    listEarningsSummary()
+    listEarningsSummary(() => cancelled)
       .then((page) => {
         if (cancelled) return;
         setRows(page.items.map(toEarning));

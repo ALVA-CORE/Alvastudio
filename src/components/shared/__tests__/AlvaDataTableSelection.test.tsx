@@ -4,11 +4,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AlvaDataTable } from "../AlvaDataTable";
 
-type Row = { id: string; name: string; active: boolean };
+type Row = { id: string; name: string };
 const rows: Row[] = [
-  { id: "a", name: "Alpha", active: true },
-  { id: "b", name: "Beta", active: true },
-  { id: "c", name: "Gamma", active: false },
+  { id: "a", name: "Alpha" },
+  { id: "b", name: "Beta" },
+  { id: "c", name: "Gamma" },
 ];
 const columns = [{ key: "name", header: "Name", render: (row: Row) => row.name }];
 
@@ -23,8 +23,7 @@ function Harness({ onRowClick = () => {} }: { onRowClick?: (row: Row) => void })
       selection={{
         selected,
         onChange: setSelected,
-        canSelect: (row) => row.active,
-        actions: <button type="button">Retire</button>,
+        actions: <button type="button">Delete</button>,
       }}
     />
   );
@@ -44,7 +43,7 @@ describe("table selection", () => {
 
     await userEvent.click(rowBoxes()[0]);
     expect(await screen.findByText("1 selected")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retire" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     /* Ticking a row does not open it. */
     expect(onRowClick).not.toHaveBeenCalled();
 
@@ -52,12 +51,12 @@ describe("table selection", () => {
     await waitFor(() => expect(screen.queryByText("1 selected")).not.toBeInTheDocument());
   });
 
-  it("gives rows that cannot be picked no box, and the header box picks the rest", async () => {
+  it("gives every row a box, and the header box picks the page", async () => {
     render(<Harness />);
-    expect(rowBoxes()).toHaveLength(2);
+    expect(rowBoxes()).toHaveLength(3);
 
     await userEvent.click(screen.getByRole("checkbox", { name: "Select all on this page" }));
-    expect(await screen.findByText("2 selected")).toBeInTheDocument();
+    expect(await screen.findByText("3 selected")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("checkbox", { name: "Select all on this page" }));
     await waitFor(() => expect(screen.queryByText(/selected/)).not.toBeInTheDocument());

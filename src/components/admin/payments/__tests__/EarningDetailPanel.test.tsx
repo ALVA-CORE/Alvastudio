@@ -18,6 +18,9 @@ const EARNING: Earning = {
   recordings: 12,
   minutes: 30,
   earnedKobo: 120_00,
+  heldKobo: 0,
+  payableKobo: 120_00,
+  inFlightKobo: 0,
   paidKobo: 0,
   status: "pending",
   lastActivityAt: Date.now(),
@@ -52,6 +55,29 @@ const openTab = async (user: ReturnType<typeof userEvent.setup>) =>
   user.click(screen.getByRole("button", { name: "Earnings" }));
 
 describe("EarningDetailPanel", () => {
+  /* The same four buckets as the contributor's own wallet. */
+  it("shows where the money is, bucket by bucket", () => {
+    panel();
+    expect(screen.getByText("On hold")).toBeInTheDocument();
+    expect(screen.getByText("Ready to pay")).toBeInTheDocument();
+    expect(screen.getByText("On the way")).toBeInTheDocument();
+  });
+
+  /* The API's `in_flight` had no label, so the raw word showed. */
+  it("labels a ledger entry on its way", async () => {
+    ledger.mockResolvedValue({
+      contributor_id: "contributor-1",
+      entry_count: 1,
+      totals: {},
+      entries: [entry("e9", "in_flight")],
+    });
+    const user = userEvent.setup();
+    panel();
+    await openTab(user);
+    expect(await screen.findByText(/On the way/)).toBeInTheDocument();
+    expect(screen.queryByText(/in_flight/)).not.toBeInTheDocument();
+  });
+
   /* Most admins open this to read a total, not to audit a line of it. A
      ledger per row would be four hundred requests for a table scroll. */
   it("does not read the ledger until the tab is opened", async () => {

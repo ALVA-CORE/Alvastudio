@@ -22,8 +22,10 @@ vi.mock("@/lib/api/wallet", async () => {
         lifetime_kobo: WALLET_FIXTURE.lifetimeKobo,
       },
       next_action: nextAction,
-      next_action_detail: null,
+      next_action_detail: nextActionDetail,
+      latest_payment: payments[0] ?? null,
     })),
+    listWalletPayments: vi.fn(async () => payments),
     /* A list, and no account number: the API returns the last four digits
        only. See `ApiPayoutDestination`. */
     listPayoutDestinations: vi.fn(async () => [
@@ -92,12 +94,20 @@ let identity: string = "passed";
 /** What the API says to do next. Null unless a test needs one. */
 let nextAction: string | null = null;
 
+/** The API's sentence for it. */
+let nextActionDetail: string | null = null;
+
+/** `GET /wallet/payments`, newest first. */
+let payments: Record<string, unknown>[] = [];
+
 /** The last body the document route received, so the shape can be asserted. */
 let submitted: Record<string, unknown> | null = null;
 
 beforeEach(() => {
   identity = "passed";
   nextAction = null;
+  nextActionDetail = null;
+  payments = [];
   submitted = null;
 });
 
@@ -351,5 +361,60 @@ describe("PointsBalanceCard", () => {
       await screen.findByRole("dialog", { name: "Wallet history" })
     ).toBeInTheDocument();
     expect(screen.getByText(WALLET_FIXTURE.entries[0].label)).toBeInTheDocument();
+  });
+  /* Where each payment is, in the API's words, whichever route sent it. */
+  it("lists payments in the history with the API's message", async () => {
+    payments = [
+      {
+        id: "pay1",
+        amount: "6200.00",
+        amount_kobo: 6_200_00,
+        currency: "NGN",
+        via: "pay_run",
+        status: "transferred",
+        created_at: "2026-11-15T09:00:00Z",
+        sent_at: "2026-11-15T09:01:00Z",
+        bank_status: "processing",
+        bank_settled_at: null,
+        message: "On its way to your bank.",
+      },
+    ];
+    render(<PointsBalanceCard points={4820} />);
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
+    await userEvent.click(await screen.findByRole("button", { name: /History/ }));
+
+    const sheet = await screen.findByRole("dialog", { name: "Wallet history" });
+    expect(within(sheet).getByText("On its way to your bank.")).toBeInTheDocument();
+    expect(
+      within(sheet).getByText((_, el) => el?.textContent === "₦6,200.00", { selector: "span" })
+    ).toBeInTheDocument();
+  });
+
+  /* 15 Nov: two waits with nothing to press, and any value we don't know
+     is treated the same way. */
+  it.each([
+    ["await_activation", "Our payment provider is checking your bank account. There's nothing you need to do."],
+    ["contact_support", "Our payment provider has paused your payout account. Contact support and we'll sort it out."],
+    ["something_new", "A step we have not met yet."],
+  ])("shows the sentence for %s with no button", async (action, detail) => {
+    nextAction = action;
+    nextActionDetail = detail;
+    render(<PointsBalanceCard points={4820} />);
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
+
+    expect(await screen.findByText(detail)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Finish/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Payout/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Withdraw/ })).toBeDisabled();
+  });
+
+  it("keeps the Finish button for complete_onboarding", async () => {
+    nextAction = "complete_onboarding";
+    nextActionDetail = "Our payment provider needs a few more details from you.";
+    render(<PointsBalanceCard points={4820} />);
+    await userEvent.click(screen.getByRole("button", { name: "Wallet" }));
+
+    expect(await screen.findByRole("button", { name: /Finish/ })).toBeInTheDocument();
+    expect(screen.getByText(nextActionDetail)).toBeInTheDocument();
   });
 });

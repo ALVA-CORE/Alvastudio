@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { BorderBeam } from "border-beam";
 import CupStar from "@solar-icons/react/ui/CupStar";
 import ClipboardList from "@solar-icons/react/notes/ClipboardList";
@@ -10,9 +11,11 @@ import ShieldWarning from "@solar-icons/react/security/ShieldWarning";
 import type { InternNotificationCategory } from "@/data/intern-notifications";
 import {
   NOTIFICATION_STATUS_LABELS,
+  type NotificationAction,
   type NotificationCategory,
   type NotificationStatus,
 } from "@/data/contributor-notifications";
+import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
 
 const AUDIO_CATEGORIES = new Set<NotificationCategory>([
@@ -30,6 +33,7 @@ const CATEGORY_ICONS: Record<
      wallet it opens are recognisably about the same thing. */
   identity: <ShieldWarning size={18} weight="Bold" />,
   announcement: <Letter size={18} weight="Bold" />,
+  "new-work": <ClipboardList size={18} weight="Bold" />,
   leaderboard: <CupStar size={18} weight="Bold" />,
 };
 
@@ -126,5 +130,35 @@ export function StackedMetaLines({ items }: { items: string[] }) {
         </p>
       ))}
     </div>
+  );
+}
+
+/**
+ * An announcement's button. A studio path opens in place; an https link
+ * opens in a new tab, away from the studio.
+ */
+export function NotificationActionButton({
+  action,
+  onFollow,
+}: {
+  action: NotificationAction;
+  onFollow?: () => void;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <TextureButton
+      variant="minimal"
+      size="sm"
+      className="w-auto"
+      onClick={(event) => {
+        event.stopPropagation();
+        onFollow?.();
+        if (action.url.startsWith("/")) navigate(action.url);
+        else window.open(action.url, "_blank", "noopener,noreferrer");
+      }}
+    >
+      {action.label}
+    </TextureButton>
   );
 }

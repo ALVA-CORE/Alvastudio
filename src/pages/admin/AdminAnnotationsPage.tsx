@@ -5,6 +5,7 @@ import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
+import { TextureButton } from "@/components/ui/texture-button";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { AnnotatorBreakdownChart } from "@/components/admin/shared/AnnotatorBreakdownChart";
@@ -279,8 +280,10 @@ export default function AdminAnnotationsPage() {
                   {/* `PATCH /focus-groups/{id}/assignee` opens the annotation
                       as a side effect, so a session can be handed out before
                       anybody has claimed it. */}
-                  <button
-                    type="button"
+                  <TextureButton
+                    variant="minimal"
+                    size="sm"
+                    className="w-auto"
                     onClick={() =>
                       setAssigning({
                         kind: "session",
@@ -288,10 +291,9 @@ export default function AdminAnnotationsPage() {
                         topic: session.topic,
                       })
                     }
-                    className="rounded-full bg-alva-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-alva-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
                   >
                     Assign
-                  </button>
+                  </TextureButton>
                 </dd>
               </div>
             ))}

@@ -79,6 +79,12 @@ export default function ContributorNotificationsPage() {
       return;
     }
 
+    /* New work goes to the studio, on the task it is about. */
+    if (notification.studioMode) {
+      navigate("/contributor/studio", { state: { mode: notification.studioMode } });
+      return;
+    }
+
     setSelected(notification);
     setSheetOpen(true);
 

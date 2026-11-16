@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api/users", () => ({ listUserProfilesPage: vi.fn(), USER_PROFILES_MAX_LIMIT: 500 }));
 
-const { canonicalState } = await import("../useContributorDirectory");
+const { canonicalState } = await import("../usePeopleDirectory");
 
 /* State is typed, not picked. One state, however it was spelled. */
 describe("canonicalState", () => {

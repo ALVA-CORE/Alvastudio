@@ -62,6 +62,17 @@ const BANK_STEP: Record<ApiBankPayoutStatus, { text: string; calm?: boolean }> =
   unknown: { text: "We are sorting out a delay. Your money is safe.", calm: true },
 };
 
+/** The `next_action` values with a screen of their own: the gate, Finish, or nothing to do. */
+const HANDLED_ACTIONS = new Set<string>([
+  "none",
+  "create_account",
+  "verify_identity",
+  "await_verification",
+  "await_review",
+  "add_payout_destination",
+  "complete_onboarding",
+]);
+
 /** ", the next is Sun 1 Nov". Empty when the API has not said. */
 function nextPayDay(iso: string | undefined) {
   if (!iso) return "";
@@ -104,6 +115,11 @@ export function WalletFace({
    * whose provider onboarding is half finished, and the call would refuse.
    */
   const needsOnboarding = wallet.nextAction === "complete_onboarding";
+  /* `await_activation` and `contact_support` (15 Nov), and any value we
+     don't know: the API's sentence, nothing to press, and no withdrawal,
+     which needs an active account. */
+  const waitsOnApi = wallet.nextAction != null && !HANDLED_ACTIONS.has(wallet.nextAction);
+  const nextStep = needsOnboarding || waitsOnApi ? wallet.nextActionDetail : null;
   const [opening, setOpening] = useState(false);
 
   /**
@@ -131,6 +147,7 @@ export function WalletFace({
     verified &&
     linked &&
     !needsOnboarding &&
+    !waitsOnApi &&
     wallet.balanceKobo > 0 &&
     isPayDay &&
     !underMinimum;
@@ -175,7 +192,8 @@ export function WalletFace({
               {
                 id: "paid",
                 label: "Paid out",
-                caption: "Everything sent to your bank",
+                /* Where the newest payment is, in the API's words (15 Nov). */
+                caption: wallet.latestPayment?.message ?? "Everything sent to your bank",
                 kobo: wallet.paidKobo,
               },
             ]}
@@ -195,15 +213,17 @@ export function WalletFace({
                   ? "Verify your identity first"
                   : needsOnboarding
                     ? "Finish setting up your payout account first"
-                    : !linked
-                      ? "Link a bank first"
-                      : wallet.balanceKobo === 0
-                        ? "Nothing to withdraw yet"
-                        : underMinimum
-                          ? `${formatWalletNaira(minimumKobo)} minimum, your balance carries over`
-                          : !isPayDay
-                            ? `Payments go out on Sundays${nextPayDay(terms?.next_pay_day)}`
-                            : undefined
+                    : waitsOnApi
+                      ? (wallet.nextActionDetail ?? undefined)
+                      : !linked
+                        ? "Link a bank first"
+                        : wallet.balanceKobo === 0
+                          ? "Nothing to withdraw yet"
+                          : underMinimum
+                            ? `${formatWalletNaira(minimumKobo)} minimum, your balance carries over`
+                            : !isPayDay
+                              ? `Payments go out on Sundays${nextPayDay(terms?.next_pay_day)}`
+                              : undefined
               }
               onClick={async () => {
                 try {
@@ -276,6 +296,10 @@ export function WalletFace({
         }
       />
       </IdentityGate>
+
+      {nextStep ? (
+        <p className="mt-3 px-4 text-center text-xs text-muted-foreground">{nextStep}</p>
+      ) : null}
 
       <LinkBankSheet
         open={linkOpen}
