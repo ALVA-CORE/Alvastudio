@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import Letter from "@solar-icons/react/messages/Letter";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { AnimatePresence, motion } from "framer-motion";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import { RingChart } from "@/components/charts/ring-chart";
@@ -156,7 +158,7 @@ export function SentTab({ version }: { version: number }) {
               <div className="h-12 animate-pulse rounded-2xl bg-alva-surface" />
             </div>
           ) : rows.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">Nothing sent yet</p>
+            <AlvaEmptyState icon={<Letter size={20} weight="Outline" />} title="Nothing sent yet" />
           ) : (
             <>
               <div className="rounded-2xl bg-alva-surface p-4">

@@ -6,6 +6,10 @@ import UserCheck from "@solar-icons/react/users/UserCheck";
 import ShieldCheck from "@solar-icons/react/security/ShieldCheck";
 import Letter from "@solar-icons/react/messages/Letter";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
+import DocumentText from "@solar-icons/react/notes/DocumentText";
+import Bell from "@solar-icons/react/notifications/Bell";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
+import type { DirectoryPerson } from "@/hooks/usePeopleDirectory";
 import { BeamInput } from "@/components/auth/BeamInput";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -87,9 +91,12 @@ function report(cause: unknown, fallback: string) {
  */
 export function AnnouncementPanel({
   composer,
+  directory,
   onClose,
 }: {
   composer: ReturnType<typeof useAnnouncementComposer>;
+  /** Everyone the email To field can reach, for suggestions. */
+  directory: DirectoryPerson[];
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("compose");
@@ -149,6 +156,7 @@ export function AnnouncementPanel({
                 <Compose
                   fields={fields}
                   set={set}
+                  directory={directory}
                   reach={preview.preview?.recipient_count ?? null}
                   unmatched={preview.preview?.unmatched_emails ?? []}
                 />
@@ -231,11 +239,13 @@ type Set_ = ReturnType<typeof useAnnouncementComposer>["set"];
 function Compose({
   fields,
   set,
+  directory,
   reach,
   unmatched,
 }: {
   fields: AnnouncementForm;
   set: Set_;
+  directory: DirectoryPerson[];
   /** Who it reaches now, or null while counting. */
   reach: number | null;
   /** Typed addresses with no active account: skipped at sending. */
@@ -247,13 +257,15 @@ function Compose({
 
   return (
     <div className="space-y-3">
-      {/* As email's To and Header: label and field on a line, hairlines
-          between, no boxes. */}
-      <div className="divide-y divide-alva-border border-b border-alva-border">
-        <div className="grid grid-cols-2 divide-x divide-alva-border">
+      {/* As email's To and Header: label and field on a line, no boxes.
+          Who it reaches on one line, each with its own underline, and short
+          dividers between that stop clear of the lines. */}
+      <div>
+      <div className="flex items-stretch gap-3">
           <PickField
             label="Roles"
             empty="Everyone"
+            className="min-w-0 flex-1 border-b border-alva-border"
             chips={fields.roles.map((role) => (
               <Chip
                 key={role}
@@ -275,10 +287,11 @@ function Compose({
               </DropdownMenuCheckboxItem>
             ))}
           />
+          <span aria-hidden className="my-3 w-px shrink-0 bg-alva-border" />
           <PickField
             label="Approved"
             empty="Anyone"
-            className="pl-3"
+            className="min-w-0 flex-1 border-b border-alva-border"
             chips={
               fields.approved === "any"
                 ? []
@@ -303,37 +316,40 @@ function Compose({
               </DropdownMenuCheckboxItem>
             ))}
           />
-        </div>
+          <span aria-hidden className="my-3 w-px shrink-0 bg-alva-border" />
+          <PickField
+            label="Identity"
+            empty="Any"
+            className="min-w-0 flex-1 border-b border-alva-border"
+            chips={fields.identityStatus.map((status) => (
+              <Chip
+                key={status}
+                icon={<ShieldCheck size={13} weight="Bold" />}
+                onRemove={() => set("identityStatus", toggle(fields.identityStatus, status))}
+              >
+                {IDENTITY[status]}
+              </Chip>
+            ))}
+            menu={(Object.keys(IDENTITY) as ApiIdentityStatus[]).map((status) => (
+              <DropdownMenuCheckboxItem
+                key={status}
+                checked={fields.identityStatus.includes(status)}
+                onCheckedChange={() => set("identityStatus", toggle(fields.identityStatus, status))}
+                onSelect={(event) => event.preventDefault()}
+                className="rounded-xl"
+              >
+                {IDENTITY[status]}
+              </DropdownMenuCheckboxItem>
+            ))}
+          />
+      </div>
 
-        <PickField
-          label="Identity"
-          empty="Any"
-          chips={fields.identityStatus.map((status) => (
-            <Chip
-              key={status}
-              icon={<ShieldCheck size={13} weight="Bold" />}
-              onRemove={() => set("identityStatus", toggle(fields.identityStatus, status))}
-            >
-              {IDENTITY[status]}
-            </Chip>
-          ))}
-          menu={(Object.keys(IDENTITY) as ApiIdentityStatus[]).map((status) => (
-            <DropdownMenuCheckboxItem
-              key={status}
-              checked={fields.identityStatus.includes(status)}
-              onCheckedChange={() => set("identityStatus", toggle(fields.identityStatus, status))}
-              onSelect={(event) => event.preventDefault()}
-              className="rounded-xl"
-            >
-              {IDENTITY[status]}
-            </DropdownMenuCheckboxItem>
-          ))}
-        />
-
+      <div className="divide-y divide-alva-border border-b border-alva-border">
         <EmailsField
           emails={emails}
           unmatched={unmatched}
           chosen={fields.userIds.length}
+          directory={directory}
           onChange={(next) => set("emails", next.join("\n"))}
           onClearChosen={() => set("userIds", [])}
         />
@@ -346,6 +362,7 @@ function Compose({
           onChange={(event) => set("title", event.target.value.replace(/\n/g, " "))}
           className="h-12 w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
+      </div>
       </div>
 
       <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
@@ -434,75 +451,145 @@ function PickField({
 }
 
 /**
- * People by address, as email's To takes them: typed, then a chip on space,
- * comma or Enter. An address with no account turns red; it is skipped at
- * sending. People a draft chose by id show as one chip, kept unless removed.
+ * People by address, as email's To takes them: typed, with suggestions from
+ * everyone in the studio, or pasted with commas. Each becomes a chip; one
+ * with no account turns red and is skipped at sending. People a draft chose
+ * by id show as one chip, kept unless removed.
  */
 function EmailsField({
   emails,
   unmatched,
   chosen,
+  directory,
   onChange,
   onClearChosen,
 }: {
   emails: string[];
   unmatched: string[];
   chosen: number;
+  directory: DirectoryPerson[];
   onChange: (emails: string[]) => void;
   onClearChosen: () => void;
 }) {
   const [typing, setTyping] = useState("");
-  const commit = () => {
-    const added = parseEmails(typing);
-    if (added.length) onChange([...new Set([...emails, ...added])]);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+
+  const add = (more: string[]) => {
+    if (more.length) onChange([...new Set([...emails, ...more])]);
     setTyping("");
+    setActive(0);
   };
 
+  /* Like To: names and addresses that match what is typed, not yet chosen. */
+  const query = typing.trim().toLowerCase();
+  const suggestions = query
+    ? directory
+        .filter(
+          (person) =>
+            !emails.includes(person.email.toLowerCase()) &&
+            (person.name.toLowerCase().includes(query) || person.email.toLowerCase().includes(query))
+        )
+        .slice(0, 8)
+    : [];
+
   return (
-    <div className="flex min-h-12 flex-wrap items-center gap-1.5 py-2">
-      <span className="mr-1 text-sm text-muted-foreground">Emails</span>
-      <AnimatePresence initial={false}>
-        {chosen ? (
-          <Chip key="chosen" icon={<UsersGroupRounded size={13} weight="Bold" />} onRemove={onClearChosen}>
-            {people(chosen)}
-          </Chip>
-        ) : null}
-        {emails.map((email) => (
-          <Chip
-            key={email}
-            icon={<Letter size={13} weight="Bold" />}
-            onRemove={() => onChange(emails.filter((value) => value !== email))}
+    <div className="relative">
+      <div className="flex min-h-12 flex-wrap items-center gap-1.5 py-2">
+        <span className="mr-1 text-sm text-muted-foreground">Emails</span>
+        <AnimatePresence initial={false}>
+          {chosen ? (
+            <Chip key="chosen" icon={<UsersGroupRounded size={13} weight="Bold" />} onRemove={onClearChosen}>
+              {people(chosen)}
+            </Chip>
+          ) : null}
+          {emails.map((email) => (
+            <Chip
+              key={email}
+              icon={<Letter size={13} weight="Bold" />}
+              onRemove={() => onChange(emails.filter((value) => value !== email))}
+            >
+              <span className={cn(unmatched.includes(email) && "text-destructive")}>{email}</span>
+            </Chip>
+          ))}
+        </AnimatePresence>
+        <input
+          aria-label="Emails"
+          role="combobox"
+          aria-expanded={open && suggestions.length > 0}
+          aria-controls="announcement-emails"
+          aria-autocomplete="list"
+          value={typing}
+          inputMode="email"
+          placeholder={emails.length || chosen ? "" : "Separate with commas"}
+          onChange={(event) => {
+            const value = event.target.value;
+            setOpen(true);
+            setActive(0);
+            /* A comma, space or semicolon ends an address. */
+            if (/[\s,;]$/.test(value)) add(parseEmails(value));
+            else setTyping(value);
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() =>
+            window.setTimeout(() => {
+              setOpen(false);
+              add(parseEmails(typing));
+            }, 120)
+          }
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setActive((value) => Math.min(suggestions.length - 1, value + 1));
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setActive((value) => Math.max(0, value - 1));
+            } else if (event.key === "Enter") {
+              event.preventDefault();
+              add(open && suggestions[active] ? [suggestions[active].email.toLowerCase()] : parseEmails(typing));
+            } else if (event.key === "Backspace" && !typing && emails.length) {
+              onChange(emails.slice(0, -1));
+            } else if (event.key === "Escape" && open) {
+              event.stopPropagation();
+              setOpen(false);
+            }
+          }}
+          className="h-7 min-w-[8rem] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+      </div>
+
+      <AnimatePresence>
+        {open && suggestions.length > 0 ? (
+          <motion.ul
+            id="announcement-emails"
+            role="listbox"
+            aria-label="People"
+            onMouseDown={(event) => event.preventDefault()}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.14 }}
+            className="alva-thin-scrollbar absolute inset-x-0 top-full z-20 mt-1 max-h-72 overflow-y-auto overscroll-contain rounded-2xl border border-alva-border bg-alva-card py-1 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.9)]"
           >
-            <span className={cn(unmatched.includes(email) && "text-destructive")}>{email}</span>
-          </Chip>
-        ))}
+            {suggestions.map((person, index) => (
+              <li
+                key={person.id}
+                role="option"
+                aria-selected={index === active}
+                onMouseEnter={() => setActive(index)}
+                onClick={() => add([person.email.toLowerCase()])}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm",
+                  index === active ? "bg-alva-surface text-foreground" : "text-foreground/90"
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate">{person.name}</span>
+                <span className="shrink-0 truncate text-xs text-muted-foreground">{person.email}</span>
+              </li>
+            ))}
+          </motion.ul>
+        ) : null}
       </AnimatePresence>
-      <input
-        aria-label="Emails"
-        value={typing}
-        inputMode="email"
-        onChange={(event) => {
-          const value = event.target.value;
-          if (/[\s,;]$/.test(value)) {
-            setTyping(value);
-            const added = parseEmails(value);
-            if (added.length) onChange([...new Set([...emails, ...added])]);
-            setTyping("");
-          } else {
-            setTyping(value);
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            commit();
-          } else if (event.key === "Backspace" && !typing && emails.length) {
-            onChange(emails.slice(0, -1));
-          }
-        }}
-        onBlur={commit}
-        className="h-7 min-w-[8rem] flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-      />
     </div>
   );
 }
@@ -534,10 +621,10 @@ function List({
     );
   }
   if (rows.length === 0) {
-    return (
-      <p className="py-16 text-center text-sm text-muted-foreground">
-        {drafts ? "No drafts" : "Nothing sent yet"}
-      </p>
+    return drafts ? (
+      <AlvaEmptyState icon={<DocumentText size={20} weight="Outline" />} title="No drafts" />
+    ) : (
+      <AlvaEmptyState icon={<Bell size={20} weight="Outline" />} title="Nothing sent yet" />
     );
   }
 

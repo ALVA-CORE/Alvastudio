@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { useNotifications } from "@/hooks/useNotifications";
 import { toStaffNotification } from "@/data/notifications";
 import type { InternNotification } from "@/data/intern-notifications";
@@ -163,9 +164,12 @@ export function NotificationsMenu({ className }: { className?: string }) {
               {error}
             </p>
           ) : notifications.length === 0 ? (
-            <p className="px-4 py-8 text-center text-xs text-muted-foreground">
-              Nothing yet. Updates on your work appear here.
-            </p>
+            <AlvaEmptyState
+              icon={<Bell size={20} weight="Outline" />}
+              title="No notifications yet"
+              description="Updates on your work appear here."
+              compact
+            />
           ) : (
             notifications.map((notification, index) => (
               <div key={notification.id}>

@@ -37,7 +37,23 @@ const draft = {
 
 function Panel() {
   const composer = useAnnouncementComposer();
-  return <AnnouncementPanel composer={composer} onClose={() => {}} />;
+  return (
+    <AnnouncementPanel
+      composer={composer}
+      directory={[
+        {
+          id: "u1",
+          name: "Ada Obi",
+          email: "ada@x.test",
+          role: "intern",
+          stateOfOrigin: null,
+          stateOfResidence: null,
+          approved: true,
+        } as never,
+      ]}
+      onClose={() => {}}
+    />
+  );
 }
 
 beforeEach(() => {
@@ -54,6 +70,17 @@ describe("AnnouncementPanel", () => {
     await userEvent.type(screen.getByLabelText("Emails"), "nobody@x.test ");
     expect(await screen.findByText("This reaches 42 people.")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("nobody@x.test")).toHaveClass("text-destructive"));
+  });
+
+  /* Like email's To: type a name, pick the person, get their address. */
+  it("suggests people as you type, and shows how to paste several", async () => {
+    render(<Panel />);
+    const field = screen.getByLabelText("Emails");
+    expect(field).toHaveAttribute("placeholder", "Separate with commas");
+    await userEvent.type(field, "ada");
+    await userEvent.click(await screen.findByRole("option", { name: /Ada Obi/ }));
+    await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+    expect(screen.getByText("ada@x.test")).toBeInTheDocument();
   });
 
   it("saves a draft, and a draft picked from Drafts is edited, not copied", async () => {

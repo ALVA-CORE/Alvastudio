@@ -225,7 +225,11 @@ export function CommsLauncher() {
               className="flex min-h-0 flex-1 flex-col"
             >
               {panelKind === "announcement" ? (
-                <AnnouncementPanel composer={announcement} onClose={() => setPanelKind(null)} />
+                <AnnouncementPanel
+                  composer={announcement}
+                  directory={directory.people}
+                  onClose={() => setPanelKind(null)}
+                />
               ) : (
               <>
               <PanelHeader<Tab> tabs={TABS} value={tab} onChange={setTab} onClose={() => setOpen(false)} />
