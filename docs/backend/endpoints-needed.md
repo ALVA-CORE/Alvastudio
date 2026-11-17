@@ -17,6 +17,7 @@ the other document points here.
 | # | Where | What we need | Why |
 |---|---|---|---|
 | 20 | `GET /annotations/narrations/queue?envelope=true` (or `GET /dashboard/annotator`) | The total length, in seconds, of every narration waiting in the pool, like `total` counts them. | The Narrations tab on the annotator's Sessions page shows "Minutes pending" and "Avg narration". Today we add up the lengths of the first 200 rows only, so both are wrong once more than 200 are waiting. |
+| 21 | Setting `narration_rate_per_minute` (`GET /payments/terms`, `GET /dashboard/contributor` `pay`) | ₦75 a minute (`7500` kobo), not ₦50. Prompts stay ₦10. | The pay notice of 17 Nov says stimulus pay is ₦75 a minute. The Studio and the dashboard show the API's number, so they say ₦50 until this changes. The website's "How you get paid" page already says ₦75. |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
