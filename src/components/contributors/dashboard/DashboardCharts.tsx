@@ -413,7 +413,7 @@ export function DashboardCharts({
                     }
                   />
                 </div>
-                <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                <p className="text-center text-[11px] text-muted-foreground">
                   {pay.next_run_kobo > 0
                     ? `Paid ${payDayLabel(pay.next_pay_day)}`
                     : `${formatWalletNaira(pay.payout_minimum_kobo)} minimum, paid on Sundays`}
