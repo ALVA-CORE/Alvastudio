@@ -212,6 +212,8 @@ function SessionMetaSidebarImpl({
   className,
 }: SessionMetaSidebarProps) {
   const [tab, setTab] = useState<"details" | "tags">("details");
+  /* A narration has no session facts, and its one speaker is never named. */
+  const narration = session.kind === "narration";
 
   /* Handle is on the panel's RIGHT edge, so dragging right grows it. The floor
    * is the narrowest width at which a label and its value still fit on one row
@@ -339,6 +341,7 @@ function SessionMetaSidebarImpl({
                     <SidebarMinimalistic size={17} weight="Linear" />
                   </button>
                 </div>
+                {narration ? <p className={PANEL_SECTION_LABEL}>Stimulus</p> : null}
                 <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                   {session.topic}
                 </p>
@@ -425,17 +428,21 @@ function SessionMetaSidebarImpl({
 
                   <PanelDivider />
 
-                  <InfoGroup
-                    title="Session"
-                    icon={<DocumentText size={13} weight="Linear" />}
-                  >
-                    <PanelRow label="Code" value={session.code} />
-                    <PanelRow label="State" value={session.state} />
-                    <PanelRow label="Recorded by" value={session.recordedBy} />
-                    <PanelRow label="Recorded" value={session.recordedAt} />
-                  </InfoGroup>
+                  {narration ? null : (
+                    <>
+                      <InfoGroup
+                        title="Session"
+                        icon={<DocumentText size={13} weight="Linear" />}
+                      >
+                        <PanelRow label="Code" value={session.code} />
+                        <PanelRow label="State" value={session.state} />
+                        <PanelRow label="Recorded by" value={session.recordedBy} />
+                        <PanelRow label="Recorded" value={session.recordedAt} />
+                      </InfoGroup>
 
-                  <PanelDivider />
+                      <PanelDivider />
+                    </>
+                  )}
 
                   <InfoGroup
                     title="Audio"
@@ -443,14 +450,18 @@ function SessionMetaSidebarImpl({
                   >
                     <PanelRow label="Duration" value={session.duration} />
                     <PanelRow label="Language" value={session.language} />
-                    <PanelRow
-                      label="Speakers"
-                      value={String(session.speakers)}
-                    />
-                    <PanelRow
-                      label="Participants"
-                      value={String(session.participants)}
-                    />
+                    {narration ? null : (
+                      <>
+                        <PanelRow
+                          label="Speakers"
+                          value={String(session.speakers)}
+                        />
+                        <PanelRow
+                          label="Participants"
+                          value={String(session.participants)}
+                        />
+                      </>
+                    )}
                   </InfoGroup>
 
                   <PanelDivider />

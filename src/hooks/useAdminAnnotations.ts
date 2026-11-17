@@ -6,6 +6,7 @@ import {
   listQueue,
   reviewAnnotation,
   type ApiAnnotationCounts,
+  type ApiAnnotationKind,
   type ApiAnnotationSort,
   type ApiAnnotationStatus,
   type ApiAnnotationSummary,
@@ -22,6 +23,8 @@ import { NO_VALUE } from "@/lib/no-value";
 const QUEUE_LIMIT = 200;
 
 export type AnnotationsView = {
+  /** Omitted for both kinds. */
+  kind?: ApiAnnotationKind;
   /** Omitted for every status. */
   status?: ApiAnnotationStatus;
   /** Blank for no search. */
@@ -46,7 +49,7 @@ export type AnnotationsView = {
  * sent back to the queue.
  */
 export function useAdminAnnotations(view: AnnotationsView) {
-  const { status, q, sort, page, pageSize } = view;
+  const { kind, status, q, sort, page, pageSize } = view;
   const [rows, setRows] = useState<AdminAnnotation[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<ApiAnnotationCounts | null>(null);
@@ -77,6 +80,7 @@ export function useAdminAnnotations(view: AnnotationsView) {
           offset: (page - 1) * pageSize,
           /* The Tags column. Opt-in at the API: it reads every span on the page. */
           expand: "tags",
+          ...(kind ? { kind } : {}),
           ...(status ? { status } : {}),
           ...(q ? { q } : {}),
           ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
@@ -107,7 +111,7 @@ export function useAdminAnnotations(view: AnnotationsView) {
       });
 
     return () => controller.abort();
-  }, [status, q, sortKey, sortOrder, page, pageSize, attempt]);
+  }, [kind, status, q, sortKey, sortOrder, page, pageSize, attempt]);
 
   /** The page, the counts and the queue again, as after an assignment. */
   const reload = useCallback(() => {
@@ -169,6 +173,7 @@ function toAdminAnnotation(api: ApiAnnotationSummary): AdminAnnotation {
 
   return {
     id: api.id,
+    kind: api.kind,
     /* The first eight characters of the id: stable, unlike a position in a
        list that every new annotation renumbered, and what `q` matches. */
     code: api.id.slice(0, 8),

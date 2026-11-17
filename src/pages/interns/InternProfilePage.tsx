@@ -13,6 +13,7 @@ import { AppVersionFooter } from "@/components/profile/AppVersionFooter";
 import { ChangePasswordRow } from "@/components/profile/ChangePasswordRow";
 import { FeedbackRow } from "@/components/profile/FeedbackRow";
 import { PrivacyAlertsRow } from "@/components/profile/PrivacyAlertsRow";
+import { PushNotificationsRow } from "@/components/profile/PushNotificationsRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
@@ -111,6 +112,8 @@ export default function InternProfilePage() {
               you can redact a participant from one at any time.
             </p>
           </PrivacyAlertsRow>
+
+          <PushNotificationsRow />
 
           <FeedbackRow />
 

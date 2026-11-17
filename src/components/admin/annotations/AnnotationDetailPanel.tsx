@@ -222,8 +222,13 @@ export function AnnotationDetailPanel({
       >
         {tab === "detail" ? (
           <>
-            <DetailGroup title="Session" first>
-              <DetailProse label="Topic">{annotation.topic}</DetailProse>
+            <DetailGroup
+              title={annotation.kind === "narration" ? "Narration" : "Session"}
+              first
+            >
+              <DetailProse label={annotation.kind === "narration" ? "Stimulus" : "Topic"}>
+                {annotation.topic}
+              </DetailProse>
               <DetailField label="Annotator" value={annotation.annotator} />
               <DetailField label="Length" value={annotation.duration} />
               <DetailField label="Claimed" value={annotation.claimedLabel} />

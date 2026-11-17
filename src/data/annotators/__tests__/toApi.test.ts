@@ -207,3 +207,43 @@ describe("writing it back", () => {
     );
   });
 });
+
+describe("a narration", () => {
+  /* One speaker, never named: a Scribe label must not become a voice to link,
+     and a segment that names anybody is a 400. */
+  function narration() {
+    const api = apiDoc() as Record<string, unknown> & { segments: Record<string, unknown>[] };
+    const segments = api.segments.map((segment) => ({
+      ...segment,
+      participant_id: null,
+      speaker_label: "speaker_0",
+    }));
+    const doc = { ...api, kind: "narration", session_id: null, recording_id: "r1", segments } as never;
+    const read = toTranscriptDoc(doc, []);
+    return { read, base: baselineFrom(doc, read) };
+  }
+
+  it("puts every segment on its one speaker", () => {
+    const { read } = narration();
+    expect(read.speakers).toHaveLength(1);
+    expect(read.segments.every((segment) => segment.speakerId === read.speakers[0].id)).toBe(true);
+  });
+
+  it("never sends a participant", async () => {
+    const { read, base } = narration();
+    const edited = {
+      ...read,
+      segments: [
+        { ...read.segments[0], end: 0.6 },
+        { ...read.segments[0], id: "new", start: 0.6, end: 1, text: "choke" },
+      ],
+    };
+
+    await saveAnnotation("a1", edited, base);
+
+    for (const call of [...createSegment.mock.calls, ...updateSegment.mock.calls]) {
+      expect(call.at(-1)).toMatchObject({ participant_id: null });
+    }
+    expect(createSegment).toHaveBeenCalled();
+  });
+});

@@ -16,6 +16,12 @@ import type { ApiPage } from "./recordings";
 
 export type AnnotationTask = "asr" | "tts" | "nlu";
 
+/**
+ * `session` is a focus group (`session_id` set); `narration` is one
+ * contributor's stimulus clip (`recording_id` set, `session_id` null).
+ */
+export type ApiAnnotationKind = "session" | "narration";
+
 export type ApiAnnotationStatus =
   | "draft"
   | "submitted"
@@ -130,7 +136,11 @@ export type ApiAnnotationDocument = {
   submitted_at?: string | null;
   reviewed_at?: string | null;
   id: string;
-  session_id: string;
+  kind: ApiAnnotationKind;
+  /** Null on a narration. */
+  session_id: string | null;
+  /** Null on a session. */
+  recording_id?: string | null;
   task: AnnotationTask;
   status: ApiAnnotationStatus;
   revision: number;
@@ -167,8 +177,12 @@ export type ApiQueueRow = {
 /** One of this annotator's own annotations. */
 export type ApiAnnotationSummary = {
   id: string;
-  session_id: string;
-  /** From the session, so one session reads as one number everywhere. */
+  kind: ApiAnnotationKind;
+  /** Null on a narration. */
+  session_id: string | null;
+  /** Null on a session. */
+  recording_id?: string | null;
+  /** The session's topic, or the stimulus a narration answers. */
   topic?: string | null;
   duration_seconds?: number | null;
   /** Read from the file at upload (10 Nov). Null before measurement or with no audio. */
@@ -209,6 +223,10 @@ export type ApiAnnotationCounts = {
   by_status: Record<ApiAnnotationStatus, number>;
   /** Sessions waiting to be claimed: the depth of `GET /annotations/queue`. */
   claimable_sessions: number;
+  /** Narrations waiting in the pool: the depth of `GET /annotations/narrations/queue`. */
+  claimable_narrations: number;
+  /** Narrations an annotator holds, still draft or sent back. */
+  narrations_in_progress: number;
   /** Each author's annotations by status, most first. */
   by_annotator: {
     annotator_id: string;
@@ -232,6 +250,7 @@ export function listQueue(params: { limit?: number; offset?: number } = {}, sign
 
 export function listMine(
   params: {
+    kind?: ApiAnnotationKind;
     status?: ApiAnnotationStatus;
     limit?: number;
     offset?: number;
@@ -253,6 +272,7 @@ export function getAnnotation(id: string) {
  */
 export function listAnnotationsPage(
   query: {
+    kind?: ApiAnnotationKind;
     status?: ApiAnnotationStatus;
     q?: string;
     sort?: ApiAnnotationSort;
@@ -323,6 +343,79 @@ export function reviewAnnotation(
 /** Takes the next unclaimed session and returns its full document. */
 export function claimNext() {
   return apiFetch<ApiAnnotationDocument>("/annotations/claim-next", { method: "POST" });
+}
+
+/* ------------------------------------------------------------------ *
+ * Narrations
+ * ------------------------------------------------------------------ */
+
+/** A narration in the pool, waiting to be claimed. */
+export type ApiNarrationQueueRow = {
+  recording_id: string;
+  stimulus_text: string;
+  language_variety?: ApiLanguageVariety | null;
+  /** The stimulus's category. */
+  category?: string | null;
+  duration_seconds: number | null;
+  measured_duration_seconds?: number | null;
+  /** When an admin sent it. The pool is oldest first by this. */
+  sent_at: string;
+};
+
+export function listNarrationQueue(params: { limit?: number; offset?: number } = {}) {
+  return apiFetch<ApiPage<ApiNarrationQueueRow>>("/annotations/narrations/queue", {
+    query: { ...params, envelope: true },
+  });
+}
+
+/**
+ * Takes the oldest narration in the pool and returns its draft.
+ *
+ * 404 when the pool is empty, 409 at the open-narration limit; both carry a
+ * sentence to show as it is.
+ */
+export function claimNextNarration() {
+  return apiFetch<ApiAnnotationDocument>("/annotations/narrations/claim-next", {
+    method: "POST",
+  });
+}
+
+export type ApiNarrationSend = {
+  /** False: a preview, and nothing changed. */
+  applied: boolean;
+  /** How many went, or would go. Sent back as `expected` to apply. */
+  sent: number;
+  recording_ids: string[];
+  /** Not sent: no such clip, not a narration, not approved, or already sent. */
+  skipped: string[];
+};
+
+/**
+ * Sends approved narrations to the annotators' pool (admin).
+ *
+ * Previews without `expected`; applies with it. Up to 100 ids. A 409 means
+ * the choice no longer holds that many, and nothing was sent.
+ */
+export function sendNarrations(ids: string[], expected?: number) {
+  return apiFetch<ApiNarrationSend>("/annotations/narrations/send", {
+    method: "POST",
+    body: { ids },
+    query: expected === undefined ? undefined : { apply: true, expected },
+  });
+}
+
+export type ApiNarrationWithdraw = {
+  withdrawn: string[];
+  /** Not withdrawn: no such clip, never sent, or an annotator holds it. */
+  skipped: string[];
+};
+
+/** Takes narrations back out of the pool, all but those already claimed (admin). */
+export function withdrawNarrations(ids: string[]) {
+  return apiFetch<ApiNarrationWithdraw>("/annotations/narrations/withdraw", {
+    method: "POST",
+    body: { ids },
+  });
 }
 
 export function updateAnnotation(
@@ -414,10 +507,16 @@ export function deleteSegment(annotationId: string, segmentId: string) {
  * than no waveform here.
  */
 export type ApiAnnotationSource = {
-  session_id: string;
+  kind: ApiAnnotationKind;
+  /** Null on a narration. */
+  session_id: string | null;
+  /** Null on a session. */
+  recording_id?: string | null;
+  /** The session's topic, or the stimulus a narration answers. */
   topic: string | null;
   language_variety: string | null;
   duration_seconds: number | null;
+  /** Empty on a narration: one speaker, never named to the annotator. */
   participants: unknown[];
   /** One value per bucket, 0..1, across the whole recording. */
   waveform_peaks: number[] | null;

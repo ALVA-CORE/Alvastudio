@@ -29,7 +29,11 @@ import {
   EMPTY_WEEKLY_SESSIONS,
 } from "@/data/contributors/dashboard";
 import { CarouselDots } from "@/components/shared/CarouselDots";
-import { formatWalletNaira, formatWalletNairaShort } from "@/data/contributors/wallet";
+import {
+  formatNairaRate,
+  formatWalletNaira,
+  formatWalletNairaShort,
+} from "@/data/contributors/wallet";
 import { useCarouselAutoplay } from "@/components/shared/useCarouselAutoplay";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +57,11 @@ function payDayLabel(iso: string) {
     day: "numeric",
     month: "short",
   });
+}
+
+/** "17 Nov", in the reader's own day, as the pay day is. */
+function rateChangeDay(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 type PieLabelProps = {
@@ -158,6 +167,9 @@ export function DashboardCharts({
     next_run_kobo: number;
     to_minimum_kobo: number;
     next_pay_day: string;
+    narration_rate_per_minute_kobo: number;
+    narration_rate_changed_at: string;
+    earlier_narration_rate_per_hour_kobo: number;
   } | null;
 }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -365,6 +377,16 @@ export function DashboardCharts({
                   {pay.next_run_kobo > 0
                     ? `Paid ${payDayLabel(pay.next_pay_day)}`
                     : `${formatWalletNaira(pay.payout_minimum_kobo)} minimum, paid on Sundays`}
+                </p>
+                {/* A narration is paid at the rate it was recorded under, so
+                    the earlier rate is said once, here, beside the new one. */}
+                <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                  Narration: {formatNairaRate(pay.narration_rate_per_minute_kobo)} per minute of
+                  speech
+                </p>
+                <p className="text-center text-[11px] text-muted-foreground">
+                  Narrations recorded before {rateChangeDay(pay.narration_rate_changed_at)}:{" "}
+                  {formatNairaRate(pay.earlier_narration_rate_per_hour_kobo)} an hour
                 </p>
               </ChartSlide>
             </CarouselItem>

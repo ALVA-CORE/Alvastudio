@@ -325,6 +325,7 @@ function buildAnnotations(count: number): AdminAnnotation[] {
 
     return {
       id: `a-${String(index + 1).padStart(3, "0")}`,
+      kind: "session" as const,
       code: `ANN-${String(index + 1).padStart(4, "0")}`,
       topic: pick(random, TOPICS),
       annotator: pick(random, NIGERIAN_NAMES.slice(0, 8)),

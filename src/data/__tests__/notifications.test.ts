@@ -83,6 +83,15 @@ describe("queue items", () => {
     expect(mapped.link).toBe("/intern/review");
   });
 
+  it("sends narrations waiting for annotators to the Narrations tab", () => {
+    const mapped = toStaffNotification({
+      ...row("queue"),
+      key: "narrations:2026-11-17",
+      recording_id: "r1",
+    });
+    expect(mapped.link).toBe("/annotator/narrations");
+  });
+
   it("leaves an annotator's session item as it was", () => {
     const mapped = toStaffNotification({ ...row("queue"), session_id: "s1" });
     expect(mapped.category).toBe("review-queue");

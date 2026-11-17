@@ -23,7 +23,8 @@ import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
 
 /**
- * `/annotator/sessions/:sessionId` — the annotation workspace.
+ * `/annotator/sessions/:sessionId` and `/annotator/narrations/:annotationId`
+ * — the annotation workspace.
  *
  * Renders outside the app shell (see `src/routes/index.tsx`): a full-bleed
  * editor with its own header and back link.
@@ -85,11 +86,14 @@ function WorkspaceBody({
 }
 
 export default function AnnotatorWorkspacePage() {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { sessionId, annotationId } = useParams<{
+    sessionId: string;
+    annotationId: string;
+  }>();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { resource, reload, save, submit, claim, linkSpeakers } =
-    useSessionTranscript(sessionId);
+    useSessionTranscript(sessionId, annotationId);
   const [isClaiming, setClaiming] = useState(false);
 
   /* The measured waveform, read once per annotation. The timeline used to

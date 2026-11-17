@@ -147,6 +147,16 @@ export function toContributorNotification(
   };
 }
 
+/**
+ * Where a staff `queue` item opens. Narrations waiting for annotators carry a
+ * `recording_id` as an intern's clips do, so the key's prefix comes first.
+ */
+function queueLink(api: ApiNotification) {
+  if (api.kind !== "queue") return undefined;
+  if (api.key.startsWith("narrations:")) return "/annotator/narrations";
+  return api.recording_id ? "/intern/review" : undefined;
+}
+
 export function toStaffNotification(api: ApiNotification): InternNotification {
   return {
     id: api.key,
@@ -157,8 +167,7 @@ export function toStaffNotification(api: ApiNotification): InternNotification {
     timestampTs: new Date(api.created_at).getTime(),
     read: api.read ?? false,
     action: actionOf(api),
-    /* An intern's clips waiting, not an annotator's session: told apart by the id set. */
-    link: api.kind === "queue" && api.recording_id ? "/intern/review" : undefined,
+    link: queueLink(api),
   };
 }
 

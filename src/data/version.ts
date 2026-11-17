@@ -26,7 +26,7 @@ const APP_VERSIONS = {
     version: "2.0.0",
     released: "2026-10-29",
     notes: [
-      "New pay: ₦10 a sentence, ₦5,000 per hour of speech",
+      "New pay: ₦10 a sentence, and narration by speaking time",
       "Paid on Sundays, once you pass ₦5,000",
       "200 sentences and 15 minutes of narration a day",
       "Narration takes stop themselves at 2 minutes",

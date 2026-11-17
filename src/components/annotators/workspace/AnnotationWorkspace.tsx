@@ -73,6 +73,10 @@ export function AnnotationWorkspace({
   onSubmit,
 }: AnnotationWorkspaceProps) {
   const navigate = useNavigate();
+  /* A narration has one speaker, never named: no picker, no voices to link. */
+  const narration = session.kind === "narration";
+  const listPath = narration ? "/annotator/narrations" : "/annotator/sessions";
+  const linkSpeakers = narration ? undefined : onLinkSpeakers;
   const store = useAnnotationStore();
   const { setCurrentTime, setPlaying } = useAnnotationActions();
 
@@ -98,7 +102,7 @@ export function AnnotationWorkspace({
     };
   }, [segments]);
 
-  const handleBack = useCallback(() => navigate("/annotator/sessions"), [navigate]);
+  const handleBack = useCallback(() => navigate(listPath), [navigate, listPath]);
 
   /**
    * Flush before marking done, not after.
@@ -114,11 +118,11 @@ export function AnnotationWorkspace({
       await onSubmit?.();
       setComplete(true);
       setConfirmOpen(false);
-      navigate("/annotator/sessions");
+      navigate(listPath);
     } finally {
       setSubmitting(false);
     }
-  }, [navigate, onFlushSave, onSubmit]);
+  }, [navigate, listPath, onFlushSave, onSubmit]);
 
   /* Read imperatively: subscribing to isPlaying here would re-render the whole
    * workspace shell every time playback toggles. */
@@ -134,7 +138,10 @@ export function AnnotationWorkspace({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-alva-bg">
-      <WorkspaceFloatingControls onBack={handleBack} />
+      <WorkspaceFloatingControls
+        onBack={handleBack}
+        backLabel={narration ? "Back to narrations" : undefined}
+      />
 
       {consentBlocked ? (
         <div
@@ -158,25 +165,30 @@ export function AnnotationWorkspace({
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           {/* Above the transcript, because it is about the whole document:
               what the draft is, and who its voices are. */}
-          {onLinkSpeakers && onReloadTranscript ? (
+          {linkSpeakers && onReloadTranscript ? (
             <TranscriptDraftBanner
               className="shrink-0"
               transcript={transcript}
               participants={participants}
               onReload={onReloadTranscript}
-              onLink={onLinkSpeakers}
+              onLink={linkSpeakers}
             />
           ) : null}
 
           {/* Transcript sits on its own raised panel rather than on the page
               floor, so the editing surface reads as a document. */}
           <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-alva-border bg-alva-card">
-            <SpeakerLinkProvider onLink={onLinkSpeakers}>
-              <TranscriptEditor className="h-full" />
+            <SpeakerLinkProvider onLink={linkSpeakers}>
+              <TranscriptEditor className="h-full" hideSpeakers={narration} />
             </SpeakerLinkProvider>
           </div>
 
-          <TimelineDock src={session.audioSrc} peaks={peaks} className="shrink-0" />
+          <TimelineDock
+            src={session.audioSrc}
+            peaks={peaks}
+            hideSpeakers={narration}
+            className="shrink-0"
+          />
         </div>
 
         <SessionMetaSidebar

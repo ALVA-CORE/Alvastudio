@@ -32,6 +32,7 @@ const TITLES: Array<[path: string, title: string]> = [
 
   ["/annotator/dashboard", "Home"],
   ["/annotator/sessions", "Sessions"],
+  ["/annotator/narrations", "Narrations"],
   ["/annotator/profile", "Settings"],
 
   ["/admin/dashboard", "Admin"],
@@ -48,7 +49,7 @@ const TITLES: Array<[path: string, title: string]> = [
 
 /** Deeper routes that are not a prefix of their parent's label. */
 const EXACT_OVERRIDES: Array<[test: RegExp, title: string]> = [
-  [/^\/annotator\/sessions\/[^/]+$/, "Annotation workspace"],
+  [/^\/annotator\/(sessions|narrations)\/[^/]+$/, "Annotation workspace"],
   [/^\/intern\/review\/[^/]+$/, "Reviewing a clip"],
 ];
 

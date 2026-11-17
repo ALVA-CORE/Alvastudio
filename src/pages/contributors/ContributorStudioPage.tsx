@@ -7,6 +7,8 @@ import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { useApiResource } from "@/hooks/useApiResource";
+import { usePaymentTerms } from "@/hooks/usePaymentTerms";
+import { formatNairaRate } from "@/data/contributors/wallet";
 import { listAssignedPrompts, listAssignedStimuli } from "@/lib/api/catalog";
 import {
   recordingQuota,
@@ -110,6 +112,9 @@ export default function ContributorStudioPage() {
    * take somebody has just recorded, which is the one failure worth a round
    * trip to avoid. */
   const { data: quota, reload: reloadQuota } = useApiResource(recordingQuota, []);
+  /* The rate, beside the card it pays for. Read, never typed in: it changed
+     on 17 Nov and will again. */
+  const terms = usePaymentTerms();
   /**
    * Each task closes on its own.
    *
@@ -416,7 +421,15 @@ export default function ContributorStudioPage() {
             className="min-w-0 flex-1"
             current={total ? position + 1 : 0}
             total={total}
-            label={loadingCard ? "Loading…" : total ? "Next up" : "Queue empty"}
+            label={
+              loadingCard
+                ? "Loading…"
+                : !total
+                  ? "Queue empty"
+                  : mode === "stimuli" && terms
+                    ? `${formatNairaRate(terms.narration_rate_per_minute_kobo)} per minute of speech`
+                    : "Next up"
+            }
           />
         </div>
 

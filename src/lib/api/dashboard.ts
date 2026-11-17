@@ -66,8 +66,20 @@ export type ApiPayBlock = {
   approved_narration_seconds: number;
   currency: string;
   sentence_rate_kobo: number;
+  /** For a narration recorded now. */
   narration_rate_per_hour_kobo: number;
-  /** Everything approved work is worth, paid or not. */
+  /** The same rate per minute of speaking time. The one to show. */
+  narration_rate_per_minute_kobo: number;
+  /** When narration pay changed (17 Nov 2026, 00:00 WAT). */
+  narration_rate_changed_at: string;
+  /** What a narration recorded before that earns, whenever it is approved. */
+  earlier_narration_rate_per_hour_kobo: number;
+  /**
+   * Everything approved work is worth, paid or not.
+   *
+   * Each narration at the rate it was recorded under, so never work this out
+   * from a rate and `approved_narration_seconds`.
+   */
   work_value_kobo: number;
   /** The balance. What has not been paid out yet. */
   unpaid_kobo: number;
@@ -193,6 +205,12 @@ export type ApiAnnotatorDashboard = {
   tokens_annotated: number;
   gold_count: number;
   queue_available: number;
+  narrations_annotated: number;
+  /** The narration pool's depth. */
+  narrations_waiting: number;
+  /** Narrations held, and how many may be; the limit is null for admins. */
+  open_narration_claims: number;
+  narration_claim_limit: number | null;
   /**
    * How many sessions this annotator is holding, and how many they may.
    *

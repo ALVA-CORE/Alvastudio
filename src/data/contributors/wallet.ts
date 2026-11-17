@@ -145,6 +145,18 @@ export function formatWalletNairaShort(kobo: number) {
   return NAIRA_SHORT.format(kobo / 100);
 }
 
+const NAIRA_RATE = new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+/** A pay rate: "₦50", "₦83.33", "₦5,000". No ".00" on a whole naira. */
+export function formatNairaRate(kobo: number) {
+  return NAIRA_RATE.format(kobo / 100);
+}
+
 export const EMPTY_WALLET: Wallet = {
   balanceKobo: 0,
   pendingKobo: 0,

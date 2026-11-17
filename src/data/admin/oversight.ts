@@ -4,6 +4,7 @@ import {
 import type { SunburstNode } from "@/components/charts/sunburst-data";
 import type { SankeyFlow } from "./corpus";
 import type { ApiRejectionReason } from "@/lib/api/recordings";
+import type { ApiAnnotationKind } from "@/lib/api/annotations";
 import { ANNOTATION_STATUS_COLORS, PERSON_COLORS } from "./statusColors";
 
 /* ------------------------------------------------------------------ *
@@ -121,7 +122,9 @@ export const ANNOTATION_STATUS_LABELS: Record<AnnotationStatus, string> = {
 
 export type AdminAnnotation = {
   id: string;
+  kind: ApiAnnotationKind;
   code: string;
+  /** The session's topic, or the stimulus a narration answers. */
   topic: string;
   annotator: string;
   status: AnnotationStatus;
