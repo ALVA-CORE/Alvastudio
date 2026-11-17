@@ -7,6 +7,7 @@ import { TagBreakdownChart } from "@/components/annotators/dashboard/TagBreakdow
 import { DemographicHoursChart } from "@/components/interns/dashboard/DemographicHoursChart";
 import type { AnnotatorDataset } from "@/data/annotators/dashboard";
 import type { DashboardTimeRange } from "@/data/internDashboard";
+import { SharePie } from "@/components/admin/shared/SharePie";
 import { cn } from "@/lib/utils";
 
 type AnnotatorBentoGridProps = {
@@ -14,6 +15,8 @@ type AnnotatorBentoGridProps = {
   /** Selected time range — the activity chart buckets its points by it. */
   range: DashboardTimeRange;
   isEmpty?: boolean;
+  /** Narrations this annotator finished, and how many wait in the pool. */
+  narrations: { annotated: number; waiting: number };
   className?: string;
 };
 
@@ -45,6 +48,7 @@ export function AnnotatorBentoGrid({
   dataset,
   range,
   isEmpty = false,
+  narrations,
   className,
 }: AnnotatorBentoGridProps) {
   return (
@@ -52,7 +56,7 @@ export function AnnotatorBentoGrid({
       <AnnotatorChartCard
         title="Your activity"
         subtitle={activitySubtitle(range)}
-        className="min-h-[17rem] lg:col-span-6"
+        className="min-h-[17rem] lg:col-span-4"
         emptyMessage={
           isEmpty
             ? {
@@ -63,6 +67,25 @@ export function AnnotatorBentoGrid({
         }
       >
         <AnnotatorActivityChart data={dataset.activity} range={range} />
+      </AnnotatorChartCard>
+
+      <AnnotatorChartCard
+        title="Narrations"
+        className="min-h-[17rem] lg:col-span-2"
+        emptyMessage={
+          narrations.annotated + narrations.waiting === 0
+            ? { title: "No narrations yet", description: "Take one from Sessions → Narrations." }
+            : undefined
+        }
+      >
+        <SharePie
+          slices={[
+            { label: "Annotated", hours: narrations.annotated },
+            { label: "Waiting", hours: narrations.waiting },
+          ]}
+          centerLabel="narrations"
+          valueSuffix=""
+        />
       </AnnotatorChartCard>
 
       <AnnotatorChartCard

@@ -35,7 +35,7 @@ describe("sending narrations to the annotators", () => {
       .mockResolvedValueOnce(result({ sent: 1, recording_ids: ["r1"], skipped: ["r2", "r3"] }))
       .mockResolvedValueOnce(result({ applied: true, sent: 1, recording_ids: ["r1"], skipped: ["r2", "r3"] }));
 
-    render(<NarrationPoolActions ids={["r1", "r2", "r3"]} onDone={onDone} />);
+    render(<NarrationPoolActions ids={["r1", "r2", "r3"]} ready={3} onDone={onDone} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Send to annotators" }));
     const dialog = await screen.findByRole("dialog");
@@ -60,12 +60,18 @@ describe("sending narrations to the annotators", () => {
     const show = vi.spyOn(alvaToast, "show");
     withdraw.mockResolvedValueOnce({ withdrawn: ["r1"], skipped: ["r2"] });
 
-    render(<NarrationPoolActions ids={["r1", "r2"]} onDone={vi.fn()} />);
+    render(<NarrationPoolActions ids={["r1", "r2"]} ready={2} onDone={vi.fn()} />);
     await userEvent.click(screen.getByRole("button", { name: "Take back" }));
 
     await waitFor(() =>
       expect(show).toHaveBeenCalledWith("1 narration taken back, 1 skipped", { variant: "success" })
     );
     expect(withdraw).toHaveBeenCalledWith(["r1", "r2"]);
+  });
+
+  /* Only approved Stimuli clips can go: with none ticked, nothing to press. */
+  it("greys out Send when none of the ticked rows can go", () => {
+    render(<NarrationPoolActions ids={["r1"]} ready={0} onDone={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Send to annotators" })).toBeDisabled();
   });
 });

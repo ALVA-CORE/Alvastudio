@@ -1,13 +1,12 @@
 import ChatRoundDots from "@solar-icons/react/messages/ChatRoundDots";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TextureButton } from "@/components/ui/texture-button";
-import { rememberStimuliIntro } from "@/lib/stimuli-intro";
 
 /**
  * Stimuli is not reading. The card is a topic to talk about in your own
  * words, and somebody who reads it out loud records nothing we can use, so
- * it is said once, the first time they switch, in the layout every other
- * one-message sheet here uses.
+ * it is said each time they switch, in the layout every other one-message
+ * sheet here uses.
  */
 export function StimuliIntroSheet({
   open,
@@ -16,13 +15,8 @@ export function StimuliIntroSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const close = () => {
-    rememberStimuliIntro();
-    onOpenChange(false);
-  };
-
   return (
-    <Sheet open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         aria-describedby={undefined}
@@ -41,7 +35,7 @@ export function StimuliIntroSheet({
             </p>
           </SheetHeader>
 
-          <TextureButton variant="alva" size="lg" className="mt-6 w-auto px-10" onClick={close}>
+          <TextureButton variant="alva" size="lg" className="mt-6 w-auto px-10" onClick={() => onOpenChange(false)}>
             Got it
           </TextureButton>
         </div>

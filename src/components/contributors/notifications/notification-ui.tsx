@@ -10,10 +10,8 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import ShieldWarning from "@solar-icons/react/security/ShieldWarning";
 import type { InternNotificationCategory } from "@/data/intern-notifications";
 import {
-  NOTIFICATION_STATUS_LABELS,
   type NotificationAction,
   type NotificationCategory,
-  type NotificationStatus,
 } from "@/data/contributor-notifications";
 import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
@@ -101,21 +99,6 @@ export function InternNotificationCategoryIcon({
 }) {
   return (
     <NotificationIconBadge icon={INTERN_CATEGORY_ICONS[category]} className={className} />
-  );
-}
-
-export function NotificationStatusTag({ status }: { status: NotificationStatus }) {
-  return (
-    <span
-      className={cn(
-        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-        status === "accepted" && "bg-alva-accent/15 text-alva-accent",
-        status === "rejected" && "bg-red-500/15 text-red-400",
-        status === "pending" && "bg-amber-500/15 text-amber-300"
-      )}
-    >
-      {NOTIFICATION_STATUS_LABELS[status]}
-    </span>
   );
 }
 

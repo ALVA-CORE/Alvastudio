@@ -26,24 +26,36 @@ vi.mock("@/lib/api/annotations", () => ({
   listMine: (params: unknown) => listMine(params),
   claimNextNarration: () => claim(),
 }));
-vi.mock("@/lib/api/dashboard", () => ({
-  annotatorDashboard: vi.fn(async () => ({ open_narration_claims: 1, narration_claim_limit: 10 })),
-}));
+const { NarrationsTab } = await import("../NarrationsTab");
+const { useNarrations } = await import("@/hooks/useNarrations");
 
-const { default: AnnotatorNarrationsPage } = await import("../AnnotatorNarrationsPage");
+/* As the Sessions page uses them: the hook for the data and Take next, the
+   tab for the table. */
+function Harness() {
+  const narrations = useNarrations();
+  return (
+    <>
+      <span>{narrations.waiting} waiting</span>
+      <button type="button" onClick={() => void narrations.take()}>
+        Take next
+      </button>
+      <NarrationsTab rows={narrations.rows} isLoading={narrations.isLoading} />
+    </>
+  );
+}
 
 function renderPage() {
   render(
-    <MemoryRouter initialEntries={["/annotator/narrations"]}>
+    <MemoryRouter initialEntries={["/annotator/sessions"]}>
       <Routes>
-        <Route path="/annotator/narrations" element={<AnnotatorNarrationsPage />} />
+        <Route path="/annotator/sessions" element={<Harness />} />
         <Route path="/annotator/narrations/:annotationId" element={<p>Workspace</p>} />
       </Routes>
     </MemoryRouter>
   );
 }
 
-describe("AnnotatorNarrationsPage", () => {
+describe("useNarrations with NarrationsTab", () => {
   beforeEach(() => {
     claim.mockReset();
     listMine.mockReset().mockResolvedValue([
@@ -60,11 +72,11 @@ describe("AnnotatorNarrationsPage", () => {
     ]);
   });
 
-  it("lists only this annotator's narrations, and their open count", async () => {
+  it("lists only this annotator's narrations, and counts the pool", async () => {
     renderPage();
     expect((await screen.findAllByText("A market you know")).length).toBeGreaterThan(0);
     expect(listMine).toHaveBeenCalledWith(expect.objectContaining({ kind: "narration" }));
-    expect(await screen.findByText("1 of 10 open")).toBeInTheDocument();
+    expect(screen.getByText("1 waiting")).toBeInTheDocument();
   });
 
   it("takes the next narration and opens it in the workspace", async () => {

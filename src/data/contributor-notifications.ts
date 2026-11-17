@@ -59,12 +59,6 @@ export type RubricFeedbackItem = {
   answer: string;
 };
 
-export const NOTIFICATION_STATUS_LABELS: Record<NotificationStatus, string> = {
-  accepted: "Accepted",
-  rejected: "Rejected",
-  pending: "Pending",
-};
-
 export function getRubricFeedback(answers: QualityAnswers): RubricFeedbackItem[] {
   return QUALITY_QUESTIONS.flatMap((question) => {
     const value = answers[question.id];
@@ -104,7 +98,7 @@ export function getNotificationDetailRows(
     { label: "Mode", value: notification.mode },
     { label: "Language", value: notification.language },
     { label: "Device", value: notification.device },
-    { label: "Amount", value: notification.amount },
+    { label: "You earned", value: notification.amount },
     { label: "Month", value: notification.leaderboardMonth },
     {
       label: "Points",

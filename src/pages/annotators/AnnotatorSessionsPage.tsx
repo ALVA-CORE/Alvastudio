@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
+import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStatusBadge";
+import { NarrationsTab } from "@/components/annotators/sessions/NarrationsTab";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { MetricCard } from "@/components/shared/MetricCard";
@@ -20,11 +22,13 @@ import {
   type AnnotatorSession,
 } from "@/data/annotators/sessions";
 import { useAnnotatorSessions } from "@/hooks/useAnnotatorSessions";
+import { useNarrations } from "@/hooks/useNarrations";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useApiResource } from "@/hooks/useApiResource";
 import { annotatorDashboard } from "@/lib/api/dashboard";
 import { cn } from "@/lib/utils";
 import { NO_VALUE } from "@/lib/no-value";
+import { formatDuration } from "@/lib/duration";
 
 type LanguageFilter = AnnotatorSession["language"] | "all";
 
@@ -34,6 +38,8 @@ const LANGUAGE_FILTERS: { value: LanguageFilter; label: string }[] = [
   { value: "Nigerian English", label: "English" },
   { value: "Mixed", label: "Mixed" },
 ];
+
+type Tab = "pending" | "completed" | "narrations";
 
 export default function AnnotatorSessionsPage() {
   const isMobile = useIsMobile();
@@ -55,8 +61,15 @@ export default function AnnotatorSessionsPage() {
 
   const rows = sessions;
 
-  const [tab, setTab] = useState<"pending" | "completed">("pending");
+  /* The bell's narrations item and a narration's Back arrive on that tab. */
+  const location = useLocation();
+  const [tab, setTab] = useState<Tab>(() =>
+    (location.state as { tab?: string } | null)?.tab === "narrations" ? "narrations" : "pending"
+  );
   const [language, setLanguage] = useState<LanguageFilter>("all");
+  const narrations = useNarrations();
+  /* On the Narrations tab the header, button and cards are about narrations. */
+  const onNarrations = tab === "narrations";
 
   if (isMobile) {
     return <AnnotatorMobileGate />;
@@ -88,6 +101,10 @@ export default function AnnotatorSessionsPage() {
         ),
         speakersTrend: "",
       };
+
+  const narrationOpen = dashboard?.open_narration_claims ?? 0;
+  const narrationLimit = dashboard?.narration_claim_limit ?? null;
+  const poolSeconds = narrations.poolSeconds.reduce((sum, value) => sum + value, 0);
 
   const handleClaim = async () => {
     const annotationId = await claimNext();
@@ -218,16 +235,21 @@ export default function AnnotatorSessionsPage() {
           {/* An annotator may hold two at once. Shown here rather than on the
               button, which stays live: the cap is a fact about their desk,
               and the API says the rest if they reach for a third. */}
-          {claimLimit != null ? (
+          {(onNarrations ? narrationLimit : claimLimit) != null ? (
             <span
               className={cn(
                 "rounded-full px-2.5 py-1 text-[11px] font-medium",
-                openClaims >= claimLimit
+                (onNarrations ? narrationOpen >= (narrationLimit ?? 0) : openClaims >= (claimLimit ?? 0))
                   ? "bg-amber-500/15 text-amber-300"
                   : "bg-alva-surface text-muted-foreground"
               )}
             >
-              {openClaims} of {claimLimit} open
+              {onNarrations ? `${narrationOpen} of ${narrationLimit}` : `${openClaims} of ${claimLimit}`} open
+            </span>
+          ) : null}
+          {onNarrations && narrations.waiting != null ? (
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {narrations.waiting.toLocaleString()} waiting
             </span>
           ) : null}
         </div>
@@ -239,22 +261,22 @@ export default function AnnotatorSessionsPage() {
           variant="alva"
           size="sm"
           className="w-auto shrink-0"
-          onClick={handleClaim}
-          loading={isClaiming}
+          onClick={onNarrations ? () => void narrations.take() : handleClaim}
+          loading={onNarrations ? narrations.isTaking : isClaiming}
         >
-          Claim next session
+          {onNarrations ? "Claim next narration" : "Claim next session"}
         </TextureButton>
       </header>
 
-      {error ? (
+      {(onNarrations ? narrations.error : error) ? (
         <div
           role="alert"
           className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
         >
-          {error}
+          {onNarrations ? narrations.error : error}
           <button
             type="button"
-            onClick={reload}
+            onClick={onNarrations ? narrations.reload : reload}
             className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
           >
             Retry
@@ -262,9 +284,29 @@ export default function AnnotatorSessionsPage() {
         </div>
       ) : null}
 
-      {isLoading ? (
+      {(onNarrations ? narrations.isLoading : isLoading) ? (
         <div className="mt-2">
           <AlvaMetricGridSkeleton />
+        </div>
+      ) : onNarrations ? (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            variant="accent"
+            title="Waiting"
+            value={String(narrations.waiting ?? 0)}
+            icon={Clipboard}
+          />
+          <MetricCard title="Minutes pending" value={`${Math.round(poolSeconds / 60)}m`} icon={ClockCircle} />
+          <MetricCard
+            title="Avg narration"
+            value={narrations.poolSeconds.length ? formatDuration(Math.round(poolSeconds / narrations.poolSeconds.length)) : NO_VALUE}
+            icon={Microphone3}
+          />
+          <MetricCard
+            title="Annotated"
+            value={String(dashboard?.narrations_annotated ?? 0)}
+            icon={ClipboardCheck}
+          />
         </div>
       ) : (
         <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -319,7 +361,7 @@ export default function AnnotatorSessionsPage() {
       <Tabs
         className="mt-4"
         value={tab}
-        onValueChange={(value) => setTab(value as "pending" | "completed")}
+        onValueChange={(value) => setTab(value as Tab)}
       >
         <TabsList className="h-9 rounded-full bg-alva-surface p-1">
           <TabsTrigger
@@ -338,6 +380,12 @@ export default function AnnotatorSessionsPage() {
             className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
           >
             Completed
+          </TabsTrigger>
+          <TabsTrigger
+            value="narrations"
+            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+          >
+            Narrations
           </TabsTrigger>
         </TabsList>
 
@@ -379,6 +427,9 @@ export default function AnnotatorSessionsPage() {
               description: "Finished annotations will show up here.",
             }}
           />
+        </TabsContent>
+        <TabsContent value="narrations" className="mt-2">
+          <NarrationsTab rows={narrations.rows} isLoading={narrations.isLoading} />
         </TabsContent>
       </Tabs>
     </DesktopPageShell>

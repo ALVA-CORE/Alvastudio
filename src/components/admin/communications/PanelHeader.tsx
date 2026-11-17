@@ -42,7 +42,7 @@ export function PanelHeader<T extends string>({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+        className="rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
       >
         <CloseCircle size={22} weight="Outline" />
       </button>

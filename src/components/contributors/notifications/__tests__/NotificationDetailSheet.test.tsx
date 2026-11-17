@@ -27,41 +27,28 @@ describe("NotificationDetailSheet", () => {
     expect(screen.queryByText("Details")).not.toBeInTheDocument();
   });
 
-  /* A verdict's text repeats its title, so it is left out; what was read
-     shows in a box, with no heading. */
-  it("leaves out a verdict's text and boxes what was read", () => {
+  /* What was read shows in a box, with no heading. */
+  it("boxes what was read", () => {
     render(
       <NotificationDetailSheet
-        notification={{
-          ...base,
-          category: "review-accepted",
-          title: "Recording approved",
-          body: "Your recording was approved.",
-          prompt: "Wetin you dey do?",
-        }}
+        notification={{ ...base, category: "review-accepted", title: "Recording approved", body: undefined, prompt: "Wetin you dey do?" }}
         open
         onOpenChange={() => {}}
       />
     );
-    expect(screen.queryByText("Your recording was approved.")).not.toBeInTheDocument();
     expect(screen.getByText("Wetin you dey do?").parentElement).toHaveClass("bg-alva-surface");
     expect(screen.queryByText("What you read")).not.toBeInTheDocument();
   });
 
-  /* Anything but an announcement keeps its text, in the small print. */
-  it("moves a payment's text to the small print", () => {
+  /* A payment: "You earned" on the left, the amount on the right. */
+  it("shows a payment's amount as a row", () => {
     render(
       <NotificationDetailSheet
-        notification={{
-          ...base,
-          category: "payout",
-          title: "You earned a payment",
-          body: "NGN 10.00 for an approved sentence.",
-        }}
+        notification={{ ...base, category: "payout", title: "You earned a payment", body: undefined, amount: "₦10.00" }}
         open
         onOpenChange={() => {}}
       />
     );
-    expect(screen.getByText("NGN 10.00 for an approved sentence.").nextElementSibling?.tagName).toBe("DL");
+    expect(screen.getByText("You earned").nextElementSibling).toHaveTextContent("₦10.00");
   });
 });

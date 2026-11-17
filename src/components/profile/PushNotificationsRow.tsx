@@ -63,7 +63,7 @@ export function PushNotificationsRow({ hideDivider }: { hideDivider?: boolean })
           description="Allow them for Alvastudio in your settings."
         />
       ) : status === "on" ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
           <TextureButton
             variant="secondary"
             size="lg"

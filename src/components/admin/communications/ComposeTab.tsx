@@ -13,6 +13,7 @@ import {
   COMMUNICATION_HERO,
   DEFAULT_ACTION_URL,
   EVERYDAY_HERO,
+  NOTIFICATION_HERO,
 } from "@/lib/admin/emailTemplate";
 import { alvaToast } from "@/lib/alva-toast";
 import type { ComposerFields } from "@/hooks/useCommsComposer";
@@ -31,21 +32,25 @@ const HERO_MAX_BYTES = 5 * 1024 * 1024;
  */
 const HERO_AREA = "aspect-[512/220] w-full";
 
-const EVERYDAY_KEY = "alva-comms-everyday-image";
+/** The templates' other images, which the API only takes as uploads. */
+const TEMPLATE_IMAGES = { everyday: EVERYDAY_HERO, notification: NOTIFICATION_HERO } as const;
+type TemplateImage = keyof typeof TEMPLATE_IMAGES;
 
-/** The uploaded copy of the everyday image, if this browser has made one. */
-function rememberedEveryday(): { id: string; url: string } | null {
+const keyOf = (image: TemplateImage) => `alva-comms-${image}-image`;
+
+/** The uploaded copy of a template image, if this browser has made one. */
+function remembered(image: TemplateImage): { id: string; url: string } | null {
   try {
-    const value = JSON.parse(localStorage.getItem(EVERYDAY_KEY) ?? "null");
+    const value = JSON.parse(localStorage.getItem(keyOf(image)) ?? "null");
     return value && typeof value.id === "string" && typeof value.url === "string" ? value : null;
   } catch {
     return null;
   }
 }
 
-function rememberEveryday(image: { id: string; url: string }) {
+function remember(preset: TemplateImage, image: { id: string; url: string }) {
   try {
-    localStorage.setItem(EVERYDAY_KEY, JSON.stringify({ id: image.id, url: image.url }));
+    localStorage.setItem(keyOf(preset), JSON.stringify({ id: image.id, url: image.url }));
   } catch {
     /* Private window or full storage: it is uploaded again next time. */
   }
@@ -96,7 +101,7 @@ export function ComposeTab({
         if (seq !== uploads.current) return;
         set("heroId", image.id);
         set("hero", image.url);
-        if (choice === "everyday") rememberEveryday(image);
+        if (choice !== "brand" && choice !== "custom") remember(choice, image);
       })
       .catch((cause: unknown) => {
         if (seq !== uploads.current) return;
@@ -111,12 +116,11 @@ export function ComposeTab({
 
   /**
    * The brand image is the server's own default: nothing to upload, and no
-   * id to send. The everyday image is the other one the templates use; the
-   * API takes only uploaded images, so a copy of it is uploaded once and its
-   * id kept in this browser for next time. Uploaded images are never
-   * deleted, so a kept id stays good.
+   * id to send. The API takes the templates' other images only as uploads,
+   * so a copy of each is uploaded once and its id kept in this browser for
+   * next time. Uploaded images are never deleted, so a kept id stays good.
    */
-  const pickPreset = (preset: "brand" | "everyday") => {
+  const pickPreset = (preset: "brand" | TemplateImage) => {
     const seq = ++uploads.current;
     set("heroUploading", false);
     if (preset === "brand") {
@@ -125,19 +129,19 @@ export function ComposeTab({
       set("heroId", null);
       return;
     }
-    const kept = rememberedEveryday();
+    const kept = remembered(preset);
     if (kept) {
-      set("heroChoice", "everyday");
+      set("heroChoice", preset);
       set("heroId", kept.id);
       set("hero", kept.url);
       return;
     }
-    set("heroChoice", "everyday");
-    set("hero", EVERYDAY_HERO);
+    const src = TEMPLATE_IMAGES[preset];
+    set("heroChoice", preset);
+    set("hero", src);
     set("heroUploading", true);
     set("heroProgress", 0);
-    /* The backend's own URL for it, which allows reads from any origin. */
-    fetch(EVERYDAY_HERO)
+    fetch(src)
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status));
         return response.blob();
@@ -145,11 +149,7 @@ export function ComposeTab({
       .then((blob) => {
         /* Another choice made while it downloaded wins. */
         if (seq !== uploads.current) return;
-        pickHero(
-          new File([blob], "everyday.png", { type: blob.type || "image/png" }),
-          "everyday",
-          EVERYDAY_HERO
-        );
+        pickHero(new File([blob], src.split("/").pop(), { type: blob.type || "image/png" }), preset, src);
       })
       .catch(() => {
         if (seq !== uploads.current) return;
@@ -219,19 +219,20 @@ export function ComposeTab({
  *  refused before it is sent. */
 const HERO_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
-export type HeroChoice = "brand" | "everyday" | "custom";
+export type HeroChoice = ComposerFields["heroChoice"];
 
 const PRESETS = [
   { value: "brand", label: "Brand image", src: COMMUNICATION_HERO },
   { value: "everyday", label: "Everyday image", src: EVERYDAY_HERO },
+  { value: "notification", label: "Notification image", src: NOTIFICATION_HERO },
 ] as const;
 
 /**
- * The email's image: one of the two the templates already use, or your own.
+ * The email's image: one the templates already use, or your own.
  *
  * All in the one area. It shows the image that will be sent; the round
- * thumbnails in its corner switch between the brand image, the everyday
- * image and an upload, and a file dropped anywhere on it is taken too.
+ * thumbnails in its corner switch between the templates' images and an
+ * upload, and a file dropped anywhere on it is taken too.
  */
 function HeroDrop({
   value,
@@ -243,7 +244,7 @@ function HeroDrop({
   value: string | null;
   choice: HeroChoice;
   uploading: boolean;
-  onPreset: (preset: "brand" | "everyday") => void;
+  onPreset: (preset: "brand" | TemplateImage) => void;
   onPick: (file: File) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);

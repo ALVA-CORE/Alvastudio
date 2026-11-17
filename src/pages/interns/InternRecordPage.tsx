@@ -202,7 +202,8 @@ export default function InternRecordPage() {
           />
         )}
 
-        {!loadingTopics && (
+        {/* Nothing to record: the empty state says so, no button to press. */}
+        {!loadingTopics && !(total === 0 && recorder.phase === "idle") && (
           <StudioSiriControl
             className="mt-10 h-20"
             phase={recorder.phase}
@@ -210,8 +211,6 @@ export default function InternRecordPage() {
             onHold={handleHold}
             stream={recorder.stream}
             playbackElement={recorder.playbackElement}
-            disabled={total === 0 && recorder.phase === "idle"}
-            disabledLabel="No topic to record"
           />
         )}
 

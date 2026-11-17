@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as annotations from "@/lib/api/annotations";
 import type { ApiDraftTranscript } from "@/lib/api/annotations";
 import { annotationAudioUrl } from "@/lib/api/annotations";
-import { getSession } from "@/lib/api/focusGroups";
 import { sendEvents } from "@/lib/api/annotationEvents";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { toTranscriptDoc } from "@/data/annotators/fromApi";
 import { baselineFrom, saveAnnotation, type Baseline } from "@/data/annotators/toApi";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import type { TranscriptDoc } from "@/lib/annotation/types";
-import { formatDuration, lengthOf } from "@/lib/duration";
+import { formatDuration } from "@/lib/duration";
 import { STATUS_MAP } from "@/hooks/useAnnotatorSessions";
 
 /**
@@ -21,9 +20,9 @@ import { STATUS_MAP } from "@/hooks/useAnnotatorSessions";
  * `ready` branch.
  *
  * Three reads, because the workspace needs three things the API keeps apart:
- * which annotation belongs to this session, the annotation itself, and the
- * session's participants — who become the speakers, and who live on the
- * session rather than the annotation.
+ * which annotation belongs to this session, the annotation itself, and its
+ * source (topic, length and the speakers), all on routes an annotator may
+ * use.
  */
 
 export type TranscriptResource =
@@ -157,29 +156,33 @@ export function useSessionTranscript(
         return { unclaimed: true as const, topic: waiting?.topic };
       }
 
-      /* A playable link, which streams. */
-      const [document, focusGroup, audioSrc] = await Promise.all([
+      /* The annotation's own routes: an annotator may not read the
+         focus-group session itself (it is interns' and admins'), and
+         `/source` carries what the workspace needs from it. A playable link,
+         which streams. */
+      const [document, source, audioSrc] = await Promise.all([
         annotations.getAnnotation(match.id),
-        getSession(sessionId),
+        annotations.getAnnotationSource(match.id),
         annotationAudioUrl(match.id).catch(() => ""),
       ]);
 
-      const doc = toTranscriptDoc(document, focusGroup.participants ?? []);
-      const durationSec = Math.round(lengthOf(focusGroup) ?? 0);
+      const participants = source.participants ?? [];
+      const doc = toTranscriptDoc(document, participants);
+      const durationSec = Math.round(source.duration_seconds ?? 0);
 
       const session: AnnotatorSession = {
         id: sessionId,
         code: sessionCode(sessionId),
-        topic: focusGroup.topic,
+        topic: source.topic ?? "",
         state: "",
-        participants: focusGroup.participants?.length ?? 0,
+        participants: participants.length,
         speakers: doc.speakers.length,
         duration: formatDuration(durationSec),
         durationSec,
-        language: LANGUAGE[focusGroup.language_variety ?? ""] ?? "Mixed",
+        language: LANGUAGE[source.language_variety ?? ""] ?? "Mixed",
         recordedBy: "",
         recordedAt: "",
-        recordedAtTs: new Date(focusGroup.created_at).getTime() || 0,
+        recordedAtTs: 0,
         status: document.status === "draft" ? "in-progress" : "completed",
         tagCount: doc.spans.length + doc.nonSpeech.length,
         audioSrc,

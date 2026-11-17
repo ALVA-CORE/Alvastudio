@@ -137,12 +137,16 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
       tagsApplied: count(data?.tags_applied),
       sessionsAnnotated: count(data?.sessions_annotated),
       queueAvailable: count(data?.queue_available),
-      narrationsAnnotated: count(data?.narrations_annotated),
-      narrationsWaiting: count(data?.narrations_waiting),
       /* No trends: the endpoint returns current totals, not a
        * period-over-period comparison, so there is no honest arrow to draw. */
       periodLabel: "",
     }),
+    [data]
+  );
+
+  /* Numbers, for the narrations chart: done by this annotator, and in the pool. */
+  const narrations = useMemo(
+    () => ({ annotated: data?.narrations_annotated ?? 0, waiting: data?.narrations_waiting ?? 0 }),
     [data]
   );
 
@@ -166,6 +170,7 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
     activity,
     tagBreakdown,
     demographics,
+    narrations,
     isLoading,
     error,
     reload,

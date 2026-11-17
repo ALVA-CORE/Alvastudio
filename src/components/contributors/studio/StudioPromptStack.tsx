@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
@@ -48,6 +49,40 @@ const CARD_OFFSET = 20;
  */
 const CARD_HEIGHT = "h-[18.5rem]";
 const SCALE_FACTOR = 0.04;
+/** Text sizes in px, largest first: 20 is `text-xl`, which most prompts keep. */
+const FIT_SIZES = [20, 18, 16, 14, 12];
+/** Space kept clear above and below the text, in px. */
+const FIT_MARGIN = 32;
+
+/**
+ * The card is one height (see CARD_HEIGHT), so a long prompt steps down in
+ * size until it fits. A short one stays at the first size.
+ */
+function useFitText(text: string | undefined) {
+  const card = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const line = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const box = card.current;
+    if (!text || !box || !content.current || !line.current) return;
+    const fit = () => {
+      /* Not laid out (hidden, or a test): nothing to measure. */
+      if (!box.clientHeight || !content.current || !line.current) return;
+      for (const size of FIT_SIZES) {
+        line.current.style.fontSize = `${size}px`;
+        if (content.current.offsetHeight <= box.clientHeight - FIT_MARGIN) return;
+      }
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [text]);
+
+  return { card, content, line };
+}
 
 export function StudioPromptStack({
   items,
@@ -182,9 +217,11 @@ function PromptFace({
   depth?: number;
 }) {
   const accentOpacity = Math.max(0.22, 0.72 - depth * 0.18);
+  const fit = useFitText(prompt);
 
   return (
     <div
+      ref={fit.card}
       className={cn(
         "flex w-full flex-col items-center justify-center rounded-[28px] px-7 text-center shadow-[0_12px_28px_rgba(0,0,0,0.22)]",
         CARD_HEIGHT,
@@ -199,7 +236,7 @@ function PromptFace({
       }
     >
       {prompt ? (
-        <>
+        <div ref={fit.content} className="flex flex-col items-center">
           <div
             className={cn(
               "mb-5 inline-flex items-center gap-1.5 text-xs",
@@ -215,6 +252,7 @@ function PromptFace({
             {hint ?? "and read the sentence aloud"}
           </div>
           <p
+            ref={fit.line}
             className={cn(
               "text-balance text-xl font-semibold leading-snug",
               active ? "text-alva-bg" : "text-alva-bg/85"
@@ -222,7 +260,7 @@ function PromptFace({
           >
             {prompt}
           </p>
-        </>
+        </div>
       ) : null}
     </div>
   );

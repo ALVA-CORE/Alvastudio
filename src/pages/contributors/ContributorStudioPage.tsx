@@ -32,7 +32,6 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
 import { StimuliIntroSheet } from "@/components/contributors/studio/StimuliIntroSheet";
-import { stimuliIntroSeen } from "@/lib/stimuli-intro";
 
 /**
  * When uploads reopen, in the contributor's own time.
@@ -80,10 +79,8 @@ export default function ContributorStudioPage() {
   const [mode, setMode] = useState<Exclude<StudioMode, "focus">>(() =>
     (location.state as { mode?: string } | null)?.mode === "stimuli" ? "stimuli" : "prompt"
   );
-  /* Stimuli is talking, not reading: said once, the first time they get here. */
-  const [explainStimuli, setExplainStimuli] = useState(
-    () => mode === "stimuli" && !stimuliIntroSeen()
-  );
+  /* Stimuli is talking, not reading: said every time they get there. */
+  const [explainStimuli, setExplainStimuli] = useState(() => mode === "stimuli");
 
   const [isSaving, setSaving] = useState(false);
 
@@ -251,7 +248,7 @@ export default function ContributorStudioPage() {
   const handleModeChange = (nextMode: StudioMode) => {
     if (nextMode === "focus") return;
     setMode(nextMode);
-    if (nextMode === "stimuli" && !stimuliIntroSeen()) setExplainStimuli(true);
+    if (nextMode === "stimuli") setExplainStimuli(true);
     recorder.discardRecording();
     alvaToast.show(`Switched to ${MODE_LABEL[nextMode]}`, { variant: "default" });
   };
@@ -469,7 +466,8 @@ export default function ContributorStudioPage() {
           />
         )}
 
-        {!loadingCard && (
+        {/* Nothing to record: the empty state says so, no button to press. */}
+        {!loadingCard && !(total === 0 && recorder.phase === "idle") && (
         <StudioSiriControl
           className="mt-10 h-20"
           phase={recorder.phase}

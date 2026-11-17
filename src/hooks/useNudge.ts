@@ -62,6 +62,11 @@ export function useNudge({
       write(key, Date.now());
       setOpen(false);
     },
+    /** "Don't show me again": remembered as a time that never runs out. */
+    never: () => {
+      write(key, Number.MAX_SAFE_INTEGER);
+      setOpen(false);
+    },
     setOpen,
   };
 }

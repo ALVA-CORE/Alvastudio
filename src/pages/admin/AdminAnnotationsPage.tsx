@@ -3,12 +3,11 @@ import DocumentText from "@solar-icons/react/notes/DocumentText";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
-import ChatRoundDots from "@solar-icons/react/messages/ChatRoundDots";
-import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { TextureButton } from "@/components/ui/texture-button";
 import { AlvaChartCard } from "@/components/shared/AlvaChartCard";
+import { SharePie } from "@/components/admin/shared/SharePie";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { AnnotatorBreakdownChart } from "@/components/admin/shared/AnnotatorBreakdownChart";
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -233,7 +232,7 @@ export default function AdminAnnotationsPage() {
       ) : (
         <>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           variant="accent"
           title="Annotations"
@@ -260,19 +259,9 @@ export default function AdminAnnotationsPage() {
           }}
           icon={DangerTriangle}
         />
-        <MetricCard
-          title="Narrations waiting"
-          value={String(claimableNarrations)}
-          icon={Clipboard}
-        />
-        <MetricCard
-          title="Narrations in progress"
-          value={String(narrationsInProgress)}
-          icon={ChatRoundDots}
-        />
       </div>
 
-      <div className="mt-2 grid gap-2 lg:grid-cols-2">
+      <div className="mt-2 grid gap-2 lg:grid-cols-3">
         <AlvaChartCard
           title="Annotator throughput"
           subtitle="Sessions each annotator claimed, and where they stand"
@@ -334,6 +323,25 @@ export default function AdminAnnotationsPage() {
               </div>
             ))}
           </dl>
+        </AlvaChartCard>
+
+        {/* Stimuli clips an admin sent from Reviews: in the pool, or claimed. */}
+        <AlvaChartCard
+          title="Narrations"
+          emptyMessage={
+            claimableNarrations + narrationsInProgress === 0
+              ? { title: "None sent yet", description: "Send approved Stimuli clips from Reviews." }
+              : undefined
+          }
+        >
+          <SharePie
+            slices={[
+              { label: "Waiting", hours: claimableNarrations },
+              { label: "In progress", hours: narrationsInProgress },
+            ]}
+            centerLabel="narrations"
+            valueSuffix=""
+          />
         </AlvaChartCard>
       </div>
 

@@ -516,8 +516,8 @@ export type ApiAnnotationSource = {
   topic: string | null;
   language_variety: string | null;
   duration_seconds: number | null;
-  /** Empty on a narration: one speaker, never named to the annotator. */
-  participants: unknown[];
+  /** The session's speakers. Empty on a narration: one speaker, never named to the annotator. */
+  participants: { id: string; label: string }[];
   /** One value per bucket, 0..1, across the whole recording. */
   waveform_peaks: number[] | null;
 };

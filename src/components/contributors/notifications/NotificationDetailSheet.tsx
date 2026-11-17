@@ -6,7 +6,6 @@ import {
 } from "@/data/contributor-notifications";
 import {
   NotificationActionButton,
-  NotificationStatusTag,
 } from "@/components/contributors/notifications/notification-ui";
 import { PanelDivider, PanelRow, PanelSection } from "@/components/shared/PanelPrimitives";
 import {
@@ -40,10 +39,9 @@ export function NotificationDetailSheet({
 
   const detailRows = getNotificationDetailRows(notification);
   const announcement = notification.category === "announcement";
-  /* A verdict's text repeats its title and tag ("Your recording was
-     approved"), so it is left out; the rest goes in the small print. */
-  const smallPrint =
-    !announcement && !notification.category.startsWith("review") && Boolean(notification.body);
+  /* Anything but an announcement keeps its text in the small print (for a
+     verdict, only the reviewer's notes; a payment has none, its amount is a row). */
+  const smallPrint = !announcement && Boolean(notification.body);
 
   const rubricIssues =
     notification.answers && notification.status === "rejected"
@@ -72,7 +70,6 @@ export function NotificationDetailSheet({
             close button. */}
         <SheetHeader className="items-center px-10 text-center sm:text-center">
           <SheetTitle className="text-xl text-foreground">{notification.title}</SheetTitle>
-          {notification.status ? <NotificationStatusTag status={notification.status} /> : null}
         </SheetHeader>
 
         {/* An announcement's words are the point, so they sit under the

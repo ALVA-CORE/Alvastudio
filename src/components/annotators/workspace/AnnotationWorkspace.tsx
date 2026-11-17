@@ -138,22 +138,17 @@ export function AnnotationWorkspace({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-alva-bg">
-      <WorkspaceFloatingControls
-        onBack={handleBack}
-        backLabel={narration ? "Back to narrations" : undefined}
-      />
-
       {consentBlocked ? (
         <div
           role="alert"
-          className="mx-3 mt-1 flex items-start gap-2.5 rounded-xl bg-amber-500/10 px-4 py-2.5"
+          className="mx-3 mt-1 flex items-start justify-center gap-2.5 rounded-xl bg-amber-500/10 px-4 py-2.5"
         >
           <DangerTriangle
             size={16}
             weight="BoldDuotone"
             className="mt-0.5 shrink-0 text-amber-300"
           />
-          <p className="text-xs leading-relaxed text-amber-200">
+          <p className="text-center text-xs leading-relaxed text-amber-200">
             Someone in this session withdrew their consent, so nothing can be
             saved or submitted until that is resolved. Everything you have done
             is kept. Ask the intern who recorded it to sort the consent out.
@@ -177,10 +172,19 @@ export function AnnotationWorkspace({
 
           {/* Transcript sits on its own raised panel rather than on the page
               floor, so the editing surface reads as a document. */}
-          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-alva-border bg-alva-card">
-            <SpeakerLinkProvider onLink={linkSpeakers}>
-              <TranscriptEditor className="h-full" hideSpeakers={narration} />
-            </SpeakerLinkProvider>
+          {/* The back arrow and undo/redo float on the transcript, not the
+              page: a banner above it pushes them down with it. */}
+          <div className="relative min-h-0 flex-1">
+            <WorkspaceFloatingControls
+              onBack={handleBack}
+              backLabel={narration ? "Back to narrations" : undefined}
+              className="inset-x-0 pt-2"
+            />
+            <div className="h-full overflow-hidden rounded-2xl border border-alva-border bg-alva-card">
+              <SpeakerLinkProvider onLink={linkSpeakers}>
+                <TranscriptEditor className="h-full" hideSpeakers={narration} />
+              </SpeakerLinkProvider>
+            </div>
           </div>
 
           <TimelineDock
