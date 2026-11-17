@@ -15,6 +15,7 @@ import { listBanks, type ApiBank } from "@/lib/api/wallet";
 import { linkPayoutAccount } from "@/data/contributors/walletStore";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
+import { bankLogo } from "@/lib/bank-logos";
 import type { PayoutAccount } from "@/data/contributors/wallet";
 import { cn } from "@/lib/utils";
 
@@ -151,14 +152,12 @@ export function LinkBankSheet({
       >
         {existing && !editing ? (
           <>
-            <SheetHeader className="pr-8 text-left">
-              <SheetTitle className="text-xl justify-center items-center text-foreground">Payout account</SheetTitle>
+            <SheetHeader className="px-8 text-center sm:text-center">
+              <SheetTitle className="text-xl text-center text-foreground">Payout account</SheetTitle>
             </SheetHeader>
 
             <div className="mt-6 flex items-center gap-3 rounded-xl bg-alva-surface px-3 py-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-alva-card">
-                <CardSend size={20} weight="BoldDuotone" className="text-alva-accent" />
-              </span>
+              <BankBadge bank={existing.bank} />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium text-foreground">
                   {existing.accountName || existing.bank}
@@ -175,13 +174,13 @@ export function LinkBankSheet({
           </>
         ) : (
           <>
-            <SheetHeader className="pr-8 text-left">
-              <SheetTitle className="text-xl text-foreground">
+            <SheetHeader className="px-8 text-center sm:text-center">
+              <SheetTitle className="text-xl text-center text-foreground">
                 {existing ? "Change payout account" : "Where should we pay you?"}
               </SheetTitle>
               {/* Before they type, not after: Bachs refuses an account whose name
                   shares no word with theirs (13 Nov). */}
-              <p className="text-sm text-muted-foreground">It must be in your own name.</p>
+              <p className="text-sm text-center text-muted-foreground">It must be in your own name.</p>
             </SheetHeader>
 
             <div className="mt-6 space-y-4">
@@ -279,5 +278,37 @@ export function LinkBankSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** The bank's logo on a rounded square: its own background where it has
+ *  one, white where it is transparent. Our card icon for a bank we have no
+ *  logo for, or one that fails to load. */
+function BankBadge({ bank }: { bank: string }) {
+  const logo = bankLogo(bank);
+  const [failed, setFailed] = useState(false);
+
+  if (!logo || failed) {
+    return (
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-alva-card">
+        <CardSend size={20} weight="BoldDuotone" className="text-alva-accent" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl",
+        logo.filled ? "bg-alva-card" : "bg-white p-1.5"
+      )}
+    >
+      <img
+        src={logo.src}
+        alt=""
+        /* A filled one is cropped to the edge, past the thin margin some draw round it. */
+        className={cn("size-full", logo.filled ? "scale-105 object-cover" : "object-contain")}
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }
