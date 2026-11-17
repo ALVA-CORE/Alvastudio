@@ -1,7 +1,6 @@
 import type { ContributorNotification } from "@/data/contributor-notifications";
 import {
   NotificationCategoryIcon,
-  NotificationStatusTag,
 } from "@/components/contributors/notifications/notification-ui";
 import { cn } from "@/lib/utils";
 
@@ -30,12 +29,7 @@ export function NotificationCard({ notification, onClick, className }: Notificat
         </p>
       </div>
 
-      {notification.status ? (
-        <NotificationStatusTag status={notification.status} />
-      ) : null}
-
-      {/* A dot, after the status tag. The row is already the thing being
-          read, so unread needs a mark rather than a second label. */}
+      {/* The title says the verdict, so no tag; unread is a dot. */}
       {notification.read ? null : (
         <span
           aria-label="Unread"

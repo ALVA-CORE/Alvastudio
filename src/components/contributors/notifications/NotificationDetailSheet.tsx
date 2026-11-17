@@ -6,7 +6,6 @@ import {
 } from "@/data/contributor-notifications";
 import {
   NotificationActionButton,
-  NotificationStatusTag,
 } from "@/components/contributors/notifications/notification-ui";
 import { PanelDivider, PanelRow, PanelSection } from "@/components/shared/PanelPrimitives";
 import {
@@ -71,7 +70,6 @@ export function NotificationDetailSheet({
             close button. */}
         <SheetHeader className="items-center px-10 text-center sm:text-center">
           <SheetTitle className="text-xl text-foreground">{notification.title}</SheetTitle>
-          {notification.status ? <NotificationStatusTag status={notification.status} /> : null}
         </SheetHeader>
 
         {/* An announcement's words are the point, so they sit under the

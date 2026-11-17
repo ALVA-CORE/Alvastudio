@@ -242,7 +242,8 @@ export default function ContributorNotificationsPage() {
                     onClick={() => handleOpen(notification)}
                   />
                   {index < visibleNotifications.length - 1 ? (
-                    <Separator className="mx-4 bg-alva-border" />
+                    /* From after the icon (2.5rem + the 0.75rem gap), short of the right edge. */
+                    <Separator className="ml-[3.25rem] mr-4 w-auto bg-alva-border" />
                   ) : null}
                 </div>
               ))}

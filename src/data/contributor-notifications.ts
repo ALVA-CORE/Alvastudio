@@ -59,12 +59,6 @@ export type RubricFeedbackItem = {
   answer: string;
 };
 
-export const NOTIFICATION_STATUS_LABELS: Record<NotificationStatus, string> = {
-  accepted: "Accepted",
-  rejected: "Rejected",
-  pending: "Pending",
-};
-
 export function getRubricFeedback(answers: QualityAnswers): RubricFeedbackItem[] {
   return QUALITY_QUESTIONS.flatMap((question) => {
     const value = answers[question.id];

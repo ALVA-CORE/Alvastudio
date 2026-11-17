@@ -138,11 +138,6 @@ export function AnnotationWorkspace({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-alva-bg">
-      <WorkspaceFloatingControls
-        onBack={handleBack}
-        backLabel={narration ? "Back to narrations" : undefined}
-      />
-
       {consentBlocked ? (
         <div
           role="alert"
@@ -177,10 +172,19 @@ export function AnnotationWorkspace({
 
           {/* Transcript sits on its own raised panel rather than on the page
               floor, so the editing surface reads as a document. */}
-          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-alva-border bg-alva-card">
-            <SpeakerLinkProvider onLink={linkSpeakers}>
-              <TranscriptEditor className="h-full" hideSpeakers={narration} />
-            </SpeakerLinkProvider>
+          {/* The back arrow and undo/redo float on the transcript, not the
+              page: a banner above it pushes them down with it. */}
+          <div className="relative min-h-0 flex-1">
+            <WorkspaceFloatingControls
+              onBack={handleBack}
+              backLabel={narration ? "Back to narrations" : undefined}
+              className="inset-x-0 pt-2"
+            />
+            <div className="h-full overflow-hidden rounded-2xl border border-alva-border bg-alva-card">
+              <SpeakerLinkProvider onLink={linkSpeakers}>
+                <TranscriptEditor className="h-full" hideSpeakers={narration} />
+              </SpeakerLinkProvider>
+            </div>
           </div>
 
           <TimelineDock
