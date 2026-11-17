@@ -137,6 +137,8 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
       tagsApplied: count(data?.tags_applied),
       sessionsAnnotated: count(data?.sessions_annotated),
       queueAvailable: count(data?.queue_available),
+      narrationsAnnotated: count(data?.narrations_annotated),
+      narrationsWaiting: count(data?.narrations_waiting),
       /* No trends: the endpoint returns current totals, not a
        * period-over-period comparison, so there is no honest arrow to draw. */
       periodLabel: "",

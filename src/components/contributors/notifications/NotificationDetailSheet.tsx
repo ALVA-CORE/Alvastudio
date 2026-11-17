@@ -39,6 +39,11 @@ export function NotificationDetailSheet({
   if (!notification) return null;
 
   const detailRows = getNotificationDetailRows(notification);
+  const announcement = notification.category === "announcement";
+  /* A verdict's text repeats its title and tag ("Your recording was
+     approved"), so it is left out; the rest goes in the small print. */
+  const smallPrint =
+    !announcement && !notification.category.startsWith("review") && Boolean(notification.body);
 
   const rubricIssues =
     notification.answers && notification.status === "rejected"
@@ -70,10 +75,9 @@ export function NotificationDetailSheet({
           {notification.status ? <NotificationStatusTag status={notification.status} /> : null}
         </SheetHeader>
 
-        {/* The message is the one piece of prose here, so it sits above the
-            rules rather than inside a labelled section. Plain text with its
-            line breaks: an announcement is written that way. */}
-        {notification.body ? (
+        {/* An announcement's words are the point, so they sit under the
+            title, line breaks kept. Anything else is small print below. */}
+        {announcement && notification.body ? (
           <p className="mt-3 whitespace-pre-line text-center text-sm leading-relaxed text-muted-foreground">
             {notification.body}
           </p>
@@ -87,12 +91,11 @@ export function NotificationDetailSheet({
 
         {/* What was read, for a review: the subject of the verdict. */}
         {notification.prompt ? (
-          <>
-            <PanelDivider />
-            <PanelSection title="What you read">
-              <p className="text-sm leading-relaxed text-foreground">{notification.prompt}</p>
-            </PanelSection>
-          </>
+          <div className="mt-5 rounded-xl bg-alva-surface p-4">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {notification.prompt}
+            </p>
+          </div>
         ) : null}
 
 
@@ -126,16 +129,19 @@ export function NotificationDetailSheet({
           </>
         ) : null}
 
-        {/* Small print, not a section: when it came, and for a clip its facts. */}
-        {detailRows.length > 0 ? (
-          <dl className="mt-6 space-y-1 border-t border-alva-border/60 pt-3 text-xs">
-            {detailRows.map((row) => (
-              <div key={row.label} className="flex items-baseline justify-between gap-3">
-                <dt className="text-muted-foreground">{row.label}</dt>
-                <dd className="tabular-nums text-muted-foreground">{row.value}</dd>
-              </div>
-            ))}
-          </dl>
+        {/* Small print: the text (bar an announcement's), when it came, a clip's facts. */}
+        {smallPrint || detailRows.length > 0 ? (
+          <div className="mt-6 space-y-1 border-t border-alva-border/60 pt-3 text-xs text-muted-foreground">
+            {smallPrint ? <p className="pb-1">{notification.body}</p> : null}
+            <dl className="space-y-1">
+              {detailRows.map((row) => (
+                <div key={row.label} className="flex items-baseline justify-between gap-3">
+                  <dt>{row.label}</dt>
+                  <dd className="tabular-nums">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         ) : null}
       </SheetContent>
     </Sheet>

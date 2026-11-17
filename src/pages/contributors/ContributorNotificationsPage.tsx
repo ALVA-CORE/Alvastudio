@@ -13,6 +13,7 @@ import { AlvaSurfaceCard } from "@/components/shared/AlvaSurfaceCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
@@ -126,20 +127,23 @@ export default function ContributorNotificationsPage() {
 
       <div className="px-4">
         <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Magnifier
-              size={16}
-              weight="Outline"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search notifications"
-              className="h-10 rounded-full border-0 bg-alva-surface pl-9 shadow-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-              aria-label="Search notifications"
-            />
-          </div>
+          {/* As the tables' search: the beam is the focus, no ring. */}
+          <FieldBeam radius={20} className="min-w-0 flex-1 rounded-full">
+            <div className="relative">
+              <Magnifier
+                size={16}
+                weight="Outline"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search notifications"
+                className="h-10 rounded-full border-0 bg-alva-surface pl-9 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                aria-label="Search notifications"
+              />
+            </div>
+          </FieldBeam>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

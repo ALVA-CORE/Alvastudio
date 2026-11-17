@@ -27,17 +27,41 @@ describe("NotificationDetailSheet", () => {
     expect(screen.queryByText("Details")).not.toBeInTheDocument();
   });
 
-  /* A review's message and the sentence it was about are two things. */
-  it("keeps what was read apart from the message", () => {
+  /* A verdict's text repeats its title, so it is left out; what was read
+     shows in a box, with no heading. */
+  it("leaves out a verdict's text and boxes what was read", () => {
     render(
       <NotificationDetailSheet
-        notification={{ ...base, title: "Clip approved", body: "Nice one.", prompt: "Wetin you dey do?" }}
+        notification={{
+          ...base,
+          category: "review-accepted",
+          title: "Recording approved",
+          body: "Your recording was approved.",
+          prompt: "Wetin you dey do?",
+        }}
         open
         onOpenChange={() => {}}
       />
     );
-    expect(screen.getByText("Nice one.")).toBeInTheDocument();
-    expect(screen.getByText("What you read")).toBeInTheDocument();
-    expect(screen.getByText("Wetin you dey do?")).toBeInTheDocument();
+    expect(screen.queryByText("Your recording was approved.")).not.toBeInTheDocument();
+    expect(screen.getByText("Wetin you dey do?").parentElement).toHaveClass("bg-alva-surface");
+    expect(screen.queryByText("What you read")).not.toBeInTheDocument();
+  });
+
+  /* Anything but an announcement keeps its text, in the small print. */
+  it("moves a payment's text to the small print", () => {
+    render(
+      <NotificationDetailSheet
+        notification={{
+          ...base,
+          category: "payout",
+          title: "You earned a payment",
+          body: "NGN 10.00 for an approved sentence.",
+        }}
+        open
+        onOpenChange={() => {}}
+      />
+    );
+    expect(screen.getByText("NGN 10.00 for an approved sentence.").nextElementSibling?.tagName).toBe("DL");
   });
 });

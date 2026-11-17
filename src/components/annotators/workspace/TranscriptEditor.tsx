@@ -56,6 +56,8 @@ export type TranscriptEditorProps = {
    * `setCurrentTime` so the editor stays usable standalone (tests, storybook).
    */
   onSeek?: (time: number) => void;
+  /** A narration: one speaker, never named, so no speaker gutter. */
+  hideSpeakers?: boolean;
   className?: string;
 };
 
@@ -88,7 +90,11 @@ function usePrefersReducedMotion(): boolean {
 const selectActiveSegmentIndex = (state: AnnotationState): number =>
   findActiveSegmentIndex(state.history.present.segments, state.currentTime);
 
-export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
+export function TranscriptEditor({
+  onSeek,
+  hideSpeakers = false,
+  className,
+}: TranscriptEditorProps) {
   const store = useAnnotationStore();
   const actions = useAnnotationActions();
 
@@ -400,6 +406,7 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
                 segment={segment}
                 speaker={speakerById.get(segment.speakerId)}
                 speakers={speakers}
+                hideSpeaker={hideSpeakers}
                 isActive={item.index === activeIndex}
                 isHighlighted={segment.id === selectedSegmentId}
                 isDimmed={isSegmentDimmed(segment, activeSpeakerId)}
@@ -420,6 +427,7 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
               />
 
               <SegmentBoundary
+                hideSpeaker={hideSpeakers}
                 canMerge={Boolean(next)}
                 canInsert={gapRoom >= MIN_SEGMENT_DURATION}
                 mergeLabel={`Merge the segment at ${formatTimecode(segment.start)} with the next one`}
@@ -440,6 +448,8 @@ export function TranscriptEditor({ onSeek, className }: TranscriptEditorProps) {
  * ------------------------------------------------------------------ */
 
 type SegmentBoundaryProps = {
+  /** No speaker gutter on the rows, so none to mirror. */
+  hideSpeaker: boolean;
   /** False on the last row — there is nothing after it to merge into. */
   canMerge: boolean;
   /** False when the following silence is too short to hold a segment. */
@@ -465,6 +475,7 @@ const BOUNDARY_ACTION =
   "flex size-5 items-center justify-center rounded-full text-foreground transition-colors hover:bg-alva-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent";
 
 const SegmentBoundary = memo(function SegmentBoundary({
+  hideSpeaker,
   canMerge,
   canInsert,
   mergeLabel,
@@ -479,7 +490,7 @@ const SegmentBoundary = memo(function SegmentBoundary({
       {/* Spacer mirrors the row's speaker gutter so the actions land directly
           beneath the rail — change one, change the other. The negative margin
           centres the icons on the rail line rather than on its left edge. */}
-      <div className="w-[9.5rem] shrink-0" aria-hidden />
+      {hideSpeaker ? null : <div className="w-[9.5rem] shrink-0" aria-hidden />}
 
       <div className="-ml-4 flex items-center gap-0.5">
         {canMerge && (

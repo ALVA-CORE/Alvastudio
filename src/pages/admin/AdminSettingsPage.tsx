@@ -10,6 +10,7 @@ import { FeedbackRow } from "@/components/profile/FeedbackRow";
 import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
+import { PushNotificationsRow } from "@/components/profile/PushNotificationsRow";
 import { TextureButton } from "@/components/ui/texture-button";
 import { useAuth } from "@/lib/auth/context";
 
@@ -68,6 +69,8 @@ export default function AdminSettingsPage() {
               <ProfileInfoBlock label="Intern and annotator surfaces" value="Yes" />
             </dl>
           </ProfileActionRow>
+
+          <PushNotificationsRow />
 
           <FeedbackRow />
 

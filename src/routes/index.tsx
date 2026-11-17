@@ -20,6 +20,7 @@ import InternParticipantsPage from "@/pages/interns/InternParticipantsPage";
 import InternProfilePage from "@/pages/interns/InternProfilePage";
 import AnnotatorDashboardPage from "@/pages/annotators/AnnotatorDashboardPage";
 import AnnotatorSessionsPage from "@/pages/annotators/AnnotatorSessionsPage";
+import AnnotatorNarrationsPage from "@/pages/annotators/AnnotatorNarrationsPage";
 import AnnotatorWorkspacePage from "@/pages/annotators/AnnotatorWorkspacePage";
 import AnnotatorProfilePage from "@/pages/annotators/AnnotatorProfilePage";
 import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
@@ -113,6 +114,7 @@ export function AppRoutes() {
             <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
               <Route path="/annotator/dashboard" element={<AnnotatorDashboardPage />} />
               <Route path="/annotator/sessions" element={<AnnotatorSessionsPage />} />
+              <Route path="/annotator/narrations" element={<AnnotatorNarrationsPage />} />
               <Route path="/annotator/profile" element={<AnnotatorProfilePage />} />
               {/* Legacy review paths now resolve to the session queue. */}
               <Route
@@ -175,6 +177,10 @@ export function AppRoutes() {
           <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
             <Route
               path="/annotator/sessions/:sessionId"
+              element={<AnnotatorWorkspacePage />}
+            />
+            <Route
+              path="/annotator/narrations/:annotationId"
               element={<AnnotatorWorkspacePage />}
             />
           </Route>

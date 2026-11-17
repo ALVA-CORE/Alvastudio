@@ -1,4 +1,5 @@
 import { memo, useCallback, useState } from "react";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import { SegmentTextEditor } from "@/components/annotators/workspace/SegmentTextEditor";
 import { SpeakerAvatar } from "@/components/annotators/workspace/SpeakerAvatar";
@@ -43,6 +44,8 @@ export type TranscriptSegmentRowProps = {
   segment: Segment;
   speaker: Speaker | undefined;
   speakers: Speaker[];
+  /** A narration's rows name no speaker, so the gutter goes. */
+  hideSpeaker?: boolean;
   /** Playhead is inside this segment. Drives the read-along highlight only. */
   isActive: boolean;
   /**
@@ -75,6 +78,7 @@ function TranscriptSegmentRowImpl({
   segment,
   speaker,
   speakers,
+  hideSpeaker = false,
   isActive,
   isHighlighted,
   isDimmed,
@@ -145,67 +149,71 @@ function TranscriptSegmentRowImpl({
       {/* Speaker gutter. The avatar is the picker; the name is the rename
           affordance. Splitting them means the frequent action (reading who is
           speaking) never risks opening a menu by accident. */}
-      <div className="flex w-[9.5rem] shrink-0 items-start gap-1.5 pt-0.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+      {hideSpeaker ? null : (
+        <div className="flex w-[9.5rem] shrink-0 items-start gap-1.5 pt-0.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Change speaker for segment at ${formatTimecode(segment.start)}`}
+                className="shrink-0 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+              >
+                <SpeakerAvatar speaker={resolved} size="md" />
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Assign speaker
+              </DropdownMenuLabel>
+
+              {speakers.map((option) => (
+                <DropdownMenuItem
+                  key={option.id}
+                  onSelect={() => onSpeakerChange(segment.id, option.id)}
+                  className="gap-2 text-xs"
+                >
+                  <SpeakerAvatar speaker={option} size="sm" />
+                  <span className="min-w-0 flex-1 truncate">{speakerDisplayName(option)}</span>
+                  {option.id === segment.speakerId ? (
+                    <CheckCircle size={14} weight="Bold" className="shrink-0 text-alva-accent" />
+                  ) : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {renamingSpeaker ? (
+            <FieldBeam radius={6} className="min-w-0 flex-1 rounded-md">
+              <input
+                autoFocus
+                value={speakerDraft}
+                onChange={(event) => setSpeakerDraft(event.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                  if (event.key === "Enter") commitRename();
+                  if (event.key === "Escape") setRenamingSpeaker(false);
+                }}
+                aria-label="Speaker name"
+                className="w-full min-w-0 rounded-md bg-alva-surface px-1.5 py-0.5 text-sm text-foreground outline-none"
+              />
+            </FieldBeam>
+          ) : (
             <button
               type="button"
-              aria-label={`Change speaker for segment at ${formatTimecode(segment.start)}`}
-              className="shrink-0 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+              onDoubleClick={() => {
+                setSpeakerDraft(speakerDisplayName(resolved));
+                setRenamingSpeaker(true);
+              }}
+              title="Double-click to rename"
+              className="min-w-0 flex-1 truncate rounded-md py-0.5 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
             >
-              <SpeakerAvatar speaker={resolved} size="md" />
+              {speakerDisplayName(resolved)}
             </button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              Assign speaker
-            </DropdownMenuLabel>
-
-            {speakers.map((option) => (
-              <DropdownMenuItem
-                key={option.id}
-                onSelect={() => onSpeakerChange(segment.id, option.id)}
-                className="gap-2 text-xs"
-              >
-                <SpeakerAvatar speaker={option} size="sm" />
-                <span className="min-w-0 flex-1 truncate">{speakerDisplayName(option)}</span>
-                {option.id === segment.speakerId ? (
-                  <CheckCircle size={14} weight="Bold" className="shrink-0 text-alva-accent" />
-                ) : null}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {renamingSpeaker ? (
-          <input
-            autoFocus
-            value={speakerDraft}
-            onChange={(event) => setSpeakerDraft(event.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(event) => {
-              event.stopPropagation();
-              if (event.key === "Enter") commitRename();
-              if (event.key === "Escape") setRenamingSpeaker(false);
-            }}
-            aria-label="Speaker name"
-            className="min-w-0 flex-1 rounded-md bg-alva-surface px-1.5 py-0.5 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-          />
-        ) : (
-          <button
-            type="button"
-            onDoubleClick={() => {
-              setSpeakerDraft(speakerDisplayName(resolved));
-              setRenamingSpeaker(true);
-            }}
-            title="Double-click to rename"
-            className="min-w-0 flex-1 truncate rounded-md py-0.5 text-left text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-          >
-            {speakerDisplayName(resolved)}
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Rail. The line is constant — only the aura behind it changes, and it
           hugs the line rather than filling a column. */}

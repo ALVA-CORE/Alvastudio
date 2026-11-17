@@ -12,6 +12,7 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import type { DirectoryPerson } from "@/hooks/usePeopleDirectory";
 import { BeamInput } from "@/components/auth/BeamInput";
 import { DateTimeField } from "@/components/shared/DateTimeField";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { TextureButton } from "@/components/ui/texture-button";
 import {
@@ -373,15 +374,17 @@ function Compose({
         {reach === null ? "Counting…" : `This reaches ${people(reach)}.`}
       </p>
 
-      <textarea
-        aria-label="Message"
-        placeholder="Message"
-        rows={7}
-        value={fields.body}
-        maxLength={ANNOUNCEMENT_LIMITS.body}
-        onChange={(event) => set("body", event.target.value)}
-        className="w-full resize-none rounded-xl border border-alva-border bg-alva-surface px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-      />
+      <FieldBeam>
+        <textarea
+          aria-label="Message"
+          placeholder="Message"
+          rows={7}
+          value={fields.body}
+          maxLength={ANNOUNCEMENT_LIMITS.body}
+          onChange={(event) => set("body", event.target.value)}
+          className="w-full resize-none rounded-xl border border-alva-border bg-alva-surface px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+      </FieldBeam>
 
       <div className="grid grid-cols-[2fr_3fr] gap-2">
         <BeamInput

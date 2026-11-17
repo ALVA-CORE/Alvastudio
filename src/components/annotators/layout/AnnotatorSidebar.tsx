@@ -3,20 +3,23 @@ import { useLocation, useNavigate } from "react-router-dom";
 import HomeSmile from "@solar-icons/react/ui/HomeSmile";
 import Soundwave from "@solar-icons/react/video/Soundwave";
 import Settings from "@solar-icons/react/settings/Settings";
+import ChatRoundDots from "@solar-icons/react/messages/ChatRoundDots";
 import { cn } from "@/lib/utils";
 import { SidebarRailBlur } from "@/components/layout/SidebarRailBlur";
 import { SiriBlob } from "@/components/contributors/studio/SiriBlob";
 
-type NavId = "home" | "sessions" | "profile";
+type NavId = "home" | "sessions" | "narrations" | "profile";
 
 const NAV_ITEMS: Array<{ id: NavId; path: string; label: string }> = [
   { id: "home", path: "/annotator/dashboard", label: "Home" },
   { id: "sessions", path: "/annotator/sessions", label: "Sessions" },
+  { id: "narrations", path: "/annotator/narrations", label: "Narrations" },
   { id: "profile", path: "/annotator/profile", label: "Settings" },
 ];
 
 function getActiveNav(pathname: string): NavId {
   if (pathname.startsWith("/annotator/sessions")) return "sessions";
+  if (pathname.startsWith("/annotator/narrations")) return "narrations";
   if (pathname.startsWith("/annotator/profile")) return "profile";
   return "home";
 }
@@ -86,6 +89,16 @@ export function AnnotatorSidebar() {
                     transcribe, and a mic here reads as "record". */}
                 {isSessions && (
                   <SiriBlob size="nav" idleIcon={Soundwave} className="shrink-0" />
+                )}
+                {item.id === "narrations" && (
+                  <ChatRoundDots
+                    size={22}
+                    weight={isActive ? "BoldDuotone" : "Outline"}
+                    className={cn(
+                      "shrink-0",
+                      isActive ? "text-alva-accent" : "text-muted-foreground"
+                    )}
+                  />
                 )}
                 {item.id === "profile" && (
                   <Settings

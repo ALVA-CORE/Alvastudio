@@ -3,6 +3,8 @@ import DocumentText from "@solar-icons/react/notes/DocumentText";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
+import ChatRoundDots from "@solar-icons/react/messages/ChatRoundDots";
+import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { TextureButton } from "@/components/ui/texture-button";
@@ -23,13 +25,20 @@ import {
   type AnnotationStatus,
 } from "@/data/admin/oversight";
 import { useAdminAnnotations } from "@/hooks/useAdminAnnotations";
-import type { ApiAnnotationSort } from "@/lib/api/annotations";
+import type { ApiAnnotationKind, ApiAnnotationSort } from "@/lib/api/annotations";
 import { formatDuration, relativeDays } from "@/data/admin/shared";
 import { lengthOf } from "@/lib/duration";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NO_VALUE } from "@/lib/no-value";
 
 type StatusFilter = AnnotationStatus | "all";
+type KindFilter = ApiAnnotationKind | "all";
+
+const KIND_LABELS: Record<KindFilter, string> = {
+  all: "All types",
+  session: "Sessions",
+  narration: "Narrations",
+};
 
 const STATUS_TONE: Record<AnnotationStatus, PillTone> = {
   approved: "good",
@@ -53,6 +62,7 @@ const STATUSES: StatusFilter[] = [
  */
 export default function AdminAnnotationsPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [kind, setKind] = useState<KindFilter>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{ key: ApiAnnotationSort; order: "asc" | "desc" }>();
   const [page, setPage] = useState(1);
@@ -70,6 +80,7 @@ export default function AdminAnnotationsPage() {
     assignSession,
     setVerdict,
   } = useAdminAnnotations({
+    kind: kind === "all" ? undefined : kind,
     status: status === "all" ? undefined : status,
     q: query,
     sort,
@@ -95,6 +106,10 @@ export default function AdminAnnotationsPage() {
     setStatus(next);
     setPage(1);
   };
+  const showKind = (next: KindFilter) => {
+    setKind(next);
+    setPage(1);
+  };
   const search = (next: string) => {
     setQuery(next);
     setPage(1);
@@ -112,6 +127,8 @@ export default function AdminAnnotationsPage() {
   const inFlight = summary?.by_status.draft ?? 0;
   const rework = summary?.by_status.needs_rework ?? 0;
   const claimable = summary?.claimable_sessions ?? 0;
+  const claimableNarrations = summary?.claimable_narrations ?? 0;
+  const narrationsInProgress = summary?.narrations_in_progress ?? 0;
 
   const columns = [
     {
@@ -129,6 +146,15 @@ export default function AdminAnnotationsPage() {
         <TruncateCell className="max-w-sm text-muted-foreground" title={row.topic}>
           {row.topic}
         </TruncateCell>
+      ),
+    },
+    {
+      key: "kind",
+      header: "Type",
+      render: (row: AdminAnnotation) => (
+        <span className="whitespace-nowrap text-muted-foreground">
+          {row.kind === "narration" ? "Narration" : "Session"}
+        </span>
       ),
     },
     {
@@ -207,7 +233,7 @@ export default function AdminAnnotationsPage() {
       ) : (
         <>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard
           variant="accent"
           title="Annotations"
@@ -233,6 +259,16 @@ export default function AdminAnnotationsPage() {
             neutral: true,
           }}
           icon={DangerTriangle}
+        />
+        <MetricCard
+          title="Narrations waiting"
+          value={String(claimableNarrations)}
+          icon={Clipboard}
+        />
+        <MetricCard
+          title="Narrations in progress"
+          value={String(narrationsInProgress)}
+          icon={ChatRoundDots}
         />
       </div>
 
@@ -317,7 +353,7 @@ export default function AdminAnnotationsPage() {
             onSortChange: sortBy,
           }}
           searchPlaceholder="Search"
-          activeFilterCount={status === "all" ? 0 : 1}
+          activeFilterCount={(status === "all" ? 0 : 1) + (kind === "all" ? 0 : 1)}
           onRowClick={(row: AdminAnnotation) => setDetail(row)}
           mobilePrimary={(row) => ({
             title: row.code,
@@ -325,6 +361,19 @@ export default function AdminAnnotationsPage() {
           })}
           filterMenuContent={
             <>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Type
+              </DropdownMenuLabel>
+              {(Object.keys(KIND_LABELS) as KindFilter[]).map((value) => (
+                <DropdownMenuCheckboxItem
+                  key={value}
+                  checked={kind === value}
+                  onCheckedChange={() => showKind(value)}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  {KIND_LABELS[value]}
+                </DropdownMenuCheckboxItem>
+              ))}
               <DropdownMenuLabel className="text-xs text-muted-foreground">
                 Status
               </DropdownMenuLabel>
@@ -343,7 +392,7 @@ export default function AdminAnnotationsPage() {
           emptyState={{
             icon: <DocumentText size={20} weight="Outline" />,
             title: "No annotations match",
-            description: "Clear the status filter to see the rest.",
+            description: "Clear the filters to see the rest.",
           }}
         />
       </div>

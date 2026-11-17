@@ -15,6 +15,7 @@ import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminS
 import { ReviewerFlowChart } from "@/components/admin/shared/ReviewerFlowChart";
 import { SharePie } from "@/components/admin/shared/SharePie";
 import { RecordingDetailPanel } from "@/components/admin/reviews/RecordingDetailPanel";
+import { NarrationPoolActions } from "@/components/admin/reviews/NarrationPoolActions";
 import { ReassignReviewerDialog } from "@/components/admin/shared/ReassignReviewerDialog";
 import { UserPanelHost } from "@/components/admin/users/UserPanelHost";
 import { alvaToast } from "@/lib/alva-toast";
@@ -89,6 +90,8 @@ export default function AdminReviewsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [detail, setDetail] = useState<AdminRecording | null>(null);
   const [reassigning, setReassigning] = useState<AdminRecording | null>(null);
+  /* Ticked clips, to send to the annotators or take back. */
+  const [selected, setSelected] = useState<string[]>([]);
 
   const { rows, total, summary, isLoading, isFetching, error, reload, reassign } =
     useAdminReviews({
@@ -376,6 +379,11 @@ export default function AdminReviewsPage() {
           searchPlaceholder="Search"
           activeFilterCount={(status === "all" ? 0 : 1) + (judgedBy ? 1 : 0)}
           onRowClick={(row: AdminRecording) => setDetail(row)}
+          selection={{
+            selected,
+            onChange: setSelected,
+            actions: <NarrationPoolActions ids={selected} onDone={() => setSelected([])} />,
+          }}
           mobilePrimary={(row) => ({
             title: row.code,
             subtitle: `${row.contributor} · ${row.duration}`,

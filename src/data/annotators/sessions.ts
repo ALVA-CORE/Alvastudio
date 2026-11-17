@@ -1,4 +1,5 @@
 import { NO_VALUE } from "@/lib/no-value";
+import type { ApiAnnotationKind } from "@/lib/api/annotations";
 
 /**
  * Focus-group sessions queued for annotation. Annotators work whole sessions
@@ -12,6 +13,8 @@ export type AnnotationStatus = "not-started" | "in-progress" | "completed";
 
 export type AnnotatorSession = {
   id: string;
+  /** Absent on a session. A narration has one speaker, never named. */
+  kind?: ApiAnnotationKind;
   /** Human-facing session code, e.g. FG-2026-014. */
   code: string;
   topic: string;

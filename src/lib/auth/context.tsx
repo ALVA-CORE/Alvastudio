@@ -26,6 +26,7 @@ import {
   upsertProfile,
   type ApiAnnotatorProfile,
 } from "@/lib/api/onboarding";
+import { forgetPush, refreshPush } from "@/lib/push";
 
 /**
  * Session state, backed by the API (`docs/backend/api.md` §3).
@@ -308,7 +309,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => onUnauthorized(null);
   }, []);
 
+  /* Sends this browser's push subscription again for whoever is signed in,
+   * which the API allows on every start. Never subscribes anew: that takes a
+   * tap on the profile row. */
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) void refreshPush(true);
+  }, [userId]);
+
   const logout = useCallback(() => {
+    /* Before the token goes, or the next person on this phone keeps getting
+     * this one's pushes. Fire and forget, like the call below. */
+    forgetPush();
+
     /* Told, not asked. `POST /auth/logout` records the sign-out so it shows
      * on the account's history, but it does not kill the token: tokens are
      * signed and stateless with no revocation list, so what actually ends

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
+import Clipboard from "@solar-icons/react/notes/Clipboard";
+import ChatRoundDots from "@solar-icons/react/messages/ChatRoundDots";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import TagHorizontal from "@solar-icons/react/money/TagHorizontal";
 import { AnnotatorBentoGrid } from "@/components/annotators/dashboard/AnnotatorBentoGrid";
@@ -50,6 +52,8 @@ export default function AnnotatorDashboardPage() {
     clipsAnnotated: metrics.clipsAnnotated,
     hoursAnnotated: metrics.hoursAnnotated,
     tagsApplied: metrics.tagsApplied,
+    narrationsAnnotated: metrics.narrationsAnnotated,
+    narrationsWaiting: metrics.narrationsWaiting,
     periodLabel: metrics.periodLabel,
   };
 
@@ -95,7 +99,7 @@ export default function AnnotatorDashboardPage() {
         </div>
       ) : (
         <>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <MetricCard
               variant="accent"
               title="Clips annotated"
@@ -114,6 +118,18 @@ export default function AnnotatorDashboardPage() {
               value={cards.tagsApplied}
               period={cards.periodLabel}
               icon={TagHorizontal}
+            />
+            <MetricCard
+              title="Narrations annotated"
+              value={cards.narrationsAnnotated}
+              period={cards.periodLabel}
+              icon={ChatRoundDots}
+            />
+            <MetricCard
+              title="Narrations waiting"
+              value={cards.narrationsWaiting}
+              period={cards.periodLabel}
+              icon={Clipboard}
             />
           </div>
 
