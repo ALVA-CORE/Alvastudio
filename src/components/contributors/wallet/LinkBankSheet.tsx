@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
-import CardSend from "@solar-icons/react/money/CardSend";
 import {
   Sheet,
   SheetContent,
@@ -16,6 +15,8 @@ import { linkPayoutAccount } from "@/data/contributors/walletStore";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
 import { bankLogo } from "@/lib/bank-logos";
+import { alvaAccentTextureClass } from "@/lib/alva-texture";
+import { BankIcon } from "@/components/shared/BankIcon";
 import type { PayoutAccount } from "@/data/contributors/wallet";
 import { cn } from "@/lib/utils";
 
@@ -282,16 +283,21 @@ export function LinkBankSheet({
 }
 
 /** The bank's logo on a rounded square: its own background where it has
- *  one, white where it is transparent. Our card icon for a bank we have no
- *  logo for, or one that fails to load. */
+ *  one, white where it is transparent. A bank icon on the accent for a bank
+ *  we have no logo for, or one that fails to load. */
 function BankBadge({ bank }: { bank: string }) {
   const logo = bankLogo(bank);
   const [failed, setFailed] = useState(false);
 
   if (!logo || failed) {
     return (
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-alva-card">
-        <CardSend size={20} weight="BoldDuotone" className="text-alva-accent" />
+      <span
+        className={cn(
+          alvaAccentTextureClass,
+          "flex size-10 shrink-0 items-center justify-center rounded-xl text-alva-bg"
+        )}
+      >
+        <BankIcon size={22} />
       </span>
     );
   }
