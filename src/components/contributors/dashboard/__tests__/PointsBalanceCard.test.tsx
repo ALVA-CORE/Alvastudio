@@ -333,6 +333,9 @@ describe("PointsBalanceCard", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Payout/ }));
 
     const sheet = await screen.findByRole("dialog");
+    /* The linked account first; the form is behind "Change account". */
+    expect(within(sheet).getByText(WALLET_FIXTURE.payoutAccount!.accountName)).toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole("button", { name: "Change account" }));
     expect(
       within(sheet).getByRole("button", { name: /account/i })
     ).toBeDisabled();

@@ -304,7 +304,8 @@ export function WalletFace({
       <LinkBankSheet
         open={linkOpen}
         onOpenChange={setLinkOpen}
-        existing={wallet.payoutAccount}
+        /* The API asking for one means none on file can be paid into. */
+        existing={wallet.nextAction === "add_payout_destination" ? null : wallet.payoutAccount}
         onLinked={() => {
           onRefresh();
           alvaToast.success("Bank account linked");
