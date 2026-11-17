@@ -134,7 +134,7 @@ export function ReferralSourcesChart({
                   type="button"
                   onClick={() => setListOpen(false)}
                   aria-label="Close"
-                  className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                  className="rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
                 >
                   <CloseCircle size={20} weight="Outline" />
                 </button>

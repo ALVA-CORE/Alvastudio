@@ -26,6 +26,7 @@ export function useNarrations() {
   );
 
   const pool = data?.[0].items ?? [];
+  /* The first 200 only: the API has no pool total yet (ask #20). */
   const poolSeconds = pool.map((row) => Math.round(lengthOf(row) ?? 0));
   const rows: NarrationRow[] = (data?.[1] ?? []).map((entry) => ({
     id: entry.id,

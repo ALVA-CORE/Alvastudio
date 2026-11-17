@@ -141,14 +141,14 @@ export function AnnotationWorkspace({
       {consentBlocked ? (
         <div
           role="alert"
-          className="mx-3 mt-1 flex items-start gap-2.5 rounded-xl bg-amber-500/10 px-4 py-2.5"
+          className="mx-3 mt-1 flex items-start justify-center gap-2.5 rounded-xl bg-amber-500/10 px-4 py-2.5"
         >
           <DangerTriangle
             size={16}
             weight="BoldDuotone"
             className="mt-0.5 shrink-0 text-amber-300"
           />
-          <p className="text-xs leading-relaxed text-amber-200">
+          <p className="text-center text-xs leading-relaxed text-amber-200">
             Someone in this session withdrew their consent, so nothing can be
             saved or submitted until that is resolved. Everything you have done
             is kept. Ask the intern who recorded it to sort the consent out.

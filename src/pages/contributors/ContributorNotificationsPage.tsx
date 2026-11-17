@@ -111,8 +111,10 @@ export default function ContributorNotificationsPage() {
   };
 
   return (
-    <div className="pb-6">
-      <FixedBlurHeader contentClassName="pb-4">
+    /* One screen tall: the header, search and card stay put, and only the
+       list inside the card scrolls. */
+    <div className="flex h-[calc(100dvh-env(safe-area-inset-bottom))] flex-col pb-6">
+      <FixedBlurHeader className="shrink-0" contentClassName="pb-4">
         <div className="relative flex items-center justify-center">
           <Link
             to="/contributor/dashboard"
@@ -125,7 +127,7 @@ export default function ContributorNotificationsPage() {
         </div>
       </FixedBlurHeader>
 
-      <div className="px-4">
+      <div className="shrink-0 px-4">
         <div className="flex items-center gap-2">
           {/* As the tables' search: the beam is the focus, no ring. */}
           <FieldBeam radius={20} className="min-w-0 flex-1 rounded-full">
@@ -176,7 +178,7 @@ export default function ContributorNotificationsPage() {
       </div>
 
       {error ? (
-        <div className="mt-3 px-4">
+        <div className="mt-3 shrink-0 px-4">
           <div
             role="alert"
             className="flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
@@ -196,7 +198,7 @@ export default function ContributorNotificationsPage() {
       {/* Only offered when there is something to clear, so it is never a
           button that does nothing. */}
       {unread > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-3 px-4">
+        <div className="mt-3 flex shrink-0 items-center justify-between gap-3 px-4">
           <p className="text-xs text-muted-foreground">
             {unread} unread
           </p>
@@ -210,8 +212,8 @@ export default function ContributorNotificationsPage() {
         </div>
       ) : null}
 
-      <div className="mt-4 px-4">
-        <AlvaSurfaceCard className="px-4 py-1">
+      <div className="mt-4 min-h-0 flex-1 px-4">
+        <AlvaSurfaceCard className="alva-thin-scrollbar max-h-full overflow-y-auto px-4 py-1">
           {isLoading ? (
             <div className="space-y-3 py-3">
               {Array.from({ length: 5 }).map((_, index) => (
