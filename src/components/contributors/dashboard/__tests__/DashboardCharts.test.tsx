@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { DashboardCharts } from "@/components/contributors/dashboard/DashboardCharts";
 
 const pay = {
@@ -15,15 +16,18 @@ const pay = {
 
 describe("DashboardCharts pay slide", () => {
   /* Read from the API, never typed in: it changed on 17 Nov. */
-  it("shows narration pay per minute, and the earlier rate once", () => {
+  /* Behind the info icon top right of the card, opened by a tap. */
+  it("shows narration pay per minute, and the earlier rate once", async () => {
     render(<DashboardCharts pay={pay} />);
+    await userEvent.click(screen.getByRole("button", { name: "About next payout" }));
 
-    expect(screen.getByText(/Narration: ₦50 per minute of\s+speech/)).toBeInTheDocument();
+    expect(screen.getByText(/Narration: ₦50 per minute of speech/)).toBeInTheDocument();
     expect(screen.getAllByText(/₦5,000 an hour/)).toHaveLength(1);
   });
 
-  it("follows the rate the API sends", () => {
+  it("follows the rate the API sends", async () => {
     render(<DashboardCharts pay={{ ...pay, narration_rate_per_minute_kobo: 8333 }} />);
+    await userEvent.click(screen.getByRole("button", { name: "About next payout" }));
     expect(screen.getByText(/₦83\.33 per minute/)).toBeInTheDocument();
   });
 });

@@ -26,10 +26,13 @@ const skippedNote = (skipped: string[]) =>
  */
 export function NarrationPoolActions({
   ids,
+  ready,
   onDone,
 }: {
   /** Recording ids, up to 100. */
   ids: string[];
+  /** How many of them are approved Stimuli clips: the only ones that can go. */
+  ready: number;
   onDone: () => void;
 }) {
   const [plan, setPlan] = useState<{ ids: string[]; result: ApiNarrationSend } | null>(null);
@@ -48,9 +51,7 @@ export function NarrationPoolActions({
       const result = await sendNarrations(picked);
       if (result.sent === 0) {
         setPlan(null);
-        alvaToast.show("None of these can go. Only approved narrations not sent before can.", {
-          variant: "default",
-        });
+        alvaToast.show("These were sent to the annotators before.", { variant: "default" });
         return;
       }
       setPlan({ ids: picked, result });
@@ -107,6 +108,8 @@ export function NarrationPoolActions({
         size="sm"
         className="ml-1 w-auto"
         loading={checking}
+        disabled={ready === 0}
+        title={ready === 0 ? "Only approved Stimuli clips can be sent" : undefined}
         onClick={() => void preview(ids)}
       >
         Send to annotators
@@ -130,7 +133,7 @@ export function NarrationPoolActions({
         title={`Send ${narrations(plan?.result.sent ?? 0)} to the annotators?`}
         description={
           skipped > 0
-            ? `${skipped.toLocaleString()} skipped. Only approved narrations not sent before can go.`
+            ? `${skipped.toLocaleString()} skipped: not approved Stimuli clips, or sent before.`
             : "Annotators can take them from the pool straight away."
         }
         confirmLabel="Send"

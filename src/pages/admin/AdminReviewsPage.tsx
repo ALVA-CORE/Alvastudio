@@ -382,7 +382,17 @@ export default function AdminReviewsPage() {
           selection={{
             selected,
             onChange: setSelected,
-            actions: <NarrationPoolActions ids={selected} onDone={() => setSelected([])} />,
+            actions: (
+              <NarrationPoolActions
+                ids={selected}
+                ready={
+                  rows.filter(
+                    (row) => selected.includes(row.id) && row.mode === "Stimuli" && row.status === "approved"
+                  ).length
+                }
+                onDone={() => setSelected([])}
+              />
+            ),
           }}
           mobilePrimary={(row) => ({
             title: row.code,

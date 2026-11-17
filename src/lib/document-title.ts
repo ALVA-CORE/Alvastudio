@@ -32,7 +32,6 @@ const TITLES: Array<[path: string, title: string]> = [
 
   ["/annotator/dashboard", "Home"],
   ["/annotator/sessions", "Sessions"],
-  ["/annotator/narrations", "Narrations"],
   ["/annotator/profile", "Settings"],
 
   ["/admin/dashboard", "Admin"],

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Clipboard from "@solar-icons/react/notes/Clipboard";
 import { AnnotatorMobileGate } from "@/components/annotators/layout/AnnotatorMobileGate";
 import { SessionStatusBadge } from "@/components/annotators/sessions/SessionStatusBadge";
+import { NarrationsTab } from "@/components/annotators/sessions/NarrationsTab";
 import { DesktopPageShell } from "@/components/layout/DesktopPageShell";
 import { AlvaDataTable, TruncateCell } from "@/components/shared/AlvaDataTable";
 import { MetricCard } from "@/components/shared/MetricCard";
@@ -35,6 +36,8 @@ const LANGUAGE_FILTERS: { value: LanguageFilter; label: string }[] = [
   { value: "Mixed", label: "Mixed" },
 ];
 
+type Tab = "pending" | "completed" | "narrations";
+
 export default function AnnotatorSessionsPage() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -55,7 +58,11 @@ export default function AnnotatorSessionsPage() {
 
   const rows = sessions;
 
-  const [tab, setTab] = useState<"pending" | "completed">("pending");
+  /* The bell's narrations item and a narration's Back arrive on that tab. */
+  const location = useLocation();
+  const [tab, setTab] = useState<Tab>(() =>
+    (location.state as { tab?: string } | null)?.tab === "narrations" ? "narrations" : "pending"
+  );
   const [language, setLanguage] = useState<LanguageFilter>("all");
 
   if (isMobile) {
@@ -319,7 +326,7 @@ export default function AnnotatorSessionsPage() {
       <Tabs
         className="mt-4"
         value={tab}
-        onValueChange={(value) => setTab(value as "pending" | "completed")}
+        onValueChange={(value) => setTab(value as Tab)}
       >
         <TabsList className="h-9 rounded-full bg-alva-surface p-1">
           <TabsTrigger
@@ -338,6 +345,12 @@ export default function AnnotatorSessionsPage() {
             className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
           >
             Completed
+          </TabsTrigger>
+          <TabsTrigger
+            value="narrations"
+            className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+          >
+            Narrations
           </TabsTrigger>
         </TabsList>
 
@@ -379,6 +392,9 @@ export default function AnnotatorSessionsPage() {
               description: "Finished annotations will show up here.",
             }}
           />
+        </TabsContent>
+        <TabsContent value="narrations" className="mt-2">
+          <NarrationsTab />
         </TabsContent>
       </Tabs>
     </DesktopPageShell>
