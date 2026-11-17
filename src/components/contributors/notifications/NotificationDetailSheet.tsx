@@ -40,10 +40,9 @@ export function NotificationDetailSheet({
 
   const detailRows = getNotificationDetailRows(notification);
   const announcement = notification.category === "announcement";
-  /* A verdict's text repeats its title and tag ("Your recording was
-     approved"), so it is left out; the rest goes in the small print. */
-  const smallPrint =
-    !announcement && !notification.category.startsWith("review") && Boolean(notification.body);
+  /* Anything but an announcement keeps its text in the small print (for a
+     verdict, only the reviewer's notes; a payment has none, its amount is a row). */
+  const smallPrint = !announcement && Boolean(notification.body);
 
   const rubricIssues =
     notification.answers && notification.status === "rejected"

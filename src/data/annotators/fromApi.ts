@@ -68,8 +68,11 @@ function segmentText(tokens: ApiToken[], from: number, to: number): string {
  * Not "Speaker 1": the room already has speakers, and these are the ones
  * still waiting to be told who they are.
  */
+/** What a speaker is built from: `/source` gives id and label; a session's participant adds role. */
+type SpeakerSource = Pick<ApiParticipant, "id" | "label"> & { role?: string | null };
+
 function toSpeakers(
-  participants: ApiParticipant[],
+  participants: SpeakerSource[],
   unlinkedLabels: string[] = []
 ): Speaker[] {
   const people: Speaker[] = participants.map((participant, index) => ({
@@ -199,7 +202,7 @@ const NARRATOR: Speaker = {
 
 export function toTranscriptDoc(
   api: ApiAnnotationDocument,
-  participants: ApiParticipant[]
+  participants: SpeakerSource[]
 ): TranscriptDoc {
   const tokens = api.tokens ?? [];
 

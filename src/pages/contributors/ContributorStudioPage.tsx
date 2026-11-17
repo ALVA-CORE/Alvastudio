@@ -466,7 +466,8 @@ export default function ContributorStudioPage() {
           />
         )}
 
-        {!loadingCard && (
+        {/* Nothing to record: the empty state says so, no button to press. */}
+        {!loadingCard && !(total === 0 && recorder.phase === "idle") && (
         <StudioSiriControl
           className="mt-10 h-20"
           phase={recorder.phase}

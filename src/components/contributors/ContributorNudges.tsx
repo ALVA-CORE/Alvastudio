@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ChatRoundLike from "@solar-icons/react/messages/ChatRoundLike";
 import {
   Sheet,
@@ -10,12 +10,14 @@ import { FeedbackForm } from "@/components/profile/FeedbackRow";
 import { VerifyIdentitySheet } from "@/components/contributors/wallet/VerifyIdentitySheet";
 import { submitIdentityDocument, useWallet } from "@/data/contributors/walletStore";
 import { useNudge, DAYS, MINUTES } from "@/hooks/useNudge";
+import { usePushStatus } from "@/lib/push";
+import { PushPromptSheet } from "@/components/profile/PushPromptSheet";
 import { useAuth } from "@/lib/auth/context";
 import { alvaToast } from "@/lib/alva-toast";
 import { cn } from "@/lib/utils";
 
 /**
- * The two things worth interrupting a contributor for, and nothing else.
+ * The three things worth interrupting a contributor for, and nothing else.
  *
  * Both wait before they ask. Nothing opens on arrival: a sheet over
  * somebody's first screen is a thing to dismiss rather than read, and it
@@ -60,12 +62,28 @@ export function ContributorNudges() {
     done: handled,
   });
 
+  /* Push, every few days until it is on, once identity is done: that one
+     matters more, and two sheets in one sitting is one too many. Never where
+     it cannot work, or once it is on or blocked. */
+  const pushStatus = usePushStatus();
+  const push = useNudge({
+    key: `alva-nudge-push:${scope}`,
+    after: 3 * MINUTES,
+    quietFor: 3 * DAYS,
+    enabled: knowIdentity && handled,
+    done: pushStatus !== "off",
+  });
+  const [pushAsked, setPushAsked] = useState(false);
+  useEffect(() => {
+    if (push.open) setPushAsked(true);
+  }, [push.open]);
+
   const feedback = useNudge({
     key: `alva-nudge-feedback:${scope}`,
     after: 8 * MINUTES,
     quietFor: 1 * DAYS,
-    /* Never both in one sitting. */
-    enabled: knowIdentity && !identity.open,
+    /* Never two in one sitting. */
+    enabled: knowIdentity && !identity.open && !pushAsked,
     done: false,
   });
   const [feedbackSent, setFeedbackSent] = useState(false);
@@ -91,6 +109,8 @@ export function ContributorNudges() {
           }}
         />
       ) : null}
+
+      <PushPromptSheet open={push.open} onClose={push.dismiss} onNever={push.never} />
 
       <Sheet
         open={feedback.open}

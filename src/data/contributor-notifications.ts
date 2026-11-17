@@ -104,7 +104,7 @@ export function getNotificationDetailRows(
     { label: "Mode", value: notification.mode },
     { label: "Language", value: notification.language },
     { label: "Device", value: notification.device },
-    { label: "Amount", value: notification.amount },
+    { label: "You earned", value: notification.amount },
     { label: "Month", value: notification.leaderboardMonth },
     {
       label: "Points",

@@ -1,3 +1,4 @@
+import { formatWalletNaira } from "@/data/contributors/wallet";
 import type { ApiNotification } from "@/lib/api/notifications";
 import type { ApiRecording } from "@/lib/api/recordings";
 import type {
@@ -41,6 +42,34 @@ function contributorCategory(kind: string): NotificationCategory {
   if (has(kind, "payout", "payment", "wallet", "earning")) return "payout";
   if (has(kind, "points", "rank", "leaderboard")) return "leaderboard";
   return "announcement";
+}
+
+/**
+ * A verdict is kind `review`, told apart only by its title, which the API
+ * fixes per verdict. Its text is that sentence, then the reviewer's notes.
+ */
+const VERDICT: Record<string, { category: NotificationCategory; status: NotificationStatus; sentence: string }> = {
+  "Recording approved": {
+    category: "review-accepted",
+    status: "accepted",
+    sentence: "Your recording was approved.",
+  },
+  "Recording rejected": {
+    category: "review-rejected",
+    status: "rejected",
+    sentence: "Your recording was rejected.",
+  },
+  "Recording flagged": {
+    category: "submission-received",
+    status: "pending",
+    sentence: "Your recording was flagged for another look.",
+  },
+};
+
+/* "NGN 10.00 for an approved sentence.": the API writes the amount first. */
+function earned(body: string) {
+  const match = /^NGN ([\d,]+(?:\.\d+)?)\b/.exec(body);
+  return match ? formatWalletNaira(Math.round(Number(match[1].replace(/,/g, "")) * 100)) : undefined;
 }
 
 function contributorStatus(kind: string): NotificationStatus | undefined {
@@ -130,18 +159,25 @@ function formatNotificationTime(iso: string) {
 export function toContributorNotification(
   api: ApiNotification
 ): ContributorNotification {
+  const verdict = api.kind === "review" ? VERDICT[api.title] : undefined;
+  const amount = api.kind === "earning" ? earned(api.body) : undefined;
   return {
     id: api.key,
-    category: contributorCategory(api.kind),
+    category: verdict?.category ?? contributorCategory(api.kind),
     title: api.title,
     subtitle: api.body,
     timestamp: formatNotificationTime(api.created_at),
     timestampTs: new Date(api.created_at).getTime(),
-    status: contributorStatus(api.kind),
+    status: verdict?.status ?? contributorStatus(api.kind),
     read: api.read ?? false,
-    /* Shown in full in the detail sheet, whatever the kind: the list cuts it
-       to a line. */
-    body: api.body,
+    /* The sheet's text. A verdict's own sentence repeats its title, so only
+       the reviewer's notes are kept; a payment's amount is its own row. */
+    body: verdict
+      ? api.body.replace(verdict.sentence, "").trim() || undefined
+      : amount
+        ? undefined
+        : api.body,
+    amount,
     action: actionOf(api),
     studioMode: studioModeOf(api),
   };

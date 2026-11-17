@@ -135,3 +135,32 @@ describe("links to this studio", () => {
     expect(other.action).toEqual({ label: "Read", url: "https://example.org/news" });
   });
 });
+
+/* The API's own wording: a verdict is kind `review`, told apart by its title. */
+describe("verdicts and payments, as the API sends them", () => {
+  it("drops a verdict's own sentence and keeps the reviewer's notes", () => {
+    const plain = toContributorNotification({
+      ...row("review"),
+      title: "Recording approved",
+      body: "Your recording was approved.",
+    });
+    expect(plain).toMatchObject({ category: "review-accepted", status: "accepted", body: undefined });
+
+    const noted = toContributorNotification({
+      ...row("review"),
+      title: "Recording rejected",
+      body: "Your recording was rejected. Too much noise.",
+    });
+    expect(noted).toMatchObject({ category: "review-rejected", status: "rejected", body: "Too much noise." });
+  });
+
+  it("reads a payment's amount", () => {
+    const paid = toContributorNotification({
+      ...row("earning"),
+      title: "You earned a payment",
+      body: "NGN 1,250.50 for an approved narration (2 min of speech).",
+    });
+    expect(paid.amount).toBe("₦1,250.50");
+    expect(paid.body).toBeUndefined();
+  });
+});

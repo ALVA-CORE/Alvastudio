@@ -386,11 +386,6 @@ export function DashboardCharts({
                 info={
                   <>
                     <p>
-                      {pay.next_run_kobo > 0
-                        ? `Paid ${payDayLabel(pay.next_pay_day)}`
-                        : `${formatWalletNaira(pay.payout_minimum_kobo)} minimum, paid on Sundays`}
-                    </p>
-                    <p>
                       Narration: {formatNairaRate(pay.narration_rate_per_minute_kobo)} per minute of speech
                     </p>
                     {/* Paid at the rate it was recorded under, so said beside the new one. */}
@@ -418,6 +413,11 @@ export function DashboardCharts({
                     }
                   />
                 </div>
+                <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                  {pay.next_run_kobo > 0
+                    ? `Paid ${payDayLabel(pay.next_pay_day)}`
+                    : `${formatWalletNaira(pay.payout_minimum_kobo)} minimum, paid on Sundays`}
+                </p>
               </ChartSlide>
             </CarouselItem>
           ) : null}

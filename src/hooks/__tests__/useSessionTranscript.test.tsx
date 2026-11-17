@@ -27,7 +27,7 @@ vi.mock("@/lib/api/annotations", () => ({
     participants: [],
   })),
   annotationAudioUrl: vi.fn(async () => "https://audio.example/a1"),
-  listMine: vi.fn(),
+  listMine: vi.fn(async () => [{ id: "a1", session_id: "s1", kind: "session", status: "draft" }]),
   listQueue: vi.fn(),
 }));
 vi.mock("@/lib/api/focusGroups", () => ({ getSession: (id: string) => getSession(id) }));
@@ -50,6 +50,16 @@ describe("useSessionTranscript on a narration", () => {
       status: "in-progress",
     });
     expect(resource.doc.speakers).toHaveLength(1);
+    expect(getSession).not.toHaveBeenCalled();
+  });
+});
+
+/* An annotator may not read `/focus-groups/{id}` (interns' and admins'):
+   asking for it was the "Requires role: intern, admin" screen. */
+describe("useSessionTranscript on a session", () => {
+  it("opens from the annotation's own routes", async () => {
+    const { result } = renderHook(() => useSessionTranscript("s1"));
+    await waitFor(() => expect(result.current.resource.status).toBe("ready"));
     expect(getSession).not.toHaveBeenCalled();
   });
 });
