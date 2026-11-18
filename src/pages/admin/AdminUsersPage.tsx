@@ -176,9 +176,9 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDelete = async (user: AdminUser) => {
+  const handleDelete = async (user: AdminUser, blockEmail: boolean) => {
     try {
-      await remove(user.id);
+      await remove(user.id, blockEmail);
       alvaToast.show(`${user.fullName} removed`, { variant: "default" });
     } catch (cause) {
       const message = reportApiError(cause, "Could not remove that account.");

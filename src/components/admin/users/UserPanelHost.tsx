@@ -71,9 +71,9 @@ export function UserPanelHost({
           report(cause, "Could not approve that account.");
         }
       }}
-      onDelete={async (user) => {
+      onDelete={async (user, blockEmail) => {
         try {
-          await remove(user.id);
+          await remove(user.id, blockEmail);
           alvaToast.show(`${user.fullName} removed`, { variant: "default" });
           onClose();
         } catch (cause) {

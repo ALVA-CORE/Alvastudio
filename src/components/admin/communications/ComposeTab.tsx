@@ -141,7 +141,10 @@ export function ComposeTab({
     set("hero", src);
     set("heroUploading", true);
     set("heroProgress", 0);
-    fetch(src)
+    /* "reload": the thumbnail already loaded this file without CORS, and the
+       API only sends its CORS headers when asked, with no `Vary: Origin`
+       otherwise. Reusing that cached copy here is refused by the browser. */
+    fetch(src, { cache: "reload" })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status));
         return response.blob();

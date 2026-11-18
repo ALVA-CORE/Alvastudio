@@ -164,7 +164,23 @@ describe("UserDetailPanel", () => {
     await waitFor(() => expect(confirm).toBeEnabled());
 
     await userEvent.click(confirm);
-    expect(onDelete).toHaveBeenCalledWith(user);
+    expect(onDelete).toHaveBeenCalledWith(user, true);
+  });
+
+  /* Ticked by default; unticked for someone who asked to be removed. */
+  it("blocks the email unless the tick is cleared", async () => {
+    const { onDelete } = renderPanel();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: `Block ${user.email} from signing up again` })
+    );
+
+    const confirm = screen.getByRole("button", { name: "Delete permanently" });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await userEvent.click(confirm);
+    expect(onDelete).toHaveBeenCalledWith(user, false);
   });
 
   it("offers deactivating instead, which can be undone", async () => {
