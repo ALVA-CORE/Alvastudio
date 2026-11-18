@@ -16,9 +16,8 @@ the other document points here.
 
 | # | Where | What we need | Why |
 |---|---|---|---|
-| 20 | `GET /annotations/narrations/queue?envelope=true` (or `GET /dashboard/annotator`) | The total length, in seconds, of every narration waiting in the pool, like `total` counts them. | The Narrations tab on the annotator's Sessions page shows "Minutes pending" and "Avg narration". Today we add up the lengths of the first 200 rows only, so both are wrong once more than 200 are waiting. |
-| 21 | Setting `narration_rate_per_minute` (`GET /payments/terms`, `GET /dashboard/contributor` `pay`) | ₦75 a minute (`7500` kobo), not ₦50. Prompts stay ₦10. | The pay notice of 17 Nov says stimulus pay is ₦75 a minute. The Studio and the dashboard show the API's number, so they say ₦50 until this changes. The website's "How you get paid" page already says ₦75. |
-| 22 | `POST /wallet/payout-destination` | An email to the contributor when their payout account changes, as `password_changed` does: the new bank and last four digits, and "not you? contact support". | Today the account can be changed with no notice at all. Anyone holding a signed-in phone can do it, and the owner only finds out when a payment lands elsewhere. |
+| 23 | `DELETE /users/{id}` | It answers 500 Internal Server Error for an account with data. Seen 18 Nov on user `40186acf-61a6-4446-9090-0eeb12a2161d`: `GET /users/{id}/deletion-preview` answered 200 twice, then the delete failed. We need the delete to work, or a 409 with a sentence saying what is in the way. | An admin removing someone for breaking the rules can't, and the screen can't say why. Deactivating the account works in the meantime. |
+| 24 | `DELETE /users/{id}` and every sign-up route | When an account is deleted, keep its email on a block list. A hash is enough, so the address isn't kept in plain text. A sign-up with a blocked email is refused with a sentence we can show, such as "This email can't be used to sign up." Admins also need a way to see the list and remove an email from it, in case of a mistake. | Someone removed for breaking the rules can sign up again straight away with the same email. |
 
 Numbers are kept when an ask closes, so code comments that cite one stay
 true. Closed on 3 Nov: #1 hours by language, #2 "how did you hear about us",
@@ -41,3 +40,8 @@ prompts, stimuli and topics, #17 whether a weekly-run payment reached the bank,
 [`replies/api-status-2026-11-15b.md`](replies/api-status-2026-11-15b.md)).
 Closed on 16 Nov: #19 push notifications (see
 [`replies/api-status-2026-11-16b.md`](replies/api-status-2026-11-16b.md)).
+Closed on 17 Nov: #21 narration at ₦75 a minute (see
+[`replies/api-status-2026-11-17.md`](replies/api-status-2026-11-17.md)).
+Closed on 18 Nov: #20 the narration pool's total length, #22 an email when a
+payout account is linked (see
+[`replies/api-status-2026-11-18.md`](replies/api-status-2026-11-18.md)).

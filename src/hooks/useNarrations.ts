@@ -20,14 +20,12 @@ export type NarrationRow = { id: string; stimulus: string; durationSec: number; 
 export function useNarrations() {
   const navigate = useNavigate();
   const [isTaking, setTaking] = useState(false);
+  /* One pool row is enough: its counts are the whole pool's. */
   const { data, isLoading, error, reload } = useApiResource(
-    () => Promise.all([listNarrationQueue({ limit: 200 }), listMine({ kind: "narration", limit: 200 })]),
+    () => Promise.all([listNarrationQueue({ limit: 1 }), listMine({ kind: "narration", limit: 200 })]),
     []
   );
 
-  const pool = data?.[0].items ?? [];
-  /* The first 200 only: the API has no pool total yet (ask #20). */
-  const poolSeconds = pool.map((row) => Math.round(lengthOf(row) ?? 0));
   const rows: NarrationRow[] = (data?.[1] ?? []).map((entry) => ({
     id: entry.id,
     stimulus: entry.topic ?? NO_VALUE,
@@ -53,8 +51,8 @@ export function useNarrations() {
   return {
     rows,
     waiting: data ? data[0].total : null,
-    /** Pool lengths, for the page's cards. */
-    poolSeconds,
+    /** The whole pool's length, for the page's cards. */
+    poolSeconds: data ? data[0].total_seconds : 0,
     isLoading,
     error,
     reload,

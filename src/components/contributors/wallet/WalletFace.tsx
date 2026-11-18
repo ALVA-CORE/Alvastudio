@@ -308,7 +308,7 @@ export function WalletFace({
         existing={wallet.nextAction === "add_payout_destination" ? null : wallet.payoutAccount}
         onLinked={() => {
           onRefresh();
-          alvaToast.success("Bank account linked");
+          alvaToast.success("Bank account linked. We've emailed you to confirm this change.");
         }}
       />
 

@@ -282,7 +282,7 @@ export type ApiLedgerEntry = {
    */
   /**
    * `recording` is the pay-per-approval earning introduced on 29 Oct, and
-   * `top_up` is back-pay for work approved before those rates. `clip` and
+   * `top_up` is back-pay for work approved before a rate went up. `clip` and
    * `milestone` are history: they still exist on older rows and still pay
    * out, so neither can be dropped from this union.
    */
