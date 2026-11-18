@@ -152,7 +152,7 @@ const NAIRA_RATE = new Intl.NumberFormat("en-NG", {
   maximumFractionDigits: 2,
 });
 
-/** A pay rate: "₦50", "₦83.33", "₦5,000". No ".00" on a whole naira. */
+/** A pay rate: "₦75", "₦83.33", "₦5,000". No ".00" on a whole naira. */
 export function formatNairaRate(kobo: number) {
   return NAIRA_RATE.format(kobo / 100);
 }

@@ -326,10 +326,7 @@ export function VerifyIdentitySheet({
               ? "Your earnings keep adding up while we check."
               : step === "document"
                 ? "Keep it legible."
-                : /* Said once, plainly, at the top. Somebody can record for
-                     weeks without knowing the money cannot move until this
-                     is done, and finding out at withdrawal is too late. */
-                  "You can record without this, but we can't pay you until it's done."}
+                : "Enter your details exactly as they appear on your ID."}
           </p>
         </SheetHeader>
 
@@ -457,10 +454,6 @@ export function VerifyIdentitySheet({
                     onChange={(event) => setLastName(event.target.value)}
                   />
                 </div>
-
-                <p className="-mt-1 text-center text-[11px] text-muted-foreground">
-                  Exactly as they appear on your ID.
-                </p>
 
                 {/* Three dropdowns, not a calendar. Paging a grid back
                     thirty years to find a birthday is the wrong control,

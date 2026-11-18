@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import AltArrowDown from "@solar-icons/react/arrows/AltArrowDown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -13,7 +13,12 @@ import { FieldBeam } from "@/components/shared/FieldBeam";
 import { alvaSelectClass } from "@/lib/alva-form-styles";
 import { cn } from "@/lib/utils";
 
-export type ComboboxOption = { value: string; label: string };
+export type ComboboxOption = {
+  value: string;
+  label: string;
+  /** Drawn before the label, in the list and in the field once chosen. */
+  icon?: ReactNode;
+};
 
 /**
  * A select you can type into.
@@ -86,8 +91,11 @@ export function AlvaCombobox({
             !selected && "text-muted-foreground"
           )}
         >
-          <span className="truncate">
-            {selected?.label ?? (label ? "" : placeholder)}
+          <span className="flex min-w-0 items-center gap-2">
+            {selected?.icon}
+            <span className="truncate">
+              {selected?.label ?? (label ? "" : placeholder)}
+            </span>
           </span>
           <AltArrowDown size={15} weight="Outline" className="shrink-0 opacity-60" />
         </PopoverTrigger>
@@ -117,8 +125,9 @@ export function AlvaCombobox({
                       onValueChange(option.value);
                       setOpen(false);
                     }}
-                    className="rounded-xl px-2.5 py-2 text-sm aria-selected:bg-alva-surface"
+                    className="gap-2 rounded-xl px-2.5 py-2 text-sm aria-selected:bg-alva-surface"
                   >
+                    {option.icon}
                     {/* No tick. The list is a search result, and a column of
                         empty circles down the side of it reads as a set of
                         checkboxes you are meant to fill in. The chosen one is

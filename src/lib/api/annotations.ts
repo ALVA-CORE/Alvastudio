@@ -362,8 +362,9 @@ export type ApiNarrationQueueRow = {
   sent_at: string;
 };
 
+/** `total_seconds` is the whole pool's length, not the page's (18 Nov). */
 export function listNarrationQueue(params: { limit?: number; offset?: number } = {}) {
-  return apiFetch<ApiPage<ApiNarrationQueueRow>>("/annotations/narrations/queue", {
+  return apiFetch<ApiPage<ApiNarrationQueueRow> & { total_seconds: number }>("/annotations/narrations/queue", {
     query: { ...params, envelope: true },
   });
 }

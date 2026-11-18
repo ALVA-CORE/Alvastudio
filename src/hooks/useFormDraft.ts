@@ -24,16 +24,11 @@ export function useFormDraft<T extends FieldValues>(
   form: UseFormReturn<T>,
   {
     key,
-    step,
-    onRestoreStep,
     exclude = [],
     enabled = true,
   }: {
     /** Storage key. One per form. */
     key: string;
-    /** The step to save alongside the values, for multi-step forms. */
-    step?: number;
-    onRestoreStep?: (step: number) => void;
     /** Field names never written out. Pass every password field. */
     exclude?: (keyof T & string)[];
     enabled?: boolean;
@@ -50,17 +45,16 @@ export function useFormDraft<T extends FieldValues>(
       const raw = localStorage.getItem(key);
       if (!raw) return;
 
-      const draft = JSON.parse(raw) as { values?: Partial<T>; step?: number };
+      const draft = JSON.parse(raw) as { values?: Partial<T> };
       if (!draft.values) return;
 
       /* Merged over the defaults rather than replacing them, so a draft
        * written before a field existed does not leave it undefined. */
       form.reset({ ...form.getValues(), ...draft.values });
-      if (draft.step && onRestoreStep) onRestoreStep(draft.step);
     } catch {
       /* A corrupt or blocked draft is not worth a broken sign-up. */
     }
-  }, [enabled, form, key, onRestoreStep]);
+  }, [enabled, form, key]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -69,7 +63,7 @@ export function useFormDraft<T extends FieldValues>(
       try {
         const safe = { ...values } as Partial<T>;
         for (const field of exclude) delete safe[field];
-        localStorage.setItem(key, JSON.stringify({ values: safe, step }));
+        localStorage.setItem(key, JSON.stringify({ values: safe }));
       } catch {
         /* Private mode, or a full quota. The form still works. */
       }
@@ -78,7 +72,7 @@ export function useFormDraft<T extends FieldValues>(
     return () => subscription.unsubscribe();
     // `exclude` is a literal at every call site, so it is stable in practice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, form, key, step]);
+  }, [enabled, form, key]);
 
   return {
     clear: () => {

@@ -104,7 +104,6 @@ export default function AnnotatorSessionsPage() {
 
   const narrationOpen = dashboard?.open_narration_claims ?? 0;
   const narrationLimit = dashboard?.narration_claim_limit ?? null;
-  const poolSeconds = narrations.poolSeconds.reduce((sum, value) => sum + value, 0);
 
   const handleClaim = async () => {
     const annotationId = await claimNext();
@@ -296,10 +295,10 @@ export default function AnnotatorSessionsPage() {
             value={String(narrations.waiting ?? 0)}
             icon={Clipboard}
           />
-          <MetricCard title="Minutes pending" value={`${Math.round(poolSeconds / 60)}m`} icon={ClockCircle} />
+          <MetricCard title="Minutes pending" value={`${Math.round(narrations.poolSeconds / 60)}m`} icon={ClockCircle} />
           <MetricCard
             title="Avg narration"
-            value={narrations.poolSeconds.length ? formatDuration(Math.round(poolSeconds / narrations.poolSeconds.length)) : NO_VALUE}
+            value={narrations.waiting ? formatDuration(Math.round(narrations.poolSeconds / narrations.waiting)) : NO_VALUE}
             icon={Microphone3}
           />
           <MetricCard

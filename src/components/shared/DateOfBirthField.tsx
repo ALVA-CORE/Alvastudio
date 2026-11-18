@@ -115,34 +115,38 @@ export function DateOfBirthField({
   };
 
   return (
-    <div className="grid grid-cols-[1fr_1.4fr_1fr] gap-2">
-      <AlvaSelect
-        aria-label="Day of birth"
-        label="Day"
-        value={day}
-        options={days}
-        onValueChange={(next) => emit({ day: next })}
-        size="lg"
-      />
-      <AlvaSelect
-        aria-label="Month of birth"
-        label="Month"
-        value={month}
-        options={MONTHS.map((name, index) => ({
-          value: pad(index + 1),
-          label: name,
-        }))}
-        onValueChange={(next) => emit({ month: next })}
-        size="lg"
-      />
-      <AlvaSelect
-        aria-label="Year of birth"
-        label="Year"
-        value={year}
-        options={years}
-        onValueChange={(next) => emit({ year: next })}
-        size="lg"
-      />
-    </div>
+    /* The three say Day, Month and Year; this says what they are for. */
+    <fieldset>
+      <legend className="mb-1.5 text-xs text-muted-foreground">Date of birth</legend>
+      <div className="grid grid-cols-[1fr_1.4fr_1fr] gap-2">
+        <AlvaSelect
+          aria-label="Day of birth"
+          label="Day"
+          value={day}
+          options={days}
+          onValueChange={(next) => emit({ day: next })}
+          size="lg"
+        />
+        <AlvaSelect
+          aria-label="Month of birth"
+          label="Month"
+          value={month}
+          options={MONTHS.map((name, index) => ({
+            value: pad(index + 1),
+            label: name,
+          }))}
+          onValueChange={(next) => emit({ month: next })}
+          size="lg"
+        />
+        <AlvaSelect
+          aria-label="Year of birth"
+          label="Year"
+          value={year}
+          options={years}
+          onValueChange={(next) => emit({ year: next })}
+          size="lg"
+        />
+      </div>
+    </fieldset>
   );
 }

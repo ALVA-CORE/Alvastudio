@@ -9,7 +9,7 @@ const pay = {
   next_run_kobo: 0,
   to_minimum_kobo: 380000,
   next_pay_day: "2026-11-22",
-  narration_rate_per_minute_kobo: 5000,
+  narration_rate_per_minute_kobo: 7500,
   narration_rate_changed_at: "2026-11-16T23:00:00Z",
   earlier_narration_rate_per_hour_kobo: 500000,
 };
@@ -21,7 +21,7 @@ describe("DashboardCharts pay slide", () => {
     render(<DashboardCharts pay={pay} />);
     await userEvent.click(screen.getByRole("button", { name: "About next payout" }));
 
-    expect(screen.getByText(/Narration: ₦50 per minute of speech/)).toBeInTheDocument();
+    expect(screen.getByText(/Narration: ₦75 per minute of speech/)).toBeInTheDocument();
     expect(screen.getAllByText(/₦5,000 an hour/)).toHaveLength(1);
   });
 

@@ -140,7 +140,12 @@ export function LinkBankSheet({
   }, [bank, number, complete]);
 
   const options = useMemo(
-    () => banks.map((row) => ({ value: row.code, label: row.name })),
+    () =>
+      banks.map((row) => ({
+        value: row.code,
+        label: row.name,
+        icon: <BankBadge bank={row.name} small />,
+      })),
     [banks]
   );
 
@@ -284,8 +289,9 @@ export function LinkBankSheet({
 
 /** The bank's logo on a rounded square: its own background where it has
  *  one, white where it is transparent. A bank icon on the accent for a bank
- *  we have no logo for, or one that fails to load. */
-function BankBadge({ bank }: { bank: string }) {
+ *  we have no logo for, or one that fails to load. `small` is the size the
+ *  bank list draws it at. */
+function BankBadge({ bank, small = false }: { bank: string; small?: boolean }) {
   const logo = bankLogo(bank);
   const [failed, setFailed] = useState(false);
 
@@ -294,18 +300,20 @@ function BankBadge({ bank }: { bank: string }) {
       <span
         className={cn(
           alvaAccentTextureClass,
-          "flex size-10 shrink-0 items-center justify-center rounded-xl text-alva-bg"
+          "flex shrink-0 items-center justify-center text-alva-bg",
+          small ? "size-6 rounded-md" : "size-10 rounded-xl"
         )}
       >
-        <BankIcon size={22} />
+        <BankIcon size={small ? 14 : 22} />
       </span>
     );
   }
   return (
     <span
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl",
-        logo.filled ? "bg-alva-card" : "bg-white p-1.5"
+        "flex shrink-0 items-center justify-center overflow-hidden",
+        small ? "size-6 rounded-md" : "size-10 rounded-xl",
+        logo.filled ? "bg-alva-card" : cn("bg-white", small ? "p-0.5" : "p-1.5")
       )}
     >
       <img
