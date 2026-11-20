@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import ShieldUser from "@solar-icons/react/security/ShieldUser";
@@ -10,6 +11,8 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { IdentityRecheckTable } from "@/components/admin/users/IdentityRecheckTable";
 import { DuplicateFlagsTable } from "@/components/admin/users/DuplicateFlagsTable";
 import { useDuplicateFlags } from "@/hooks/useDuplicateFlags";
+import { useRecordingFlags } from "@/hooks/useRecordingFlags";
+import { RecordingFlagsTable } from "@/components/admin/users/RecordingFlagsTable";
 import { useIdentityRecheck } from "@/hooks/useIdentityRecheck";
 import Letter from "@solar-icons/react/messages/Letter";
 import Refresh from "@solar-icons/react/arrows/Refresh";
@@ -45,7 +48,7 @@ import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
 
-type Tab = "accounts" | "recovery" | "identity" | "duplicates";
+type Tab = "accounts" | "recovery" | "identity" | "duplicates" | "flagged";
 
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | AccountStatus;
@@ -84,6 +87,11 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("accounts");
+  /* The bell's report of a flagged contributor opens `?tab=flagged`. */
+  const [params] = useSearchParams();
+  useEffect(() => {
+    if (params.get("tab") === "flagged") setTab("flagged");
+  }, [params]);
   const [exportPhase, setExportPhase] = useState<ExportPhase>({ kind: "idle" });
 
   /* Lifted out of the table so the tab can carry the count and the tab row
@@ -95,6 +103,8 @@ export default function AdminUsersPage() {
      flag is somebody not being paid, and a tab nobody clicks would hide
      that. The rows themselves are only read once the tab is opened. */
   const duplicates = useDuplicateFlags(true);
+  /* Counted always too: a flagged clip is one that is not being paid. */
+  const recordingFlags = useRecordingFlags();
   const recovery = useRecoveryRequests();
   /* The account just created, so the dialog can report whether its
    * invitation email went out. Set only once the create has returned. */
@@ -391,6 +401,12 @@ export default function AdminUsersPage() {
             >
               Duplicates <Count value={duplicates.flags.length} />
             </TabsTrigger>
+            <TabsTrigger
+              value="flagged"
+              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+            >
+              Flagged <Count value={recordingFlags.flags.length} />
+            </TabsTrigger>
           </TabsList>
 
           {tab === "identity" ? (
@@ -488,6 +504,10 @@ export default function AdminUsersPage() {
 
         <TabsContent value="duplicates" className="mt-2">
           <DuplicateFlagsTable active={tab === "duplicates"} users={rows} />
+        </TabsContent>
+
+        <TabsContent value="flagged" className="mt-2">
+          <RecordingFlagsTable {...recordingFlags} />
         </TabsContent>
       </Tabs>
 

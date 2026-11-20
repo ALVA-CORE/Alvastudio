@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import Diskette from "@solar-icons/react/devices/Diskette";
+import Flag from "@solar-icons/react/ui/Flag";
 import { BorderBeam } from "border-beam";
 import {
   VERDICT_LABELS,
@@ -22,6 +23,7 @@ import {
   type ReviewProgressSnapshot,
 } from "@/lib/review-progress";
 import { TextureButton } from "@/components/ui/texture-button";
+import { FlagRecordingDialog } from "@/components/shared/FlagRecordingDialog";
 import { useAuth } from "@/lib/auth/context";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 
@@ -93,6 +95,7 @@ export default function InternReviewDetailPage() {
   const [playbackTime, setPlaybackTime] = useState(initial?.playbackTime ?? 0);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [flagging, setFlagging] = useState(false);
 
   const lastSavedRef = useRef<ReviewProgressSnapshot | null>(
     item
@@ -279,6 +282,14 @@ export default function InternReviewDetailPage() {
             Back to queue
           </button>
 
+          <div className="flex items-center gap-2">
+          {/* A flag takes the clip off the desk as a verdict does. */}
+          {isDecided || assignedElsewhere ? null : (
+            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setFlagging(true)}>
+              <Flag size={15} weight="Outline" />
+              Flag
+            </TextureButton>
+          )}
           <div className="relative overflow-visible rounded-full">
             <BorderBeam
               size="pulse-outside"
@@ -301,6 +312,7 @@ export default function InternReviewDetailPage() {
               </TextureButton>
             </BorderBeam>
           </div>
+          </div>
         </div>
 
         <ReviewWorkspace
@@ -318,6 +330,20 @@ export default function InternReviewDetailPage() {
           isSubmitting={isPosting}
         />
       </div>
+
+      <FlagRecordingDialog
+        open={flagging}
+        onOpenChange={setFlagging}
+        recordingId={item.id}
+        onFlagged={({ next_recording }) => {
+          const snapshot = buildSnapshot(answers, playbackTime, true);
+          saveReviewProgress(item.id, snapshot);
+          lastSavedRef.current = snapshot;
+          setIsDirty(false);
+          alvaToast.success("Flagged. This recording won't be paid.");
+          navigate(next_recording ? `/intern/review/${next_recording.id}` : "/intern/review");
+        }}
+      />
 
       <ReviewClipNavigation
         onPrevious={

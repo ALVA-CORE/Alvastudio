@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import Restart from "@solar-icons/react/arrows/Restart";
+import Flag from "@solar-icons/react/ui/Flag";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { FlagRecordingDialog } from "@/components/shared/FlagRecordingDialog";
+import { alvaToast } from "@/lib/alva-toast";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { useAuditLog } from "@/hooks/useAuditLog";
 import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
@@ -61,6 +64,7 @@ export function RecordingDetailPanel({
   onReopen,
   onReassign,
   onOpenPerson,
+  onFlagged,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -69,9 +73,12 @@ export function RecordingDetailPanel({
   onReassign: (recording: AdminRecording) => void;
   /** Opens a person's own panel: the contributor's or the reviewer's. */
   onOpenPerson?: (userId: string) => void;
+  /** After a flag lands, so the list re-reads the clip's status. */
+  onFlagged: () => void;
 }) {
   const [tab, setTab] = useState("detail");
   const [confirmReopen, setConfirmReopen] = useState(false);
+  const [flagging, setFlagging] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   /** Distinguishes "still fetching" from "this clip has no audio". */
   const [audioLoading, setAudioLoading] = useState(false);
@@ -141,6 +148,11 @@ export function RecordingDetailPanel({
                 onReassign(recording);
                 onOpenChange(false);
               }}
+            />
+            <PanelAction
+              icon={<Flag size={15} weight="Outline" />}
+              label="Flag"
+              onClick={() => setFlagging(true)}
             />
             {isDecided ? (
               <PanelAction
@@ -250,6 +262,17 @@ export function RecordingDetailPanel({
           <AuditTimeline entries={audit} emptyMessage="Nothing recorded yet." />
         )}
       </DetailPanel>
+
+      <FlagRecordingDialog
+        open={flagging}
+        onOpenChange={setFlagging}
+        recordingId={recording.id}
+        onFlagged={() => {
+          alvaToast.success("Flagged. This recording won't be paid.");
+          onFlagged();
+          onOpenChange(false);
+        }}
+      />
 
       <ConfirmDialog
         open={confirmReopen}
