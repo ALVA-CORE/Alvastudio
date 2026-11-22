@@ -4,6 +4,7 @@ import { reviewsForRecording, submitReview } from "@/lib/api/reviews";
 import { ApiError } from "@/lib/api/client";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { toQueueItem } from "@/hooks/useReviewQueue";
+import type { ApiFlagIn } from "@/lib/api/recordingFlags";
 import type { QualityAnswers, ReviewQueueItem, ReviewVerdict } from "@/data/reviewQueue";
 
 /**
@@ -147,18 +148,21 @@ export function useReviewItem(id: string | undefined) {
    * being down all read identically.
    */
   const submit = useCallback(
-    async (answers: QualityAnswers, verdict: ReviewVerdict): Promise<SubmitOutcome> => {
+    async (answers: QualityAnswers, verdict: ReviewVerdict, flag?: ApiFlagIn): Promise<SubmitOutcome> => {
       if (!id) return { ok: false, refusal: "This clip is no longer open." };
       setSubmitting(true);
       try {
         const result = await submitReview({
           recording_id: id,
           // The rubric maps 1:1 — see docs/backend/api.md §"Enum crosswalk".
-          q_noise_free: answers.noiseFree as "yes" | "partial" | "no",
-          q_clear_audible: answers.audible as "yes" | "partial" | "no",
-          q_matches_prompt: answers.matchesPrompt as "yes" | "partial" | "no",
-          q_natural_intelligible: answers.natural as "yes" | "partial" | "no",
+          // A blank one is only possible with a flag, and is left out.
+          q_noise_free: answers.noiseFree || undefined,
+          q_clear_audible: answers.audible || undefined,
+          q_matches_prompt: answers.matchesPrompt || undefined,
+          q_natural_intelligible: answers.natural || undefined,
+          q_read_as_prompt: answers.readAsPrompt ? answers.readAsPrompt === "yes" : undefined,
           verdict,
+          flag,
         });
         return { ok: true, nextId: result.next_recording?.id ?? null };
       } catch (cause) {

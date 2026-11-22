@@ -442,7 +442,7 @@ export default function AdminReviewsPage() {
         }}
         onReassign={(row: AdminRecording) => setReassigning(row)}
         onOpenPerson={setPersonId}
-        onFlagged={reload}
+        onChanged={reload}
       />
 
       <UserPanelHost userId={personId} onClose={closePerson} />

@@ -45,6 +45,7 @@ export function ReviewWorkspace({
           onSubmit={onSubmit}
           isSubmitting={isSubmitting}
           readOnly={readOnly}
+          askReadAsPrompt={item.mode === "Stimuli"}
         />
       </div>
     </div>

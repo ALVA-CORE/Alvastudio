@@ -184,15 +184,12 @@ export function toContributorNotification(
 }
 
 /**
- * Where a staff `queue` item opens. Narrations waiting for annotators and
- * flagged recordings carry a `recording_id` as an intern's clips do, so the
- * key's prefix comes first.
+ * Where a staff `queue` item opens. Narrations waiting for annotators carry a
+ * `recording_id` as an intern's clips do, so the key's prefix comes first.
  */
 function queueLink(api: ApiNotification) {
   if (api.kind !== "queue") return undefined;
   if (api.key.startsWith("narrations:")) return "/annotator/narrations";
-  /* A contributor reported by three flags (ask #25). */
-  if (api.key.startsWith("recording-flags:")) return "/admin/users?tab=flagged";
   return api.recording_id ? "/intern/review" : undefined;
 }
 
@@ -206,7 +203,8 @@ export function toStaffNotification(api: ApiNotification): InternNotification {
     timestampTs: new Date(api.created_at).getTime(),
     read: api.read ?? false,
     action: actionOf(api),
-    link: queueLink(api),
+    /* Admins: a contributor was reported (21 Nov). */
+    link: api.kind === "report" ? "/admin/users?tab=reports" : queueLink(api),
   };
 }
 

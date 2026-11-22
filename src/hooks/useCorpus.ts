@@ -31,7 +31,7 @@ const STATUS_LABEL: Record<string, string> = {
   in_review: "In review",
   approved: "Approved",
   rejected: "Rejected",
-  flagged: "Flagged",
+  flagged: "Second opinion",
 };
 
 /** Daily hours, run cumulatively, in the shape the growth chart takes. */

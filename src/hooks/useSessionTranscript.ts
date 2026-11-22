@@ -83,6 +83,7 @@ async function loadNarration(annotationId: string) {
   const session: AnnotatorSession = {
     id: annotationId,
     kind: "narration",
+    recordingId: document.recording_id ?? undefined,
     code: annotationId.slice(0, 8),
     topic: source.topic ?? "",
     state: "",

@@ -24,6 +24,7 @@ import {
 } from "@/lib/review-progress";
 import { TextureButton } from "@/components/ui/texture-button";
 import { FlagRecordingDialog } from "@/components/shared/FlagRecordingDialog";
+import { reportContributor } from "@/lib/api/recordingFlags";
 import { useAuth } from "@/lib/auth/context";
 import type { ReviewQueueItem } from "@/data/reviewQueue";
 
@@ -95,7 +96,7 @@ export default function InternReviewDetailPage() {
   const [playbackTime, setPlaybackTime] = useState(initial?.playbackTime ?? 0);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [flagging, setFlagging] = useState(false);
+  const [dialog, setDialog] = useState<"flag" | "report" | null>(null);
 
   const lastSavedRef = useRef<ReviewProgressSnapshot | null>(
     item
@@ -283,9 +284,15 @@ export default function InternReviewDetailPage() {
           </button>
 
           <div className="flex items-center gap-2">
-          {/* A flag takes the clip off the desk as a verdict does. */}
+          {/* A flag is a verdict, so only while undecided; a report is on
+              the contributor, so any clip they can see. */}
+          {assignedElsewhere ? null : (
+            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setDialog("report")}>
+              Report contributor
+            </TextureButton>
+          )}
           {isDecided || assignedElsewhere ? null : (
-            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setFlagging(true)}>
+            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setDialog("flag")}>
               <Flag size={15} weight="Outline" />
               Flag
             </TextureButton>
@@ -332,16 +339,25 @@ export default function InternReviewDetailPage() {
       </div>
 
       <FlagRecordingDialog
-        open={flagging}
-        onOpenChange={setFlagging}
-        recordingId={item.id}
-        onFlagged={({ next_recording }) => {
-          const snapshot = buildSnapshot(answers, playbackTime, true);
+        open={dialog !== null}
+        onOpenChange={(open) => !open && setDialog(null)}
+        mode={dialog ?? "flag"}
+        onSend={async (body) => {
+          if (dialog === "report") {
+            await reportContributor({ recording_id: item.id, ...body });
+            alvaToast.success("Reported. An admin will look into it.");
+            return;
+          }
+          /* A flag is a rejection with reasons: it goes with the verdict. */
+          const finalAnswers = { ...answers, verdict: "reject" as const };
+          const outcome = await submit(finalAnswers, "reject", body);
+          if (outcome.ok === false) throw new Error(outcome.refusal);
+          const snapshot = buildSnapshot(finalAnswers, playbackTime, true);
           saveReviewProgress(item.id, snapshot);
           lastSavedRef.current = snapshot;
           setIsDirty(false);
           alvaToast.success("Flagged. This recording won't be paid.");
-          navigate(next_recording ? `/intern/review/${next_recording.id}` : "/intern/review");
+          navigate(outcome.nextId ? `/intern/review/${outcome.nextId}` : "/intern/review");
         }}
       />
 

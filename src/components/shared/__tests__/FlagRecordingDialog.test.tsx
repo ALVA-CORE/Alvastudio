@@ -1,40 +1,42 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { FlagRecordingDialog } from "../FlagRecordingDialog";
 
-const flagRecording = vi.fn(async () => ({ flag: { id: "f1" }, next_recording: { id: "r2" } }));
-vi.mock("@/lib/api/recordingFlags", async (actual) => ({
-  ...(await actual<typeof import("@/lib/api/recordingFlags")>()),
-  flagRecording: (...args: unknown[]) => flagRecording(...(args as [])),
-}));
-const { FlagRecordingDialog } = await import("../FlagRecordingDialog");
-
-function renderDialog() {
-  const onFlagged = vi.fn();
-  render(<FlagRecordingDialog open onOpenChange={() => {}} recordingId="r1" onFlagged={onFlagged} />);
-  return { onFlagged };
+function renderDialog(onSend = vi.fn(async () => {})) {
+  render(<FlagRecordingDialog open onOpenChange={() => {}} mode="flag" onSend={onSend} />);
+  return { onSend };
 }
 
 describe("FlagRecordingDialog", () => {
-  it("needs a reason before it will flag", async () => {
-    const { onFlagged } = renderDialog();
+  it("needs at least one reason, and sends every one ticked", async () => {
+    const { onSend } = renderDialog();
     const flag = screen.getByRole("button", { name: "Flag" });
     expect(flag).toBeDisabled();
 
-    await userEvent.click(screen.getByRole("radio", { name: "Recycled audio" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Gibberish" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Wrong language" }));
     await userEvent.click(flag);
 
-    expect(flagRecording).toHaveBeenCalledWith("r1", { reason: "recycled_audio", note: undefined });
-    expect(onFlagged).toHaveBeenCalledWith({ flag: { id: "f1" }, next_recording: { id: "r2" } });
+    expect(onSend).toHaveBeenCalledWith({ reasons: ["gibberish", "wrong_language"], note: undefined });
   });
 
-  it("needs a note when the reason is Other", async () => {
+  it("needs a note for another reason", async () => {
     renderDialog();
-    await userEvent.click(screen.getByRole("radio", { name: "Other" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Another reason" }));
     const flag = screen.getByRole("button", { name: "Flag" });
     expect(flag).toBeDisabled();
 
-    await userEvent.type(screen.getByLabelText("What's wrong"), "Two people reading");
+    await userEvent.type(screen.getByLabelText("What's wrong"), "Music, no voice");
     expect(flag).toBeEnabled();
+  });
+
+  it("shows why a send was refused", async () => {
+    renderDialog(vi.fn(async () => {
+      throw new Error("This clip already has a verdict, so yours was not recorded.");
+    }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Gibberish" }));
+    await userEvent.click(screen.getByRole("button", { name: "Flag" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("already has a verdict");
   });
 });

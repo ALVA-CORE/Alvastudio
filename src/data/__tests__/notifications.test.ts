@@ -92,13 +92,8 @@ describe("queue items", () => {
     expect(mapped.link).toBe("/annotator/narrations");
   });
 
-  it("sends a contributor reported by flags to the Flagged tab", () => {
-    const mapped = toStaffNotification({
-      ...row("queue"),
-      key: "recording-flags:u1",
-      recording_id: "r1",
-    });
-    expect(mapped.link).toBe("/admin/users?tab=flagged");
+  it("sends a report on a contributor to the Reports tab", () => {
+    expect(toStaffNotification(row("report")).link).toBe("/admin/users?tab=reports");
   });
 
   it("leaves an annotator's session item as it was", () => {

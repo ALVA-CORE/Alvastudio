@@ -25,7 +25,7 @@ const NODE_COLORS: Record<string, string> = {
   "In review": BLUE,
   Annotating: BLUE,
   Approved: ACCENT,
-  Flagged: AMBER,
+  "Second opinion": AMBER,
   Rejected: RED,
 };
 

@@ -5,12 +5,14 @@ import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import Microphone3 from "@solar-icons/react/video/Microphone3";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FlagRecordingDialog } from "@/components/shared/FlagRecordingDialog";
+import { clearRecordingFlag, flagRecording, reasonsText, reportContributor } from "@/lib/api/recordingFlags";
+import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { useAuditLog } from "@/hooks/useAuditLog";
 import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
 import { ClipPlayerSkeleton } from "@/components/admin/shared/ClipPlayerSkeleton";
-import { recordingAudioUrl } from "@/lib/api/recordings";
+import { getRecording, recordingAudioUrl, type ApiRecording } from "@/lib/api/recordings";
 import {
   AuditTimeline,
   DetailField,
@@ -43,6 +45,14 @@ const STATUS_TONE: Record<RecordingStatus, PillTone> = {
  * Annotation playback therefore lives on the Annotations panel, which is the
  * only screen whose rows actually have a build history.
  */
+/** What happened to its pay, from `FlagResult.money`. */
+const FLAG_MONEY = {
+  voided: "Flagged. Its pay is cancelled.",
+  in_flight: "Flagged. Its pay had already left and can't be stopped.",
+  paid: "Flagged. It was already paid.",
+  none: "Flagged. It had earned nothing.",
+} as const;
+
 const TABS = [
   { id: "detail", label: "Clip" },
   { id: "audit", label: "History" },
@@ -64,7 +74,7 @@ export function RecordingDetailPanel({
   onReopen,
   onReassign,
   onOpenPerson,
-  onFlagged,
+  onChanged,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,12 +83,15 @@ export function RecordingDetailPanel({
   onReassign: (recording: AdminRecording) => void;
   /** Opens a person's own panel: the contributor's or the reviewer's. */
   onOpenPerson?: (userId: string) => void;
-  /** After a flag lands, so the list re-reads the clip's status. */
-  onFlagged: () => void;
+  /** After a flag is made or cleared, so the list re-reads the clip. */
+  onChanged: () => void;
 }) {
   const [tab, setTab] = useState("detail");
   const [confirmReopen, setConfirmReopen] = useState(false);
-  const [flagging, setFlagging] = useState(false);
+  const [dialog, setDialog] = useState<"flag" | "report" | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  /* Lists never carry the flag; the clip's own answer does. */
+  const [flag, setFlag] = useState<ApiRecording["flag"]>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   /** Distinguishes "still fetching" from "this clip has no audio". */
   const [audioLoading, setAudioLoading] = useState(false);
@@ -102,6 +115,18 @@ export function RecordingDetailPanel({
     return () => {
       cancelled = true;
       setAudioUrl(null);
+    };
+  }, [open, recording]);
+
+  useEffect(() => {
+    if (!open || !recording) return;
+    let cancelled = false;
+    setFlag(null);
+    getRecording(recording.id)
+      .then((row) => !cancelled && setFlag(row.flag ?? null))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
     };
   }, [open, recording]);
 
@@ -151,9 +176,23 @@ export function RecordingDetailPanel({
             />
             <PanelAction
               icon={<Flag size={15} weight="Outline" />}
-              label="Flag"
-              onClick={() => setFlagging(true)}
+              label="Report contributor"
+              onClick={() => setDialog("report")}
             />
+            {/* An undecided clip is flagged by its reviewer, with the verdict. */}
+            {flag ? (
+              <PanelAction
+                icon={<Flag size={15} weight="Outline" />}
+                label="Clear flag"
+                onClick={() => setConfirmClear(true)}
+              />
+            ) : recording.status === "approved" ? (
+              <PanelAction
+                icon={<Flag size={15} weight="Outline" />}
+                label="Flag"
+                onClick={() => setDialog("flag")}
+              />
+            ) : null}
             {isDecided ? (
               <PanelAction
                 icon={<Restart size={15} weight="Outline" />}
@@ -247,6 +286,12 @@ export function RecordingDetailPanel({
               </div>
             </DetailGroup>
 
+            {flag ? (
+              <DetailGroup title="Flagged as junk">
+                <DetailField label="Reasons" value={reasonsText(flag.reasons)} tone="danger" span />
+              </DetailGroup>
+            ) : null}
+
             {recording.rejectionReason ? (
               <DetailGroup title="Outcome">
                 <DetailField
@@ -264,13 +309,39 @@ export function RecordingDetailPanel({
       </DetailPanel>
 
       <FlagRecordingDialog
-        open={flagging}
-        onOpenChange={setFlagging}
-        recordingId={recording.id}
-        onFlagged={() => {
-          alvaToast.success("Flagged. This recording won't be paid.");
-          onFlagged();
+        open={dialog !== null}
+        onOpenChange={(next) => !next && setDialog(null)}
+        mode={dialog ?? "flag"}
+        onSend={async (body) => {
+          if (dialog === "report") {
+            await reportContributor({ recording_id: recording.id, ...body });
+            alvaToast.success("Reported. Their uploads are paused until you decide.");
+            return;
+          }
+          const result = await flagRecording(recording.id, body);
+          alvaToast.success(FLAG_MONEY[result.money]);
+          onChanged();
           onOpenChange(false);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmClear}
+        onOpenChange={setConfirmClear}
+        tone="default"
+        title="Clear this flag?"
+        description="The clip goes back to review, stops counting toward a report, and is paid again if it's approved."
+        confirmLabel="Clear flag"
+        onConfirm={async () => {
+          try {
+            await clearRecordingFlag(recording.id);
+            alvaToast.success("Flag cleared");
+            setConfirmClear(false);
+            onChanged();
+            onOpenChange(false);
+          } catch (cause) {
+            alvaToast.error(reportApiError(cause, "Could not clear the flag.") ?? "Could not clear the flag.");
+          }
         }}
       />
 

@@ -11,8 +11,9 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { IdentityRecheckTable } from "@/components/admin/users/IdentityRecheckTable";
 import { DuplicateFlagsTable } from "@/components/admin/users/DuplicateFlagsTable";
 import { useDuplicateFlags } from "@/hooks/useDuplicateFlags";
-import { useRecordingFlags } from "@/hooks/useRecordingFlags";
-import { RecordingFlagsTable } from "@/components/admin/users/RecordingFlagsTable";
+import { useReports } from "@/hooks/useReports";
+import { ReportsTable } from "@/components/admin/users/ReportsTable";
+import { BlockedEmailsTable } from "@/components/admin/users/BlockedEmailsTable";
 import { useIdentityRecheck } from "@/hooks/useIdentityRecheck";
 import Letter from "@solar-icons/react/messages/Letter";
 import Refresh from "@solar-icons/react/arrows/Refresh";
@@ -48,7 +49,7 @@ import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { cn } from "@/lib/utils";
 
-type Tab = "accounts" | "recovery" | "identity" | "duplicates" | "flagged";
+type Tab = "accounts" | "recovery" | "identity" | "duplicates" | "reports" | "blocked";
 
 type RoleFilter = AdminUserRole | "all";
 type StatusFilter = "all" | AccountStatus;
@@ -87,10 +88,10 @@ export default function AdminUsersPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("accounts");
-  /* The bell's report of a flagged contributor opens `?tab=flagged`. */
+  /* The bell's report item opens `?tab=reports`. */
   const [params] = useSearchParams();
   useEffect(() => {
-    if (params.get("tab") === "flagged") setTab("flagged");
+    if (params.get("tab") === "reports") setTab("reports");
   }, [params]);
   const [exportPhase, setExportPhase] = useState<ExportPhase>({ kind: "idle" });
 
@@ -103,8 +104,8 @@ export default function AdminUsersPage() {
      flag is somebody not being paid, and a tab nobody clicks would hide
      that. The rows themselves are only read once the tab is opened. */
   const duplicates = useDuplicateFlags(true);
-  /* Counted always too: a flagged clip is one that is not being paid. */
-  const recordingFlags = useRecordingFlags();
+  /* Counted always too: each open report is someone whose uploads are paused. */
+  const reports = useReports();
   const recovery = useRecoveryRequests();
   /* The account just created, so the dialog can report whether its
    * invitation email went out. Set only once the create has returned. */
@@ -188,8 +189,8 @@ export default function AdminUsersPage() {
 
   const handleDelete = async (user: AdminUser, blockEmail: boolean) => {
     try {
-      await remove(user.id, blockEmail);
-      alvaToast.show(`${user.fullName} removed`, { variant: "default" });
+      const blocked = await remove(user.id, blockEmail);
+      alvaToast.show(`${user.fullName} removed${blocked ? ", email blocked" : ""}`, { variant: "default" });
     } catch (cause) {
       const message = reportApiError(cause, "Could not remove that account.");
       if (message) alvaToast.error(message);
@@ -402,10 +403,16 @@ export default function AdminUsersPage() {
               Duplicates <Count value={duplicates.flags.length} />
             </TabsTrigger>
             <TabsTrigger
-              value="flagged"
+              value="reports"
               className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
             >
-              Flagged <Count value={recordingFlags.flags.length} />
+              Reports <Count value={reports.reports.length} />
+            </TabsTrigger>
+            <TabsTrigger
+              value="blocked"
+              className="rounded-full px-4 text-sm data-[state=active]:bg-alva-card data-[state=active]:text-foreground"
+            >
+              Blocked emails
             </TabsTrigger>
           </TabsList>
 
@@ -506,8 +513,12 @@ export default function AdminUsersPage() {
           <DuplicateFlagsTable active={tab === "duplicates"} users={rows} />
         </TabsContent>
 
-        <TabsContent value="flagged" className="mt-2">
-          <RecordingFlagsTable {...recordingFlags} />
+        <TabsContent value="reports" className="mt-2">
+          <ReportsTable {...reports} />
+        </TabsContent>
+
+        <TabsContent value="blocked" className="mt-2">
+          <BlockedEmailsTable active={tab === "blocked"} />
         </TabsContent>
       </Tabs>
 

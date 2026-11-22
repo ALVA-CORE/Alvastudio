@@ -73,8 +73,8 @@ export function UserPanelHost({
       }}
       onDelete={async (user, blockEmail) => {
         try {
-          await remove(user.id, blockEmail);
-          alvaToast.show(`${user.fullName} removed`, { variant: "default" });
+          const blocked = await remove(user.id, blockEmail);
+          alvaToast.show(`${user.fullName} removed${blocked ? ", email blocked" : ""}`, { variant: "default" });
           onClose();
         } catch (cause) {
           report(cause, "Could not remove that account.");

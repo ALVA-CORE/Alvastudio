@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { ApiPage } from "./recordings";
 
 /**
  * Account administration.
@@ -127,6 +128,8 @@ export type ApiUserDeletionSummary = {
   annotation_tokens: number;
   consent_records: number;
   payout_records_kept?: number;
+  /** On the delete's answer: true when the address is on the block list. Null on a preview. */
+  email_blocked?: boolean | null;
 };
 
 export function previewUserDeletion(id: string) {
@@ -396,3 +399,26 @@ export function listUserEmails(
     { query: { ...params, envelope: true } }
   );
 }
+
+/** The email block list (ask #24). Only a keyed hash is kept; `hint` is the address masked. */
+export type ApiBlockedEmail = {
+  id: string;
+  hint: string;
+  role: string | null;
+  source: "deleted_account" | "added_by_admin";
+  blocked_by_name?: string | null;
+  created_at: string;
+};
+
+/** With `email`, finds that address as sign-up matches it (variants included). */
+export const listBlockedEmails = (email?: string) =>
+  apiFetch<ApiPage<ApiBlockedEmail>>("/blocked-emails", {
+    query: { email: email || undefined, limit: 200, envelope: true },
+  });
+
+/** 409 when it, or a variant of it, is already on the list. */
+export const blockEmail = (email: string) =>
+  apiFetch<ApiBlockedEmail>("/blocked-emails", { method: "POST", body: { email } });
+
+/** It can sign up again at once. */
+export const unblockEmail = (id: string) => apiFetch<void>(`/blocked-emails/${id}`, { method: "DELETE" });

@@ -25,6 +25,8 @@ type ReviewQualityFormProps = {
    * refuses a second review anyway.
    */
   readOnly?: boolean;
+  /** A stimulus narration: one more question, about pay. */
+  askReadAsPrompt?: boolean;
   className?: string;
 };
 
@@ -34,6 +36,7 @@ export function ReviewQualityForm({
   onSubmit,
   isSubmitting = false,
   readOnly = false,
+  askReadAsPrompt = false,
   className,
 }: ReviewQualityFormProps) {
   const setTri = (key: keyof Omit<QualityAnswers, "verdict">, value: TriStateAnswer) => {
@@ -41,7 +44,8 @@ export function ReviewQualityForm({
   };
 
   const computedVerdict = calculateVerdictFromAnswers(answers);
-  const canSubmit = isRubricComplete(answers) && !isSubmitting && !readOnly;
+  const canSubmit =
+    isRubricComplete(answers) && (!askReadAsPrompt || Boolean(answers.readAsPrompt)) && !isSubmitting && !readOnly;
 
   return (
     <section className={cn("flex h-full min-w-0 flex-col rounded-2xl bg-alva-card p-3 sm:p-4", className)}>
@@ -101,6 +105,36 @@ export function ReviewQualityForm({
           </div>
         ))}
       </div>
+
+      {askReadAsPrompt ? (
+        <div className="py-3">
+          <div className="mx-2 mb-3 h-px bg-alva-border" />
+          <p className="text-sm text-foreground">Was the topic read out like a prompt instead of narrated?</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Yes pays ₦10, as a sentence. It doesn't change the outcome.</p>
+          <RadioGroup
+            value={answers.readAsPrompt ?? ""}
+            disabled={readOnly}
+            onValueChange={(value) => onChange({ ...answers, readAsPrompt: value as "yes" | "no" })}
+            className="mt-2 flex flex-wrap gap-4"
+          >
+            {(["yes", "no"] as const).map((value) => (
+              <label
+                key={value}
+                htmlFor={`readAsPrompt-${value}`}
+                className={cn("flex items-center gap-2 text-sm text-foreground", readOnly ? "cursor-default" : "cursor-pointer")}
+              >
+                <RadioGroupItem
+                  id={`readAsPrompt-${value}`}
+                  value={value}
+                  disabled={readOnly}
+                  className="border-alva-border text-muted-foreground data-[state=checked]:border-alva-accent data-[state=checked]:text-alva-accent disabled:opacity-100"
+                />
+                {value === "yes" ? "Yes" : "No"}
+              </label>
+            ))}
+          </RadioGroup>
+        </div>
+      ) : null}
 
       {computedVerdict && (
         <p className="mt-2 text-xs text-muted-foreground">
