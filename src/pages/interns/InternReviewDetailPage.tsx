@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import Diskette from "@solar-icons/react/devices/Diskette";
-import Flag from "@solar-icons/react/ui/Flag";
 import { BorderBeam } from "border-beam";
 import {
   VERDICT_LABELS,
@@ -284,19 +283,14 @@ export default function InternReviewDetailPage() {
           </button>
 
           <div className="flex items-center gap-2">
-          {/* A flag is a verdict, so only while undecided; a report is on
-              the contributor, so any clip they can see. */}
+          {/* A report is on the contributor, so any clip they can see. The
+              flag is a verdict, so it sits by Submit. */}
           {assignedElsewhere ? null : (
             <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setDialog("report")}>
               Report contributor
             </TextureButton>
           )}
-          {isDecided || assignedElsewhere ? null : (
-            <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setDialog("flag")}>
-              <Flag size={15} weight="Outline" />
-              Flag
-            </TextureButton>
-          )}
+
           <div className="relative overflow-visible rounded-full">
             <BorderBeam
               size="pulse-outside"
@@ -334,6 +328,7 @@ export default function InternReviewDetailPage() {
           playbackTime={playbackTime}
           onPlaybackTimeChange={setPlaybackTime}
           onSubmit={() => void handleSubmit()}
+          onFlag={() => setDialog("flag")}
           isSubmitting={isPosting}
         />
       </div>

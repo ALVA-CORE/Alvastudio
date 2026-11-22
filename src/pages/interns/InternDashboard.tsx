@@ -13,6 +13,7 @@ import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGri
 import {
   getEmptyDashboardDataset,
   toCaptureTrend,
+  periodTrend,
   toDemographicSpeakers,
   toQualityRadar,
   toWeeklySessions,
@@ -39,6 +40,13 @@ const RANGE_LABEL: Record<DashboardTimeRange, string> = {
   "12m": "Last 12 months",
 };
 
+/** "New" and a rise read as good; "0%" as neither. */
+const trendOf = (label: string) => ({
+  label,
+  positive: label.startsWith("+") || label === "New",
+  neutral: label === "0%",
+});
+
 export default function InternDashboard() {
   const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<DashboardTimeRange>("30d");
@@ -46,6 +54,8 @@ export default function InternDashboard() {
   /* Reviewing is half an intern's job and the dashboard endpoint does not
      count it, so this card is the only one with its own request. */
   const clipsReviewed = useInternReviewCount(user?.id, RANGE_DAYS[timeRange]);
+  /* The window before this one is the double window minus this one. */
+  const clipsBothWindows = useInternReviewCount(user?.id, RANGE_DAYS[timeRange] * 2);
 
   /* Zeroes, never a sample. This is one person's own work, and a screen that
    * fills itself with somebody else's figures when the request fails is the
@@ -63,13 +73,19 @@ export default function InternDashboard() {
   const dataset =
     live
       ? (() => {
-          const window = live.daily_activity.slice(-RANGE_DAYS[timeRange]);
+          const days = RANGE_DAYS[timeRange];
+          const window = live.daily_activity.slice(-days);
           const sessions = window.reduce((total, day) => total + day.sessions, 0);
           const participants = window.reduce(
             (total, day) => total + day.participants,
             0
           );
           const hours = window.reduce((total, day) => total + day.hours, 0);
+          /* The API's 365 days hold the window before 7, 30 and 90 days, not 12 months. */
+          const before =
+            live.daily_activity.length >= days * 2 ? live.daily_activity.slice(-days * 2, -days) : null;
+          const sum = (key: "sessions" | "participants" | "hours") =>
+            before ? before.reduce((total, day) => total + day[key], 0) : null;
 
           const radar = toQualityRadar(live.quality_in_window);
           const pyramid = toDemographicSpeakers(live.demographics.by_gender_age);
@@ -89,12 +105,13 @@ export default function InternDashboard() {
               sessions: String(sessions),
               clipsReviewed: String(clipsReviewed ?? NO_VALUE),
               periodLabel: RANGE_LABEL[timeRange],
-              /* No trends: the endpoint gives one window, not this one against
-               * the last, so there is no honest arrow to draw. */
-              hoursTrend: NO_VALUE,
-              participantsTrend: NO_VALUE,
-              sessionsTrend: NO_VALUE,
-              clipsTrend: NO_VALUE,
+              hoursTrend: periodTrend(hours, sum("hours")),
+              participantsTrend: periodTrend(participants, sum("participants")),
+              sessionsTrend: periodTrend(sessions, sum("sessions")),
+              clipsTrend:
+                clipsReviewed == null || clipsBothWindows == null
+                  ? NO_VALUE
+                  : periodTrend(clipsReviewed, clipsBothWindows - clipsReviewed),
             },
           };
         })()
@@ -103,19 +120,14 @@ export default function InternDashboard() {
 
   return (
     <DesktopPageShell>
-      {/* The greeting and the bell share the top line on every width; the
-          range filter drops under the bell on a phone and rejoins it on a
-          desktop. Three things abreast on 390px leaves the greeting one word
-          wide. */}
-      <header className="space-y-2 sm:flex sm:items-end sm:justify-between sm:gap-2 sm:space-y-0">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold text-foreground sm:mt-1 sm:text-2xl">
-            How far, {firstName}
-          </h1>
-          <NotificationsMenu />
-        </div>
-        <div className="flex justify-end sm:items-center sm:gap-2">
+      {/* The bell on the right, after the range, as on the annotator's. */}
+      <header className="flex flex-wrap items-end justify-between gap-2">
+        <h1 className="mt-1 text-xl font-semibold text-foreground sm:text-2xl">
+          How far, {firstName}
+        </h1>
+        <div className="flex items-center gap-2">
           <DashboardTimeFilter value={timeRange} onChange={setTimeRange} />
+          <NotificationsMenu />
         </div>
       </header>
 
@@ -140,40 +152,28 @@ export default function InternDashboard() {
               variant="accent"
               title="Hours recorded"
               value={dataset.metrics.hours}
-              trend={{
-                label: dataset.metrics.hoursTrend,
-                positive: dataset.metrics.hoursTrend.startsWith("+"),
-              }}
+              trend={trendOf(dataset.metrics.hoursTrend)}
               period={dataset.metrics.periodLabel}
               icon={ClockCircle}
             />
             <MetricCard
               title="Participants logged"
               value={dataset.metrics.participants}
-              trend={{
-                label: dataset.metrics.participantsTrend,
-                positive: dataset.metrics.participantsTrend.startsWith("+"),
-              }}
+              trend={trendOf(dataset.metrics.participantsTrend)}
               period={dataset.metrics.periodLabel}
               icon={UsersGroupRounded}
             />
             <MetricCard
               title="Clips reviewed"
               value={dataset.metrics.clipsReviewed}
-              trend={{
-                label: dataset.metrics.clipsTrend,
-                positive: dataset.metrics.clipsTrend.startsWith("+"),
-              }}
+              trend={trendOf(dataset.metrics.clipsTrend)}
               period={dataset.metrics.periodLabel}
               icon={CheckCircle}
             />
             <MetricCard
               title="Sessions"
               value={dataset.metrics.sessions}
-              trend={{
-                label: dataset.metrics.sessionsTrend,
-                positive: dataset.metrics.sessionsTrend.startsWith("+"),
-              }}
+              trend={trendOf(dataset.metrics.sessionsTrend)}
               period={dataset.metrics.periodLabel}
               icon={Microphone3}
             />

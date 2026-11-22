@@ -1,3 +1,4 @@
+import { NO_VALUE } from "@/lib/no-value";
 import { fromApiAgeBracket } from "@/lib/api/enums";
 export type DashboardTimeRange = "7d" | "30d" | "90d" | "12m";
 
@@ -245,4 +246,16 @@ export function getEmptyDashboardDataset(
       periodLabel: PERIOD_LABEL[range],
     },
   };
+}
+
+/**
+ * This window against the one before it, as a card's trend: "+12%", "-5%",
+ * "0%", "New" when there was nothing before, a dash when the one before
+ * isn't known.
+ */
+export function periodTrend(current: number, previous: number | null) {
+  if (previous == null) return NO_VALUE;
+  if (previous === 0) return current > 0 ? "New" : "0%";
+  const change = Math.round(((current - previous) / previous) * 100);
+  return `${change > 0 ? "+" : ""}${change}%`;
 }

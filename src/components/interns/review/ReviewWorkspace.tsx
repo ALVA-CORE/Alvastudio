@@ -13,6 +13,7 @@ type ReviewWorkspaceProps = {
   isSubmitting?: boolean;
   /** A verdict is already on file: show it, do not offer to change it. */
   readOnly?: boolean;
+  onFlag?: () => void;
 };
 
 export function ReviewWorkspace({
@@ -24,6 +25,7 @@ export function ReviewWorkspace({
   onSubmit,
   isSubmitting,
   readOnly,
+  onFlag,
 }: ReviewWorkspaceProps) {
   /* `min-w-0` on the grid and its children: a grid item's default
      `min-width: auto` lets a wide child — a waveform canvas, a UUID — push
@@ -46,6 +48,7 @@ export function ReviewWorkspace({
           isSubmitting={isSubmitting}
           readOnly={readOnly}
           askReadAsPrompt={item.mode === "Stimuli"}
+          onFlag={onFlag}
         />
       </div>
     </div>

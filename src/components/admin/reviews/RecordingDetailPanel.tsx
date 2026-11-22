@@ -168,7 +168,7 @@ export function RecordingDetailPanel({
           <>
             <PanelAction
               icon={<UsersGroupRounded size={15} weight="Outline" />}
-              label="Reassign reviewer"
+              label="Reassign"
               onClick={() => {
                 onReassign(recording);
                 onOpenChange(false);
@@ -176,7 +176,7 @@ export function RecordingDetailPanel({
             />
             <PanelAction
               icon={<Flag size={15} weight="Outline" />}
-              label="Report contributor"
+              label="Report"
               onClick={() => setDialog("report")}
             />
             {/* An undecided clip is flagged by its reviewer, with the verdict. */}

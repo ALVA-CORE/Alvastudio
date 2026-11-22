@@ -8,7 +8,7 @@ import {
   type ApiRecordingSummary,
   type ApiRecordingVerdict,
 } from "@/lib/api/recordings";
-import type { ApiRecordingStatus } from "@/lib/api/enums";
+import type { ApiRecordingStatus, ApiSessionType } from "@/lib/api/enums";
 import { reportApiError } from "@/lib/api/reportApiError";
 import {
   REJECTION_REASON_LABEL,
@@ -38,6 +38,8 @@ export type ReviewsView = {
   q: string;
   /** Only clips this person has judged. */
   judgedBy?: string;
+  /** Omitted for every type. */
+  sessionType?: ApiSessionType;
   /** Omitted for the server's default, newest first. */
   sort?: { key: ApiRecordingSort; order: "asc" | "desc" };
   /** 1-based. */
@@ -56,7 +58,7 @@ export type ReviewsView = {
  * verdict where it wanted the newest and lost rows to uploads mid-load.
  */
 export function useAdminReviews(view: ReviewsView) {
-  const { status, q, judgedBy, sort, page, pageSize } = view;
+  const { status, q, judgedBy, sessionType, sort, page, pageSize } = view;
   const [rows, setRows] = useState<AdminRecording[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<ApiRecordingSummary | null>(null);
@@ -87,6 +89,7 @@ export function useAdminReviews(view: ReviewsView) {
           ...(status ? { status } : {}),
           ...(q ? { q } : {}),
           ...(judgedBy ? { judged_by: judgedBy } : {}),
+          ...(sessionType ? { session_type: sessionType } : {}),
           ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
         },
         controller.signal
@@ -113,7 +116,7 @@ export function useAdminReviews(view: ReviewsView) {
       });
 
     return () => controller.abort();
-  }, [status, q, judgedBy, sortKey, sortOrder, page, pageSize, attempt]);
+  }, [status, q, judgedBy, sessionType, sortKey, sortOrder, page, pageSize, attempt]);
 
   /** The page and the counts again, as after a reassign or a reopen. */
   const reload = useCallback(() => {

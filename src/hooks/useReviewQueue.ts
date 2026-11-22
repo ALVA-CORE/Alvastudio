@@ -1,3 +1,4 @@
+import type { ApiSessionType } from "@/lib/api/enums";
 import { useCallback, useEffect, useState } from "react";
 import * as reviewsApi from "@/lib/api/reviews";
 import {
@@ -108,6 +109,8 @@ export function useReviewQueue() {
 export type HistoryView = {
   /** Blank for no search. */
   q: string;
+  /** Omitted for every type. */
+  sessionType?: ApiSessionType;
   /** Omitted for the server's default, newest first. */
   sort?: { key: ApiRecordingSort; order: "asc" | "desc" };
   /** 1-based. */
@@ -118,7 +121,7 @@ export type HistoryView = {
 };
 
 /** The clips this reviewer has judged, a page at a time, from the server. */
-export function useReviewHistory({ q, sort, page, pageSize, enabled }: HistoryView) {
+export function useReviewHistory({ q, sessionType, sort, page, pageSize, enabled }: HistoryView) {
   const { user } = useAuth();
   const userId = user?.id;
   const [items, setItems] = useState<ReviewQueueItem[]>([]);
@@ -141,6 +144,7 @@ export function useReviewHistory({ q, sort, page, pageSize, enabled }: HistoryVi
         limit: pageSize,
         offset: (page - 1) * pageSize,
         ...(q ? { q } : {}),
+        ...(sessionType ? { session_type: sessionType } : {}),
         ...(sortKey ? { sort: sortKey, order: sortOrder } : {}),
       },
       controller.signal
@@ -159,7 +163,7 @@ export function useReviewHistory({ q, sort, page, pageSize, enabled }: HistoryVi
       });
 
     return () => controller.abort();
-  }, [enabled, userId, q, sortKey, sortOrder, page, pageSize]);
+  }, [enabled, userId, q, sessionType, sortKey, sortOrder, page, pageSize]);
 
   return { items, total, isFetching, error };
 }

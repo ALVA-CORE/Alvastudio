@@ -4,7 +4,13 @@ import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TextureButton } from "@/components/ui/texture-button";
 import { relativeDays } from "@/data/admin/shared";
-import { getReport, reasonsText, type ApiReportDetail, type ApiReportRow } from "@/lib/api/recordingFlags";
+import {
+  clearRecordingFlag,
+  getReport,
+  reasonsText,
+  type ApiReportDetail,
+  type ApiReportRow,
+} from "@/lib/api/recordingFlags";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { alvaToast } from "@/lib/alva-toast";
 import type { useReports } from "@/hooks/useReports";
@@ -119,11 +125,30 @@ function ReportDialog({
 }) {
   const [detail, setDetail] = useState<ApiReportDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [clearing, setClearing] = useState<string | null>(null);
+
+  /* A flag made by mistake: the clip goes back to review, stops counting
+     toward this report, and is paid again if it's approved. */
+  const clear = async (recordingId: string) => {
+    setClearing(recordingId);
+    try {
+      await clearRecordingFlag(recordingId);
+      alvaToast.success("Flag cleared. The clip is back in review.");
+      setAttempt((value) => value + 1);
+    } catch (cause) {
+      const message = reportApiError(cause, "Could not clear that flag.");
+      if (message) alvaToast.error(message);
+    } finally {
+      setClearing(null);
+    }
+  };
+
+  useEffect(() => setDetail(null), [report]);
 
   useEffect(() => {
     if (!report) return;
     let cancelled = false;
-    setDetail(null);
     setError(null);
     getReport(report.id)
       .then((row) => !cancelled && setDetail(row))
@@ -131,7 +156,7 @@ function ReportDialog({
     return () => {
       cancelled = true;
     };
-  }, [report]);
+  }, [report, attempt]);
 
   return (
     <Dialog open={report !== null} onOpenChange={onOpenChange}>
@@ -179,12 +204,27 @@ function ReportDialog({
                 <p className="text-xs text-muted-foreground">Flags on their clips</p>
                 <ul className="mt-1.5 space-y-2">
                   {detail.flags.map((flag) => (
-                    <li key={flag.id} className={flag.cleared_at ? "text-sm text-muted-foreground line-through" : "text-sm text-foreground"}>
-                      {reasonsText(flag.reasons)}
-                      <span className="block text-xs text-muted-foreground no-underline">
-                        {flag.flagged_by_name ?? "Someone"} · {relativeDays(new Date(flag.created_at))}
-                        {flag.note ? ` · ${flag.note}` : ""}
+                    <li key={flag.id} className="flex items-start justify-between gap-3">
+                      <span className={flag.cleared_at ? "text-sm text-muted-foreground line-through" : "text-sm text-foreground"}>
+                        {reasonsText(flag.reasons)}
+                        <span className="block text-xs text-muted-foreground no-underline">
+                          {flag.flagged_by_name ?? "Someone"} · {relativeDays(new Date(flag.created_at))}
+                          {flag.note ? ` · ${flag.note}` : ""}
+                        </span>
                       </span>
+                      {flag.cleared_at ? (
+                        <span className="shrink-0 text-xs text-muted-foreground">Cleared</span>
+                      ) : (
+                        <TextureButton
+                          variant="minimal"
+                          size="sm"
+                          className="w-auto shrink-0"
+                          loading={clearing === flag.recording_id}
+                          onClick={() => void clear(flag.recording_id)}
+                        >
+                          Clear
+                        </TextureButton>
+                      )}
                     </li>
                   ))}
                 </ul>

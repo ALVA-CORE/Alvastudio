@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import type { ApiSessionType } from "@/lib/api/enums";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import CloseCircle from "@solar-icons/react/ui/CloseCircle";
@@ -60,6 +61,7 @@ const REJECTION_PALETTE = [
   "hsl(28 85% 55%)",
   "hsl(38 92% 52%)",
   "hsl(350 60% 48%)",
+  "hsl(330 55% 50%)",
 ];
 
 /**
@@ -73,6 +75,7 @@ const REJECTION_PALETTE = [
 export default function AdminReviewsPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
+  const [sessionType, setSessionType] = useState<ApiSessionType>();
   const [sort, setSort] = useState<{ key: ApiRecordingSort; order: "asc" | "desc" }>();
   /* "Reviewed by", from the link on an intern's panel: `?judged_by=<id>`,
      with their name to show on the chip. */
@@ -98,6 +101,7 @@ export default function AdminReviewsPage() {
       status: status === "all" ? undefined : status,
       q: query,
       judgedBy,
+      sessionType,
       sort,
       page,
       pageSize,
@@ -123,6 +127,8 @@ export default function AdminReviewsPage() {
   const recordings = summary?.total ?? 0;
   const approved = summary?.by_status.approved ?? 0;
   const rejected = summary?.by_status.rejected ?? 0;
+  /* Junk flags are rejections (21 Nov), counted among the reasons. */
+  const junk = summary?.rejection_reasons.find((entry) => entry.reason === "flagged")?.count ?? 0;
   const pending = (summary?.awaiting_in_bank ?? 0) + (summary?.awaiting_on_desks ?? 0);
   /* Through the shared function, so this and the dashboard cannot drift into
      two different answers under the same heading again. */
@@ -169,6 +175,17 @@ export default function AdminReviewsPage() {
       key: "mode",
       header: "Type",
       serverSort: "session_type",
+      serverFilter: {
+        options: [
+          { value: "prompt_read", label: "Prompt read" },
+          { value: "stimuli_narration", label: "Stimuli" },
+        ],
+        value: sessionType ?? null,
+        onChange: (value: string | null) => {
+          setSessionType((value as ApiSessionType) ?? undefined);
+          setPage(1);
+        },
+      },
       render: (row: AdminRecording) => (
         <span className="whitespace-nowrap text-muted-foreground">{row.mode}</span>
       ),
@@ -195,9 +212,18 @@ export default function AdminReviewsPage() {
       key: "status",
       header: "Status",
       serverSort: "status",
+      serverFilter: {
+        options: STATUSES.filter((value) => value !== "all").map((value) => ({
+          value,
+          label: RECORDING_STATUS_LABELS[value as RecordingStatus],
+        })),
+        value: status === "all" ? null : status,
+        onChange: (value: string | null) => showStatus((value as StatusFilter) ?? "all"),
+      },
+      /* A junk flag is a rejection; said as one so it can be found. */
       render: (row: AdminRecording) => (
         <AdminStatusPill tone={STATUS_TONE[row.status]}>
-          {RECORDING_STATUS_LABELS[row.status]}
+          {row.rejectionReason === "Flagged as junk" ? "Flagged as junk" : RECORDING_STATUS_LABELS[row.status]}
         </AdminStatusPill>
       ),
     },
@@ -258,6 +284,7 @@ export default function AdminReviewsPage() {
         <MetricCard
           title="Rejected"
           value={rejected.toLocaleString()}
+          trend={junk ? { label: `${junk.toLocaleString()} flagged as junk`, neutral: true } : undefined}
           icon={CloseCircle}
         />
         <MetricCard
@@ -292,9 +319,15 @@ export default function AdminReviewsPage() {
               },
               {
                 label: "Rejected",
-                value: rejected,
+                value: rejected - junk,
                 total: recordings,
                 color: "hsl(0 72% 51%)",
+              },
+              {
+                label: "Flagged as junk",
+                value: junk,
+                total: recordings,
+                color: "hsl(330 55% 50%)",
               },
             ]}
           />

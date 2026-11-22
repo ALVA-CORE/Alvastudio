@@ -7,6 +7,7 @@ import {
   type QualityAnswers,
   type TriStateAnswer,
 } from "@/data/reviewQueue";
+import Flag from "@solar-icons/react/ui/Flag";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TextureButton } from "@/components/ui/texture-button";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,8 @@ type ReviewQualityFormProps = {
   readOnly?: boolean;
   /** A stimulus narration: one more question, about pay. */
   askReadAsPrompt?: boolean;
+  /** Opens the junk flag, which is sent as a rejection with reasons. */
+  onFlag?: () => void;
   className?: string;
 };
 
@@ -37,6 +40,7 @@ export function ReviewQualityForm({
   isSubmitting = false,
   readOnly = false,
   askReadAsPrompt = false,
+  onFlag,
   className,
 }: ReviewQualityFormProps) {
   const setTri = (key: keyof Omit<QualityAnswers, "verdict">, value: TriStateAnswer) => {
@@ -148,16 +152,30 @@ export function ReviewQualityForm({
       {/* No button at all once it is submitted. A disabled "Submit review"
           reads as something that might still become pressable. */}
       {readOnly ? null : (
-        <TextureButton
-          variant="alva"
-          size="default"
-          className="mt-4 w-full"
-          disabled={!canSubmit}
-          loading={isSubmitting}
-          onClick={onSubmit}
-        >
-          Submit review
-        </TextureButton>
+        <div className="mt-4 flex items-center gap-2">
+          {onFlag ? (
+            <TextureButton
+              variant="minimal"
+              size="default"
+              className="w-auto shrink-0"
+              disabled={isSubmitting}
+              onClick={onFlag}
+            >
+              <Flag size={15} weight="Outline" />
+              Flag
+            </TextureButton>
+          ) : null}
+          <TextureButton
+            variant="alva"
+            size="default"
+            className="min-w-0 flex-1"
+            disabled={!canSubmit}
+            loading={isSubmitting}
+            onClick={onSubmit}
+          >
+            Submit review
+          </TextureButton>
+        </div>
       )}
     </section>
   );
