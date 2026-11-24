@@ -12,6 +12,7 @@ import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import type { DirectoryPerson } from "@/hooks/usePeopleDirectory";
 import { BeamInput } from "@/components/auth/BeamInput";
 import { DateTimeField } from "@/components/shared/DateTimeField";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { TextureButton } from "@/components/ui/texture-button";
 import {
@@ -23,6 +24,7 @@ import {
 import { Chip } from "@/components/admin/communications/RecipientsField";
 import { PanelHeader } from "@/components/admin/communications/PanelHeader";
 import {
+  linkProblem,
   parseEmails,
   people,
   toAudience,
@@ -255,6 +257,8 @@ function Compose({
   const toggle = <T,>(list: T[], value: T) =>
     list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
   const emails = parseEmails(fields.emails);
+  /* Wrong only once something is typed, as email's Link. */
+  const badLink = fields.actionUrl.trim() ? linkProblem(fields.actionUrl.trim()) : null;
 
   return (
     <div className="space-y-3">
@@ -370,15 +374,17 @@ function Compose({
         {reach === null ? "Counting…" : `This reaches ${people(reach)}.`}
       </p>
 
-      <textarea
-        aria-label="Message"
-        placeholder="Message"
-        rows={7}
-        value={fields.body}
-        maxLength={ANNOUNCEMENT_LIMITS.body}
-        onChange={(event) => set("body", event.target.value)}
-        className="w-full resize-none rounded-xl border border-alva-border bg-alva-surface px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-      />
+      <FieldBeam>
+        <textarea
+          aria-label="Message"
+          placeholder="Message"
+          rows={7}
+          value={fields.body}
+          maxLength={ANNOUNCEMENT_LIMITS.body}
+          onChange={(event) => set("body", event.target.value)}
+          className="w-full resize-none rounded-xl border border-alva-border bg-alva-surface px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+      </FieldBeam>
 
       <div className="grid grid-cols-[2fr_3fr] gap-2">
         <BeamInput
@@ -387,11 +393,15 @@ function Compose({
           maxLength={ANNOUNCEMENT_LIMITS.actionLabel}
           onChange={(event) => set("actionLabel", event.target.value)}
         />
+        {/* A studio page as a path; another site in full, with https://. */}
         <BeamInput
           label="Link"
+          hint="/contributor/profile"
           inputMode="url"
           value={fields.actionUrl}
           maxLength={ANNOUNCEMENT_LIMITS.actionUrl}
+          aria-invalid={Boolean(badLink) || undefined}
+          className={cn(badLink && "text-destructive")}
           onChange={(event) => set("actionUrl", event.target.value)}
         />
       </div>

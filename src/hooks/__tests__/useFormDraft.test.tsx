@@ -14,14 +14,13 @@ const KEY = "test-draft";
 
 type Values = { fullName: string; password: string; confirmPassword: string };
 
-function setup(step?: number) {
+function setup() {
   return renderHook(() => {
     const form = useForm<Values>({
       defaultValues: { fullName: "", password: "", confirmPassword: "" },
     });
     const draft = useFormDraft(form, {
       key: KEY,
-      step,
       exclude: ["password", "confirmPassword"],
     });
     return { form, draft };
@@ -30,7 +29,7 @@ function setup(step?: number) {
 
 function stored() {
   const raw = localStorage.getItem(KEY);
-  return raw ? (JSON.parse(raw) as { values: Partial<Values>; step?: number }) : null;
+  return raw ? (JSON.parse(raw) as { values: Partial<Values> }) : null;
 }
 
 describe("useFormDraft", () => {
@@ -51,18 +50,10 @@ describe("useFormDraft", () => {
     expect(localStorage.getItem(KEY)).not.toContain("hunter2");
   });
 
-  it("saves the step alongside the values", async () => {
-    const { result } = setup(3);
-
-    act(() => result.current.form.setValue("fullName", "Ada"));
-
-    await waitFor(() => expect(stored()?.step).toBe(3));
-  });
-
   it("restores what was saved", async () => {
     localStorage.setItem(
       KEY,
-      JSON.stringify({ values: { fullName: "Bola Eze" }, step: 2 })
+      JSON.stringify({ values: { fullName: "Bola Eze" } })
     );
 
     const { result } = setup();

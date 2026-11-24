@@ -23,6 +23,7 @@ import { ProfileActionRow } from "@/components/profile/ProfileActionRow";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileInfoBlock } from "@/components/profile/ProfileInfoBlock";
 import { PrivacyAlertsRow } from "@/components/profile/PrivacyAlertsRow";
+import { PushNotificationsRow } from "@/components/profile/PushNotificationsRow";
 import { TextureButton } from "@/components/ui/texture-button";
 
 export default function ContributorProfilePage() {
@@ -150,6 +151,8 @@ export default function ContributorProfilePage() {
         />
 
         <InstallAppRow />
+
+        <PushNotificationsRow />
 
         <FeedbackRow />
 

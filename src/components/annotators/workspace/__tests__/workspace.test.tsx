@@ -598,3 +598,64 @@ describe("AnnotationWorkspace", () => {
     expect(screen.queryByText(/empty segment/i)).not.toBeInTheDocument();
   });
 });
+
+describe("AnnotationWorkspace on a narration", () => {
+  /* One speaker, never named to the annotator: nothing about speakers or
+     participants shows, and the topic is the stimulus they answered. */
+  function renderNarration() {
+    const built = buildTranscript(SESSION);
+    const narrator = built.speakers[0];
+    const doc = {
+      ...built,
+      speakers: [narrator],
+      segments: built.segments.map((segment) => ({ ...segment, speakerId: narrator.id })),
+    };
+    const session = { ...SESSION, kind: "narration" as const, topic: "Your first day at school" };
+
+    render(
+      <MemoryRouter>
+        <AnnotationProvider doc={doc} duration={session.durationSec}>
+          <AnnotationWorkspace
+            session={session}
+            transcript={{
+              status: "done",
+              language_code: null,
+              language_probability: null,
+              prefilled_at: "2026-11-17T09:00:00Z",
+              speakers: [
+                {
+                  speaker_label: "speaker_0",
+                  participant_id: null,
+                  suggested_participant_id: null,
+                  segment_count: 1,
+                  seconds: 30,
+                },
+              ],
+            }}
+            onReloadTranscript={() => {}}
+            onLinkSpeakers={async () => null}
+          />
+        </AnnotationProvider>
+      </MemoryRouter>
+    );
+  }
+
+  it("hides the speaker picker, the voice naming and adding speakers", () => {
+    renderNarration();
+
+    expect(screen.queryAllByLabelText(/^Change speaker for segment at/)).toHaveLength(0);
+    expect(screen.queryByLabelText("Add speaker")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Name the voices in this transcript")).not.toBeInTheDocument();
+  });
+
+  it("shows the topic as the stimulus, without speaker figures", () => {
+    renderNarration();
+    const sidebar = screen.getByRole("complementary");
+
+    expect(within(sidebar).getByText("Stimulus")).toBeInTheDocument();
+    expect(within(sidebar).getByText("Your first day at school")).toBeInTheDocument();
+    expect(within(sidebar).queryByText("Speakers")).not.toBeInTheDocument();
+    expect(within(sidebar).queryByText("Participants")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Back to narrations")).toBeInTheDocument();
+  });
+});

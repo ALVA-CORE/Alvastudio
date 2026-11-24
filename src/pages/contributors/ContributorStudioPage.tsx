@@ -7,6 +7,8 @@ import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
 import { useApiResource } from "@/hooks/useApiResource";
+import { usePaymentTerms } from "@/hooks/usePaymentTerms";
+import { formatNairaRate } from "@/data/contributors/wallet";
 import { listAssignedPrompts, listAssignedStimuli } from "@/lib/api/catalog";
 import {
   recordingQuota,
@@ -29,6 +31,7 @@ import { StudioTakeActions } from "@/components/contributors/studio/StudioTakeAc
 import { AlvaEmptyState } from "@/components/shared/states/AlvaEmptyState";
 import { StudioPromptStackSkeleton } from "@/components/contributors/studio/StudioPromptStackSkeleton";
 import { StudioVoiceBeam } from "@/components/contributors/studio/StudioVoiceBeam";
+import { StimuliIntroSheet } from "@/components/contributors/studio/StimuliIntroSheet";
 
 /**
  * When uploads reopen, in the contributor's own time.
@@ -76,6 +79,8 @@ export default function ContributorStudioPage() {
   const [mode, setMode] = useState<Exclude<StudioMode, "focus">>(() =>
     (location.state as { mode?: string } | null)?.mode === "stimuli" ? "stimuli" : "prompt"
   );
+  /* Stimuli is talking, not reading: said every time they get there. */
+  const [explainStimuli, setExplainStimuli] = useState(() => mode === "stimuli");
 
   const [isSaving, setSaving] = useState(false);
 
@@ -104,6 +109,9 @@ export default function ContributorStudioPage() {
    * take somebody has just recorded, which is the one failure worth a round
    * trip to avoid. */
   const { data: quota, reload: reloadQuota } = useApiResource(recordingQuota, []);
+  /* The rate, beside the card it pays for. Read, never typed in: it changed
+     on 17 Nov and will again. */
+  const terms = usePaymentTerms();
   /**
    * Each task closes on its own.
    *
@@ -240,6 +248,7 @@ export default function ContributorStudioPage() {
   const handleModeChange = (nextMode: StudioMode) => {
     if (nextMode === "focus") return;
     setMode(nextMode);
+    if (nextMode === "stimuli") setExplainStimuli(true);
     recorder.discardRecording();
     alvaToast.show(`Switched to ${MODE_LABEL[nextMode]}`, { variant: "default" });
   };
@@ -409,7 +418,15 @@ export default function ContributorStudioPage() {
             className="min-w-0 flex-1"
             current={total ? position + 1 : 0}
             total={total}
-            label={loadingCard ? "Loading…" : total ? "Next up" : "Queue empty"}
+            label={
+              loadingCard
+                ? "Loading…"
+                : !total
+                  ? "Queue empty"
+                  : mode === "stimuli" && terms
+                    ? `${formatNairaRate(terms.narration_rate_per_minute_kobo)} per minute of speech`
+                    : "Next up"
+            }
           />
         </div>
 
@@ -449,7 +466,8 @@ export default function ContributorStudioPage() {
           />
         )}
 
-        {!loadingCard && (
+        {/* Nothing to record: the empty state says so, no button to press. */}
+        {!loadingCard && !(total === 0 && recorder.phase === "idle") && (
         <StudioSiriControl
           className="mt-10 h-20"
           phase={recorder.phase}
@@ -488,6 +506,8 @@ export default function ContributorStudioPage() {
         phase={recorder.phase}
         processing={isSaving}
       />
+
+      <StimuliIntroSheet open={explainStimuli} onOpenChange={setExplainStimuli} />
     </>
   );
 }

@@ -23,13 +23,19 @@ import {
 } from "@/components/ui/chart";
 import { AlvaChartEmptyOverlay } from "@/components/shared/states/AlvaChartEmptyOverlay";
 import { ApprovalGauge } from "@/components/admin/shared/ApprovalGauge";
+import InfoCircle from "@solar-icons/react/ui/InfoCircle";
 import GraphUp from "@solar-icons/react/business/GraphUp";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   EMPTY_RECORDING_MIX,
   EMPTY_WEEKLY_SESSIONS,
 } from "@/data/contributors/dashboard";
 import { CarouselDots } from "@/components/shared/CarouselDots";
-import { formatWalletNaira, formatWalletNairaShort } from "@/data/contributors/wallet";
+import {
+  formatNairaRate,
+  formatWalletNaira,
+  formatWalletNairaShort,
+} from "@/data/contributors/wallet";
 import { useCarouselAutoplay } from "@/components/shared/useCarouselAutoplay";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +59,11 @@ function payDayLabel(iso: string) {
     day: "numeric",
     month: "short",
   });
+}
+
+/** "17 Nov", in the reader's own day, as the pay day is. */
+function rateChangeDay(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 type PieLabelProps = {
@@ -108,14 +119,38 @@ function ChartSlide({
   title,
   children,
   emptyMessage,
+  info,
 }: {
   title: string;
   children: React.ReactNode;
   emptyMessage?: { title: string; description?: string };
+  /** The small print, behind an icon top right: tapped, as phones have no hover. */
+  info?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl bg-alva-surface px-4 py-4">
-      <h3 className="mb-3 text-sm font-medium text-foreground">{title}</h3>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        {info ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label={`About ${title.toLowerCase()}`}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <InfoCircle size={18} weight="Outline" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-auto max-w-[16rem] space-y-1 rounded-xl border-alva-border bg-alva-card px-3 py-2 text-xs leading-relaxed text-muted-foreground"
+            >
+              {info}
+            </PopoverContent>
+          </Popover>
+        ) : null}
+      </div>
       <div className="relative">
         {children}
         {emptyMessage && (
@@ -158,6 +193,9 @@ export function DashboardCharts({
     next_run_kobo: number;
     to_minimum_kobo: number;
     next_pay_day: string;
+    narration_rate_per_minute_kobo: number;
+    narration_rate_changed_at: string;
+    earlier_narration_rate_per_hour_kobo: number;
   } | null;
 }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -343,7 +381,21 @@ export function DashboardCharts({
           </CarouselItem>
           {pay ? (
             <CarouselItem className="basis-full pl-0">
-              <ChartSlide title="Next payout">
+              <ChartSlide
+                title="Next payout"
+                info={
+                  <>
+                    <p>
+                      Narration: {formatNairaRate(pay.narration_rate_per_minute_kobo)} per minute of speech
+                    </p>
+                    {/* Paid at the rate it was recorded under, so said beside the new one. */}
+                    <p>
+                      Narrations recorded before {rateChangeDay(pay.narration_rate_changed_at)}:{" "}
+                      {formatNairaRate(pay.earlier_narration_rate_per_hour_kobo)} an hour
+                    </p>
+                  </>
+                }
+              >
                 <div className="mx-auto aspect-[4/3] w-full max-h-[240px]">
                   <ApprovalGauge
                     value={
@@ -361,7 +413,7 @@ export function DashboardCharts({
                     }
                   />
                 </div>
-                <p className="mt-1 text-center text-[11px] text-muted-foreground">
+                <p className="text-center text-[11px] text-muted-foreground">
                   {pay.next_run_kobo > 0
                     ? `Paid ${payDayLabel(pay.next_pay_day)}`
                     : `${formatWalletNaira(pay.payout_minimum_kobo)} minimum, paid on Sundays`}

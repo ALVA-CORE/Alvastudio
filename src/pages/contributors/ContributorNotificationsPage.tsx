@@ -13,6 +13,7 @@ import { AlvaSurfaceCard } from "@/components/shared/AlvaSurfaceCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
@@ -110,8 +111,10 @@ export default function ContributorNotificationsPage() {
   };
 
   return (
-    <div className="pb-6">
-      <FixedBlurHeader contentClassName="pb-4">
+    /* One screen tall: the header, search and card stay put, and only the
+       list inside the card scrolls. */
+    <div className="flex h-[calc(100dvh-env(safe-area-inset-bottom))] flex-col pb-6">
+      <FixedBlurHeader className="shrink-0" contentClassName="pb-4">
         <div className="relative flex items-center justify-center">
           <Link
             to="/contributor/dashboard"
@@ -124,22 +127,25 @@ export default function ContributorNotificationsPage() {
         </div>
       </FixedBlurHeader>
 
-      <div className="px-4">
+      <div className="shrink-0 px-4">
         <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Magnifier
-              size={16}
-              weight="Outline"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search notifications"
-              className="h-10 rounded-full border-0 bg-alva-surface pl-9 shadow-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-              aria-label="Search notifications"
-            />
-          </div>
+          {/* As the tables' search: the beam is the focus, no ring. */}
+          <FieldBeam radius={20} className="min-w-0 flex-1 rounded-full">
+            <div className="relative">
+              <Magnifier
+                size={16}
+                weight="Outline"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search notifications"
+                className="h-10 rounded-full border-0 bg-alva-surface pl-9 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                aria-label="Search notifications"
+              />
+            </div>
+          </FieldBeam>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -172,7 +178,7 @@ export default function ContributorNotificationsPage() {
       </div>
 
       {error ? (
-        <div className="mt-3 px-4">
+        <div className="mt-3 shrink-0 px-4">
           <div
             role="alert"
             className="flex items-center justify-between gap-3 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-400"
@@ -192,7 +198,7 @@ export default function ContributorNotificationsPage() {
       {/* Only offered when there is something to clear, so it is never a
           button that does nothing. */}
       {unread > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-3 px-4">
+        <div className="mt-3 flex shrink-0 items-center justify-between gap-3 px-4">
           <p className="text-xs text-muted-foreground">
             {unread} unread
           </p>
@@ -206,8 +212,8 @@ export default function ContributorNotificationsPage() {
         </div>
       ) : null}
 
-      <div className="mt-4 px-4">
-        <AlvaSurfaceCard className="px-4 py-1">
+      <div className="mt-4 min-h-0 flex-1 px-4">
+        <AlvaSurfaceCard className="alva-thin-scrollbar max-h-full overflow-y-auto px-4 py-1">
           {isLoading ? (
             <div className="space-y-3 py-3">
               {Array.from({ length: 5 }).map((_, index) => (
@@ -238,7 +244,8 @@ export default function ContributorNotificationsPage() {
                     onClick={() => handleOpen(notification)}
                   />
                   {index < visibleNotifications.length - 1 ? (
-                    <Separator className="mx-4 bg-alva-border" />
+                    /* From after the icon (2.5rem + the 0.75rem gap), short of the right edge. */
+                    <Separator className="ml-[3.25rem] mr-4 w-auto bg-alva-border" />
                   ) : null}
                 </div>
               ))}

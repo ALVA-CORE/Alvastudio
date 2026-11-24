@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth/context";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useReferralQuestion } from "@/hooks/useReferralQuestion";
 import { BeamInput } from "@/components/auth/BeamInput";
+import { FieldBeam } from "@/components/shared/FieldBeam";
 import {
   REFERRAL_SOURCE_OPTIONS,
   type ReferralSource,
@@ -205,7 +206,7 @@ export function FeedbackForm({
               }))}
             />
 
-            <div>
+            <FieldBeam>
               <textarea
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
@@ -213,9 +214,9 @@ export function FeedbackForm({
                 maxLength={2000}
                 placeholder="What happened, and what you expected instead."
                 aria-label="Your feedback"
-                className="w-full resize-none rounded-xl border border-alva-border bg-alva-surface px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-alva-accent focus-visible:outline-none"
+                className="w-full resize-none rounded-xl border border-alva-border bg-alva-surface px-3.5 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
               />
-            </div>
+            </FieldBeam>
 
             {/* Optional: the feedback is what they came to give. */}
             {referral.needed ? (

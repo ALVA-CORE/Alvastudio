@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as annotations from "@/lib/api/annotations";
 import type { ApiDraftTranscript } from "@/lib/api/annotations";
 import { annotationAudioUrl } from "@/lib/api/annotations";
-import { getSession } from "@/lib/api/focusGroups";
 import { sendEvents } from "@/lib/api/annotationEvents";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { toTranscriptDoc } from "@/data/annotators/fromApi";
 import { baselineFrom, saveAnnotation, type Baseline } from "@/data/annotators/toApi";
 import type { AnnotatorSession } from "@/data/annotators/sessions";
 import type { TranscriptDoc } from "@/lib/annotation/types";
-import { formatDuration, lengthOf } from "@/lib/duration";
+import { formatDuration } from "@/lib/duration";
+import { STATUS_MAP } from "@/hooks/useAnnotatorSessions";
 
 /**
  * Loads the session record and its annotation for the workspace route.
@@ -20,9 +20,9 @@ import { formatDuration, lengthOf } from "@/lib/duration";
  * `ready` branch.
  *
  * Three reads, because the workspace needs three things the API keeps apart:
- * which annotation belongs to this session, the annotation itself, and the
- * session's participants — who become the speakers, and who live on the
- * session rather than the annotation.
+ * which annotation belongs to this session, the annotation itself, and its
+ * source (topic, length and the speakers), all on routes an annotator may
+ * use.
  */
 
 export type TranscriptResource =
@@ -66,7 +66,47 @@ const LANGUAGE: Record<string, AnnotatorSession["language"]> = {
   nigerian_pidgin: "Nigerian Pidgin",
 };
 
-export function useSessionTranscript(sessionId: string | undefined) {
+/**
+ * A narration is opened by its annotation id: it has no session, and its
+ * source carries the stimulus as `topic` and no participants.
+ */
+async function loadNarration(annotationId: string) {
+  const [document, source, audioSrc] = await Promise.all([
+    annotations.getAnnotation(annotationId),
+    annotations.getAnnotationSource(annotationId),
+    annotationAudioUrl(annotationId).catch(() => ""),
+  ]);
+
+  const doc = toTranscriptDoc(document, []);
+  const durationSec = Math.round(source.duration_seconds ?? 0);
+
+  const session: AnnotatorSession = {
+    id: annotationId,
+    kind: "narration",
+    code: annotationId.slice(0, 8),
+    topic: source.topic ?? "",
+    state: "",
+    participants: 0,
+    speakers: 0,
+    duration: formatDuration(durationSec),
+    durationSec,
+    language: LANGUAGE[source.language_variety ?? ""] ?? "Mixed",
+    recordedBy: "",
+    recordedAt: "",
+    recordedAtTs: 0,
+    status: STATUS_MAP[document.status],
+    tagCount: doc.spans.length + doc.nonSpeech.length,
+    audioSrc,
+  };
+
+  return { document, doc, session };
+}
+
+export function useSessionTranscript(
+  sessionId: string | undefined,
+  /** Set on a narration's route, in place of `sessionId`. */
+  narrationId?: string
+) {
   const [resource, setResource] = useState<TranscriptResource>({
     status: "loading",
     session: null,
@@ -82,7 +122,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
   const annotationId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId && !narrationId) {
       setResource({ status: "not-found", session: null, doc: null, error: null });
       return;
     }
@@ -91,7 +131,20 @@ export function useSessionTranscript(sessionId: string | undefined) {
     setResource({ status: "loading", session: null, doc: null, error: null });
 
     (async () => {
-      const mine = await annotations.listMine({ limit: 200 });
+      if (narrationId) {
+        const { document, doc, session } = await loadNarration(narrationId);
+        annotationId.current = narrationId;
+        baseline.current = baselineFrom(document, doc);
+        return {
+          session,
+          doc,
+          annotationId: narrationId,
+          transcript: null,
+          consentBlocked: false,
+        };
+      }
+
+      const mine = await annotations.listMine({ kind: "session", limit: 200 });
       const match = mine.find((entry) => entry.session_id === sessionId);
 
       /* No annotation means this annotator has not claimed the session yet.
@@ -103,29 +156,33 @@ export function useSessionTranscript(sessionId: string | undefined) {
         return { unclaimed: true as const, topic: waiting?.topic };
       }
 
-      /* A playable link, which streams. */
-      const [document, focusGroup, audioSrc] = await Promise.all([
+      /* The annotation's own routes: an annotator may not read the
+         focus-group session itself (it is interns' and admins'), and
+         `/source` carries what the workspace needs from it. A playable link,
+         which streams. */
+      const [document, source, audioSrc] = await Promise.all([
         annotations.getAnnotation(match.id),
-        getSession(sessionId),
+        annotations.getAnnotationSource(match.id),
         annotationAudioUrl(match.id).catch(() => ""),
       ]);
 
-      const doc = toTranscriptDoc(document, focusGroup.participants ?? []);
-      const durationSec = Math.round(lengthOf(focusGroup) ?? 0);
+      const participants = source.participants ?? [];
+      const doc = toTranscriptDoc(document, participants);
+      const durationSec = Math.round(source.duration_seconds ?? 0);
 
       const session: AnnotatorSession = {
         id: sessionId,
         code: sessionCode(sessionId),
-        topic: focusGroup.topic,
+        topic: source.topic ?? "",
         state: "",
-        participants: focusGroup.participants?.length ?? 0,
+        participants: participants.length,
         speakers: doc.speakers.length,
         duration: formatDuration(durationSec),
         durationSec,
-        language: LANGUAGE[focusGroup.language_variety ?? ""] ?? "Mixed",
+        language: LANGUAGE[source.language_variety ?? ""] ?? "Mixed",
         recordedBy: "",
         recordedAt: "",
-        recordedAtTs: new Date(focusGroup.created_at).getTime() || 0,
+        recordedAtTs: 0,
         status: document.status === "draft" ? "in-progress" : "completed",
         tagCount: doc.spans.length + doc.nonSpeech.length,
         audioSrc,
@@ -162,7 +219,9 @@ export function useSessionTranscript(sessionId: string | undefined) {
           status: "error",
           session:
             current.session ??
-            ({ id: sessionId, code: sessionCode(sessionId) } as AnnotatorSession),
+            (narrationId
+              ? ({ id: narrationId, kind: "narration", code: narrationId.slice(0, 8) } as AnnotatorSession)
+              : ({ id: sessionId, code: sessionCode(sessionId) } as AnnotatorSession)),
           doc: null,
           error: error instanceof Error ? error : new Error(String(error)),
         }));
@@ -171,7 +230,7 @@ export function useSessionTranscript(sessionId: string | undefined) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, attempt]);
+  }, [sessionId, narrationId, attempt]);
 
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
 

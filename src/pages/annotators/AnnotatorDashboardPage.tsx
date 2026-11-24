@@ -27,6 +27,7 @@ export default function AnnotatorDashboardPage() {
     activity,
     tagBreakdown,
     demographics,
+    narrations,
     isLoading,
     error,
     reload,
@@ -122,6 +123,7 @@ export default function AnnotatorDashboardPage() {
             dataset={dataset}
             range={timeRange}
             isEmpty={activity.length === 0}
+            narrations={narrations}
           />
         </>
       )}

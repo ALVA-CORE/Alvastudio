@@ -59,11 +59,13 @@ function Hinted({
 
 export type WorkspaceFloatingControlsProps = {
   onBack: () => void;
+  backLabel?: string;
   className?: string;
 };
 
 export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls({
   onBack,
+  backLabel = "Back to sessions",
   className,
 }: WorkspaceFloatingControlsProps) {
   const canUndo = useAnnotation(selectCanUndo);
@@ -78,11 +80,11 @@ export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls
           className
         )}
       >
-        <Hinted label="Back to sessions">
+        <Hinted label={backLabel}>
           <button
             type="button"
             onClick={onBack}
-            aria-label="Back to sessions"
+            aria-label={backLabel}
             className={cn(ICON_BUTTON, FLOATING_SURFACE, "pointer-events-auto shrink-0")}
           >
             <AltArrowLeft size={16} weight="Linear" />

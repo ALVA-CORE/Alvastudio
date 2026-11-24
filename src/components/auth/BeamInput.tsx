@@ -28,6 +28,8 @@ export type BeamInputProps = Omit<ComponentProps<"input">, "placeholder"> & {
   labelLifted?: boolean;
   /** Shown before the value once the label lifts, like "₦". */
   prefix?: string;
+  /** An example, shown once the label has lifted out of the way. */
+  hint?: string;
 };
 
 /**
@@ -53,6 +55,7 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
       showPasswordToggle = false,
       labelLifted = false,
       prefix,
+      hint,
       value,
       defaultValue,
       onFocus,
@@ -124,9 +127,9 @@ export const BeamInput = forwardRef<HTMLInputElement, BeamInputProps>(
               type={inputType}
               value={value}
               defaultValue={defaultValue}
-              placeholder=""
+              placeholder={active && hint ? hint : ""}
               className={cn(
-                "flex h-12 w-full rounded-xl border border-transparent bg-alva-surface text-base text-foreground",
+                "flex h-12 w-full rounded-xl border border-transparent bg-alva-surface text-base text-foreground placeholder:text-muted-foreground/60",
                 // Borderless throughout: the BorderBeam wrapping this field is the
                 // focus affordance, and a second ring inside it reads as a double border.
                 "focus-visible:outline-none",

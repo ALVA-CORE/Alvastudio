@@ -97,8 +97,12 @@ export function updateUser(
   return apiFetch<ApiUser>(`/users/${id}`, { method: "PATCH", body });
 }
 
-export function deleteUser(id: string) {
-  return apiFetch<ApiUserDeletionSummary>(`/users/${id}`, { method: "DELETE" });
+/** `block_email` keeps the email from signing up again (ask #24). */
+export function deleteUser(id: string, blockEmail = false) {
+  return apiFetch<ApiUserDeletionSummary>(`/users/${id}`, {
+    method: "DELETE",
+    query: blockEmail ? { block_email: true } : undefined,
+  });
 }
 
 /**

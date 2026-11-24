@@ -288,9 +288,16 @@ export type TimelineDockProps = {
    * draw flat bars rather than a guessed shape.
    */
   peaks?: number[] | null;
+  /** A narration: one lane, and no speakers to add or name. */
+  hideSpeakers?: boolean;
 };
 
-export function TimelineDock({ src, className, peaks = null }: TimelineDockProps) {
+export function TimelineDock({
+  src,
+  className,
+  peaks = null,
+  hideSpeakers = false,
+}: TimelineDockProps) {
   const store = useAnnotationStore();
   const actions = useAnnotationActions();
   const { error, retry } = useTransport({ src });
@@ -824,19 +831,23 @@ export function TimelineDock({ src, className, peaks = null }: TimelineDockProps
               className="sticky left-0 z-[8] flex shrink-0 items-end justify-between gap-1 border-r border-alva-border bg-alva-card px-2 pb-1 pt-3"
               style={{ width: HEADER_WIDTH }}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Speakers
-              </span>
+              {hideSpeakers ? null : (
+                <>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Speakers
+                  </span>
 
-                              <button
-                type="button"
-                onClick={actions.addSpeaker}
-                aria-label="Add speaker"
-                title="Add speaker"
-                className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-              >
-                <AddCircle size={15} weight="Outline" />
-              </button>
+                  <button
+                    type="button"
+                    onClick={actions.addSpeaker}
+                    aria-label="Add speaker"
+                    title="Add speaker"
+                    className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-alva-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+                  >
+                    <AddCircle size={15} weight="Outline" />
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="relative">

@@ -18,4 +18,13 @@ describe("BeamInput prefix", () => {
     await userEvent.click(screen.getByRole("textbox", { name: "Email" }));
     expect(screen.queryByText("₦")).not.toBeInTheDocument();
   });
+
+  /* An example only once the label is out of the way, never under it. */
+  it("shows its hint once the field is in use", async () => {
+    render(<BeamInput label="Link" hint="/contributor/profile" />);
+    const field = screen.getByRole("textbox", { name: "Link" });
+    expect(field).toHaveAttribute("placeholder", "");
+    await userEvent.click(field);
+    expect(field).toHaveAttribute("placeholder", "/contributor/profile");
+  });
 });

@@ -37,6 +37,8 @@ export type Baseline = {
    * be re-read from the document the splice returns.
    */
   segmentVersions: Map<string, number>;
+  /** A narration's segments never name a speaker: the API refuses one. */
+  narration: boolean;
 };
 
 export function baselineFrom(api: ApiAnnotationDocument, doc: TranscriptDoc): Baseline {
@@ -57,6 +59,7 @@ export function baselineFrom(api: ApiAnnotationDocument, doc: TranscriptDoc): Ba
     segmentVersions: new Map(
       (api.segments ?? []).map((segment) => [segment.id, segment.version])
     ),
+    narration: api.kind === "narration",
   };
 }
 
@@ -248,7 +251,7 @@ export async function saveAnnotation(
     if (!range) continue;
 
     const body = {
-      participant_id: segment.speakerId || null,
+      participant_id: baseline.narration ? null : segment.speakerId || null,
       start_token: range.start,
       end_token: range.end,
       ...spansForSegment(doc.spans, doc.nonSpeech, range),
@@ -294,5 +297,5 @@ export async function saveAnnotation(
     version = result.version ?? version;
   }
 
-  return { doc, tokens, ranges, version, segmentVersions };
+  return { doc, tokens, ranges, version, segmentVersions, narration: baseline.narration };
 }

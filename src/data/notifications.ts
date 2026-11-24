@@ -1,3 +1,4 @@
+import { formatWalletNaira } from "@/data/contributors/wallet";
 import type { ApiNotification } from "@/lib/api/notifications";
 import type { ApiRecording } from "@/lib/api/recordings";
 import type {
@@ -43,6 +44,34 @@ function contributorCategory(kind: string): NotificationCategory {
   return "announcement";
 }
 
+/**
+ * A verdict is kind `review`, told apart only by its title, which the API
+ * fixes per verdict. Its text is that sentence, then the reviewer's notes.
+ */
+const VERDICT: Record<string, { category: NotificationCategory; status: NotificationStatus; sentence: string }> = {
+  "Recording approved": {
+    category: "review-accepted",
+    status: "accepted",
+    sentence: "Your recording was approved.",
+  },
+  "Recording rejected": {
+    category: "review-rejected",
+    status: "rejected",
+    sentence: "Your recording was rejected.",
+  },
+  "Recording flagged": {
+    category: "submission-received",
+    status: "pending",
+    sentence: "Your recording was flagged for another look.",
+  },
+};
+
+/* "NGN 10.00 for an approved sentence.": the API writes the amount first. */
+function earned(body: string) {
+  const match = /^NGN ([\d,]+(?:\.\d+)?)\b/.exec(body);
+  return match ? formatWalletNaira(Math.round(Number(match[1].replace(/,/g, "")) * 100)) : undefined;
+}
+
 function contributorStatus(kind: string): NotificationStatus | undefined {
   if (has(kind, "approved", "accepted")) return "accepted";
   if (has(kind, "rejected", "rework", "not_approved")) return "rejected";
@@ -77,7 +106,20 @@ function actionOf(api: ApiNotification): NotificationAction | undefined {
   const url = api.action_url;
   if (!label || !url) return undefined;
   const inStudio = url.startsWith("/") && !url.startsWith("//");
-  return inStudio || url.startsWith("https://") ? { label, url } : undefined;
+  if (inStudio) return { label, url };
+  /* A full link to this studio is followed inside it. Opened as a new
+     window it lands without the sign-in: an installed app's links open in
+     the browser, which shares none of its storage. */
+  let target: URL;
+  try {
+    target = new URL(url);
+  } catch {
+    return undefined;
+  }
+  if (target.origin === window.location.origin) {
+    return { label, url: `${target.pathname}${target.search}${target.hash}` };
+  }
+  return target.protocol === "https:" ? { label, url } : undefined;
 }
 
 /**
@@ -117,21 +159,38 @@ function formatNotificationTime(iso: string) {
 export function toContributorNotification(
   api: ApiNotification
 ): ContributorNotification {
+  const verdict = api.kind === "review" ? VERDICT[api.title] : undefined;
+  const amount = api.kind === "earning" ? earned(api.body) : undefined;
   return {
     id: api.key,
-    category: contributorCategory(api.kind),
+    category: verdict?.category ?? contributorCategory(api.kind),
     title: api.title,
     subtitle: api.body,
     timestamp: formatNotificationTime(api.created_at),
     timestampTs: new Date(api.created_at).getTime(),
-    status: contributorStatus(api.kind),
+    status: verdict?.status ?? contributorStatus(api.kind),
     read: api.read ?? false,
-    /* Shown in full in the detail sheet, whatever the kind: the list cuts it
-       to a line. */
-    body: api.body,
+    /* The sheet's text. A verdict's own sentence repeats its title, so only
+       the reviewer's notes are kept; a payment's amount is its own row. */
+    body: verdict
+      ? api.body.replace(verdict.sentence, "").trim() || undefined
+      : amount
+        ? undefined
+        : api.body,
+    amount,
     action: actionOf(api),
     studioMode: studioModeOf(api),
   };
+}
+
+/**
+ * Where a staff `queue` item opens. Narrations waiting for annotators carry a
+ * `recording_id` as an intern's clips do, so the key's prefix comes first.
+ */
+function queueLink(api: ApiNotification) {
+  if (api.kind !== "queue") return undefined;
+  if (api.key.startsWith("narrations:")) return "/annotator/narrations";
+  return api.recording_id ? "/intern/review" : undefined;
 }
 
 export function toStaffNotification(api: ApiNotification): InternNotification {
@@ -144,8 +203,7 @@ export function toStaffNotification(api: ApiNotification): InternNotification {
     timestampTs: new Date(api.created_at).getTime(),
     read: api.read ?? false,
     action: actionOf(api),
-    /* An intern's clips waiting, not an annotator's session: told apart by the id set. */
-    link: api.kind === "queue" && api.recording_id ? "/intern/review" : undefined,
+    link: queueLink(api),
   };
 }
 

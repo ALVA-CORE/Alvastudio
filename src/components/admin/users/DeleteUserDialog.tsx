@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TextureButton } from "@/components/ui/texture-button";
+import { AuthCheckbox } from "@/components/auth/AuthCheckbox";
 import { previewUserDeletion, type ApiUserDeletionSummary } from "@/lib/api/users";
 import { reportApiError } from "@/lib/api/reportApiError";
 import type { AdminUser } from "@/data/admin/users";
@@ -49,11 +50,14 @@ export function DeleteUserDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: AdminUser | null;
-  onConfirm: () => void;
+  onConfirm: (blockEmail: boolean) => void;
   onDeactivate: () => void;
 }) {
   const [summary, setSummary] = useState<ApiUserDeletionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* On by default: most deletions are for breaking the rules. Untick it for
+     someone who asked for their own data to be removed. */
+  const [blockEmail, setBlockEmail] = useState(true);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -61,6 +65,7 @@ export function DeleteUserDialog({
     let cancelled = false;
     setSummary(null);
     setError(null);
+    setBlockEmail(true);
 
     previewUserDeletion(user.id)
       .then((result) => {
@@ -150,6 +155,17 @@ export function DeleteUserDialog({
             </p>
           ) : null}
 
+          <label className="flex cursor-pointer items-start gap-2">
+            <AuthCheckbox
+              checked={blockEmail}
+              onCheckedChange={(value) => setBlockEmail(value === true)}
+              className="mt-0.5"
+            />
+            <span className="min-w-0 text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+              Block {user.email} from signing up again
+            </span>
+          </label>
+
           <div className="flex flex-wrap items-center justify-end gap-2">
             <TextureButton
               variant="minimal"
@@ -181,7 +197,7 @@ export function DeleteUserDialog({
               className="w-auto"
               disabled={summary === null && !error}
               onClick={() => {
-                onConfirm();
+                onConfirm(blockEmail);
                 onOpenChange(false);
               }}
             >

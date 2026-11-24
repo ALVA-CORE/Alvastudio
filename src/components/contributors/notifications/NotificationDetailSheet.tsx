@@ -6,7 +6,6 @@ import {
 } from "@/data/contributor-notifications";
 import {
   NotificationActionButton,
-  NotificationStatusTag,
 } from "@/components/contributors/notifications/notification-ui";
 import { PanelDivider, PanelRow, PanelSection } from "@/components/shared/PanelPrimitives";
 import {
@@ -39,6 +38,10 @@ export function NotificationDetailSheet({
   if (!notification) return null;
 
   const detailRows = getNotificationDetailRows(notification);
+  const announcement = notification.category === "announcement";
+  /* Anything but an announcement keeps its text in the small print (for a
+     verdict, only the reviewer's notes; a payment has none, its amount is a row). */
+  const smallPrint = !announcement && Boolean(notification.body);
 
   const rubricIssues =
     notification.answers && notification.status === "rejected"
@@ -67,13 +70,11 @@ export function NotificationDetailSheet({
             close button. */}
         <SheetHeader className="items-center px-10 text-center sm:text-center">
           <SheetTitle className="text-xl text-foreground">{notification.title}</SheetTitle>
-          {notification.status ? <NotificationStatusTag status={notification.status} /> : null}
         </SheetHeader>
 
-        {/* The message is the one piece of prose here, so it sits above the
-            rules rather than inside a labelled section. Plain text with its
-            line breaks: an announcement is written that way. */}
-        {notification.body ? (
+        {/* An announcement's words are the point, so they sit under the
+            title, line breaks kept. Anything else is small print below. */}
+        {announcement && notification.body ? (
           <p className="mt-3 whitespace-pre-line text-center text-sm leading-relaxed text-muted-foreground">
             {notification.body}
           </p>
@@ -87,26 +88,13 @@ export function NotificationDetailSheet({
 
         {/* What was read, for a review: the subject of the verdict. */}
         {notification.prompt ? (
-          <>
-            <PanelDivider />
-            <PanelSection title="What you read">
-              <p className="text-sm leading-relaxed text-foreground">{notification.prompt}</p>
-            </PanelSection>
-          </>
+          <div className="mt-5 rounded-xl bg-alva-surface p-4">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {notification.prompt}
+            </p>
+          </div>
         ) : null}
 
-        {detailRows.length > 0 ? (
-          <>
-            <PanelDivider />
-            <PanelSection title="Details">
-              <dl>
-                {detailRows.map((row) => (
-                  <PanelRow key={row.label} label={row.label} value={row.value} />
-                ))}
-              </dl>
-            </PanelSection>
-          </>
-        ) : null}
 
         {rubricRows.length > 0 ? (
           <>
@@ -136,6 +124,21 @@ export function NotificationDetailSheet({
               </dl>
             </PanelSection>
           </>
+        ) : null}
+
+        {/* Small print: the text (bar an announcement's), when it came, a clip's facts. */}
+        {smallPrint || detailRows.length > 0 ? (
+          <div className="mt-6 space-y-1 border-t border-alva-border/60 pt-3 text-xs text-muted-foreground">
+            {smallPrint ? <p className="pb-1">{notification.body}</p> : null}
+            <dl className="space-y-1">
+              {detailRows.map((row) => (
+                <div key={row.label} className="flex items-baseline justify-between gap-3">
+                  <dt>{row.label}</dt>
+                  <dd className="tabular-nums">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         ) : null}
       </SheetContent>
     </Sheet>

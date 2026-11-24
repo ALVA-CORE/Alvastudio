@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
@@ -43,6 +43,7 @@ import {
 import { useSignupsOpen } from "@/hooks/useSignupsOpen";
 import { ApiError } from "@/lib/api/client";
 import { signInErrorMessage } from "@/lib/api/signInError";
+import { alvaToast } from "@/lib/alva-toast";
 import {
   detectMicrophoneLabel,
   detectRecordingEnvironment,
@@ -107,16 +108,10 @@ export function ContributorOnboardingForm() {
   });
 
   /* Five steps of questions is too much to lose to a stray refresh. The two
-   * password fields are never written out. */
-  const restoreStep = useCallback(
-    (saved: number) => setStep(Math.min(saved, TOTAL_STEPS)),
-    []
-  );
-
+   * password fields are never written out, so a restored draft starts on
+   * step 1, where they are typed again; the other steps are already filled. */
   const draft = useFormDraft(form, {
     key: "alva-contributor-signup-draft",
-    step,
-    onRestoreStep: restoreStep,
     exclude: ["password", "confirmPassword"],
   });
 
@@ -205,6 +200,13 @@ export function ContributorOnboardingForm() {
       if (error instanceof ApiError && error.isAlreadyRegistered) {
         setBlocked(signupsOpen === false ? "full" : null);
         if (signupsOpen === false) return;
+      }
+
+      /* The password is on step 1, so a refusal of it is said there. */
+      if (error instanceof ApiError && error.fieldErrors.some((entry) => entry.field === "password")) {
+        alvaToast.error("Enter your password again. It needs at least 8 characters.");
+        setStep(1);
+        return;
       }
 
       setFormError(signInErrorMessage(error));

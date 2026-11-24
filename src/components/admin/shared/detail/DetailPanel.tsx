@@ -121,7 +121,7 @@ export function DetailPanel({
             type="button"
             aria-label="Close"
             onClick={() => onOpenChange(false)}
-            className="absolute right-6 top-6 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+            className="absolute right-6 top-6 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
           >
             <CloseCircle size={22} weight="Outline" />
           </button>

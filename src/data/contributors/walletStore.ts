@@ -85,8 +85,9 @@ const KIND: Record<string, WalletEntryKind> = {
  * One line of the ledger.
  *
  * Four kinds now. `recording` is pay for one approved clip and `top_up` is
- * back-pay for work approved before the 29 Oct rates; `milestone` and `clip`
- * are history that still pays out, so neither can be dropped.
+ * back-pay when a rate goes up after work was approved (29 Oct; narration
+ * from ₦50 to ₦75 on 17 Nov); `milestone` and `clip` are history that still
+ * pays out, so neither can be dropped.
  *
  * Neither a milestone nor a top-up has a `recording_id` or a `unit_type` —
  * they are not about one clip — so reading `unit_type` blindly threw on the

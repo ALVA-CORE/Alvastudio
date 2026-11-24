@@ -163,8 +163,8 @@ export function useAdminUsers(
     [replace]
   );
 
-  const remove = useCallback(async (id: string) => {
-    await deleteUser(id);
+  const remove = useCallback(async (id: string, blockEmail: boolean) => {
+    await deleteUser(id, blockEmail);
     setUsers((prev) => prev.filter((row) => row.id !== id));
   }, []);
 

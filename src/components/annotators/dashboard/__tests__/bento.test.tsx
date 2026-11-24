@@ -20,13 +20,13 @@ const RANGES = ["7d", "30d", "90d", "12m"] as const;
 describe("AnnotatorBentoGrid", () => {
   it.each(RANGES)("renders without crashing for the %s range", (range) => {
     const { container } = render(
-      <AnnotatorBentoGrid dataset={ANNOTATOR_DASHBOARD_DATA[range]} range={range} />
+      <AnnotatorBentoGrid narrations={{ annotated: 0, waiting: 0 }} dataset={ANNOTATOR_DASHBOARD_DATA[range]} range={range} />
     );
     expect(container).toBeTruthy();
   });
 
   it("renders the three annotator-scoped tiles", () => {
-    render(<AnnotatorBentoGrid dataset={ANNOTATOR_DASHBOARD_DATA["30d"]} range="30d" />);
+    render(<AnnotatorBentoGrid narrations={{ annotated: 0, waiting: 0 }} dataset={ANNOTATOR_DASHBOARD_DATA["30d"]} range="30d" />);
 
     expect(screen.getByText("Your activity")).toBeInTheDocument();
     expect(screen.getByText("Clips annotated per day")).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe("AnnotatorBentoGrid", () => {
   });
 
   it("does not render the admin-scoped charts", () => {
-    render(<AnnotatorBentoGrid dataset={ANNOTATOR_DASHBOARD_DATA["30d"]} range="30d" />);
+    render(<AnnotatorBentoGrid narrations={{ annotated: 0, waiting: 0 }} dataset={ANNOTATOR_DASHBOARD_DATA["30d"]} range="30d" />);
 
     expect(screen.queryByText("Clip flow")).not.toBeInTheDocument();
     expect(screen.queryByText("Agreement")).not.toBeInTheDocument();
@@ -44,19 +44,19 @@ describe("AnnotatorBentoGrid", () => {
 
   it("describes the bucket the selected range actually plots", () => {
     const { rerender } = render(
-      <AnnotatorBentoGrid dataset={ANNOTATOR_DASHBOARD_DATA["90d"]} range="90d" />
+      <AnnotatorBentoGrid narrations={{ annotated: 0, waiting: 0 }} dataset={ANNOTATOR_DASHBOARD_DATA["90d"]} range="90d" />
     );
     expect(screen.getByText("Clips annotated per week")).toBeInTheDocument();
 
     rerender(
-      <AnnotatorBentoGrid dataset={ANNOTATOR_DASHBOARD_DATA["12m"]} range="12m" />
+      <AnnotatorBentoGrid narrations={{ annotated: 0, waiting: 0 }} dataset={ANNOTATOR_DASHBOARD_DATA["12m"]} range="12m" />
     );
     expect(screen.getByText("Clips annotated per month")).toBeInTheDocument();
   });
 
   it("renders the empty dataset without crashing", () => {
     const { container } = render(
-      <AnnotatorBentoGrid dataset={getEmptyAnnotatorDataset("30d")} range="30d" isEmpty />
+      <AnnotatorBentoGrid narrations={{ annotated: 0, waiting: 0 }} dataset={getEmptyAnnotatorDataset("30d")} range="30d" isEmpty />
     );
     expect(container).toBeTruthy();
   });

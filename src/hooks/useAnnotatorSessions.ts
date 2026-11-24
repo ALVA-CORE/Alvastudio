@@ -15,7 +15,7 @@ import { formatDuration, lengthOf } from "@/lib/duration";
  * here — claimed rows win, since a claimed session is no longer claimable.
  */
 
-const STATUS_MAP: Record<ApiAnnotationStatus, AnnotationStatus> = {
+export const STATUS_MAP: Record<ApiAnnotationStatus, AnnotationStatus> = {
   draft: "in-progress",
   submitted: "completed",
   approved: "completed",
@@ -116,7 +116,7 @@ export function useAnnotatorSessions(): AnnotatorSessionsState {
      * price for one list the annotator actually looks at. */
     Promise.all([
       annotations.listQueue({ limit: 100 }),
-      annotations.listMine({ limit: 100, expand: "tags" }),
+      annotations.listMine({ kind: "session", limit: 100, expand: "tags" }),
     ])
       .then(([queue, mine]) => {
         if (cancelled) return;

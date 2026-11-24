@@ -144,6 +144,12 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
     [data]
   );
 
+  /* Numbers, for the narrations chart: done by this annotator, and in the pool. */
+  const narrations = useMemo(
+    () => ({ annotated: data?.narrations_annotated ?? 0, waiting: data?.narrations_waiting ?? 0 }),
+    [data]
+  );
+
   const tagBreakdown = useMemo(
     () => toTagSunburst(data?.tag_breakdown),
     [data]
@@ -164,6 +170,7 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
     activity,
     tagBreakdown,
     demographics,
+    narrations,
     isLoading,
     error,
     reload,

@@ -687,12 +687,14 @@ function TablePager({
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {onSize ? (
           <Select value={String(size)} onValueChange={(value) => onSize(Number(value))}>
+            <FieldBeam radius={16} className="w-auto rounded-full">
             <SelectTrigger
               aria-label="Rows per page"
-              className="h-8 w-auto gap-1.5 rounded-full border-0 bg-alva-surface px-3 text-xs text-foreground focus:ring-1 focus:ring-alva-accent"
+              className="h-8 w-auto gap-1.5 rounded-full border-0 bg-alva-surface px-3 text-xs text-foreground focus:ring-0"
             >
               <SelectValue />
             </SelectTrigger>
+            </FieldBeam>
             <SelectContent className="border-alva-border bg-alva-card">
               {sizes.map((option) => (
                 <SelectItem key={option} value={String(option)} className="text-xs">

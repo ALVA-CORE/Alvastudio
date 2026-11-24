@@ -13,10 +13,13 @@ export function FixedBlurHeader({
   contentClassName,
 }: FixedBlurHeaderProps) {
   return (
-    <header className={cn("sticky top-0 z-40", className)}>
+    /* Its own GPU layers, header and blur both. Without them iOS repaints
+       the masked blur on the main thread as the page scrolls under it, and
+       the header shakes in the installed app. */
+    <header className={cn("sticky top-0 z-40 transform-gpu", className)}>
       <div className="relative">
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 -bottom-8 bg-background/75 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/55"
+          className="pointer-events-none absolute inset-x-0 top-0 -bottom-8 transform-gpu bg-background/75 backdrop-blur-2xl [backface-visibility:hidden] [will-change:transform] supports-[backdrop-filter]:bg-background/55"
           style={{
             WebkitMaskImage:
               "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",

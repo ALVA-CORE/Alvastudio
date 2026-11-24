@@ -16,7 +16,10 @@ const NAV_ITEMS: Array<{ id: NavId; path: string; label: string }> = [
 ];
 
 function getActiveNav(pathname: string): NavId {
-  if (pathname.startsWith("/annotator/sessions")) return "sessions";
+  /* A narration is opened from the Sessions page's Narrations tab. */
+  if (pathname.startsWith("/annotator/sessions") || pathname.startsWith("/annotator/narrations")) {
+    return "sessions";
+  }
   if (pathname.startsWith("/annotator/profile")) return "profile";
   return "home";
 }

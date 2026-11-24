@@ -20,17 +20,35 @@ describe("NotificationDetailSheet", () => {
     expect(screen.getByText(/Second line\./)).toHaveClass("whitespace-pre-line");
   });
 
-  /* A review's message and the sentence it was about are two things. */
-  it("keeps what was read apart from the message", () => {
+  /* When it came is small print, with no "Details" heading. */
+  it("shows when it came as small print", () => {
+    render(<NotificationDetailSheet notification={base} open onOpenChange={() => {}} />);
+    expect(screen.getByText("Received")).toBeInTheDocument();
+    expect(screen.queryByText("Details")).not.toBeInTheDocument();
+  });
+
+  /* What was read shows in a box, with no heading. */
+  it("boxes what was read", () => {
     render(
       <NotificationDetailSheet
-        notification={{ ...base, title: "Clip approved", body: "Nice one.", prompt: "Wetin you dey do?" }}
+        notification={{ ...base, category: "review-accepted", title: "Recording approved", body: undefined, prompt: "Wetin you dey do?" }}
         open
         onOpenChange={() => {}}
       />
     );
-    expect(screen.getByText("Nice one.")).toBeInTheDocument();
-    expect(screen.getByText("What you read")).toBeInTheDocument();
-    expect(screen.getByText("Wetin you dey do?")).toBeInTheDocument();
+    expect(screen.getByText("Wetin you dey do?").parentElement).toHaveClass("bg-alva-surface");
+    expect(screen.queryByText("What you read")).not.toBeInTheDocument();
+  });
+
+  /* A payment: "You earned" on the left, the amount on the right. */
+  it("shows a payment's amount as a row", () => {
+    render(
+      <NotificationDetailSheet
+        notification={{ ...base, category: "payout", title: "You earned a payment", body: undefined, amount: "₦10.00" }}
+        open
+        onOpenChange={() => {}}
+      />
+    );
+    expect(screen.getByText("You earned").nextElementSibling).toHaveTextContent("₦10.00");
   });
 });

@@ -83,6 +83,15 @@ describe("queue items", () => {
     expect(mapped.link).toBe("/intern/review");
   });
 
+  it("sends narrations waiting for annotators to the Narrations tab", () => {
+    const mapped = toStaffNotification({
+      ...row("queue"),
+      key: "narrations:2026-11-17",
+      recording_id: "r1",
+    });
+    expect(mapped.link).toBe("/annotator/narrations");
+  });
+
   it("leaves an annotator's session item as it was", () => {
     const mapped = toStaffNotification({ ...row("queue"), session_id: "s1" });
     expect(mapped.category).toBe("review-queue");
@@ -105,5 +114,53 @@ describe("the message", () => {
     expect(toContributorNotification({ ...row("queue"), body: "New sentences have been added." }).body).toBe(
       "New sentences have been added."
     );
+  });
+});
+
+/* Opening our own site in a new window signed people out of the installed app. */
+describe("links to this studio", () => {
+  it("are followed inside the app, even written in full", () => {
+    const own = toContributorNotification({
+      ...row("announcement"),
+      action_label: "Open",
+      action_url: `${window.location.origin}/contributor/dashboard?tab=wallet`,
+    });
+    expect(own.action).toEqual({ label: "Open", url: "/contributor/dashboard?tab=wallet" });
+
+    const other = toContributorNotification({
+      ...row("announcement"),
+      action_label: "Read",
+      action_url: "https://example.org/news",
+    });
+    expect(other.action).toEqual({ label: "Read", url: "https://example.org/news" });
+  });
+});
+
+/* The API's own wording: a verdict is kind `review`, told apart by its title. */
+describe("verdicts and payments, as the API sends them", () => {
+  it("drops a verdict's own sentence and keeps the reviewer's notes", () => {
+    const plain = toContributorNotification({
+      ...row("review"),
+      title: "Recording approved",
+      body: "Your recording was approved.",
+    });
+    expect(plain).toMatchObject({ category: "review-accepted", status: "accepted", body: undefined });
+
+    const noted = toContributorNotification({
+      ...row("review"),
+      title: "Recording rejected",
+      body: "Your recording was rejected. Too much noise.",
+    });
+    expect(noted).toMatchObject({ category: "review-rejected", status: "rejected", body: "Too much noise." });
+  });
+
+  it("reads a payment's amount", () => {
+    const paid = toContributorNotification({
+      ...row("earning"),
+      title: "You earned a payment",
+      body: "NGN 1,250.50 for an approved narration (2 min of speech).",
+    });
+    expect(paid.amount).toBe("₦1,250.50");
+    expect(paid.body).toBeUndefined();
   });
 });

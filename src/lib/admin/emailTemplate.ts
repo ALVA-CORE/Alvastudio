@@ -34,6 +34,9 @@ export const COMMUNICATION_HERO = "https://www.alvacoreai.com/assets/og.png";
 /** The other image the backend's templates use, for welcome and work emails. */
 export const EVERYDAY_HERO = "https://www.alvacoreai.com/assets/how/everyday.png";
 
+/** The backend's image for its other automatic emails: payments, approvals. */
+export const NOTIFICATION_HERO = `${ASSETS}/notif-email-header.jpg`;
+
 const X_URL = "https://x.com";
 const LINKEDIN_URL = "https://www.linkedin.com";
 const SUPPORT = "support@alvacoreai.com";

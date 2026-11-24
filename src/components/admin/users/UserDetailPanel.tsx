@@ -90,7 +90,7 @@ export function UserDetailPanel({
   user: AdminUser | null;
   onToggleActive: (user: AdminUser) => void;
   onApprove: (user: AdminUser) => void;
-  onDelete: (user: AdminUser) => void;
+  onDelete: (user: AdminUser, blockEmail: boolean) => void;
   onSave: (user: AdminUser, draft: UserDraft) => void;
 }) {
   const [tab, setTab] = useState("profile");
@@ -486,8 +486,8 @@ export function UserDetailPanel({
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         user={user}
-        onConfirm={() => {
-          onDelete(user);
+        onConfirm={(blockEmail) => {
+          onDelete(user, blockEmail);
           onOpenChange(false);
         }}
         onDeactivate={() => onToggleActive(user)}

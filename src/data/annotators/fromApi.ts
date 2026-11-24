@@ -68,8 +68,11 @@ function segmentText(tokens: ApiToken[], from: number, to: number): string {
  * Not "Speaker 1": the room already has speakers, and these are the ones
  * still waiting to be told who they are.
  */
+/** What a speaker is built from: `/source` gives id and label; a session's participant adds role. */
+type SpeakerSource = Pick<ApiParticipant, "id" | "label"> & { role?: string | null };
+
 function toSpeakers(
-  participants: ApiParticipant[],
+  participants: SpeakerSource[],
   unlinkedLabels: string[] = []
 ): Speaker[] {
   const people: Speaker[] = participants.map((participant, index) => ({
@@ -184,11 +187,42 @@ function toSegments(
     .sort((a, b) => a.start - b.start);
 }
 
+/**
+ * A narration's one speaker. Annotators are never told who it is, so every
+ * segment sits on this lane whatever Scribe labelled it, and nothing about
+ * it is sent back (see `saveAnnotation`).
+ */
+const NARRATOR: Speaker = {
+  id: "narrator",
+  label: "Narrator",
+  name: "Narrator",
+  role: "participant",
+  color: SPEAKER_PALETTE[0],
+};
+
 export function toTranscriptDoc(
   api: ApiAnnotationDocument,
-  participants: ApiParticipant[]
+  participants: SpeakerSource[]
 ): TranscriptDoc {
   const tokens = api.tokens ?? [];
+
+  if (api.kind === "narration") {
+    const segments = (api.segments ?? []).map((segment) => ({
+      ...segment,
+      participant_id: null,
+      speaker_label: null,
+    }));
+    return {
+      sessionId: api.session_id,
+      segments: toSegments(segments, tokens, [NARRATOR]),
+      speakers: [NARRATOR],
+      spans: toSpans(segments),
+      nonSpeech: toNonSpeech(segments),
+      difficultyFlags: api.difficulty_flags ?? [],
+      speechPresent: api.speech_present ?? true,
+    };
+  }
+
   const segments = api.segments ?? [];
 
   /* Every Scribe voice that still has no name, in the order the segments

@@ -299,7 +299,14 @@ export const identityRecheck = (apply = false) =>
 export type ApiPaymentTerms = {
   currency: string;
   sentence_rate_kobo: number;
+  /** For a narration recorded now. */
   narration_rate_per_hour_kobo: number;
+  /** The same rate per minute of speaking time. The one to show. */
+  narration_rate_per_minute_kobo: number;
+  /** When narration pay changed (17 Nov 2026, 00:00 WAT). */
+  narration_rate_changed_at: string;
+  /** What a narration recorded before that earns, whenever it is approved. */
+  earlier_narration_rate_per_hour_kobo: number;
   payout_minimum_kobo: number;
   /** `sunday`, as the API words it. */
   pay_day: string;

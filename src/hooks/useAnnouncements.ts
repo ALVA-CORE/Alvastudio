@@ -137,6 +137,14 @@ export function toPatch(form: AnnouncementForm, before: AnnouncementForm): ApiAn
 
 export type AnnouncementField = "title" | "body" | "action_label" | "action_url" | "expires_at";
 
+/** A studio path ("/contributor/profile"), or another site in full with https://. */
+export function linkProblem(url: string): string | null {
+  if (url.startsWith("/") && !url.startsWith("//")) {
+    return /\s/.test(url) ? "A link cannot contain spaces." : null;
+  }
+  return actionUrlProblem(url);
+}
+
 /** The API's rules, checked before a 422 says the same. */
 export function formProblems(form: AnnouncementForm): Partial<Record<AnnouncementField, string>> {
   const problems: Partial<Record<AnnouncementField, string>> = {};
@@ -147,12 +155,7 @@ export function formProblems(form: AnnouncementForm): Partial<Record<Announcemen
   if (Boolean(label) !== Boolean(url)) {
     problems[label ? "action_url" : "action_label"] = "Add both the button and the link, or neither.";
   } else if (url) {
-    const inStudio = url.startsWith("/") && !url.startsWith("//");
-    const problem = inStudio
-      ? /\s/.test(url)
-        ? "A link cannot contain spaces."
-        : null
-      : actionUrlProblem(url);
+    const problem = linkProblem(url);
     if (problem) problems.action_url = problem;
   }
   if (form.expiresAt && new Date(form.expiresAt).getTime() <= Date.now()) {

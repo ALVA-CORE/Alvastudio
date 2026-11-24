@@ -97,7 +97,7 @@ export function RunPaymentDialog({
             type="button"
             aria-label="Close"
             onClick={() => close(false)}
-            className="absolute right-5 top-5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+            className="absolute right-5 top-5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
           >
             <CloseCircle size={22} weight="Outline" />
           </button>

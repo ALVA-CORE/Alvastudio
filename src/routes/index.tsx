@@ -113,6 +113,7 @@ export function AppRoutes() {
             <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
               <Route path="/annotator/dashboard" element={<AnnotatorDashboardPage />} />
               <Route path="/annotator/sessions" element={<AnnotatorSessionsPage />} />
+              <Route path="/annotator/narrations" element={<Navigate to="/annotator/sessions" replace state={{ tab: "narrations" }} />} />
               <Route path="/annotator/profile" element={<AnnotatorProfilePage />} />
               {/* Legacy review paths now resolve to the session queue. */}
               <Route
@@ -175,6 +176,10 @@ export function AppRoutes() {
           <Route element={<RoleRoute roles={["annotator", "admin"]} />}>
             <Route
               path="/annotator/sessions/:sessionId"
+              element={<AnnotatorWorkspacePage />}
+            />
+            <Route
+              path="/annotator/narrations/:annotationId"
               element={<AnnotatorWorkspacePage />}
             />
           </Route>
