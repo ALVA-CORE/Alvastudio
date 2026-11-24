@@ -208,11 +208,25 @@ export const INLINE_MARKERS: { marker: string; type: string }[] = [
   { marker: "music", type: "music" },
 ];
 
-/** How a stored mark reads in the text: its marker, else its label. */
-export function markerText(type: string): string {
+/** A mark's word in brackets: its marker, else its label, hyphenated. */
+function markerSlug(type: string): string {
   const marker = INLINE_MARKERS.find((entry) => entry.type === type)?.marker;
   const label = NON_SPEECH_OPTIONS.find((option) => option.value === type)?.label ?? type;
-  return `[${marker ?? label.toLowerCase()}]`;
+  return marker ?? label.toLowerCase().replace(/[\s_]+/g, "-");
+}
+
+/** How a stored mark reads in the text. */
+export function markerText(type: string): string {
+  return `[${markerSlug(type)}]`;
+}
+
+/** The type a bracketed word stands for: the typed markers, and every stored type, so edit mode round-trips them. */
+function markerType(word: string): string | undefined {
+  const lower = word.toLowerCase();
+  return (
+    INLINE_MARKERS.find((entry) => entry.marker === lower)?.type ??
+    NON_SPEECH_OPTIONS.find((option) => markerSlug(option.value) === lower)?.value
+  );
 }
 
 const MARKER = /\[([a-z-]+)\]/gi;
@@ -234,19 +248,40 @@ export function extractMarkers(text: string) {
   for (const match of text.matchAll(MARKER)) {
     out += text.slice(last, match.index);
     last = (match.index ?? 0) + match[0].length;
-    const known = INLINE_MARKERS.find((entry) => entry.marker === match[1].toLowerCase());
-    if (!known) {
+    const type = markerType(match[1]);
+    if (!type) {
       out += match[0];
       unknown.push(match[0]);
       continue;
     }
-    marks.push({ type: known.type, afterWord: Math.max(0, wordCount(out) - 1) });
+    marks.push({ type, afterWord: Math.max(0, wordCount(out) - 1) });
     out += " ";
   }
   out += text.slice(last);
 
   const cleaned = out.replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").trim();
   return { text: marks.length ? cleaned : text, marks, unknown };
+}
+
+/** A word that is a known marker, e.g. `[laugh]`: not part of the transcript. */
+export function isMarkerWord(word: string): boolean {
+  const inner = /^\[([a-z-]+)\]$/i.exec(word)?.[1];
+  return inner !== undefined && markerType(inner) !== undefined;
+}
+
+/** The reverse, for edit mode: each mark written back after its word. */
+export function injectMarkers(text: string, marks: { type: string; afterWord: number }[]) {
+  if (!marks.length) return text;
+  const words = [...text.matchAll(/\S+/g)];
+  let out = "";
+  let last = 0;
+  words.forEach((word, index) => {
+    const end = (word.index ?? 0) + word[0].length;
+    out += text.slice(last, end);
+    last = end;
+    for (const mark of marks) if (mark.afterWord === index) out += ` ${markerText(mark.type)}`;
+  });
+  return out + text.slice(last);
 }
 
 /**

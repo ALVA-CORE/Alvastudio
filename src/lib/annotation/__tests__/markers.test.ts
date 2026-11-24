@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMarkers, markerText } from "@/lib/annotation/tags";
+import { extractMarkers, injectMarkers, isMarkerWord, markerText } from "@/lib/annotation/tags";
 
 describe("typed markers", () => {
   it("takes a known marker out and marks the word before it", () => {
@@ -31,5 +31,21 @@ describe("typed markers", () => {
   it("reads a stored mark as its marker", () => {
     expect(markerText("background_noise")).toBe("[noise]");
     expect(markerText("cross_talk")).toBe("[cross-talk]");
+  });
+
+  it("writes marks back after their words, and reads them out again, for edit mode", () => {
+    const marks = [
+      { type: "throat_clear", afterWord: 1 },
+      { type: "cross_talk", afterWord: 3 },
+    ];
+    const drawn = injectMarkers("Make we see how", marks);
+    expect(drawn).toBe("Make we [throat-clear] see how [cross-talk]");
+    expect(extractMarkers(drawn)).toEqual({ text: "Make we see how", marks, unknown: [] });
+  });
+
+  it("knows a marker word from a real one", () => {
+    expect(isMarkerWord("[laugh]")).toBe(true);
+    expect(isMarkerWord("[yawn]")).toBe(false);
+    expect(isMarkerWord("laugh")).toBe(false);
   });
 });

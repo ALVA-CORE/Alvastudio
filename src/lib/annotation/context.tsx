@@ -208,6 +208,7 @@ export function useAnnotationActions() {
     const state = store.getState();
     return {
       setSegmentText: state.setSegmentText,
+      setSegmentTextAndMarks: state.setSegmentTextAndMarks,
       setSegmentSpeaker: state.setSegmentSpeaker,
       moveSegmentToSpeaker: state.moveSegmentToSpeaker,
       retime: state.retime,

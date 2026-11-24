@@ -85,6 +85,13 @@ export type AnnotationState = {
 
   /* Document actions — undoable */
   setSegmentText: (id: SegmentId, text: string) => void;
+  /** Edit mode: the text and the segment's marks in one undo step. */
+  setSegmentTextAndMarks: (
+    id: SegmentId,
+    text: string,
+    removeMarkIds: string[],
+    addMarks: Omit<NonSpeechMark, "id">[]
+  ) => void;
   setSegmentSpeaker: (id: SegmentId, speakerId: SpeakerId) => void;
   retime: (id: SegmentId, next: { start: number; end: number }, opts?: { live?: boolean }) => void;
   splitSegment: (id: SegmentId, time: number) => void;
@@ -203,6 +210,21 @@ export function createAnnotationStore(
           (current) => ({
             ...current,
             segments: current.segments.map((segment) => (segment.id === id ? { ...segment, text } : segment)),
+          }),
+          `text:${id}`
+        );
+      },
+
+      setSegmentTextAndMarks(id, text, removeMarkIds, addMarks) {
+        const removed = new Set(removeMarkIds);
+        mutate(
+          (current) => ({
+            ...current,
+            segments: current.segments.map((segment) => (segment.id === id ? { ...segment, text } : segment)),
+            nonSpeech: [
+              ...current.nonSpeech.filter((mark) => !removed.has(mark.id)),
+              ...addMarks.map((mark) => ({ ...mark, id: createSegmentId("nse") })),
+            ],
           }),
           `text:${id}`
         );

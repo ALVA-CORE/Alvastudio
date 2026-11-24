@@ -416,6 +416,22 @@ describe("AnnotationWorkspace", () => {
     expect(spans[0]).toMatchObject({ startToken: 1, endToken: 2, value: "pcm" });
   });
 
+  it("shows a mark in the edit box as [laugh], and keeps it out of the stored text", async () => {
+    const user = userEvent.setup();
+    const { store } = renderWorkspace();
+    const segment = store.getState().history.present.segments[0];
+    act(() => store.getState().addNonSpeechMark({ type: "laugh", atToken: 0 }));
+
+    await user.click(screen.getAllByLabelText(/^Edit transcript at/)[0]);
+    const box = await screen.findByLabelText(/^Transcript text for segment/);
+    expect((box as HTMLTextAreaElement).value).toContain("[laugh]");
+
+    await user.type(box, " ok");
+    const state = store.getState().history.present;
+    expect(state.segments.find((entry) => entry.id === segment.id)?.text).not.toContain("[laugh]");
+    expect(state.nonSpeech).toEqual([expect.objectContaining({ type: "laugh", atToken: 0 })]);
+  });
+
   it("keeps the save status out of the session status pill", () => {
     renderWorkspace();
 
