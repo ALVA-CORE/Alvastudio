@@ -1,4 +1,3 @@
-import { SOUND_TAGS } from "./markers";
 import { tagFamily, type SpanKind } from "./tags";
 
 /**
@@ -78,9 +77,5 @@ export const SHORTCUTS: { title: string; items: Shortcut[] }[] = [
         when: tagFamily(key.kind).label.toLowerCase(),
       })),
     ],
-  },
-  {
-    title: "Sounds",
-    items: SOUND_TAGS.map((tag) => ({ label: tag.label, keys: `[${tag.marker}]`, when: tag.family.toLowerCase() })),
   },
 ];

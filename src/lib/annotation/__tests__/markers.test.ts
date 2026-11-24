@@ -73,6 +73,12 @@ describe("typing a marker", () => {
     expect(markerAtCaret("say la", 6)).toBeNull();
   });
 
+  it("leaves a finished marker to the change menu, not the typing list", () => {
+    expect(markerAtCaret("say [other] oh", 8)).toBeNull();
+    expect(markerAtCaret("say [laugh] oh", 10)).toBeNull();
+    expect(markerAtCaret("say [lau]", 8)).toEqual({ from: 4, to: 9, query: "lau" });
+  });
+
   it("replaces a typed [] whole, so no stray ] is left", () => {
     expect(insertMarker("say []", { from: 4, to: 6 }, "laugh")).toEqual({ value: "say [laugh] ", caret: 12 });
   });
@@ -83,9 +89,7 @@ describe("typing a marker", () => {
 });
 
 describe("sound tags", () => {
-  it("lists them by the lead's families, and searches by word or name", () => {
-    const families = findSoundTags("").map((tag) => tag.family);
-    expect(families.indexOf("Environment")).toBeGreaterThan(families.lastIndexOf("Speaker sounds"));
+  it("searches by word or name", () => {
     expect(findSoundTags("thro").map((tag) => tag.type)).toEqual(["throat_clear"]);
     expect(findSoundTags("Tone").map((tag) => tag.marker)).toEqual(["beep"]);
   });

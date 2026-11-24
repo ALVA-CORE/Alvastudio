@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import InfoCircle from "@solar-icons/react/ui/InfoCircle";
 import Magnifier from "@solar-icons/react/search/Magnifier";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -29,7 +30,7 @@ export function ShortcutsMenu({ className }: { className?: string }) {
       <DialogContent
         aria-describedby={undefined}
         overlayClassName="bg-black/40 backdrop-blur-sm"
-        className="max-w-md gap-3 border-alva-border bg-alva-card p-4"
+        className="max-w-2xl gap-3 border-alva-border bg-alva-card p-5"
       >
         <DialogTitle className="text-base text-foreground">Keyboard shortcuts</DialogTitle>
 
@@ -46,7 +47,9 @@ export function ShortcutsMenu({ className }: { className?: string }) {
         </label>
 
         {q ? (
-          <ShortcutList items={found} mac={mac} empty="Nothing matches" />
+          <AutoHeight>
+            <ShortcutList items={found} mac={mac} empty="Nothing matches" />
+          </AutoHeight>
         ) : (
           <Tabs defaultValue={SHORTCUTS[0].title}>
             <TabsList className="h-9 w-full rounded-full bg-alva-surface p-1">
@@ -60,11 +63,18 @@ export function ShortcutsMenu({ className }: { className?: string }) {
                 </TabsTrigger>
               ))}
             </TabsList>
-            {SHORTCUTS.map((group) => (
-              <TabsContent key={group.title} value={group.title} className="mt-2">
-                <ShortcutList items={group.items} mac={mac} />
-              </TabsContent>
-            ))}
+            {/* Each tab is as tall as its own list; the panel eases between them. */}
+            <AutoHeight>
+              {SHORTCUTS.map((group) => (
+                <TabsContent
+                  key={group.title}
+                  value={group.title}
+                  className="mt-2 duration-200 data-[state=active]:animate-in data-[state=active]:fade-in-0 motion-reduce:animate-none"
+                >
+                  <ShortcutList items={group.items} mac={mac} />
+                </TabsContent>
+              ))}
+            </AutoHeight>
           </Tabs>
         )}
       </DialogContent>
@@ -75,7 +85,7 @@ export function ShortcutsMenu({ className }: { className?: string }) {
 function ShortcutList({ items, mac, empty }: { items: Shortcut[]; mac: boolean; empty?: string }) {
   if (!items.length) return <p className="py-6 text-center text-xs text-muted-foreground">{empty}</p>;
   return (
-    <ul className="max-h-[50vh] space-y-1 overflow-y-auto">
+    <ul className="max-h-[55vh] space-y-1 overflow-y-auto">
       {items.map((item) => (
         <li key={`${item.label}-${item.keys}`} className="flex items-center justify-between gap-3 py-0.5 text-xs">
           <span className="text-muted-foreground">
@@ -88,5 +98,31 @@ function ShortcutList({ items, mac, empty }: { items: Shortcut[]; mac: boolean; 
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Grows and shrinks to fit what is inside, smoothly. */
+function AutoHeight({ children }: { children: ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | "auto">("auto");
+  const reduce = useReducedMotion();
+
+  useLayoutEffect(() => {
+    const node = inner.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setHeight(entry.contentRect.height));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <motion.div
+      initial={false}
+      animate={{ height }}
+      transition={reduce ? { duration: 0 } : { duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
+      className="overflow-hidden"
+    >
+      <div ref={inner}>{children}</div>
+    </motion.div>
   );
 }
