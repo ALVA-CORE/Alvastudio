@@ -190,7 +190,8 @@ export const NON_SPEECH_OPTIONS: TagOption[] = [
   { value: "other", label: "Other" },
 ];
 
-export const NON_SPEECH_COLOR = "#5CE1E6";
+/* Yellow: no tag family or speaker uses it, so a marker stands out in the text. */
+export const NON_SPEECH_COLOR = "#FFD84D";
 
 /**
  * `asrPayload.difficulty_flags` — clip-level, and an ARRAY on purpose: the

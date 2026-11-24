@@ -450,6 +450,7 @@ function SessionMetaSidebarImpl({
                   >
                     <PanelRow label="Duration" value={session.duration} />
                     <PanelRow label="Language" value={session.language} />
+                    {session.timings ? <PanelRow label="Word timings" value={session.timings} /> : null}
                     {narration ? null : (
                       <>
                         <PanelRow

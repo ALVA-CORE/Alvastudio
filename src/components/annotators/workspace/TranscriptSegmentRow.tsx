@@ -1,4 +1,7 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useAnnotation, useAnnotationActions } from "@/lib/annotation/context";
+import { selectNonSpeech } from "@/lib/annotation/store";
+import { useSegmentDraft } from "@/components/annotators/workspace/useSegmentDraft";
 import { FieldBeam } from "@/components/shared/FieldBeam";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import { SegmentTextEditor } from "@/components/annotators/workspace/SegmentTextEditor";
@@ -60,7 +63,6 @@ export type TranscriptSegmentRowProps = {
   isFirst: boolean;
   onSeek: (time: number) => void;
   onSelect: (id: SegmentId) => void;
-  onTextChange: (id: SegmentId, text: string) => void;
   onSpeakerChange: (id: SegmentId, speakerId: SpeakerId) => void;
   onRenameSpeaker: (speakerId: SpeakerId, name: string) => void;
   onSplit: (id: SegmentId, time: number) => void;
@@ -85,7 +87,6 @@ function TranscriptSegmentRowImpl({
   isFirst,
   onSeek,
   onSelect,
-  onTextChange,
   onSpeakerChange,
   onRenameSpeaker,
   onSplit,
@@ -97,11 +98,28 @@ function TranscriptSegmentRowImpl({
   onRemoveTag,
   onAddNonSpeech,
 }: TranscriptSegmentRowProps) {
-  const [isEditing, setEditing] = useState(false);
   const [renamingSpeaker, setRenamingSpeaker] = useState(false);
   const [speakerDraft, setSpeakerDraft] = useState("");
-  /** Inclusive, document-global token range the user has highlighted. */
-  const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
+  const { setTextSelection: setSelection, setTagMenuOpen, removeNonSpeechMark, changeNonSpeechMark } =
+    useAnnotationActions();
+  const marks = useAnnotation(selectNonSpeech);
+  const draft = useSegmentDraft(segment, tokens, spans);
+
+  /**
+   * The highlighted words, held in the store so the panel's tag lists and the
+   * shortcut apply to them too. Read here only while they fall inside this
+   * segment.
+   */
+  const textSelection = useAnnotation((state) => state.textSelection);
+  const first = tokens[0]?.index ?? -1;
+  const last = tokens[tokens.length - 1]?.index ?? -1;
+  const selection =
+    textSelection && textSelection.start >= first && textSelection.end <= last ? textSelection : null;
+  const menuOpen = useAnnotation((state) => state.tagMenuOpen) && selection !== null;
+
+  /* A click opens the editor a beat later, so a double-click can select a word instead. */
+  const editTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(editTimer.current), []);
   const resolved = speaker ?? FALLBACK_SPEAKER;
 
   const commitRename = () => {
@@ -128,9 +146,47 @@ function TranscriptSegmentRowImpl({
       const span = spans.find((entry) => entry.id === spanId);
       if (!span) return;
       setSelection({ start: span.startToken, end: span.endToken });
+      setTagMenuOpen(true);
     },
-    [spans]
+    [spans, setSelection, setTagMenuOpen]
   );
+
+  /**
+   * One tag button for both modes, hung under the last highlighted word: in
+   * the text when reading, under the highlighted characters when editing.
+   * Marked so the text's own pointer and click handlers leave it alone.
+   */
+  const picker = selection ? (
+    <span data-tag-addon onClick={(event) => event.stopPropagation()}>
+      <TagPicker
+        open={menuOpen}
+        onOpenChange={setTagMenuOpen}
+        label={selection.start === selection.end ? "Tag word" : `Tag ${selection.end - selection.start + 1} words`}
+        applied={spans.filter((span) => span.startToken <= selection.end && span.endToken >= selection.start)}
+        onApply={(kind, value) => onApplyTag(kind, value, selection)}
+        onRemove={onRemoveTag}
+        onAddNonSpeech={(type) => {
+          if (!(draft.isEditing && draft.addMark(type, selection.end))) onAddNonSpeech(type, selection.end);
+        }}
+      />
+    </span>
+  ) : null;
+
+  /**
+   * Editing ends when focus leaves the editor and its tag menu, not when it
+   * leaves the textarea: opening the menu moves focus into it.
+   */
+  const editorRef = useRef<HTMLDivElement>(null);
+  const { finishEditing } = draft;
+  const leaveEditor = useCallback(() => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (editorRef.current?.contains(active) || active?.closest("[role='menu']")) return;
+      setTagMenuOpen(false);
+      finishEditing();
+      onEndInteraction();
+    });
+  }, [finishEditing, onEndInteraction, setTagMenuOpen]);
 
   const handleSplit = useCallback(
     (caretRatio: number) => {
@@ -244,42 +300,47 @@ function TranscriptSegmentRowImpl({
         </button>
 
         <div className="py-0.5">
-          {isEditing ? (
+          {draft.isEditing ? (
+            <div ref={editorRef} onBlur={leaveEditor}>
             <SegmentTextEditor
               autoFocus
-              value={segment.text}
+              value={draft.draft}
               timecode={formatTimecode(segment.start)}
-              onChange={(text) => onTextChange(segment.id, text)}
+              onChange={draft.changeDraft}
               onSelect={() => onSelect(segment.id)}
-              onEndInteraction={() => {
-                setEditing(false);
-                onEndInteraction();
-              }}
+              onEndInteraction={onEndInteraction}
+              washes={draft.washes}
+              onSelectText={draft.selectText}
+              selectionAddon={picker}
               onSplit={handleSplit}
               onMergeWithPrevious={() => {
                 if (!isFirst) onMergeWithPrevious(segment.id);
               }}
             />
+            </div>
           ) : (
             <div
               role="button"
               tabIndex={0}
               aria-label={`Edit transcript at ${formatTimecode(segment.start)}`}
-              onClick={() => {
+              onClick={(event) => {
                 // Highlighting text ends in a click. Without this guard the row
                 // swaps to a textarea the moment you finish selecting, which
                 // unmounts the tag control before it can be used — the "it
                 // flashes and disappears" bug.
-                const selection = window.getSelection();
-                if (selection && !selection.isCollapsed) return;
-
-                onSelect(segment.id);
-                setEditing(true);
+                window.clearTimeout(editTimer.current);
+                if (event.detail > 1) return;
+                editTimer.current = window.setTimeout(() => {
+                  const selection = window.getSelection();
+                  if (selection && !selection.isCollapsed) return;
+                  onSelect(segment.id);
+                  draft.startEditing();
+                }, 250);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  setEditing(true);
+                  draft.startEditing();
                 }
               }}
               // `min-h` is load-bearing: a freshly inserted segment has no text,
@@ -291,41 +352,17 @@ function TranscriptSegmentRowImpl({
                 segment={segment}
                 tokens={tokens}
                 spans={spans}
+                marks={marks}
+                onMarkChange={(id, type) => (type ? changeNonSpeechMark(id, type) : removeNonSpeechMark(id))}
                 isActive={isActive}
                 onSelectRange={setSelection}
+                onSelectionDone={() => setTagMenuOpen(true)}
+                addon={selection && picker ? { at: selection.end, node: picker } : null}
                 onSpanClick={handleSpanClick}
               />
             </div>
           )}
         </div>
-
-        {selection && !isEditing && (
-          // Appears only while a range is highlighted — a persistent tag button
-          // on 400 rows is noise, and the schema's spans are range-scoped anyway.
-          <div className="mt-1 flex items-center gap-1.5">
-            <TagPicker
-              label={
-                selection.start === selection.end
-                  ? "Tag token"
-                  : `Tag ${selection.end - selection.start + 1} tokens`
-              }
-              applied={spans.filter(
-                (span) =>
-                  span.startToken <= selection.end && span.endToken >= selection.start
-              )}
-              onApply={(kind, value) => onApplyTag(kind, value, selection)}
-              onRemove={onRemoveTag}
-              onAddNonSpeech={(type) => onAddNonSpeech(type, selection.end)}
-            />
-            <button
-              type="button"
-              onClick={() => setSelection(null)}
-              className="rounded-lg px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-            >
-              Clear
-            </button>
-          </div>
-        )}
 
         <button
           type="button"

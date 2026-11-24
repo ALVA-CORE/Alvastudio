@@ -183,6 +183,9 @@ function toSegments(
        * lose the annotator's work over a missing attribution. */
       speakerId: segment.participant_id ?? segment.speaker_label ?? fallbackSpeaker,
       text: segmentText(tokens, segment.start_token, segment.end_token),
+      wordTimes: tokens
+        .slice(segment.start_token, segment.end_token + 1)
+        .map((token) => (token.start_sec != null ? { start: token.start_sec } : null)),
     }))
     .sort((a, b) => a.start - b.start);
 }

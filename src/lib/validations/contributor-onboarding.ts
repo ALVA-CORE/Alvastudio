@@ -7,7 +7,7 @@ import {
 } from "@/data/contributors/onboarding";
 
 const ageBracketValues = ["18-24", "25-34", "35-44", "45-54", "55+"] as const;
-const genderValues = ["male", "female", "prefer-not-to-say"] as const;
+const genderValues = ["male", "female", "other", "prefer-not-to-say"] as const;
 
 export const contributorIdentityStepSchema = z
   .object({

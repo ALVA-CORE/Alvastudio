@@ -1,3 +1,4 @@
+import type { ApiFlagReason } from "./recordingFlags";
 import { apiAudioLink, apiFetch } from "./client";
 import type { ApiRecordingStatus, ApiSessionType } from "./enums";
 
@@ -52,6 +53,8 @@ export type ApiRecording = {
    * has judged it.
    */
   verdicts?: ApiRecordingVerdict[] | null;
+  /** A standing junk flag. On `GET /recordings/{id}` only; null in lists. */
+  flag?: { reasons: ApiFlagReason[]; flagged_at: string } | null;
 };
 
 /** Why a rejection was given: the first "no", in the rubric's order. */
@@ -60,7 +63,8 @@ export type ApiRejectionReason =
   | "too_quiet"
   | "prompt_mismatch"
   | "unnatural_delivery"
-  | "clipped";
+  | "clipped"
+  | "flagged";
 
 type ApiAnswer = "yes" | "partial" | "no";
 
@@ -281,6 +285,8 @@ export type ApiRecordingQuota = {
   /** Prompt Reader's remaining sentences. Narration has its own. */
   remaining: number;
   available_again_at: string | null;
+  /** An open report on them pauses uploads until an admin decides (21 Nov). */
+  uploads_paused?: boolean;
 };
 
 export const recordingQuota = () =>

@@ -133,7 +133,7 @@ export type InternProfileData = {
 
 export type ContributorProfileData = {
   ageBracket: string;
-  gender: "male" | "female" | "prefer-not-to-say";
+  gender: "male" | "female" | "other" | "prefer-not-to-say";
   stateOfOrigin: string;
   ethnicity: string;
   occupation?: string;

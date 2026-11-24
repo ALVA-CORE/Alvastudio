@@ -5,7 +5,7 @@ export type SessionLanguage = "english" | "pidgin" | "mixed";
 
 export type ConsentType = "verbal" | "signed";
 
-export type Gender = "male" | "female" | "prefer-not-to-say";
+export type Gender = "male" | "female" | "other" | "prefer-not-to-say";
 
 export type ParticipantRecord = {
   id: string;
@@ -59,6 +59,7 @@ export const AGE_BRACKET_OPTIONS: { value: AgeBracket; label: string }[] = [
 export const GENDER_OPTIONS: { value: Gender; label: string }[] = [
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
   { value: "prefer-not-to-say", label: "Prefer not to say" },
 ];
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { tagForKey } from "@/lib/annotation/shortcuts";
 import {
   useAnnotationActions,
   useAnnotationStore,
@@ -123,6 +124,31 @@ export function useWorkspaceHotkeys({
       if (mod && letter === "s") {
         event.preventDefault();
         callbacks.current.onSave?.();
+        return;
+      }
+
+      /* Tag the highlighted words (see `shortcuts`). By key position, as
+         Option+T types a character on a Mac. Works while typing too. */
+      if (event.altKey && !mod && event.code === "KeyT") {
+        if (!store.getState().textSelection) return;
+        event.preventDefault();
+        actions.setTagMenuOpen(true);
+        return;
+      }
+
+      /* A tag straight onto the highlighted words (see `shortcuts`). */
+      const tag = mod ? undefined : tagForKey(event);
+      if (tag) {
+        const range = store.getState().textSelection;
+        if (!range) return;
+        event.preventDefault();
+        actions.addSpan({
+          kind: tag.kind,
+          value: tag.value,
+          startToken: range.start,
+          endToken: range.end,
+          ...(tag.kind === "language" ? { spanSource: "annotator_added" as const } : {}),
+        });
         return;
       }
 

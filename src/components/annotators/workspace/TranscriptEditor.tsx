@@ -120,6 +120,14 @@ export function TranscriptEditor({
    */
   const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
 
+  /* Each row is its own layer (it is moved with a transform), so a popup
+     hanging below one is drawn under the next row, which then takes its
+     clicks. The row being worked in sits on top. */
+  const textSelection = useAnnotation((state) => state.textSelection);
+  const raisedSegmentId = textSelection
+    ? tokenIndex.tokens[textSelection.start]?.segmentId
+    : selectedSegmentId;
+
   const handleApplyTag = useCallback(
     (kind: SpanKind, value: string, range: { start: number; end: number }) => {
       actions.addSpan({
@@ -389,6 +397,7 @@ export function TranscriptEditor({
             left: 0,
             width: "100%",
             transform: `translateY(${item.start}px)`,
+            zIndex: segment.id === raisedSegmentId ? 1 : undefined,
           };
 
           return (
@@ -413,7 +422,6 @@ export function TranscriptEditor({
                 isFirst={item.index === 0}
                 onSeek={handleSeek}
                 onSelect={actions.selectSegment}
-                onTextChange={actions.setSegmentText}
                 onSpeakerChange={handleSpeakerChange}
                 onRenameSpeaker={actions.renameSpeaker}
                 onSplit={actions.splitSegment}

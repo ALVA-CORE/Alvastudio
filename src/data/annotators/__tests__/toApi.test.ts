@@ -123,8 +123,37 @@ describe("writing it back", () => {
       start_token: 2,
       replace_count: 0,
       expected_version: 7,
-      tokens: [{ text: "dey", start_sec: null, end_sec: null }],
+      /* No time sent, so the server times it between its neighbours. */
+      tokens: [{ text: "dey" }],
     });
+  });
+
+  /* A tag on its own changes nothing else, and used to be left unsaved. */
+  it("saves a segment when only its tags changed", async () => {
+    const { doc, base } = setup();
+    await saveAnnotation(
+      "a1",
+      {
+        ...doc,
+        spans: [
+          ...doc.spans,
+          { id: "new", kind: "disfluency", value: "repetition", startToken: 2, endToken: 2 },
+        ],
+      },
+      base
+    );
+    expect(spliceTokens).not.toHaveBeenCalled();
+    expect(updateSegment).toHaveBeenCalledWith(
+      "a1",
+      "seg1",
+      expect.objectContaining({ disfluencies: [{ start_token: 2, end_token: 2, type: "repetition" }] })
+    );
+  });
+
+  it("writes nothing when nothing changed", async () => {
+    const { doc, base } = setup();
+    await saveAnnotation("a1", doc, base);
+    expect(updateSegment).not.toHaveBeenCalled();
   });
 
   it("leaves the tokens alone when only a speaker changed", async () => {

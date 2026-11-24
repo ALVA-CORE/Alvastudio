@@ -6,6 +6,7 @@ import Microphone3 from "@solar-icons/react/video/Microphone3";
 import Stop from "@solar-icons/react/video/Stop";
 import Play from "@solar-icons/react/video/Play";
 import ClipboardCheck from "@solar-icons/react/notes/ClipboardCheck";
+import PauseCircle from "@solar-icons/react/video/PauseCircle";
 import { useApiResource } from "@/hooks/useApiResource";
 import { usePaymentTerms } from "@/hooks/usePaymentTerms";
 import { formatNairaRate } from "@/data/contributors/wallet";
@@ -119,6 +120,10 @@ export default function ContributorStudioPage() {
    * somebody had used their sentences, while a quarter of an hour of
    * narration sat open.
    */
+  /* An open report on them (21 Nov): nothing is handed out, so this says
+     why before "Nothing left to record" could. */
+  const paused = quota?.uploads_paused === true;
+
   const outOfQuota =
     quota != null &&
     (mode === "stimuli"
@@ -361,6 +366,13 @@ export default function ContributorStudioPage() {
         return;
       }
 
+      /* A report opened on them (21 Nov). The quota shows the paused state. */
+      if (cause instanceof ApiError && cause.code === "uploads_paused") {
+        reloadQuota();
+        alvaToast.show(cause.message, { variant: "default" });
+        return;
+      }
+
       /* The day's allowance, which has no `code`. The quota decides what
          the studio shows, so read it again rather than guess. */
       if (cause instanceof ApiError && cause.status === 429) {
@@ -436,6 +448,13 @@ export default function ContributorStudioPage() {
           <p role="alert" className="mt-8 text-center text-sm text-destructive">
             {cardError}
           </p>
+        ) : paused ? (
+          <AlvaEmptyState
+            className="mt-6"
+            icon={<PauseCircle size={20} weight="Outline" />}
+            title="Your uploads are paused"
+            description="We're reviewing your recent recordings. You can record again once that's done."
+          />
         ) : total === 0 ? (
           /* 404 from /next means the bank is exhausted for this contributor —
              an end state, not a failure. */
@@ -467,7 +486,7 @@ export default function ContributorStudioPage() {
         )}
 
         {/* Nothing to record: the empty state says so, no button to press. */}
-        {!loadingCard && !(total === 0 && recorder.phase === "idle") && (
+        {!loadingCard && !paused && !(total === 0 && recorder.phase === "idle") && (
         <StudioSiriControl
           className="mt-10 h-20"
           phase={recorder.phase}

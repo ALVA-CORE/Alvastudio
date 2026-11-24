@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { Fragment, memo } from "react";
 import TagHorizontal from "@solar-icons/react/money/TagHorizontal";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
@@ -13,9 +13,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SOUND_FAMILIES, SOUND_TAGS } from "@/lib/annotation/markers";
 import {
   NON_SPEECH_COLOR,
-  NON_SPEECH_OPTIONS,
   TAG_FAMILIES,
   tagLabel,
   type SpanKind,
@@ -41,6 +41,9 @@ export type TagPickerProps = {
   onAddNonSpeech: (type: string) => void;
   /** Rendered as the trigger. Defaults to a compact tag button. */
   label?: string;
+  /** Controlled, so the row can open it as a highlight is finished. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   className?: string;
 };
 
@@ -50,10 +53,12 @@ function TagPickerImpl({
   onRemove,
   onAddNonSpeech,
   label,
+  open,
+  onOpenChange,
   className,
 }: TagPickerProps) {
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -147,19 +152,33 @@ function TagPickerImpl({
               className="size-2 shrink-0 rounded-full"
               style={{ backgroundColor: NON_SPEECH_COLOR }}
             />
-            Non-speech event
+            Sound tag
           </DropdownMenuSubTrigger>
 
-          <DropdownMenuSubContent className="w-52">
-            {NON_SPEECH_OPTIONS.map((option) => (
-              <DropdownMenuItem
-                key={option.value}
-                onSelect={() => onAddNonSpeech(option.value)}
-                className="text-xs"
-              >
-                {option.label}
-              </DropdownMenuItem>
-            ))}
+          {/* By the lead's families; typing a letter jumps to a match. */}
+          <DropdownMenuSubContent className="max-h-80 w-56 overflow-y-auto">
+            {SOUND_FAMILIES.map((family) => {
+              const tags = SOUND_TAGS.filter((tag) => tag.family === family);
+              if (!tags.length) return null;
+              return (
+                <Fragment key={family}>
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {family}
+                  </DropdownMenuLabel>
+                  {tags.map((tag) => (
+                    <DropdownMenuItem
+                      key={tag.type}
+                      textValue={tag.marker}
+                      onSelect={() => onAddNonSpeech(tag.type)}
+                      className="gap-2 text-xs"
+                    >
+                      <span style={{ color: NON_SPEECH_COLOR }}>[{tag.marker}]</span>
+                      <span className="truncate text-muted-foreground">{tag.label}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </Fragment>
+              );
+            })}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>

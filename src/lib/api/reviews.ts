@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 import type { ApiQualityAnswer, ApiVerdict } from "./enums";
 import type { ApiPage, ApiRecording } from "./recordings";
+import type { ApiFlagIn } from "./recordingFlags";
 
 export type ApiReview = {
   id: string;
@@ -68,12 +69,17 @@ export async function reviewDesk(signal?: AbortSignal) {
  */
 export const submitReview = (payload: {
   recording_id: string;
-  q_noise_free: ApiQualityAnswer;
-  q_clear_audible: ApiQualityAnswer;
-  q_matches_prompt: ApiQualityAnswer;
-  q_natural_intelligible: ApiQualityAnswer;
+  /* Left out only with a `flag`, for questions not answered (ask #26). */
+  q_noise_free?: ApiQualityAnswer;
+  q_clear_audible?: ApiQualityAnswer;
+  q_matches_prompt?: ApiQualityAnswer;
+  q_natural_intelligible?: ApiQualityAnswer;
   verdict: ApiVerdict;
   notes?: string | null;
+  /** Narrations only; a 422 on a sentence. */
+  q_read_as_prompt?: boolean;
+  /** A junk flag: `verdict` must be `reject`. */
+  flag?: ApiFlagIn;
 }) => apiFetch<ApiReviewResult>("/reviews", { method: "POST", body: payload });
 
 export const reviewsForRecording = (recordingId: string) =>

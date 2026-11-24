@@ -40,6 +40,8 @@ export type QualityAnswers = {
   matchesPrompt: TriStateAnswer;
   natural: TriStateAnswer;
   verdict: ReviewVerdict | "";
+  /** Stimuli only: was the topic read out like a prompt (paid ₦10, as a sentence)? */
+  readAsPrompt?: "yes" | "no" | "";
 };
 
 export const QUALITY_QUESTIONS = [
@@ -97,7 +99,8 @@ export const REVIEW_STATUS_LABELS: Record<
 export const VERDICT_LABELS: Record<ReviewVerdict, string> = {
   approve: "Accept",
   reject: "Reject",
-  flag: "Flag for review",
+  /* The API's `flag`: an admin's second opinion. Not a junk flag. */
+  flag: "Second opinion",
 };
 
 export function isRubricComplete(answers: Omit<QualityAnswers, "verdict">) {

@@ -9,6 +9,13 @@ import { AlvaDataTable } from "@/components/shared/AlvaDataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getReviewDisplayStatus } from "@/lib/review-progress";
 import { cn } from "@/lib/utils";
+import type { ApiSessionType } from "@/lib/api/enums";
+
+/** The types the server filters by, in the table's words. */
+const SESSION_TYPES = [
+  { value: "prompt_read", label: "Prompt reader" },
+  { value: "stimuli_narration", label: "Stimuli" },
+];
 
 
 function StatusBadge({ status }: { status: keyof typeof REVIEW_STATUS_LABELS }) {
@@ -37,9 +44,11 @@ export default function InternReviewPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(8);
   const [historyQuery, setHistoryQuery] = useState("");
+  const [historyType, setHistoryType] = useState<ApiSessionType>();
   const [historySort, setHistorySort] = useState<{ key: ApiRecordingSort; order: "asc" | "desc" }>();
   const history = useReviewHistory({
     q: historyQuery,
+    sessionType: historyType,
     sort: historySort,
     page: historyPage,
     pageSize: historyPageSize,
@@ -70,6 +79,15 @@ export default function InternReviewPage() {
       header: "Mode",
       sortValue: (row: ReviewQueueItem) => row.mode,
       serverSort: "session_type",
+      filterValue: (row: ReviewQueueItem) => row.mode,
+      serverFilter: {
+        options: SESSION_TYPES,
+        value: historyType ?? null,
+        onChange: (value: string | null) => {
+          setHistoryType((value as ApiSessionType) ?? undefined);
+          setHistoryPage(1);
+        },
+      },
       render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.mode}</span>
       ),
@@ -87,6 +105,7 @@ export default function InternReviewPage() {
       key: "language",
       header: "Language",
       sortValue: (row: ReviewQueueItem) => row.language,
+      filterValue: (row: ReviewQueueItem) => row.language,
       render: (row: ReviewQueueItem) => (
         <span className="text-muted-foreground">{row.language}</span>
       ),
@@ -105,6 +124,8 @@ export default function InternReviewPage() {
       header: "Status",
       sortValue: (row: ReviewQueueItem) =>
         getReviewDisplayStatus(row.id, row.status, Boolean(row.draft)),
+      filterValue: (row: ReviewQueueItem) =>
+        REVIEW_STATUS_LABELS[getReviewDisplayStatus(row.id, row.status, Boolean(row.draft))],
       render: (row: ReviewQueueItem) => (
         <StatusBadge
           status={getReviewDisplayStatus(row.id, row.status, Boolean(row.draft))}

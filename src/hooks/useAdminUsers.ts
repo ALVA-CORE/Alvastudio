@@ -163,9 +163,11 @@ export function useAdminUsers(
     [replace]
   );
 
+  /** The answer says whether the email was blocked. */
   const remove = useCallback(async (id: string, blockEmail: boolean) => {
-    await deleteUser(id, blockEmail);
+    const summary = await deleteUser(id, blockEmail);
     setUsers((prev) => prev.filter((row) => row.id !== id));
+    return Boolean(summary?.email_blocked);
   }, []);
 
   return {

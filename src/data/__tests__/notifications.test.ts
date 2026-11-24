@@ -92,6 +92,10 @@ describe("queue items", () => {
     expect(mapped.link).toBe("/annotator/narrations");
   });
 
+  it("sends a report on a contributor to the Reports tab", () => {
+    expect(toStaffNotification(row("report")).link).toBe("/admin/users?tab=reports");
+  });
+
   it("leaves an annotator's session item as it was", () => {
     const mapped = toStaffNotification({ ...row("queue"), session_id: "s1" });
     expect(mapped.category).toBe("review-queue");
