@@ -11,7 +11,16 @@ import {
   type RefObject,
 } from "react";
 import { segmentLines } from "@/lib/annotation/segments";
-import { INLINE_MARKERS, NON_SPEECH_COLOR } from "@/lib/annotation/tags";
+import { NON_SPEECH_COLOR } from "@/lib/annotation/tags";
+import {
+  findSoundTags,
+  insertMarker,
+  markerAround,
+  markerAtCaret,
+  markerText,
+  replaceMarker,
+} from "@/lib/annotation/markers";
+import { SoundTagList } from "@/components/annotators/workspace/tagging/SoundTagList";
 import { MAX_LINES_PER_SEGMENT } from "@/lib/annotation/types";
 import { cn } from "@/lib/utils";
 
@@ -78,27 +87,28 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
     /* `[` starts a marker: the list offers the ones that match what follows. */
     const [caret, setCaret] = useState<number | null>(null);
     const [highlight, setHighlight] = useState(0);
-    const typing = useMemo(
-      () => (caret === null ? null : /\[([a-z-]*)$/i.exec(value.slice(0, caret))),
-      [caret, value]
-    );
-    const suggestions = useMemo(
-      () =>
-        typing ? INLINE_MARKERS.filter((entry) => entry.marker.startsWith(typing[1].toLowerCase())) : [],
-      [typing]
-    );
+    const typing = useMemo(() => (caret === null ? null : markerAtCaret(value, caret)), [caret, value]);
+    const suggestions = useMemo(() => (typing ? findSoundTags(typing.query) : []), [typing]);
+
+    /* A [marker] clicked while editing, to change or remove. */
+    const [changing, setChanging] = useState<{ from: number; to: number; type: string } | null>(null);
+    const [changeQuery, setChangeQuery] = useState("");
+    const changeMarker = (type: string | null) => {
+      if (!changing) return;
+      onChange(replaceMarker(value, changing, type));
+      setChanging(null);
+      requestAnimationFrame(() => innerRef.current?.focus());
+    };
 
     const insert = useCallback(
-      (marker: string) => {
-        if (caret === null || !typing) return;
-        const start = caret - typing[0].length;
-        const added = `[${marker}] `;
-        onChange(value.slice(0, start) + added + value.slice(caret).replace(/^\s+/, ""));
-        const at = start + added.length;
+      (type: string) => {
+        if (!typing) return;
+        const next = insertMarker(value, typing, markerText(type).slice(1, -1));
+        onChange(next.value);
         setCaret(null);
-        requestAnimationFrame(() => innerRef.current?.setSelectionRange(at, at));
+        requestAnimationFrame(() => innerRef.current?.setSelectionRange(next.caret, next.caret));
       },
-      [caret, typing, onChange, value]
+      [typing, onChange, value]
     );
 
     const resize = useCallback(() => {
@@ -128,7 +138,7 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
           }
           if (event.key === "Enter" || event.key === "Tab") {
             event.preventDefault();
-            insert(suggestions[Math.min(highlight, suggestions.length - 1)].marker);
+            insert(suggestions[Math.min(highlight, suggestions.length - 1)].type);
             return;
           }
           if (event.key === "Escape") {
@@ -183,7 +193,7 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
 
     /* Where a popup opens: under the `[` being typed, else under the end of
        the highlighted text. Measured from a mark in the drawn copy below. */
-    const anchorAt = typing && caret !== null ? caret - typing[0].length : selected ? selected.end : null;
+    const anchorAt = typing ? typing.from : changing ? changing.from : selected ? selected.end : null;
     const anchorRef = useRef<HTMLSpanElement>(null);
     const boxRef = useRef<HTMLDivElement>(null);
     const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
@@ -199,7 +209,13 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
       setAnchor((current) => (current?.left === left && current.top === top ? current : { left, top }));
     }, [anchorAt, value]);
 
-    const popup = suggestions.length ? "markers" : selected && selectionAddon ? "addon" : null;
+    const popup = suggestions.length
+      ? "markers"
+      : changing
+        ? "change"
+        : selected && selectionAddon
+          ? "addon"
+          : null;
 
     return (
       <div ref={boxRef} className="relative">
@@ -229,8 +245,15 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
         aria-label={`Transcript text for segment starting at ${timecode}`}
         onChange={(event) => {
           onChange(event.target.value);
+          setChanging(null);
           readCaret(event.target);
           resize();
+        }}
+        onClick={(event) => {
+          const node = event.currentTarget;
+          const around = node.selectionStart === node.selectionEnd ? markerAround(value, node.selectionStart) : null;
+          setChanging(around);
+          setChangeQuery("");
         }}
         onSelect={(event) => readCaret(event.currentTarget)}
         onFocus={onSelect}
@@ -249,32 +272,28 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
         <div className="absolute z-20 mt-1" style={{ left: anchor.left, top: anchor.top }}>
           {popup === "addon" ? (
             selectionAddon
-          ) : (
-            <ul
-              role="listbox"
-              aria-label="Tags"
-              className="w-48 overflow-hidden rounded-xl border border-alva-border bg-alva-card py-1 shadow-lg"
-            >
-              {suggestions.map((entry, index) => (
-                <li
-                  key={entry.marker}
-                  role="option"
-                  aria-selected={index === highlight}
-                  /* Keeps the caret in the box: a blur would end editing. */
+          ) : popup === "change" && changing ? (
+            /* Clicking a [marker] while editing: change it, or take it out. */
+            <SoundTagList
+              tags={findSoundTags(changeQuery)}
+              current={changing.type}
+              search={{ value: changeQuery, onChange: setChangeQuery }}
+              onPick={(type) => changeMarker(type)}
+              footer={
+                <button
+                  type="button"
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    insert(entry.marker);
+                    changeMarker(null);
                   }}
-                  className={cn(
-                    "cursor-pointer px-3 py-1.5 text-xs",
-                    index === highlight ? "bg-alva-surface" : undefined
-                  )}
-                  style={{ color: NON_SPEECH_COLOR }}
+                  className="w-full border-t border-alva-border px-3 py-2 text-left text-xs text-red-400 hover:bg-alva-surface"
                 >
-                  [{entry.marker}]
-                </li>
-              ))}
-            </ul>
+                  Remove
+                </button>
+              }
+            />
+          ) : (
+            <SoundTagList tags={suggestions} highlight={highlight} onPick={insert} />
           )}
         </div>
       ) : null}
