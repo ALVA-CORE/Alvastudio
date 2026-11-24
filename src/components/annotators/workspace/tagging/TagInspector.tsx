@@ -59,7 +59,7 @@ const TagApplyList = memo(function TagApplyList({
 }) {
   const segments = useAnnotation(selectSegments);
   const spans = useAnnotation(selectSpans);
-  const { addSpan } = useAnnotationActions();
+  const { addSpan, setTextSelection } = useAnnotationActions();
   const textSelection = useAnnotation((state) => state.textSelection);
   const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
 
@@ -129,6 +129,15 @@ const TagApplyList = memo(function TagApplyList({
             ? `${textSelection.end - textSelection.start + 1} highlighted word${textSelection.end === textSelection.start ? "" : "s"}`
             : `${ranges.length} segment${ranges.length === 1 ? "" : "s"}`}
         </span>
+        {textSelection ? (
+          <button
+            type="button"
+            onClick={() => setTextSelection(null)}
+            className="ml-2 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Clear
+          </button>
+        ) : null}
       </p>
 
       {/* One select per family rather than a wall of chips: four taxonomies of

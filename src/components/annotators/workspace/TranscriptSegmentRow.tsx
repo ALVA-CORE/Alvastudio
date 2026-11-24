@@ -1,7 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAnnotation, useAnnotationActions, useAnnotationStore } from "@/lib/annotation/context";
 import { selectNonSpeech, selectSegments } from "@/lib/annotation/store";
-import { extractMarkers } from "@/lib/annotation/tags";
+import { extractMarkers, tagColor } from "@/lib/annotation/tags";
 import { buildTokenIndex } from "@/lib/annotation/tokens";
 import { alvaToast } from "@/lib/alva-toast";
 import { FieldBeam } from "@/components/shared/FieldBeam";
@@ -178,6 +178,68 @@ function TranscriptSegmentRowImpl({
     [spans, setSelection]
   );
 
+  /**
+   * One tag button for both modes, hung under the last highlighted word: in
+   * the text when reading, under the highlighted characters when editing.
+   * Marked so the text's own pointer and click handlers leave it alone.
+   */
+  const picker = selection ? (
+    <span data-tag-addon onClick={(event) => event.stopPropagation()}>
+      <TagPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        label={selection.start === selection.end ? "Tag word" : `Tag ${selection.end - selection.start + 1} words`}
+        applied={spans.filter((span) => span.startToken <= selection.end && span.endToken >= selection.start)}
+        onApply={(kind, value) => onApplyTag(kind, value, selection)}
+        onRemove={onRemoveTag}
+        onAddNonSpeech={(type) => onAddNonSpeech(type, selection.end)}
+      />
+    </span>
+  ) : null;
+
+  /* Tag colours as character ranges, so the editor keeps showing them. */
+  const washes = useMemo(
+    () =>
+      tokens.flatMap((token) => {
+        const top = spans.filter((span) => span.startToken <= token.index && span.endToken >= token.index).at(-1);
+        return top
+          ? [{
+              start: token.charStart,
+              end: token.charEnd,
+              color: `color-mix(in srgb, ${tagColor(top.kind)} 22%, transparent)`,
+            }]
+          : [];
+      }),
+    [tokens, spans]
+  );
+
+  /* Highlighted characters in the editor, as the words they touch. */
+  const selectText = useCallback(
+    (range: { start: number; end: number } | null) => {
+      const touched = range
+        ? tokens.filter((token) => token.charEnd > range.start && token.charStart < range.end)
+        : [];
+      setSelection(touched.length ? { start: touched[0].index, end: touched[touched.length - 1].index } : null);
+    },
+    [tokens, setSelection]
+  );
+
+  /**
+   * Editing ends when focus leaves the editor and its tag menu, not when it
+   * leaves the textarea: opening the menu moves focus into it.
+   */
+  const editorRef = useRef<HTMLDivElement>(null);
+  const leaveEditor = useCallback(() => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (editorRef.current?.contains(active) || active?.closest("[role='menu']")) return;
+      setEditing(false);
+      setPickerOpen(false);
+      commitMarkers();
+      onEndInteraction();
+    });
+  }, [commitMarkers, onEndInteraction]);
+
   const handleSplit = useCallback(
     (caretRatio: number) => {
       onSplit(segment.id, segment.start + segmentDuration(segment) * caretRatio);
@@ -291,22 +353,23 @@ function TranscriptSegmentRowImpl({
 
         <div className="py-0.5">
           {isEditing ? (
+            <div ref={editorRef} onBlur={leaveEditor}>
             <SegmentTextEditor
               autoFocus
               value={segment.text}
               timecode={formatTimecode(segment.start)}
               onChange={(text) => onTextChange(segment.id, text)}
               onSelect={() => onSelect(segment.id)}
-              onEndInteraction={() => {
-                setEditing(false);
-                commitMarkers();
-                onEndInteraction();
-              }}
+              onEndInteraction={onEndInteraction}
+              washes={washes}
+              onSelectText={selectText}
+              selectionAddon={picker}
               onSplit={handleSplit}
               onMergeWithPrevious={() => {
                 if (!isFirst) onMergeWithPrevious(segment.id);
               }}
             />
+            </div>
           ) : (
             <div
               role="button"
@@ -346,41 +409,12 @@ function TranscriptSegmentRowImpl({
                 isActive={isActive}
                 onSelectRange={setSelection}
                 onSelectionDone={() => setPickerOpen(true)}
+                addon={selection && picker ? { at: selection.end, node: picker } : null}
                 onSpanClick={handleSpanClick}
               />
             </div>
           )}
         </div>
-
-        {selection && !isEditing && (
-          // Appears only while a range is highlighted — a persistent tag button
-          // on 400 rows is noise, and the schema's spans are range-scoped anyway.
-          <div className="mt-1 flex items-center gap-1.5">
-            <TagPicker
-              open={pickerOpen}
-              onOpenChange={setPickerOpen}
-              label={
-                selection.start === selection.end
-                  ? "Tag token"
-                  : `Tag ${selection.end - selection.start + 1} tokens`
-              }
-              applied={spans.filter(
-                (span) =>
-                  span.startToken <= selection.end && span.endToken >= selection.start
-              )}
-              onApply={(kind, value) => onApplyTag(kind, value, selection)}
-              onRemove={onRemoveTag}
-              onAddNonSpeech={(type) => onAddNonSpeech(type, selection.end)}
-            />
-            <button
-              type="button"
-              onClick={() => setSelection(null)}
-              className="rounded-lg px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-            >
-              Clear
-            </button>
-          </div>
-        )}
 
         <button
           type="button"

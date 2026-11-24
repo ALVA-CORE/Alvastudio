@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { markerText, NON_SPEECH_COLOR, tagColor, type SpanKind } from "@/lib/annotation/tags";
 import type { AnnotationSpan, NonSpeechMark, Segment } from "@/lib/annotation/types";
 import type { Token } from "@/lib/annotation/tokens";
@@ -24,6 +24,8 @@ export type TaggedSegmentTextProps = {
   marks: NonSpeechMark[];
   /** Clicking a mark removes it (undo brings it back). */
   onMarkClick: (markId: string) => void;
+  /** Drawn just under a word: the tag button, under the last highlighted word. */
+  addon?: { at: number; node: ReactNode } | null;
   /** Playhead is inside this segment. Drives the read-along highlight. */
   isActive: boolean;
   /** Inclusive, document-global token range, or null when nothing is selected. */
@@ -64,6 +66,7 @@ function TaggedSegmentTextImpl({
   spans,
   marks,
   onMarkClick,
+  addon,
   isActive,
   onSelectRange,
   onSelectionDone,
@@ -74,8 +77,8 @@ function TaggedSegmentTextImpl({
   /**
    * Word under the playhead.
    *
-   * Each word's own time where it has one (24 Nov); an even spread over the
-   * segment only for words without, or once an edit has changed the count.
+   * Each word's own time (24 Nov); an even spread over the segment only when
+   * it has no times at all, or once an edit has changed the word count.
    *
    * The selector returns an INTEGER, and zustand compares with Object.is — so
    * although every mounted row runs it on each of the ~60 store writes a second,
@@ -85,12 +88,18 @@ function TaggedSegmentTextImpl({
   const activeToken = useAnnotation((state) => {
     if (!isActive) return -1;
 
+    /* With real times, only real times: the last word that has started stays
+       lit through the pause after it. Falling back to the even spread in a
+       pause made the highlight run ahead, then snap back at the next word. */
     const now = state.currentTime;
     const times = segment.wordTimes;
-    if (times && times.length === tokens.length) {
-      const hit = times.findIndex((time) => time !== null && now >= time.start && now < time.end);
-      if (hit !== -1) return tokens[hit].index;
-      if (times.every((time) => time !== null)) return -1;
+    if (times && times.length === tokens.length && times.some((time) => time !== null)) {
+      if (now < segment.start || now > segment.end) return -1;
+      let lit = -1;
+      times.forEach((time, i) => {
+        if (time !== null && time.start <= now) lit = i;
+      });
+      return lit === -1 ? -1 : tokens[lit].index;
     }
 
     const span = segment.end - segment.start;
@@ -181,6 +190,8 @@ function TaggedSegmentTextImpl({
      * selection, by applying a tag, or by the Clear button.
      */
     const handlePointerDown = (event: PointerEvent) => {
+      /* The tag button hangs inside the text; pressing it keeps the highlight. */
+      if (event.target instanceof Element && event.target.closest("[data-tag-addon]")) return;
       if (event.target instanceof Node && container.contains(event.target)) {
         onSelectRangeRef.current(null);
       }
@@ -302,6 +313,12 @@ function TaggedSegmentTextImpl({
                   {markerText(mark.type)}
                 </button>
               ))}
+              {/* No width, so the text doesn't move; the button hangs below. */}
+              {addon?.at === token.index ? (
+                <span className="relative inline-block w-0 align-baseline">
+                  <span className="absolute left-0 top-full z-20 mt-0.5 whitespace-nowrap">{addon.node}</span>
+                </span>
+              ) : null}
             </span>
           );
         });
