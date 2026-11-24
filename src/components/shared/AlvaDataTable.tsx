@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import AltArrowRight from "@solar-icons/react/arrows/AltArrowRight";
 import SortVertical from "@solar-icons/react/arrows/SortVertical";
+import FilterIcon from "@solar-icons/react/ui/Filter";
 import Magnifier from "@solar-icons/react/search/Magnifier";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,17 @@ export type AlvaTableColumn<T> = {
   sortValue?: (row: T) => string | number;
   /** Server-paged tables: the sort key the server takes for this column. */
   serverSort?: string;
+  /**
+   * A filter on the column's header: tick the values to show. The value is
+   * what the cell says, so the list is the column's own words.
+   */
+  filterValue?: (row: T) => string;
+  /** Server-paged tables: the column's filter, sent to the server, one value at a time. */
+  serverFilter?: {
+    options: { value: string; label: string }[];
+    value: string | null;
+    onChange: (value: string | null) => void;
+  };
 };
 
 type AlvaDataTableProps<T extends { id: string }> = {
@@ -165,6 +177,8 @@ export function AlvaDataTable<T extends { id: string }>({
   selection,
 }: AlvaDataTableProps<T>) {
   const [query, setQuery] = useState("");
+  /* Per column, the ticked values; a column with none ticked shows all. */
+  const [ticked, setTicked] = useState<Record<string, string[]>>({});
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
@@ -204,12 +218,19 @@ export function AlvaDataTable<T extends { id: string }>({
     const normalized = query.trim().toLowerCase();
     let result = rows;
 
+    for (const column of columns) {
+      const values = ticked[column.key];
+      if (column.filterValue && values?.length) {
+        result = result.filter((row) => values.includes(column.filterValue!(row)));
+      }
+    }
+
     if (normalized) {
       /* Every word has to appear somewhere in the row, in any order: "obi
          rejected" finds Esther Obi's rejected clips. */
       const words = normalized.split(/\s+/);
       const cache = haystacks.current;
-      result = rows.filter((row) => {
+      result = result.filter((row) => {
         let haystack = cache.get(row);
         if (haystack === undefined) {
           haystack = searchText(row, columns);
@@ -227,7 +248,7 @@ export function AlvaDataTable<T extends { id: string }>({
     return [...result].sort((a, b) =>
       compareValues(column.sortValue!(a), column.sortValue!(b), sortDir)
     );
-  }, [rows, query, sortKey, sortDir, columns, serverPaging]);
+  }, [rows, query, ticked, sortKey, sortDir, columns, serverPaging]);
 
   const rowCount = serverPaging ? serverPaging.total : filtered.length;
   const totalPages = size ? Math.max(1, Math.ceil(rowCount / size)) : 1;
@@ -237,7 +258,7 @@ export function AlvaDataTable<T extends { id: string }>({
 
   useEffect(() => {
     setPage(1);
-  }, [query, sortKey, sortDir, activeFilterCount]);
+  }, [query, ticked, sortKey, sortDir, activeFilterCount]);
 
   const paged = useMemo(() => {
     if (!size || serverPaging) return filtered;
@@ -541,6 +562,13 @@ export function AlvaDataTable<T extends { id: string }>({
                       ) : (
                         column.header
                       )}
+                      <ColumnFilter
+                        column={column}
+                        rows={rows}
+                        serverPaged={Boolean(serverPaging)}
+                        ticked={ticked[column.key] ?? []}
+                        onTick={(values) => setTicked((current) => ({ ...current, [column.key]: values }))}
+                      />
                     </TableHead>
                   ))}
                 </TableRow>
@@ -741,5 +769,83 @@ function TablePager({
         {step("Next page", Math.min(totalPages, page + 1), page >= totalPages, <AltArrowRight size={16} weight="Outline" />)}
       </div>
     </div>
+  );
+}
+
+/**
+ * The filter on a column's header. A client table lists the values in its
+ * rows and shows the ticked ones; a server table lists the values the server
+ * can filter by, one at a time.
+ */
+function ColumnFilter<T>({
+  column,
+  rows,
+  serverPaged,
+  ticked,
+  onTick,
+}: {
+  column: AlvaTableColumn<T>;
+  rows: T[];
+  serverPaged: boolean;
+  ticked: string[];
+  onTick: (values: string[]) => void;
+}) {
+  const server = serverPaged ? column.serverFilter : undefined;
+  const options = useMemo(() => {
+    if (server) return server.options;
+    if (serverPaged || !column.filterValue) return [];
+    const values = [...new Set(rows.map((row) => column.filterValue!(row)))].sort((a, b) => a.localeCompare(b));
+    return values.map((value) => ({ value, label: value }));
+  }, [server, serverPaged, column, rows]);
+
+  if (options.length < 2 && !ticked.length && !server?.value) return null;
+  const active = server ? server.value != null : ticked.length > 0;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Filter ${column.header}`}
+          onClick={(event) => event.stopPropagation()}
+          className={cn(
+            "ml-1 inline-flex size-6 items-center justify-center rounded-full align-middle transition-colors hover:text-foreground",
+            active ? "text-alva-accent" : "text-muted-foreground/60"
+          )}
+        >
+          <FilterIcon size={13} weight={active ? "Bold" : "Outline"} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-72 w-52 overflow-y-auto border-alva-border bg-alva-card">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">{column.header}</DropdownMenuLabel>
+        {options.map((option) => {
+          const checked = server ? server.value === option.value : ticked.includes(option.value);
+          return (
+            <DropdownMenuCheckboxItem
+              key={option.value}
+              checked={checked}
+              onSelect={(event) => event.preventDefault()}
+              onCheckedChange={(on) => {
+                if (server) server.onChange(on ? option.value : null);
+                else onTick(on ? [...ticked, option.value] : ticked.filter((value) => value !== option.value));
+              }}
+            >
+              {option.label}
+            </DropdownMenuCheckboxItem>
+          );
+        })}
+        {active ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-muted-foreground"
+              onClick={() => (server ? server.onChange(null) : onTick([]))}
+            >
+              Show all
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

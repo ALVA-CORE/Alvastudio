@@ -16,6 +16,7 @@ import { AdminPageHeader } from "@/components/admin/shared/AdminPageHeader";
 import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminStatusPill";
 import { AssignAnnotatorDialog } from "@/components/admin/shared/AssignAnnotatorDialog";
 import { AnnotationDetailPanel } from "@/components/admin/annotations/AnnotationDetailPanel";
+import { AnnotationTools } from "@/components/admin/annotations/AnnotationTools";
 import { alvaToast } from "@/lib/alva-toast";
 import {
   ANNOTATION_STATUS_LABELS,
@@ -209,7 +210,7 @@ export default function AdminAnnotationsPage() {
 
   return (
     <DesktopPageShell className="py-4">
-      <AdminPageHeader id="annotations" />
+      <AdminPageHeader id="annotations" actions={<AnnotationTools />} />
 
       {error ? (
         <div

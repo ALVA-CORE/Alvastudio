@@ -5,6 +5,11 @@ import { TranscriptEditor } from "./TranscriptEditor";
 import { TimelineDock } from "./timeline/TimelineDock";
 import { SessionMetaSidebar, type WorkspacePassStats } from "./SessionMetaSidebar";
 import DangerTriangle from "@solar-icons/react/ui/DangerTriangle";
+import Flag from "@solar-icons/react/ui/Flag";
+import { TextureButton } from "@/components/ui/texture-button";
+import { FlagRecordingDialog } from "@/components/shared/FlagRecordingDialog";
+import { flagRecording, reportContributor } from "@/lib/api/recordingFlags";
+import { alvaToast } from "@/lib/alva-toast";
 import { useWorkspaceHotkeys } from "./useWorkspaceHotkeys";
 import { CompleteSessionDialog } from "./CompleteSessionDialog";
 import {
@@ -103,6 +108,7 @@ export function AnnotationWorkspace({
   }, [segments]);
 
   const handleBack = useCallback(() => navigate(listPath), [navigate, listPath]);
+  const [dialog, setDialog] = useState<"flag" | "report" | null>(null);
 
   /**
    * Flush before marking done, not after.
@@ -174,6 +180,20 @@ export function AnnotationWorkspace({
               floor, so the editing surface reads as a document. */}
           {/* The back arrow and undo/redo float on the transcript, not the
               page: a banner above it pushes them down with it. */}
+          {/* A narration that isn't a real attempt: flag it, or report who
+              recorded it. The annotator is never told who that is. */}
+          {narration && session.recordingId ? (
+            <div className="flex shrink-0 justify-end gap-2">
+              <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setDialog("report")}>
+                Report contributor
+              </TextureButton>
+              <TextureButton variant="minimal" size="sm" className="w-auto" onClick={() => setDialog("flag")}>
+                <Flag size={15} weight="Outline" />
+                Flag
+              </TextureButton>
+            </div>
+          ) : null}
+
           <div className="relative min-h-0 flex-1">
             <WorkspaceFloatingControls
               onBack={handleBack}
@@ -205,6 +225,26 @@ export function AnnotationWorkspace({
           onComplete={consentBlocked ? undefined : () => setConfirmOpen(true)}
           isComplete={isComplete}
         />
+
+        {session.recordingId ? (
+          <FlagRecordingDialog
+            open={dialog !== null}
+            onOpenChange={(open) => !open && setDialog(null)}
+            mode={dialog ?? "flag"}
+            onSend={async (body) => {
+              const recordingId = session.recordingId as string;
+              if (dialog === "report") {
+                await reportContributor({ recording_id: recordingId, ...body });
+                alvaToast.success("Reported. An admin will look into it.");
+                return;
+              }
+              /* It leaves this annotator's list straight away. */
+              await flagRecording(recordingId, body);
+              alvaToast.success("Flagged. It won't be paid.");
+              navigate(listPath);
+            }}
+          />
+        ) : null}
 
         <CompleteSessionDialog
           open={confirmOpen}

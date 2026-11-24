@@ -41,6 +41,9 @@ export type TagPickerProps = {
   onAddNonSpeech: (type: string) => void;
   /** Rendered as the trigger. Defaults to a compact tag button. */
   label?: string;
+  /** Controlled, so the row can open it as a highlight is finished. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   className?: string;
 };
 
@@ -50,10 +53,12 @@ function TagPickerImpl({
   onRemove,
   onAddNonSpeech,
   label,
+  open,
+  onOpenChange,
   className,
 }: TagPickerProps) {
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"

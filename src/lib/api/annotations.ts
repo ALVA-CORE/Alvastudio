@@ -116,7 +116,17 @@ export type ApiDraftTranscript = {
   speakers: ApiTranscriptSpeaker[];
 };
 
+/** Exact word timings, asked for on submit (24 Nov). */
+export type ApiAlignment = {
+  status: "pending" | "processing" | "done" | "failed" | "stale";
+  aligned_at?: string | null;
+  matched?: number | null;
+  tokens?: number | null;
+};
+
 export type ApiAnnotationDocument = {
+  /** Null when never asked for: times are Scribe's or estimated. */
+  alignment?: ApiAlignment | null;
   /** The session's draft transcript. Null when there is none. */
   transcript?: ApiDraftTranscript | null;
   /**
@@ -561,3 +571,24 @@ export function submitAnnotation(id: string) {
 /** A playable link to the session's audio; see `apiAudioLink`. */
 export const annotationAudioUrl = (id: string) =>
   apiAudioLink(`/annotations/${id}/audio-url`);
+
+/**
+ * Admins (24 Nov). Re-split drafts nobody has started into subtitle-length
+ * segments. A preview without `apply`.
+ */
+export const refillDrafts = (apply: boolean) =>
+  apiFetch<{ applied: boolean; drafts: number; sessions: number; narrations: number }>(
+    "/annotations/drafts/refill",
+    { method: "POST", query: { apply } }
+  );
+
+/**
+ * Admins (24 Nov). Queue exact word timings for submitted and approved work
+ * never aligned, or that failed. A preview without `apply`; `audio_seconds`
+ * is what ElevenLabs bills. 503 when ElevenLabs isn't set up.
+ */
+export const backfillAlignments = (apply: boolean) =>
+  apiFetch<{ applied: boolean; annotations: number; audio_seconds: number }>(
+    "/annotations/alignments/backfill",
+    { method: "POST", query: { apply } }
+  );

@@ -15,6 +15,10 @@ export type AnnotatorSession = {
   id: string;
   /** Absent on a session. A narration has one speaker, never named. */
   kind?: ApiAnnotationKind;
+  /** A narration's clip, for flagging it or reporting its contributor. */
+  recordingId?: string;
+  /** Word timings: "Exact" once aligned, "Being made exact" while queued, else "Estimated". */
+  timings?: string;
   /** Human-facing session code, e.g. FG-2026-014. */
   code: string;
   topic: string;

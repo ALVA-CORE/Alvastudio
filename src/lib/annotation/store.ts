@@ -69,6 +69,12 @@ export type AnnotationState = {
    * one code path rather than two that drift apart.
    */
   selectedSegmentIds: SegmentId[];
+  /**
+   * Words highlighted in the transcript: an inclusive, document-global token
+   * range. While set, the panel's tag lists apply to these words rather than
+   * to whole segments.
+   */
+  textSelection: { start: number; end: number } | null;
   /** Diarization focus. Non-null dims every other speaker across the UI. */
   activeSpeakerId: SpeakerId | null;
 
@@ -79,6 +85,13 @@ export type AnnotationState = {
 
   /* Document actions — undoable */
   setSegmentText: (id: SegmentId, text: string) => void;
+  /** Edit mode: the text and the segment's marks in one undo step. */
+  setSegmentTextAndMarks: (
+    id: SegmentId,
+    text: string,
+    removeMarkIds: string[],
+    addMarks: Omit<NonSpeechMark, "id">[]
+  ) => void;
   setSegmentSpeaker: (id: SegmentId, speakerId: SpeakerId) => void;
   retime: (id: SegmentId, next: { start: number; end: number }, opts?: { live?: boolean }) => void;
   splitSegment: (id: SegmentId, time: number) => void;
@@ -125,6 +138,7 @@ export type AnnotationState = {
   setFollowPlayhead: (follow: boolean) => void;
   /** Replaces the selection with exactly this segment, or clears it. */
   selectSegment: (id: SegmentId | null) => void;
+  setTextSelection: (range: { start: number; end: number } | null) => void;
   /** Adds or removes one segment from the selection (Shift-click). */
   toggleSegmentSelection: (id: SegmentId) => void;
   /** Replaces the selection wholesale. */
@@ -178,6 +192,7 @@ export function createAnnotationStore(
       followPlayhead: true,
 
       selectedSegmentIds: [],
+      textSelection: null,
       activeSpeakerId: null,
 
       saveStatus: "idle",
@@ -195,6 +210,21 @@ export function createAnnotationStore(
           (current) => ({
             ...current,
             segments: current.segments.map((segment) => (segment.id === id ? { ...segment, text } : segment)),
+          }),
+          `text:${id}`
+        );
+      },
+
+      setSegmentTextAndMarks(id, text, removeMarkIds, addMarks) {
+        const removed = new Set(removeMarkIds);
+        mutate(
+          (current) => ({
+            ...current,
+            segments: current.segments.map((segment) => (segment.id === id ? { ...segment, text } : segment)),
+            nonSpeech: [
+              ...current.nonSpeech.filter((mark) => !removed.has(mark.id)),
+              ...addMarks.map((mark) => ({ ...mark, id: createSegmentId("nse") })),
+            ],
           }),
           `text:${id}`
         );
@@ -491,12 +521,17 @@ export function createAnnotationStore(
       setFollowPlayhead(followPlayhead) {
         set({ followPlayhead });
       },
+      /* Picking segments replaces any highlighted words: the panel tags one or the other. */
       selectSegment(id) {
-        set({ selectedSegmentIds: id === null ? [] : [id] });
+        set({ selectedSegmentIds: id === null ? [] : [id], textSelection: null });
+      },
+      setTextSelection(textSelection) {
+        set({ textSelection });
       },
 
       toggleSegmentSelection(id) {
         set((state) => ({
+          textSelection: null,
           selectedSegmentIds: state.selectedSegmentIds.includes(id)
             ? state.selectedSegmentIds.filter((entry) => entry !== id)
             : [...state.selectedSegmentIds, id],
@@ -504,7 +539,7 @@ export function createAnnotationStore(
       },
 
       setSelectedSegments(ids) {
-        set({ selectedSegmentIds: ids });
+        set({ selectedSegmentIds: ids, textSelection: null });
       },
       setActiveSpeaker(activeSpeakerId) {
         set({ activeSpeakerId });

@@ -1,6 +1,6 @@
-import { memo, useEffect, useMemo, useRef } from "react";
-import { tagColor, type SpanKind } from "@/lib/annotation/tags";
-import type { AnnotationSpan, Segment } from "@/lib/annotation/types";
+import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { markerText, NON_SPEECH_COLOR, tagColor, type SpanKind } from "@/lib/annotation/tags";
+import type { AnnotationSpan, NonSpeechMark, Segment } from "@/lib/annotation/types";
 import type { Token } from "@/lib/annotation/tokens";
 import { useAnnotation } from "@/lib/annotation/context";
 
@@ -20,10 +20,18 @@ export type TaggedSegmentTextProps = {
   /** Document-global tokens for this segment. */
   tokens: Token[];
   spans: AnnotationSpan[];
+  /** Non-speech marks, drawn as `[laugh]` after the word they sit on. */
+  marks: NonSpeechMark[];
+  /** Clicking a mark removes it (undo brings it back). */
+  onMarkClick: (markId: string) => void;
+  /** Drawn just under a word: the tag button, under the last highlighted word. */
+  addon?: { at: number; node: ReactNode } | null;
   /** Playhead is inside this segment. Drives the read-along highlight. */
   isActive: boolean;
   /** Inclusive, document-global token range, or null when nothing is selected. */
   onSelectRange: (range: { start: number; end: number } | null) => void;
+  /** A highlight was finished (pointer up with words selected): the row opens its tag menu. */
+  onSelectionDone?: () => void;
   /** Clicking an existing tag opens it for editing. */
   /** Opens an applied tag for inspection. Never destructive. */
   onSpanClick: (spanId: string) => void;
@@ -56,8 +64,12 @@ function TaggedSegmentTextImpl({
   segment,
   tokens,
   spans,
+  marks,
+  onMarkClick,
+  addon,
   isActive,
   onSelectRange,
+  onSelectionDone,
   onSpanClick,
 }: TaggedSegmentTextProps) {
   const containerRef = useRef<HTMLParagraphElement | null>(null);
@@ -65,11 +77,8 @@ function TaggedSegmentTextImpl({
   /**
    * Word under the playhead.
    *
-   * There is no forced alignment yet, so position is interpolated across the
-   * segment's duration — the schema's `nonSpeechEvent.start_sec` is filled by an
-   * aligner later, and per-word timings will arrive the same way. Until then
-   * this tracks the segment evenly, which is close enough to follow along with
-   * and honest about being an estimate.
+   * Each word's own time (24 Nov); an even spread over the segment only when
+   * it has no times at all, or once an edit has changed the word count.
    *
    * The selector returns an INTEGER, and zustand compares with Object.is — so
    * although every mounted row runs it on each of the ~60 store writes a second,
@@ -78,6 +87,20 @@ function TaggedSegmentTextImpl({
    */
   const activeToken = useAnnotation((state) => {
     if (!isActive) return -1;
+
+    /* With real times, only real times: the last word that has started stays
+       lit through the pause after it. Falling back to the even spread in a
+       pause made the highlight run ahead, then snap back at the next word. */
+    const now = state.currentTime;
+    const times = segment.wordTimes;
+    if (times && times.length === tokens.length && times.some((time) => time !== null)) {
+      if (now < segment.start || now > segment.end) return -1;
+      let lit = -1;
+      times.forEach((time, i) => {
+        if (time !== null && time.start <= now) lit = i;
+      });
+      return lit === -1 ? -1 : tokens[lit].index;
+    }
 
     const span = segment.end - segment.start;
     if (span <= 0 || tokens.length === 0) return -1;
@@ -92,7 +115,14 @@ function TaggedSegmentTextImpl({
    * than being torn down and rebuilt every time the parent re-renders. */
   const onSelectRangeRef = useRef(onSelectRange);
   onSelectRangeRef.current = onSelectRange;
+  const onSelectionDoneRef = useRef(onSelectionDone);
+  onSelectionDoneRef.current = onSelectionDone;
   const coverage = useMemo(() => coverageByToken(tokens, spans), [tokens, spans]);
+  const marksAt = useMemo(() => {
+    const map = new Map<number, NonSpeechMark[]>();
+    for (const mark of marks) map.set(mark.atToken, [...(map.get(mark.atToken) ?? []), mark]);
+    return map;
+  }, [marks]);
   /**
    * Reads the browser's own text selection back into token indices.
    *
@@ -160,17 +190,34 @@ function TaggedSegmentTextImpl({
      * selection, by applying a tag, or by the Clear button.
      */
     const handlePointerDown = (event: PointerEvent) => {
+      /* The tag button hangs inside the text; pressing it keeps the highlight. */
+      if (event.target instanceof Element && event.target.closest("[data-tag-addon]")) return;
       if (event.target instanceof Node && container.contains(event.target)) {
         onSelectRangeRef.current(null);
       }
     };
 
+    /* On the document: a drag usually ends past the last word. A frame later,
+       so the selection has settled and been read. */
+    let doneFrame = 0;
+    const handlePointerUp = () => {
+      doneFrame = requestAnimationFrame(() => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+        if (!container.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
+        onSelectionDoneRef.current?.();
+      });
+    };
+
     document.addEventListener("selectionchange", schedule);
+    document.addEventListener("pointerup", handlePointerUp);
     container.addEventListener("pointerdown", handlePointerDown);
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      if (doneFrame) cancelAnimationFrame(doneFrame);
       document.removeEventListener("selectionchange", schedule);
+      document.removeEventListener("pointerup", handlePointerUp);
       container.removeEventListener("pointerdown", handlePointerDown);
     };
   }, []);
@@ -248,6 +295,30 @@ function TaggedSegmentTextImpl({
               >
                 {token.text}
               </span>
+              {marksAt.get(token.index)?.map((mark) => (
+                <button
+                  key={mark.id}
+                  type="button"
+                  title="Remove this tag"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onMarkClick(mark.id);
+                  }}
+                  className="ml-1 rounded px-0.5 text-[12px] font-medium"
+                  style={{
+                    color: NON_SPEECH_COLOR,
+                    backgroundColor: `color-mix(in srgb, ${NON_SPEECH_COLOR} 14%, transparent)`,
+                  }}
+                >
+                  {markerText(mark.type)}
+                </button>
+              ))}
+              {/* No width, so the text doesn't move; the button hangs below. */}
+              {addon?.at === token.index ? (
+                <span className="relative inline-block w-0 align-baseline">
+                  <span className="absolute left-0 top-full z-20 mt-0.5 whitespace-nowrap">{addon.node}</span>
+                </span>
+              ) : null}
             </span>
           );
         });

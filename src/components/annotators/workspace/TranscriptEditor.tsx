@@ -413,7 +413,6 @@ export function TranscriptEditor({
                 isFirst={item.index === 0}
                 onSeek={handleSeek}
                 onSelect={actions.selectSegment}
-                onTextChange={actions.setSegmentText}
                 onSpeakerChange={handleSpeakerChange}
                 onRenameSpeaker={actions.renameSpeaker}
                 onSplit={actions.splitSegment}

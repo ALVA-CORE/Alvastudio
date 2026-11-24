@@ -236,6 +236,11 @@ export async function saveAnnotation(
   if (splice) {
     const result = await api.spliceTokens(annotationId, {
       ...splice,
+      /* A word with no time is sent without one, so the server times it
+         between its neighbours (24 Nov); a sent time is kept as it is. */
+      tokens: splice.tokens.map((token) =>
+        token.start_sec == null ? { text: token.text } : token
+      ),
       expected_version: version,
     });
     version = result.version ?? version;

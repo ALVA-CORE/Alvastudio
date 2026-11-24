@@ -23,7 +23,8 @@ export const RECORDING_STATUS_LABELS: Record<RecordingStatus, string> = {
   in_review: "In review",
   approved: "Approved",
   rejected: "Rejected",
-  flagged: "Flagged",
+  /* The status `flagged` is a second opinion, not a junk flag. */
+  flagged: "Second opinion",
 };
 
 export type AdminRecording = {
@@ -90,7 +91,8 @@ export type RejectionReason =
   | "Too quiet"
   | "Does not match prompt"
   | "Unnatural delivery"
-  | "Clipped or truncated";
+  | "Clipped or truncated"
+  | "Flagged as junk";
 
 /** The API's `rejection_reason`, worded as the page shows it. */
 export const REJECTION_REASON_LABEL: Record<ApiRejectionReason, RejectionReason> = {
@@ -99,6 +101,7 @@ export const REJECTION_REASON_LABEL: Record<ApiRejectionReason, RejectionReason>
   prompt_mismatch: "Does not match prompt",
   unnatural_delivery: "Unnatural delivery",
   clipped: "Clipped or truncated",
+  flagged: "Flagged as junk",
 };
 
 /* ------------------------------------------------------------------ *

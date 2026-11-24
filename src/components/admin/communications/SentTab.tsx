@@ -6,8 +6,10 @@ import AltArrowLeft from "@solar-icons/react/arrows/AltArrowLeft";
 import { RingChart } from "@/components/charts/ring-chart";
 import { Ring } from "@/components/charts/ring";
 import { RingCenter } from "@/components/charts/ring-center";
+import { EmailPreviewFrame } from "@/components/admin/communications/EmailPreviewFrame";
 import {
   getCommunication,
+  previewCommunication,
   listCommunicationRecipients,
   listCommunications,
   type ApiCommunication,
@@ -213,6 +215,15 @@ function SentDetail({
   onBack: () => void;
 }) {
   const [delivery, setDelivery] = useState(row.delivery);
+  /* The email as it went out, read once when asked for. */
+  const [showEmail, setShowEmail] = useState(false);
+  const [html, setHtml] = useState<string | null>(null);
+  useEffect(() => {
+    if (!showEmail || html !== null) return;
+    previewCommunication(row.id)
+      .then((preview) => setHtml(preview.html))
+      .catch(() => setHtml(""));
+  }, [showEmail, html, row.id]);
   const [people, setPeople] = useState<ApiCommunicationRecipient[]>([]);
   const [total, setTotal] = useState(0);
   /* How many rows are open. The refresh while it is still sending re-reads
@@ -262,14 +273,36 @@ function SentDetail({
 
   return (
     <div className="space-y-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex max-w-full items-center gap-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
-      >
-        <AltArrowLeft size={16} weight="Outline" className="shrink-0 text-muted-foreground" />
-        <span className="truncate">{row.subject}</span>
-      </button>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex min-w-0 items-center gap-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+        >
+          <AltArrowLeft size={16} weight="Outline" className="shrink-0 text-muted-foreground" />
+          <span className="truncate">{row.subject}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowEmail((value) => !value)}
+          className="shrink-0 rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-alva-accent"
+        >
+          {showEmail ? "Recipients" : "View email"}
+        </button>
+      </div>
+
+      {showEmail ? (
+        html === null ? (
+          <div className="h-[60vh] animate-pulse rounded-2xl bg-alva-surface" />
+        ) : html ? (
+          <div className="relative h-[60vh]">
+            <EmailPreviewFrame html={html} />
+          </div>
+        ) : (
+          <p className="py-6 text-center text-xs text-muted-foreground">Could not load this email.</p>
+        )
+      ) : (
+      <>
 
       <div className="rounded-2xl bg-alva-surface p-4">
         <OutcomeRings delivery={delivery} />
@@ -297,6 +330,8 @@ function SentDetail({
           {(total - people.length).toLocaleString()} more
         </button>
       ) : null}
+      </>
+      )}
     </div>
   );
 }

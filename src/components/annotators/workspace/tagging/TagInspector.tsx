@@ -47,10 +47,10 @@ const REMOVE_BUTTON =
 /**
  * Tag families as a pick-list, applied to whatever is selected on the timeline.
  *
- * This is the batch path: Shift-click a run of clips, then choose a tag once.
- * The transcript's own picker stays the precise path — a sub-phrase inside one
- * segment — and this one covers each selected segment's FULL token range, which
- * is the only span a clip selection can honestly describe.
+ * Highlighted words come first: with words highlighted in the transcript,
+ * a tag here covers exactly those. Otherwise it is the batch path — Shift-click
+ * a run of clips, then choose a tag once — covering each selected segment's
+ * full token range, which is all a clip selection can describe.
  */
 const TagApplyList = memo(function TagApplyList({
   selectedIds,
@@ -59,15 +59,18 @@ const TagApplyList = memo(function TagApplyList({
 }) {
   const segments = useAnnotation(selectSegments);
   const spans = useAnnotation(selectSpans);
-  const { addSpan } = useAnnotationActions();
+  const { addSpan, setTextSelection } = useAnnotationActions();
+  const textSelection = useAnnotation((state) => state.textSelection);
   const tokenIndex = useMemo(() => buildTokenIndex(segments), [segments]);
 
   const ranges = useMemo(
     () =>
-      selectedIds
-        .map((id) => segmentTokenRange(tokenIndex, id))
-        .filter((range): range is { start: number; end: number } => range !== null),
-    [selectedIds, tokenIndex]
+      textSelection
+        ? [textSelection]
+        : selectedIds
+            .map((id) => segmentTokenRange(tokenIndex, id))
+            .filter((range): range is { start: number; end: number } => range !== null),
+    [textSelection, selectedIds, tokenIndex]
   );
 
   /**
@@ -100,10 +103,10 @@ const TagApplyList = memo(function TagApplyList({
     return map;
   }, [ranges, spans]);
 
-  if (selectedIds.length === 0) {
+  if (selectedIds.length === 0 && !textSelection) {
     return (
       <p className="py-1 text-[11px] leading-relaxed text-muted-foreground">
-        Shift-click clips on the timeline to tag several at once.
+        Highlight words in the transcript, or Shift-click clips on the timeline to tag several at once.
       </p>
     );
   }
@@ -122,8 +125,19 @@ const TagApplyList = memo(function TagApplyList({
       <p className="text-[11px] text-muted-foreground">
         Applying to{" "}
         <span className="text-foreground">
-          {ranges.length} segment{ranges.length === 1 ? "" : "s"}
+          {textSelection
+            ? `${textSelection.end - textSelection.start + 1} highlighted word${textSelection.end === textSelection.start ? "" : "s"}`
+            : `${ranges.length} segment${ranges.length === 1 ? "" : "s"}`}
         </span>
+        {textSelection ? (
+          <button
+            type="button"
+            onClick={() => setTextSelection(null)}
+            className="ml-2 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Clear
+          </button>
+        ) : null}
       </p>
 
       {/* One select per family rather than a wall of chips: four taxonomies of

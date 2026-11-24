@@ -203,7 +203,8 @@ export function toStaffNotification(api: ApiNotification): InternNotification {
     timestampTs: new Date(api.created_at).getTime(),
     read: api.read ?? false,
     action: actionOf(api),
-    link: queueLink(api),
+    /* Admins: a contributor was reported (21 Nov). */
+    link: api.kind === "report" ? "/admin/users?tab=reports" : queueLink(api),
   };
 }
 
