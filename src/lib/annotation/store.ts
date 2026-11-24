@@ -75,6 +75,8 @@ export type AnnotationState = {
    * to whole segments.
    */
   textSelection: { start: number; end: number } | null;
+  /** The tag menu for the highlighted words. In the store so a shortcut can open it. */
+  tagMenuOpen: boolean;
   /** Diarization focus. Non-null dims every other speaker across the UI. */
   activeSpeakerId: SpeakerId | null;
 
@@ -107,6 +109,7 @@ export type AnnotationState = {
   removeSpan: (id: string) => void;
   addNonSpeechMark: (mark: Omit<NonSpeechMark, "id">) => void;
   removeNonSpeechMark: (id: string) => void;
+  changeNonSpeechMark: (id: string, type: string) => void;
   toggleDifficultyFlag: (flag: string) => void;
   setSpeechPresent: (present: boolean) => void;
 
@@ -139,6 +142,7 @@ export type AnnotationState = {
   /** Replaces the selection with exactly this segment, or clears it. */
   selectSegment: (id: SegmentId | null) => void;
   setTextSelection: (range: { start: number; end: number } | null) => void;
+  setTagMenuOpen: (open: boolean) => void;
   /** Adds or removes one segment from the selection (Shift-click). */
   toggleSegmentSelection: (id: SegmentId) => void;
   /** Replaces the selection wholesale. */
@@ -193,6 +197,7 @@ export function createAnnotationStore(
 
       selectedSegmentIds: [],
       textSelection: null,
+      tagMenuOpen: false,
       activeSpeakerId: null,
 
       saveStatus: "idle",
@@ -383,6 +388,13 @@ export function createAnnotationStore(
         }));
       },
 
+      changeNonSpeechMark(id, type) {
+        mutate((current) => ({
+          ...current,
+          nonSpeech: current.nonSpeech.map((mark) => (mark.id === id ? { ...mark, type } : mark)),
+        }));
+      },
+
       removeNonSpeechMark(id) {
         mutate((current) => ({
           ...current,
@@ -523,15 +535,19 @@ export function createAnnotationStore(
       },
       /* Picking segments replaces any highlighted words: the panel tags one or the other. */
       selectSegment(id) {
-        set({ selectedSegmentIds: id === null ? [] : [id], textSelection: null });
+        set({ selectedSegmentIds: id === null ? [] : [id], textSelection: null, tagMenuOpen: false });
       },
       setTextSelection(textSelection) {
-        set({ textSelection });
+        set(textSelection ? { textSelection } : { textSelection, tagMenuOpen: false });
+      },
+      setTagMenuOpen(tagMenuOpen) {
+        set((state) => ({ tagMenuOpen: tagMenuOpen && state.textSelection !== null }));
       },
 
       toggleSegmentSelection(id) {
         set((state) => ({
           textSelection: null,
+          tagMenuOpen: false,
           selectedSegmentIds: state.selectedSegmentIds.includes(id)
             ? state.selectedSegmentIds.filter((entry) => entry !== id)
             : [...state.selectedSegmentIds, id],
@@ -539,7 +555,7 @@ export function createAnnotationStore(
       },
 
       setSelectedSegments(ids) {
-        set({ selectedSegmentIds: ids, textSelection: null });
+        set({ selectedSegmentIds: ids, textSelection: null, tagMenuOpen: false });
       },
       setActiveSpeaker(activeSpeakerId) {
         set({ activeSpeakerId });

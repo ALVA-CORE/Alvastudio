@@ -1,8 +1,12 @@
-import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
-import { markerText, NON_SPEECH_COLOR, tagColor, type SpanKind } from "@/lib/annotation/tags";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { NON_SPEECH_COLOR, tagColor, type SpanKind } from "@/lib/annotation/tags";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SoundTagList } from "@/components/annotators/workspace/tagging/SoundTagList";
+import { findSoundTags, markerText } from "@/lib/annotation/markers";
 import type { AnnotationSpan, NonSpeechMark, Segment } from "@/lib/annotation/types";
 import type { Token } from "@/lib/annotation/tokens";
 import { useAnnotation } from "@/lib/annotation/context";
+import { activeWord, wordStarts } from "@/lib/annotation/readAlong";
 
 /**
  * A segment's text, rendered token by token so ranges can be tagged.
@@ -22,8 +26,8 @@ export type TaggedSegmentTextProps = {
   spans: AnnotationSpan[];
   /** Non-speech marks, drawn as `[laugh]` after the word they sit on. */
   marks: NonSpeechMark[];
-  /** Clicking a mark removes it (undo brings it back). */
-  onMarkClick: (markId: string) => void;
+  /** A mark's menu: change it to another type, or remove it (null). */
+  onMarkChange: (markId: string, type: string | null) => void;
   /** Drawn just under a word: the tag button, under the last highlighted word. */
   addon?: { at: number; node: ReactNode } | null;
   /** Playhead is inside this segment. Drives the read-along highlight. */
@@ -65,7 +69,7 @@ function TaggedSegmentTextImpl({
   tokens,
   spans,
   marks,
-  onMarkClick,
+  onMarkChange,
   addon,
   isActive,
   onSelectRange,
@@ -75,41 +79,22 @@ function TaggedSegmentTextImpl({
   const containerRef = useRef<HTMLParagraphElement | null>(null);
 
   /**
-   * Word under the playhead.
-   *
-   * Each word's own time (24 Nov); an even spread over the segment only when
-   * it has no times at all, or once an edit has changed the word count.
+   * Word under the playhead (see `readAlong`). Each word's start is worked out
+   * once per edit, not per frame.
    *
    * The selector returns an INTEGER, and zustand compares with Object.is — so
    * although every mounted row runs it on each of the ~60 store writes a second,
    * only the row whose word actually changed re-renders, a few times a second.
    * Returning `currentTime` here instead would repaint the whole transcript.
    */
+  const starts = useMemo(
+    () => wordStarts(segment.wordTimes, tokens.length, segment.start, segment.end),
+    [segment.wordTimes, segment.start, segment.end, tokens.length]
+  );
   const activeToken = useAnnotation((state) => {
     if (!isActive) return -1;
-
-    /* With real times, only real times: the last word that has started stays
-       lit through the pause after it. Falling back to the even spread in a
-       pause made the highlight run ahead, then snap back at the next word. */
-    const now = state.currentTime;
-    const times = segment.wordTimes;
-    if (times && times.length === tokens.length && times.some((time) => time !== null)) {
-      if (now < segment.start || now > segment.end) return -1;
-      let lit = -1;
-      times.forEach((time, i) => {
-        if (time !== null && time.start <= now) lit = i;
-      });
-      return lit === -1 ? -1 : tokens[lit].index;
-    }
-
-    const span = segment.end - segment.start;
-    if (span <= 0 || tokens.length === 0) return -1;
-
-    const progress = (state.currentTime - segment.start) / span;
-    if (progress < 0 || progress > 1) return -1;
-
-    const nth = Math.min(tokens.length - 1, Math.floor(progress * tokens.length));
-    return tokens[nth].index;
+    const lit = activeWord(starts, state.currentTime);
+    return lit === -1 ? -1 : tokens[lit].index;
   });
   /* Kept in a ref so the selection listener is attached exactly once, rather
    * than being torn down and rebuilt every time the parent re-renders. */
@@ -296,22 +281,7 @@ function TaggedSegmentTextImpl({
                 {token.text}
               </span>
               {marksAt.get(token.index)?.map((mark) => (
-                <button
-                  key={mark.id}
-                  type="button"
-                  title="Remove this tag"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onMarkClick(mark.id);
-                  }}
-                  className="ml-1 rounded px-0.5 text-[12px] font-medium"
-                  style={{
-                    color: NON_SPEECH_COLOR,
-                    backgroundColor: `color-mix(in srgb, ${NON_SPEECH_COLOR} 14%, transparent)`,
-                  }}
-                >
-                  {markerText(mark.type)}
-                </button>
+                <MarkMenu key={mark.id} type={mark.type} onChange={(type) => onMarkChange(mark.id, type)} />
               ))}
               {/* No width, so the text doesn't move; the button hangs below. */}
               {addon?.at === token.index ? (
@@ -355,3 +325,55 @@ function TaggedSegmentTextImpl({
 }
 
 export const TaggedSegmentText = memo(TaggedSegmentTextImpl);
+
+/** A mark in the text, `[laugh]`: a searchable list to change its type, or remove it. */
+function MarkMenu({ type, onChange }: { type: string; onChange: (type: string | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const pick = (next: string | null) => {
+    setOpen(false);
+    onChange(next);
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setQuery("");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          data-tag-addon
+          onClick={(event) => event.stopPropagation()}
+          className="ml-1 rounded px-0.5 text-[12px] font-medium"
+          style={{
+            color: NON_SPEECH_COLOR,
+            backgroundColor: `color-mix(in srgb, ${NON_SPEECH_COLOR} 14%, transparent)`,
+          }}
+        >
+          {markerText(type)}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto border-0 bg-transparent p-0 shadow-none">
+        <SoundTagList
+          tags={findSoundTags(query)}
+          current={type}
+          search={{ value: query, onChange: setQuery }}
+          onPick={pick}
+          footer={
+            <button
+              type="button"
+              onClick={() => pick(null)}
+              className="w-full border-t border-alva-border px-3 py-2 text-left text-xs text-red-400 hover:bg-alva-surface"
+            >
+              Remove
+            </button>
+          }
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}

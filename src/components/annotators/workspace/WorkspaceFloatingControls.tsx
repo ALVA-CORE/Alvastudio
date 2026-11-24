@@ -11,6 +11,8 @@ import {
 import { useAnnotation, useAnnotationActions } from "@/lib/annotation/context";
 import { selectCanRedo, selectCanUndo } from "@/lib/annotation/store";
 import { cn } from "@/lib/utils";
+import { keyLabel } from "@/lib/annotation/shortcuts";
+import { ShortcutsMenu } from "@/components/annotators/workspace/ShortcutsMenu";
 
 /**
  * Undo/redo and the exit, floating over the workspace instead of sitting in a
@@ -100,7 +102,7 @@ export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls
               FLOATING_SURFACE
             )}
           >
-            <Hinted label="Undo" hint="⌘Z">
+            <Hinted label="Undo" hint={keyLabel("Mod+Z")}>
               <button
                 type="button"
                 aria-label="Undo"
@@ -114,7 +116,7 @@ export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls
 
             <span aria-hidden className="h-4 w-px bg-alva-border" />
 
-            <Hinted label="Redo" hint="⌘⇧Z">
+            <Hinted label="Redo" hint={keyLabel("Mod+Shift+Z")}>
               <button
                 type="button"
                 aria-label="Redo"
@@ -128,8 +130,12 @@ export const WorkspaceFloatingControls = memo(function WorkspaceFloatingControls
           </div>
         </div>
 
-        {/* Balances the back button so the pair stays optically centred. */}
-        <div className="size-8 shrink-0" aria-hidden />
+        {/* Right, level with back: also balances it, so undo/redo stay centred. */}
+        <Hinted label="Keyboard shortcuts">
+          <span className="pointer-events-auto shrink-0">
+            <ShortcutsMenu className={cn(ICON_BUTTON, FLOATING_SURFACE)} />
+          </span>
+        </Hinted>
       </div>
     </TooltipProvider>
   );

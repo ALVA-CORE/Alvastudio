@@ -268,8 +268,15 @@ export async function saveAnnotation(
     }
 
     /* Tokens moving changes every range, so a splice forces a write on every
-     * segment even where the annotator touched none of them. */
-    if (tokensChanged || !sameSegment(segment, previous.get(segment.id))) {
+     * segment even where the annotator touched none of them. A tag is part of
+     * the segment too: a tag added on its own used to be left unsaved, and
+     * gone on refresh. */
+    const was = baseline.ranges.get(segment.id);
+    const tagsChanged =
+      !was ||
+      JSON.stringify(spansForSegment(doc.spans, doc.nonSpeech, range)) !==
+        JSON.stringify(spansForSegment(baseline.doc.spans, baseline.doc.nonSpeech, was));
+    if (tokensChanged || tagsChanged || !sameSegment(segment, previous.get(segment.id))) {
       const saved = await api.updateSegment(annotationId, segment.id, {
         ...body,
         expected_version: segmentVersions.get(segment.id),
