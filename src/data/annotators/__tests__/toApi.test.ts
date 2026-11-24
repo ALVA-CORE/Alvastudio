@@ -123,7 +123,8 @@ describe("writing it back", () => {
       start_token: 2,
       replace_count: 0,
       expected_version: 7,
-      tokens: [{ text: "dey", start_sec: null, end_sec: null }],
+      /* No time sent, so the server times it between its neighbours. */
+      tokens: [{ text: "dey" }],
     });
   });
 

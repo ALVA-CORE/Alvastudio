@@ -1,4 +1,9 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useAnnotation, useAnnotationActions, useAnnotationStore } from "@/lib/annotation/context";
+import { selectNonSpeech, selectSegments } from "@/lib/annotation/store";
+import { extractMarkers } from "@/lib/annotation/tags";
+import { buildTokenIndex } from "@/lib/annotation/tokens";
+import { alvaToast } from "@/lib/alva-toast";
 import { FieldBeam } from "@/components/shared/FieldBeam";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import { SegmentTextEditor } from "@/components/annotators/workspace/SegmentTextEditor";
@@ -100,8 +105,48 @@ function TranscriptSegmentRowImpl({
   const [isEditing, setEditing] = useState(false);
   const [renamingSpeaker, setRenamingSpeaker] = useState(false);
   const [speakerDraft, setSpeakerDraft] = useState("");
-  /** Inclusive, document-global token range the user has highlighted. */
-  const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
+  /**
+   * The highlighted words, held in the store so the panel's tag lists apply
+   * to them too. Read here only while they fall inside this segment.
+   */
+  const {
+    setTextSelection: setSelection,
+    removeNonSpeechMark,
+    addNonSpeechMark,
+    setSegmentText,
+  } = useAnnotationActions();
+  const store = useAnnotationStore();
+  const marks = useAnnotation(selectNonSpeech);
+
+  /**
+   * Typed markers (`[laugh]`) become tags when editing ends: taken out of the
+   * text, and marked after the word before them.
+   */
+  const commitMarkers = useCallback(() => {
+    const segments = selectSegments(store.getState());
+    const current = segments.find((entry) => entry.id === segment.id);
+    if (!current) return;
+    const { text, marks: found, unknown } = extractMarkers(current.text);
+    if (unknown.length) {
+      alvaToast.show(`${unknown.join(", ")} isn't a tag yet, so it stays in the text until you remove it.`, {
+        variant: "default",
+      });
+    }
+    if (!found.length) return;
+    const offset = buildTokenIndex(segments).offsets.get(segment.id) ?? 0;
+    setSegmentText(segment.id, text);
+    for (const mark of found) addNonSpeechMark({ type: mark.type, atToken: offset + mark.afterWord });
+  }, [store, segment.id, setSegmentText, addNonSpeechMark]);
+  const textSelection = useAnnotation((state) => state.textSelection);
+  const first = tokens[0]?.index ?? -1;
+  const last = tokens[tokens.length - 1]?.index ?? -1;
+  const selection =
+    textSelection && textSelection.start >= first && textSelection.end <= last ? textSelection : null;
+  /* The tag menu opens itself once a highlight is finished. */
+  const [pickerOpen, setPickerOpen] = useState(false);
+  /* A click opens the editor a beat later, so a double-click can select a word instead. */
+  const editTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(editTimer.current), []);
   const resolved = speaker ?? FALLBACK_SPEAKER;
 
   const commitRename = () => {
@@ -128,8 +173,9 @@ function TranscriptSegmentRowImpl({
       const span = spans.find((entry) => entry.id === spanId);
       if (!span) return;
       setSelection({ start: span.startToken, end: span.endToken });
+      setPickerOpen(true);
     },
-    [spans]
+    [spans, setSelection]
   );
 
   const handleSplit = useCallback(
@@ -253,6 +299,7 @@ function TranscriptSegmentRowImpl({
               onSelect={() => onSelect(segment.id)}
               onEndInteraction={() => {
                 setEditing(false);
+                commitMarkers();
                 onEndInteraction();
               }}
               onSplit={handleSplit}
@@ -265,16 +312,19 @@ function TranscriptSegmentRowImpl({
               role="button"
               tabIndex={0}
               aria-label={`Edit transcript at ${formatTimecode(segment.start)}`}
-              onClick={() => {
+              onClick={(event) => {
                 // Highlighting text ends in a click. Without this guard the row
                 // swaps to a textarea the moment you finish selecting, which
                 // unmounts the tag control before it can be used — the "it
                 // flashes and disappears" bug.
-                const selection = window.getSelection();
-                if (selection && !selection.isCollapsed) return;
-
-                onSelect(segment.id);
-                setEditing(true);
+                window.clearTimeout(editTimer.current);
+                if (event.detail > 1) return;
+                editTimer.current = window.setTimeout(() => {
+                  const selection = window.getSelection();
+                  if (selection && !selection.isCollapsed) return;
+                  onSelect(segment.id);
+                  setEditing(true);
+                }, 250);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -291,8 +341,11 @@ function TranscriptSegmentRowImpl({
                 segment={segment}
                 tokens={tokens}
                 spans={spans}
+                marks={marks}
+                onMarkClick={removeNonSpeechMark}
                 isActive={isActive}
                 onSelectRange={setSelection}
+                onSelectionDone={() => setPickerOpen(true)}
                 onSpanClick={handleSpanClick}
               />
             </div>
@@ -304,6 +357,8 @@ function TranscriptSegmentRowImpl({
           // on 400 rows is noise, and the schema's spans are range-scoped anyway.
           <div className="mt-1 flex items-center gap-1.5">
             <TagPicker
+              open={pickerOpen}
+              onOpenChange={setPickerOpen}
               label={
                 selection.start === selection.end
                   ? "Tag token"

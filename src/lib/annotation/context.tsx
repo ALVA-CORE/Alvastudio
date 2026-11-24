@@ -235,6 +235,7 @@ export function useAnnotationActions() {
       setZoom: state.setZoom,
       setFollowPlayhead: state.setFollowPlayhead,
       selectSegment: state.selectSegment,
+      setTextSelection: state.setTextSelection,
       toggleSegmentSelection: state.toggleSegmentSelection,
       setSelectedSegments: state.setSelectedSegments,
       setActiveSpeaker: state.setActiveSpeaker,

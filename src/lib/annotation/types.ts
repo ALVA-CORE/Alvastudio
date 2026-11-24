@@ -33,6 +33,11 @@ export type Segment = {
   end: number;
   speakerId: SpeakerId;
   text: string;
+  /**
+   * Each word's own time from the API (24 Nov), in order, or null where a
+   * word has none. Read only while the word count still matches the text.
+   */
+  wordTimes?: ({ start: number; end: number } | null)[];
 };
 
 /**

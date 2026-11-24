@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as annotations from "@/lib/api/annotations";
-import type { ApiDraftTranscript } from "@/lib/api/annotations";
+import type { ApiAlignment, ApiDraftTranscript } from "@/lib/api/annotations";
 import { annotationAudioUrl } from "@/lib/api/annotations";
 import { sendEvents } from "@/lib/api/annotationEvents";
 import { reportApiError } from "@/lib/api/reportApiError";
@@ -70,6 +70,13 @@ const LANGUAGE: Record<string, AnnotatorSession["language"]> = {
  * A narration is opened by its annotation id: it has no session, and its
  * source carries the stimulus as `topic` and no participants.
  */
+/** What the word times are, from `alignment` (24 Nov). */
+function timingsLabel(alignment: ApiAlignment | null | undefined) {
+  if (alignment?.status === "done") return "Exact";
+  if (alignment?.status === "pending" || alignment?.status === "processing") return "Being made exact";
+  return "Estimated";
+}
+
 async function loadNarration(annotationId: string) {
   const [document, source, audioSrc] = await Promise.all([
     annotations.getAnnotation(annotationId),
@@ -84,6 +91,7 @@ async function loadNarration(annotationId: string) {
     id: annotationId,
     kind: "narration",
     recordingId: document.recording_id ?? undefined,
+    timings: timingsLabel(document.alignment),
     code: annotationId.slice(0, 8),
     topic: source.topic ?? "",
     state: "",
@@ -173,6 +181,7 @@ export function useSessionTranscript(
 
       const session: AnnotatorSession = {
         id: sessionId,
+        timings: timingsLabel(document.alignment),
         code: sessionCode(sessionId),
         topic: source.topic ?? "",
         state: "",

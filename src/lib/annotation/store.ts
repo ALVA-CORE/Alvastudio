@@ -69,6 +69,12 @@ export type AnnotationState = {
    * one code path rather than two that drift apart.
    */
   selectedSegmentIds: SegmentId[];
+  /**
+   * Words highlighted in the transcript: an inclusive, document-global token
+   * range. While set, the panel's tag lists apply to these words rather than
+   * to whole segments.
+   */
+  textSelection: { start: number; end: number } | null;
   /** Diarization focus. Non-null dims every other speaker across the UI. */
   activeSpeakerId: SpeakerId | null;
 
@@ -125,6 +131,7 @@ export type AnnotationState = {
   setFollowPlayhead: (follow: boolean) => void;
   /** Replaces the selection with exactly this segment, or clears it. */
   selectSegment: (id: SegmentId | null) => void;
+  setTextSelection: (range: { start: number; end: number } | null) => void;
   /** Adds or removes one segment from the selection (Shift-click). */
   toggleSegmentSelection: (id: SegmentId) => void;
   /** Replaces the selection wholesale. */
@@ -178,6 +185,7 @@ export function createAnnotationStore(
       followPlayhead: true,
 
       selectedSegmentIds: [],
+      textSelection: null,
       activeSpeakerId: null,
 
       saveStatus: "idle",
@@ -491,12 +499,17 @@ export function createAnnotationStore(
       setFollowPlayhead(followPlayhead) {
         set({ followPlayhead });
       },
+      /* Picking segments replaces any highlighted words: the panel tags one or the other. */
       selectSegment(id) {
-        set({ selectedSegmentIds: id === null ? [] : [id] });
+        set({ selectedSegmentIds: id === null ? [] : [id], textSelection: null });
+      },
+      setTextSelection(textSelection) {
+        set({ textSelection });
       },
 
       toggleSegmentSelection(id) {
         set((state) => ({
+          textSelection: null,
           selectedSegmentIds: state.selectedSegmentIds.includes(id)
             ? state.selectedSegmentIds.filter((entry) => entry !== id)
             : [...state.selectedSegmentIds, id],
@@ -504,7 +517,7 @@ export function createAnnotationStore(
       },
 
       setSelectedSegments(ids) {
-        set({ selectedSegmentIds: ids });
+        set({ selectedSegmentIds: ids, textSelection: null });
       },
       setActiveSpeaker(activeSpeakerId) {
         set({ activeSpeakerId });
