@@ -32,7 +32,7 @@ export function ShortcutsMenu({ className }: { className?: string }) {
         overlayClassName="bg-black/40 backdrop-blur-sm"
         className="max-w-2xl gap-3 border-alva-border bg-alva-card p-5"
       >
-        <DialogTitle className="text-base text-foreground">Keyboard shortcuts</DialogTitle>
+        <DialogTitle className="text-base text-center text-foreground">Keyboard shortcuts</DialogTitle>
 
         <label className="flex items-center gap-2 rounded-xl bg-alva-surface px-3 py-2">
           <Magnifier size={14} weight="Linear" className="shrink-0 text-muted-foreground" />
