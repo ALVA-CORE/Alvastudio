@@ -1,6 +1,8 @@
 import ShieldWarning from "@solar-icons/react/security/ShieldWarning";
 import ClockCircle from "@solar-icons/react/time/ClockCircle";
 import UserBlock from "@solar-icons/react/users/UserBlock";
+import UserCross from "@solar-icons/react/users/UserCross";
+import Letter from "@solar-icons/react/messages/Letter";
 import UsersGroupRounded from "@solar-icons/react/users/UsersGroupRounded";
 import {
   Sheet,
@@ -10,9 +12,16 @@ import {
 } from "@/components/ui/sheet";
 import { TextureButton } from "@/components/ui/texture-button";
 import { ApiError } from "@/lib/api/client";
+import { SUPPORT_EMAIL, supportMailto } from "@/lib/links";
 
 /** What stopped them, where it is worth saying more than a line. */
-export type SignInBlock = "pending" | "suspended" | "full";
+export type SignInBlock =
+  | "pending"
+  | "suspended"
+  | "closedDuplicate"
+  | "closedReport"
+  | "blocked"
+  | "full";
 
 /**
  * Why a sign-in was refused, when the reason is about the account.
@@ -37,7 +46,14 @@ export type SignInBlock = "pending" | "suspended" | "full";
  */
 const COPY: Record<
   SignInBlock,
-  { icon: typeof ClockCircle; tone: string; title: string; detail: string }
+  {
+    icon: typeof ClockCircle;
+    tone: string;
+    title: string;
+    detail: string;
+    /** Subject for the support email, when writing to support is the next step. */
+    support?: string;
+  }
 > = {
   pending: {
     icon: ClockCircle,
@@ -45,11 +61,39 @@ const COPY: Record<
     title: "Waiting for approval",
     detail: "An admin reviews new accounts. You'll be able to sign in once yours is approved.",
   },
+  /* No reason given. Duplicates and reports are admin decisions too, so
+     this stays true for them, and promises nothing that differs between
+     them, such as whether earnings are kept. */
   suspended: {
     icon: UserBlock,
     tone: "text-destructive",
     title: "This account is turned off",
-    detail: "An admin can turn it back on. Your work is kept either way.",
+    detail: "An admin turned it off, so you can't sign in for now.",
+    support: "My account is turned off",
+  },
+  /* The pay terms of 27 Oct, in their own words. */
+  closedDuplicate: {
+    icon: UserCross,
+    tone: "text-destructive",
+    title: "This account is closed",
+    detail:
+      "We found more than one account for the same person. All of them are closed, including the first, and nothing is paid on any of them.",
+    support: "My account was closed as a duplicate",
+  },
+  closedReport: {
+    icon: UserCross,
+    tone: "text-destructive",
+    title: "This account is closed",
+    detail: "Your recordings were reported, and an admin checked them and agreed with the reports.",
+    support: "My account was closed after a report",
+  },
+  /* Sign-up only: an account was removed and its email kept off. */
+  blocked: {
+    icon: UserCross,
+    tone: "text-destructive",
+    title: "This email can't be used",
+    detail: "You can't make an account with this email address.",
+    support: "My email can't be used to sign up",
   },
   /* Not a refusal of them, and the wording works hard not to read as one:
      they did nothing wrong and there is nothing to fix or try again. */
@@ -60,6 +104,16 @@ const COPY: Record<
     detail:
       "Alva Studio is full right now. Your account is saved, and we'll email you the moment a place opens.",
   },
+};
+
+/**
+ * Why an account was turned off, as the sign-in refusal will say it
+ * (asked in endpoints-needed #30). Until then every one is "Inactive
+ * account" with no `code`, and reads as `suspended`.
+ */
+const CLOSED_BY_CODE: Record<string, SignInBlock> = {
+  account_closed_duplicate: "closedDuplicate",
+  account_closed_report: "closedReport",
 };
 
 /**
@@ -77,7 +131,8 @@ export function signInBlock(error: unknown): SignInBlock | null {
   if (!(error instanceof ApiError)) return null;
   if (error.isWaitlisted) return "full";
   if (error.isPendingApproval) return "pending";
-  if (error.isAccountSuspended) return "suspended";
+  if (error.code === "email_blocked") return "blocked";
+  if (error.isAccountSuspended) return CLOSED_BY_CODE[error.code ?? ""] ?? "suspended";
   return null;
 }
 
@@ -123,6 +178,16 @@ export function SignInBlockedSheet({
               {copy?.detail}
             </p>
           </SheetHeader>
+
+          {copy?.support ? (
+            <a
+              href={supportMailto(copy.support)}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Letter size={16} weight="Linear" />
+              Think this is a mistake? <span className="text-primary">{SUPPORT_EMAIL}</span>
+            </a>
+          ) : null}
 
           <TextureButton
             variant="alva"

@@ -23,6 +23,25 @@ describe("signInBlock", () => {
     expect(signInBlock(new ApiError(403, "Inactive account"))).toBe("suspended");
   });
 
+  /* Asked in endpoints-needed #30: the reason as a `code` on the same 403. */
+  it("says why, when the API says why", () => {
+    expect(
+      signInBlock(new ApiError(403, "Inactive account", [], "account_closed_duplicate"))
+    ).toBe("closedDuplicate");
+    expect(
+      signInBlock(new ApiError(403, "Inactive account", [], "account_closed_report"))
+    ).toBe("closedReport");
+    expect(signInBlock(new ApiError(403, "Inactive account", [], "something_new"))).toBe(
+      "suspended"
+    );
+  });
+
+  it("opens for a sign-up with a blocked email", () => {
+    expect(
+      signInBlock(new ApiError(403, "That email can't be used", [], "email_blocked"))
+    ).toBe("blocked");
+  });
+
   it("stays shut for a wrong password", () => {
     expect(signInBlock(new ApiError(401, "Incorrect email or password"))).toBeNull();
   });
