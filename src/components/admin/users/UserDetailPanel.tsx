@@ -47,6 +47,8 @@ import {
   type AdminUserRole,
 } from "@/data/admin/users";
 import { cn } from "@/lib/utils";
+import { useOptionalAuth } from "@/lib/auth/context";
+import { HandOverCodesDialog } from "@/components/admin/users/HandOverCodesDialog";
 
 /** Names the work, not the person — "Output" told an admin nothing. */
 
@@ -101,6 +103,8 @@ export function UserDetailPanel({
   /* Null while the token is being generated, so the dialog can open at once
    * rather than after a round trip. */
   const [resetOpen, setResetOpen] = useState(false);
+  const [codesOpen, setCodesOpen] = useState(false);
+  const me = useOptionalAuth()?.user;
 
   /* Above the `!user` guard below: hooks cannot be conditional, and this
    * panel returns null before it renders anything. */
@@ -261,6 +265,14 @@ export function UserDetailPanel({
             </>
           ) : (
             <>
+              {/* Another admin only: your own are in Settings. */}
+              {user.role === "admin" && me && user.id !== me.id ? (
+                <PanelAction
+                  icon={<KeyMinimalistic size={15} weight="Outline" />}
+                  label="Recovery codes"
+                  onClick={() => setCodesOpen(true)}
+                />
+              ) : null}
               {canResetPassword(user) ? (
                 <PanelAction
                   icon={<KeyMinimalistic size={15} weight="Outline" />}
@@ -491,6 +503,13 @@ export function UserDetailPanel({
           onOpenChange(false);
         }}
         onDeactivate={() => onToggleActive(user)}
+      />
+
+      <HandOverCodesDialog
+        open={codesOpen}
+        onOpenChange={setCodesOpen}
+        userId={user.id}
+        fullName={user.fullName}
       />
 
       <PasswordResetDialog

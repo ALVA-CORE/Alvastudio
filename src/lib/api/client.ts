@@ -87,18 +87,22 @@ export class ApiError extends Error {
    * and never on `message`, which the backend says it may reword.
    */
   readonly code: string | null;
+  /** A wrong sign-in code: tries left before it stops working (25 Nov). */
+  readonly attemptsLeft: number | null;
 
   constructor(
     status: number,
     message: string,
     fieldErrors: FieldError[] = [],
-    code: string | null = null
+    code: string | null = null,
+    attemptsLeft: number | null = null
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.fieldErrors = fieldErrors;
     this.code = code;
+    this.attemptsLeft = attemptsLeft;
   }
 
   /** The token is missing, expired or rejected. */
@@ -232,7 +236,9 @@ function parseError(status: number, body: unknown): ApiError {
    * them now, and the vendor's name stays in the API's logs. We used to catch
    * "Bachs not found" here; a vendor name reaching a reader is their bug to
    * hear about rather than ours to paper over. */
-  if (typeof detail === "string") return new ApiError(status, detail, [], code);
+  const attempts = (body as { attempts_left?: unknown } | null)?.attempts_left;
+  if (typeof detail === "string")
+    return new ApiError(status, detail, [], code, typeof attempts === "number" ? attempts : null);
 
   if (Array.isArray(detail)) {
     const fieldErrors: FieldError[] = detail.map((entry) => {

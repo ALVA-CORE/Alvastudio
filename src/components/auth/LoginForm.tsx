@@ -21,6 +21,8 @@ import {
   type SignInBlock,
 } from "@/components/auth/SignInBlockedSheet";
 import { loginSchema, type LoginValues } from "@/lib/validations/auth";
+import { SignInCodeStep } from "@/components/auth/SignInCodeStep";
+import type { SignInChallenge } from "@/lib/api/auth";
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -33,12 +35,18 @@ export function LoginForm() {
   });
 
   const [blocked, setBlocked] = useState<SignInBlock | null>(null);
+  /* An admin's sign-in waits on a code from their email (25 Nov). */
+  const [challenge, setChallenge] = useState<{ challenge: SignInChallenge; remember: boolean } | null>(null);
 
   const onSubmit = async (values: LoginValues) => {
     setFormError(null);
 
     try {
       const account = await login(values.email, values.password, values.rememberMe ?? false);
+      if ("code_required" in account) {
+        setChallenge({ challenge: account, remember: values.rememberMe ?? false });
+        return;
+      }
 
       /* Their sign-in worked — the API issues a token to a waitlisted
          contributor exactly as it does to a pending intern's *failed* one.
@@ -72,6 +80,19 @@ export function LoginForm() {
     // races the request and lands on a guard that bounces straight back.
     navigate("/");
   };
+
+  if (challenge) {
+    return (
+      <SignInCodeStep
+        {...challenge}
+        onDone={() => navigate("/")}
+        onStartOver={(reason) => {
+          setChallenge(null);
+          setFormError(reason);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

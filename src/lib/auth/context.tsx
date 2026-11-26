@@ -61,7 +61,13 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   /** True while the boot-time `/auth/me` is in flight. */
   isLoading: boolean;
-  login: (email: string, password: string, remember?: boolean) => Promise<AuthUser>;
+  /** The account, or for an admin a code challenge to finish with `verifyCode`. */
+  login: (email: string, password: string, remember?: boolean) => Promise<AuthUser | authApi.SignInChallenge>;
+  verifyCode: (
+    challengeId: string,
+    answer: { code: string } | { recovery_code: string },
+    remember: boolean
+  ) => Promise<AuthUser>;
   signup: (payload: SignupPayload) => Promise<AuthUser>;
   logout: () => void;
 };
@@ -218,19 +224,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [user]);
 
-  const login = useCallback(async (
-    email: string,
-    password: string,
-    remember = true
-  ) => {
-    await authApi.login(email, password, remember);
+  /* The token is kept; now who it belongs to. */
+  const signedIn = useCallback(async () => {
     const apiUser = await authApi.me();
-
     const next = mergeUser(apiUser, loadUser() ?? undefined);
     setUser(next);
     persistUser(next);
     return next;
   }, []);
+
+  const login = useCallback(
+    async (email: string, password: string, remember = true) => {
+      const answer = await authApi.login(email, password, remember);
+      return "code_required" in answer ? answer : signedIn();
+    },
+    [signedIn]
+  );
+
+  const verifyCode = useCallback(
+    async (challengeId: string, answer: { code: string } | { recovery_code: string }, remember: boolean) => {
+      await authApi.verifySignInCode(challengeId, answer, remember);
+      return signedIn();
+    },
+    [signedIn]
+  );
 
   const signup = useCallback(async (payload: SignupPayload) => {
     await authApi.register({
@@ -343,13 +360,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       isLoading,
       login,
+      verifyCode,
       signup,
       logout,
     }),
-    [user, isLoading, login, signup, logout]
+    [user, isLoading, login, verifyCode, signup, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** Who is signed in, or null outside the provider: for a panel that only reads it. */
+export function useOptionalAuth() {
+  return useContext(AuthContext);
 }
 
 export function useAuth() {

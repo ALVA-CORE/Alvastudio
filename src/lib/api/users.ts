@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import type { ApiPage } from "./recordings";
+import type { RecoveryCodes } from "./auth";
 
 /**
  * Account administration.
@@ -422,3 +423,10 @@ export const blockEmail = (email: string) =>
 
 /** It can sign up again at once. */
 export const unblockEmail = (id: string) => apiFetch<void>(`/blocked-emails/${id}`, { method: "DELETE" });
+
+/**
+ * A new set of recovery codes for another admin, to hand over (25 Nov).
+ * 409 for yourself, or for anyone who isn't an admin.
+ */
+export const makeRecoveryCodesFor = (userId: string) =>
+  apiFetch<RecoveryCodes>(`/users/${userId}/recovery-codes`, { method: "POST" });
