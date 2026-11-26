@@ -1,4 +1,4 @@
-import { Fragment, memo } from "react";
+import { memo } from "react";
 import TagHorizontal from "@solar-icons/react/money/TagHorizontal";
 import TrashBinMinimalistic from "@solar-icons/react/ui/TrashBinMinimalistic";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
@@ -13,7 +13,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SOUND_FAMILIES, SOUND_TAGS } from "@/lib/annotation/markers";
+import { SOUND_TAGS } from "@/lib/annotation/markers";
 import {
   NON_SPEECH_COLOR,
   TAG_FAMILIES,
@@ -155,30 +155,19 @@ function TagPickerImpl({
             Sound tag
           </DropdownMenuSubTrigger>
 
-          {/* By the lead's families; typing a letter jumps to a match. */}
+          {/* Typing a letter jumps to a match. */}
           <DropdownMenuSubContent className="max-h-80 w-56 overflow-y-auto">
-            {SOUND_FAMILIES.map((family) => {
-              const tags = SOUND_TAGS.filter((tag) => tag.family === family);
-              if (!tags.length) return null;
-              return (
-                <Fragment key={family}>
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {family}
-                  </DropdownMenuLabel>
-                  {tags.map((tag) => (
-                    <DropdownMenuItem
-                      key={tag.type}
-                      textValue={tag.marker}
-                      onSelect={() => onAddNonSpeech(tag.type)}
-                      className="gap-2 text-xs"
-                    >
-                      <span style={{ color: NON_SPEECH_COLOR }}>[{tag.marker}]</span>
-                      <span className="truncate text-muted-foreground">{tag.label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </Fragment>
-              );
-            })}
+            {SOUND_TAGS.map((tag) => (
+              <DropdownMenuItem
+                key={tag.type}
+                textValue={tag.marker}
+                onSelect={() => onAddNonSpeech(tag.type)}
+                className="gap-2 text-xs"
+              >
+                <span style={{ color: NON_SPEECH_COLOR }}>[{tag.marker}]</span>
+                <span className="truncate text-muted-foreground">{tag.label}</span>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>

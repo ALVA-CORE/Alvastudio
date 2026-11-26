@@ -1,11 +1,13 @@
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { NON_SPEECH_COLOR, tagColor, type SpanKind } from "@/lib/annotation/tags";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SoundTagList } from "@/components/annotators/workspace/tagging/SoundTagList";
 import { findSoundTags, markerText } from "@/lib/annotation/markers";
 import type { AnnotationSpan, NonSpeechMark, Segment } from "@/lib/annotation/types";
 import type { Token } from "@/lib/annotation/tokens";
-import { useAnnotation } from "@/lib/annotation/context";
+import { useAnnotation, useAnnotationStore } from "@/lib/annotation/context";
+import { draggedTag, type DraggedTag } from "@/lib/annotation/tagDrag";
+import { cn } from "@/lib/utils";
 import { activeWord, wordStarts } from "@/lib/annotation/readAlong";
 
 /**
@@ -28,6 +30,8 @@ export type TaggedSegmentTextProps = {
   marks: NonSpeechMark[];
   /** A mark's menu: change it to another type, or remove it (null). */
   onMarkChange: (markId: string, type: string | null) => void;
+  /** A tag dropped from the side panel: a word tag on a range, a sound after a word. */
+  onDropTag: (tag: DraggedTag, target: { start: number; end: number }) => void;
   /** Drawn just under a word: the tag button, under the last highlighted word. */
   addon?: { at: number; node: ReactNode } | null;
   /** Playhead is inside this segment. Drives the read-along highlight. */
@@ -70,6 +74,7 @@ function TaggedSegmentTextImpl({
   spans,
   marks,
   onMarkChange,
+  onDropTag,
   addon,
   isActive,
   onSelectRange,
@@ -103,6 +108,26 @@ function TaggedSegmentTextImpl({
   const onSelectionDoneRef = useRef(onSelectionDone);
   onSelectionDoneRef.current = onSelectionDone;
   const coverage = useMemo(() => coverageByToken(tokens, spans), [tokens, spans]);
+
+  /**
+   * A tag dragged over the text. A word tag outlines the word under the
+   * pointer, or the whole highlight when the pointer is on it; a sound shows
+   * where it would land, after the word.
+   */
+  const store = useAnnotationStore();
+  const [drop, setDrop] = useState<{ start: number; end: number; color: string; sound: boolean } | null>(null);
+  const dropTarget = (event: React.DragEvent) => {
+    const tag = draggedTag();
+    const word = (event.target as Element).closest?.("[data-word]") as HTMLElement | null;
+    if (!tag || !word) return null;
+    const index = Number(word.dataset.word);
+    const highlight = store.getState().textSelection;
+    const range =
+      !("sound" in tag) && highlight && index >= highlight.start && index <= highlight.end
+        ? highlight
+        : { start: index, end: index };
+    return { ...range, color: tag.color, sound: "sound" in tag };
+  };
   const marksAt = useMemo(() => {
     const map = new Map<number, NonSpeechMark[]>();
     for (const mark of marks) map.set(mark.atToken, [...(map.get(mark.atToken) ?? []), mark]);
@@ -251,7 +276,30 @@ function TaggedSegmentTextImpl({
   }
 
   return (
-    <p ref={containerRef} className="whitespace-pre-wrap text-sm leading-relaxed">
+    <p
+      ref={containerRef}
+      className="whitespace-pre-wrap text-sm leading-relaxed"
+      onDragOver={(event) => {
+        const next = dropTarget(event);
+        if (!next) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        setDrop((current) =>
+          current && current.start === next.start && current.end === next.end ? current : next
+        );
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDrop(null);
+      }}
+      onDrop={(event) => {
+        const tag = draggedTag();
+        const next = dropTarget(event);
+        setDrop(null);
+        if (!tag || !next) return;
+        event.preventDefault();
+        onDropTag(tag, { start: next.start, end: next.end });
+      }}
+    >
       {runs.map((run, runIndex) => {
         const first = run.tokens[0];
         const previousRun = runs[runIndex - 1];
@@ -269,17 +317,20 @@ function TaggedSegmentTextImpl({
               ? ""
               : segment.text.slice(run.tokens[i - 1].charEnd, token.charStart) || " ";
 
+          const dropped = drop && !drop.sound && token.index >= drop.start && token.index <= drop.end;
           return (
-            <span key={token.index}>
+            <span key={token.index} data-word={token.index}>
               {gap}
               <span
                 data-token={token.index}
-                className={
-                  token.index === activeToken ? "text-foreground" : undefined
-                }
+                className={cn(token.index === activeToken && "text-foreground", dropped && "alva-drop-word")}
+                style={dropped ? ({ "--drop": drop.color } as CSSProperties) : undefined}
               >
                 {token.text}
               </span>
+              {drop?.sound && drop.end === token.index ? (
+                <span aria-hidden className="alva-drop-caret" style={{ "--drop": drop.color } as CSSProperties} />
+              ) : null}
               {marksAt.get(token.index)?.map((mark) => (
                 <MarkMenu key={mark.id} type={mark.type} onChange={(type) => onMarkChange(mark.id, type)} />
               ))}

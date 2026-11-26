@@ -10,6 +10,18 @@ export type AdminUserRole = "contributor" | "intern" | "annotator" | "admin";
  */
 export const CREATABLE_ROLES: AdminUserRole[] = ["intern", "annotator", "admin"];
 
+/** At most three admin accounts, deactivated ones included (25 Nov). */
+export const MAX_ADMINS = 3;
+
+/** The role picker's options: Admin greyed out once three exist, unless this account is one already. */
+export function roleOptions(adminsFull: boolean, current?: AdminUserRole) {
+  return CREATABLE_ROLES.map((role) => ({
+    value: role,
+    label: role === "admin" && adminsFull && current !== "admin" ? `${ROLE_LABELS[role]} (3 of 3)` : ROLE_LABELS[role],
+    disabled: role === "admin" && adminsFull && current !== "admin",
+  }));
+}
+
 /**
  * Which admin areas an account may open.
  *

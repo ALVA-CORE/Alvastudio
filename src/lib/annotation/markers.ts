@@ -8,50 +8,29 @@ import { NON_SPEECH_OPTIONS } from "./tags";
  * goes in and out of this module, and nothing else parses brackets.
  */
 
-/** The lead's families, in their order. */
-export const SOUND_FAMILIES = [
-  "Speaker sounds",
-  "Silence",
-  "Environment",
-  "Recording faults",
-  "Manner",
-  "Other",
-] as const;
-
-/* Each API type's bracket word and family. The lead's other markers
-   (silence, faults, manner and more) wait on ask #29. */
-const WORDS: Record<string, { marker: string; family: (typeof SOUND_FAMILIES)[number] }> = {
-  breath: { marker: "breath", family: "Speaker sounds" },
-  laugh: { marker: "laugh", family: "Speaker sounds" },
-  cough: { marker: "cough", family: "Speaker sounds" },
-  throat_clear: { marker: "throat-clear", family: "Speaker sounds" },
-  lip_smack: { marker: "lip-smack", family: "Speaker sounds" },
-  non_lexical_hesitation: { marker: "hesitation", family: "Speaker sounds" },
-  background_noise: { marker: "noise", family: "Environment" },
-  music: { marker: "music", family: "Environment" },
-  cross_talk: { marker: "cross-talk", family: "Environment" },
-  dtmf_or_beep: { marker: "beep", family: "Environment" },
-  other: { marker: "other", family: "Other" },
+/* Each API type's bracket word. The lead's other markers wait on ask #29. */
+const WORDS: Record<string, string> = {
+  throat_clear: "throat-clear",
+  lip_smack: "lip-smack",
+  non_lexical_hesitation: "hesitation",
+  background_noise: "noise",
+  cross_talk: "cross-talk",
+  dtmf_or_beep: "beep",
 };
 
-/** Every sound tag the API takes, with the word typed for it and its family. */
+/** Every sound tag the API takes, with the word typed for it. */
 export const SOUND_TAGS = NON_SPEECH_OPTIONS.map((option) => ({
   type: option.value,
   label: option.label,
-  marker: WORDS[option.value]?.marker ?? option.value.replace(/_/g, "-"),
-  family: WORDS[option.value]?.family ?? "Other",
+  marker: WORDS[option.value] ?? option.value.replace(/_/g, "-"),
 }));
 
 export type SoundTag = (typeof SOUND_TAGS)[number];
 
-/** The tags matching a search (word or name), in family order: the order every list shows them in. */
+/** The tags matching a search, by their word or their name. */
 export function findSoundTags(query: string): SoundTag[] {
   const q = query.trim().toLowerCase();
-  return SOUND_FAMILIES.flatMap((family) =>
-    SOUND_TAGS.filter(
-      (tag) => tag.family === family && (!q || tag.marker.includes(q) || tag.label.toLowerCase().includes(q))
-    )
-  );
+  return SOUND_TAGS.filter((tag) => !q || tag.marker.includes(q) || tag.label.toLowerCase().includes(q));
 }
 
 /** How a stored mark reads in the text. */
@@ -131,6 +110,9 @@ export function injectMarkers(text: string, marks: { type: string; afterWord: nu
 export function markerAtCaret(value: string, caret: number) {
   const open = /\[([a-z-]*)$/i.exec(value.slice(0, caret));
   if (!open) return null;
+  /* Inside a finished marker (`[oth|er]`, `[laugh|]`) it is being changed, not typed. */
+  const rest = /^([a-z-]*)\]/i.exec(value.slice(caret));
+  if (rest && (rest[1] || markerType(open[1]))) return null;
   const closes = value[caret] === "]";
   return { from: caret - open[0].length, to: caret + (closes ? 1 : 0), query: open[1].toLowerCase() };
 }

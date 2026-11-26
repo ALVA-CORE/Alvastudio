@@ -1,3 +1,4 @@
+import { roleOptions } from "@/data/admin/users";
 import { describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -321,13 +322,21 @@ describe("intern approval", () => {
     for (const role of ["contributor", "intern", "annotator", "admin"] as const) {
       renderPanel({ user: { ...user, role } });
       expect(
-        screen.getByRole("button", { name: /Reset password/ })
+        screen.getByRole("button", { name: "Reset" })
       ).toBeInTheDocument();
       cleanup();
     }
 
     renderPanel({ user: pendingIntern });
-    expect(screen.getByRole("button", { name: /Reset password/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
+  });
+});
+
+describe("the role picker", () => {
+  it("greys out Admin once three admins exist, but not for one already", () => {
+    expect(roleOptions(true).find((option) => option.value === "admin")).toMatchObject({ disabled: true });
+    expect(roleOptions(true, "admin").find((option) => option.value === "admin")).toMatchObject({ disabled: false });
+    expect(roleOptions(false).find((option) => option.value === "admin")).toMatchObject({ disabled: false });
   });
 });
 

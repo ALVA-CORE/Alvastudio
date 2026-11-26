@@ -24,6 +24,7 @@ import {
   PanelDivider,
 } from "@/components/shared/PanelPrimitives";
 import { ScrollableTabStrip } from "@/components/annotators/workspace/tagging/ScrollableTabStrip";
+import { TagDragPalette } from "@/components/annotators/workspace/tagging/TagDragPalette";
 import { AlvaSelect } from "@/components/shared/AlvaSelect";
 import { cn } from "@/lib/utils";
 import { NO_VALUE } from "@/lib/no-value";
@@ -373,6 +374,13 @@ export const TagInspector = memo(function TagInspector() {
       <section className="space-y-2">
         <h3 className={PANEL_SECTION_LABEL}>Apply</h3>
         <TagApplyList selectedIds={selectedIds} />
+      </section>
+
+      <PanelDivider />
+
+      <section className="space-y-2">
+        <h3 className={PANEL_SECTION_LABEL}>Drag onto the text</h3>
+        <TagDragPalette />
       </section>
 
       <PanelDivider />

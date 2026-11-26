@@ -105,21 +105,75 @@ export function redeemPasswordReset(body: { token: string; new_password: string 
   });
 }
 
+/**
+ * An admin's sign-in, half done (25 Nov): a six-digit code went to their
+ * email, and the token comes once it is sent back. Keep it in memory only.
+ */
+export type SignInChallenge = {
+  code_required: true;
+  challenge_id: string;
+  expires_at: string;
+  /** Where the code went, masked: a•••@alvacoreai.com. */
+  email_hint: string;
+  /** False when email can't be sent: only a recovery code will do. */
+  email_sent: boolean;
+  resends_left: number;
+};
+
+function keep(token: ApiToken, remember: boolean) {
+  setToken(token.access_token, remember);
+  if (token.expires_in) setExpiry(Date.now() + token.expires_in * 1000);
+}
+
+/** A token, or for an admin a code challenge (a 202, which carries `code_required`). */
 export async function login(
   email: string,
   password: string,
   remember = true
-): Promise<ApiToken> {
-  const token = await apiFetch<ApiToken>("/auth/login", {
+): Promise<ApiToken | SignInChallenge> {
+  const answer = await apiFetch<ApiToken | SignInChallenge>("/auth/login", {
     method: "POST",
     body: { email, password },
     anonymous: true,
   });
-
-  setToken(token.access_token, remember);
-  if (token.expires_in) setExpiry(Date.now() + token.expires_in * 1000);
-  return token;
+  if ("code_required" in answer) return answer;
+  keep(answer, remember);
+  return answer;
 }
+
+/**
+ * The emailed code, or one recovery code, for the token. A refusal is a 400
+ * with `code`: `code_invalid` (with `attempts_left`) or `challenge_expired`.
+ */
+export async function verifySignInCode(
+  challengeId: string,
+  answer: { code: string } | { recovery_code: string },
+  remember: boolean
+) {
+  const token = await apiFetch<ApiToken>("/auth/login/verify", {
+    method: "POST",
+    body: { challenge_id: challengeId, ...answer },
+    anonymous: true,
+  });
+  keep(token, remember);
+}
+
+/** The same code again. 429 sent under a minute ago (`Retry-After`), 409 no resends left. */
+export const resendSignInCode = (challengeId: string) =>
+  apiFetch<SignInChallenge>("/auth/login/resend", {
+    method: "POST",
+    body: { challenge_id: challengeId },
+    anonymous: true,
+  });
+
+export type RecoveryCodes = { codes: string[]; issued_at: string };
+
+/** An admin's own recovery codes: how many are left. */
+export const recoveryCodesLeft = () =>
+  apiFetch<{ remaining: number; issued_at: string | null }>("/auth/recovery-codes");
+
+/** Ten new codes, shown once. Every older code stops working. */
+export const makeRecoveryCodes = () => apiFetch<RecoveryCodes>("/auth/recovery-codes", { method: "POST" });
 
 /** `GET /auth/me` — the source of truth for who the bearer token belongs to. */
 export function me(): Promise<ApiUser> {

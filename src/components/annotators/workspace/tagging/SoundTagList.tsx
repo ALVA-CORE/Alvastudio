@@ -1,12 +1,12 @@
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import Magnifier from "@solar-icons/react/search/Magnifier";
 import { NON_SPEECH_COLOR } from "@/lib/annotation/tags";
-import { SOUND_FAMILIES, type SoundTag } from "@/lib/annotation/markers";
+import type { SoundTag } from "@/lib/annotation/markers";
 import { cn } from "@/lib/utils";
 
 /**
- * Sound tags under their family headings, as every list of them shows them:
- * the `[` list while typing, and the menu that changes a tag.
+ * Sound tags, as every list of them shows them: the `[` list while typing,
+ * and the menu that changes a tag.
  *
  * Picked on mouse down, so the text box keeps focus and edit mode stays open.
  */
@@ -18,7 +18,7 @@ export function SoundTagList({
   search,
   footer,
 }: {
-  /** Already filtered and in family order (`findSoundTags`). */
+  /** Already filtered (`findSoundTags`). */
   tags: SoundTag[];
   /** The tag being changed, ticked. */
   current?: string;
@@ -46,36 +46,25 @@ export function SoundTagList({
       ) : null}
       <ul role="listbox" aria-label="Sound tags" className="max-h-64 overflow-y-auto py-1">
         {tags.length === 0 ? <li className="px-3 py-2 text-xs text-muted-foreground">No sound by that name</li> : null}
-        {SOUND_FAMILIES.map((family) => {
-          const inFamily = tags.filter((tag) => tag.family === family);
-          if (!inFamily.length) return null;
-          return (
-            <li key={family} role="presentation">
-              <p className="px-3 pb-0.5 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground">{family}</p>
-              <ul role="presentation">
-                {inFamily.map((tag) => (
-                  <li
-                    key={tag.type}
-                    role="option"
-                    aria-selected={tags.indexOf(tag) === highlight}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      onPick(tag.type);
-                    }}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-alva-surface",
-                      tags.indexOf(tag) === highlight && "bg-alva-surface"
-                    )}
-                  >
-                    <span style={{ color: NON_SPEECH_COLOR }}>[{tag.marker}]</span>
-                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{tag.label}</span>
-                    {tag.type === current ? <CheckCircle size={13} weight="Bold" className="text-alva-accent" /> : null}
-                  </li>
-                ))}
-              </ul>
-            </li>
-          );
-        })}
+        {tags.map((tag, index) => (
+          <li
+            key={tag.type}
+            role="option"
+            aria-selected={index === highlight}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onPick(tag.type);
+            }}
+            className={cn(
+              "flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs hover:bg-alva-surface",
+              index === highlight && "bg-alva-surface"
+            )}
+          >
+            <span style={{ color: NON_SPEECH_COLOR }}>[{tag.marker}]</span>
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">{tag.label}</span>
+            {tag.type === current ? <CheckCircle size={13} weight="Bold" className="text-alva-accent" /> : null}
+          </li>
+        ))}
       </ul>
       {footer}
     </div>
