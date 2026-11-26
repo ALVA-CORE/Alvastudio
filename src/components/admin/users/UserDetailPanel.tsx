@@ -36,8 +36,8 @@ import { diceBearAvatarUrl } from "@/lib/dicebear";
 import { alvaToast } from "@/lib/alva-toast";
 import {
   ADMIN_PERMISSIONS,
-  CREATABLE_ROLES,
   ROLE_LABELS,
+  roleOptions,
   STATUS_LABEL,
   accountStatus,
   canEditProfile,
@@ -86,6 +86,7 @@ export function UserDetailPanel({
   onApprove,
   onDelete,
   onSave,
+  adminsFull = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -94,6 +95,8 @@ export function UserDetailPanel({
   onApprove: (user: AdminUser) => void;
   onDelete: (user: AdminUser, blockEmail: boolean) => void;
   onSave: (user: AdminUser, draft: UserDraft) => void;
+  /** Three admins exist, so Admin is greyed out in the role picker. */
+  adminsFull?: boolean;
 }) {
   const [tab, setTab] = useState("profile");
   const [isEditing, setEditing] = useState(false);
@@ -269,14 +272,14 @@ export function UserDetailPanel({
               {user.role === "admin" && me && user.id !== me.id ? (
                 <PanelAction
                   icon={<KeyMinimalistic size={15} weight="Outline" />}
-                  label="Recovery codes"
+                  label="Codes"
                   onClick={() => setCodesOpen(true)}
                 />
               ) : null}
               {canResetPassword(user) ? (
                 <PanelAction
                   icon={<KeyMinimalistic size={15} weight="Outline" />}
-                  label="Reset password"
+                  label="Reset"
                   onClick={() => {
                     /* The dialog asks first and sends the email itself. It
                      * used to issue a token here and print it for the admin
@@ -354,10 +357,7 @@ export function UserDetailPanel({
                       className="mt-1"
                       value={value.role}
                       onValueChange={(next) => patch({ role: next as AdminUserRole })}
-                      options={CREATABLE_ROLES.map((role) => ({
-                        value: role,
-                        label: ROLE_LABELS[role],
-                      }))}
+                      options={roleOptions(adminsFull, user.role)}
                     />
                   </div>
                 </>

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 type AlvaSelectOption = {
   value: string;
   label: string;
+  disabled?: boolean;
 };
 
 type AlvaSelectProps = {
@@ -76,7 +77,7 @@ export function AlvaSelect({
       </FieldBeam>
       <SelectContent className="rounded-2xl border-alva-border bg-alva-card">
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
+          <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </SelectItem>
         ))}

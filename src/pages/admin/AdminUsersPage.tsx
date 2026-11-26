@@ -32,6 +32,7 @@ import {
   ROLE_LABELS,
   STATUS_LABEL,
   STATUS_TINT,
+  MAX_ADMINS,
   accountStatus,
   userMetrics,
   type AccountStatus,
@@ -78,6 +79,8 @@ export default function AdminUsersPage() {
     approve,
     remove,
   } = useAdminUsers();
+  /* Deactivated admins count too: the API caps every admin account at three. */
+  const adminsFull = users.filter((user) => user.role === "admin").length >= MAX_ADMINS;
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   /* Two panels, deliberately. Clicking a row opens the record — the thing an
@@ -530,6 +533,7 @@ export default function AdminUsersPage() {
         onApprove={handleApprove}
         onDelete={handleDelete}
         onSave={handleSave}
+        adminsFull={adminsFull}
       />
 
       {/* After a create. The API queues the invitation itself and already
@@ -553,6 +557,7 @@ export default function AdminUsersPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         onCreate={handleCreate}
+        adminsFull={adminsFull}
       />
         </>
       )}

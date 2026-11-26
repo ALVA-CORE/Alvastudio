@@ -11,9 +11,8 @@ import { TextureButton } from "@/components/ui/texture-button";
 import { alvaFieldClass } from "@/lib/alva-form-styles";
 import {
   ADMIN_PERMISSIONS,
-  CREATABLE_ROLES,
   DEFAULT_ADMIN_PERMISSIONS,
-  ROLE_LABELS,
+  roleOptions,
   type AdminPermission,
   type AdminUserRole,
 } from "@/data/admin/users";
@@ -51,10 +50,13 @@ export function CreateUserDialog({
   open,
   onOpenChange,
   onCreate,
+  adminsFull = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreate: (draft: NewUserDraft) => void;
+  /** Three admins exist, so Admin is greyed out. */
+  adminsFull?: boolean;
 }) {
   const [draft, setDraft] = useState<NewUserDraft>(EMPTY);
   const [error, setError] = useState<string | null>(null);
@@ -147,10 +149,7 @@ export function CreateUserDialog({
                 className="mt-1.5"
                 value={draft.role}
                 onValueChange={(value) => patch({ role: value as AdminUserRole })}
-                options={CREATABLE_ROLES.map((role) => ({
-                  value: role,
-                  label: ROLE_LABELS[role],
-                }))}
+                options={roleOptions(adminsFull)}
               />
             </div>
           </div>
