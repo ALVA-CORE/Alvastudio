@@ -236,6 +236,8 @@ function SessionMetaSidebarImpl({
   return (
     <TooltipProvider delayDuration={300}>
       <aside
+        /* Its Tags tab applies to the highlighted words, so clicks here keep them. */
+        data-tag-panel
         aria-label="Session details"
         className={cn(
           // Hidden below xl: on a 1280-and-under desktop the transcript column is

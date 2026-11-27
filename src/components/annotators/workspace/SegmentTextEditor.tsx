@@ -141,11 +141,11 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
             insert(suggestions[Math.min(highlight, suggestions.length - 1)].type);
             return;
           }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            setCaret(null);
-            return;
-          }
+        }
+        if (typing && event.key === "Escape") {
+          event.preventDefault();
+          setCaret(null);
+          return;
         }
 
         if (event.key === "Enter") {
@@ -175,7 +175,7 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
           onMergeWithPrevious();
         }
       },
-      [onMergeWithPrevious, onSplit, value, suggestions, highlight, insert]
+      [onMergeWithPrevious, onSplit, value, suggestions, highlight, insert, typing]
     );
 
     /* Highlighted characters, reported so the row can tag those words. */
@@ -209,7 +209,8 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
       setAnchor((current) => (current?.left === left && current.top === top ? current : { left, top }));
     }, [anchorAt, value]);
 
-    const popup = suggestions.length
+    /* Open while a marker is being typed, matches or not, so the search shows. */
+    const popup = typing
       ? "markers"
       : changing
         ? "change"
@@ -293,7 +294,7 @@ export const SegmentTextEditor = forwardRef<HTMLTextAreaElement, SegmentTextEdit
               }
             />
           ) : (
-            <SoundTagList tags={suggestions} highlight={highlight} onPick={insert} />
+            <SoundTagList tags={suggestions} typed={typing?.query ?? ""} highlight={highlight} onPick={insert} />
           )}
         </div>
       ) : null}

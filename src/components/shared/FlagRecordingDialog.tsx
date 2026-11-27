@@ -74,7 +74,7 @@ export function FlagRecordingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="border-alva-border bg-alva-card sm:max-w-md">
+      <DialogContent aria-describedby={undefined} className="border-alva-border bg-alva-card sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
             <Flag size={20} weight="BoldDuotone" className="text-destructive" />

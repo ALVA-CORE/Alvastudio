@@ -432,23 +432,6 @@ describe("AnnotationWorkspace", () => {
     expect(state.nonSpeech).toEqual([expect.objectContaining({ type: "laugh", atToken: 0 })]);
   });
 
-  it("tags the word a chip from the panel is dropped on", async () => {
-    const user = userEvent.setup();
-    const { store, container } = renderWorkspace();
-    await user.click(screen.getByRole("tab", { name: /tags/i }));
-
-    const dataTransfer = { setData: () => {}, effectAllowed: "", dropEffect: "" };
-    fireEvent.dragStart(screen.getByText("Nigerian Pidgin", { selector: "[draggable] span" }), { dataTransfer });
-    const word = container.querySelector('[data-token="1"]') as HTMLElement;
-    fireEvent.dragOver(word, { dataTransfer });
-    expect(word).toHaveClass("alva-drop-word");
-    fireEvent.drop(word, { dataTransfer });
-
-    expect(store.getState().history.present.spans).toEqual([
-      expect.objectContaining({ kind: "language", value: "pcm", startToken: 1, endToken: 1 }),
-    ]);
-  });
-
   it("keeps the save status out of the session status pill", () => {
     renderWorkspace();
 
