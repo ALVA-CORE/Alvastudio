@@ -27,10 +27,10 @@ describe("typed markers", () => {
   });
 
   it("leaves an unknown marker in the text and names it", () => {
-    expect(extractMarkers("so [yawn] tired")).toEqual({
-      text: "so [yawn] tired",
+    expect(extractMarkers("so [sneeze] tired")).toEqual({
+      text: "so [sneeze] tired",
       marks: [],
-      unknown: ["[yawn]"],
+      unknown: ["[sneeze]"],
     });
   });
 
@@ -55,7 +55,7 @@ describe("typed markers", () => {
 
   it("knows a marker word from a real one", () => {
     expect(isMarkerWord("[laugh]")).toBe(true);
-    expect(isMarkerWord("[yawn]")).toBe(false);
+    expect(isMarkerWord("[sneeze]")).toBe(false);
     expect(isMarkerWord("laugh")).toBe(false);
   });
 

@@ -53,7 +53,7 @@ export type ApiRecording = {
    * has judged it.
    */
   verdicts?: ApiRecordingVerdict[] | null;
-  /** A standing junk flag. On `GET /recordings/{id}` only; null in lists. */
+  /** A standing junk flag; null when there is none. */
   flag?: { reasons: ApiFlagReason[]; flagged_at: string } | null;
 };
 
@@ -73,10 +73,11 @@ export type ApiRecordingVerdict = {
   reviewer_id: string;
   reviewer_name: string | null;
   verdict: "approve" | "reject" | "flag";
-  q_noise_free: ApiAnswer;
-  q_clear_audible: ApiAnswer;
-  q_matches_prompt: ApiAnswer;
-  q_natural_intelligible: ApiAnswer;
+  /* Null only on a flag, for a question left unanswered (ask #26). */
+  q_noise_free: ApiAnswer | null;
+  q_clear_audible: ApiAnswer | null;
+  q_matches_prompt: ApiAnswer | null;
+  q_natural_intelligible: ApiAnswer | null;
   notes: string | null;
   /** Null for an approval or a flag. */
   rejection_reason: ApiRejectionReason | null;
@@ -182,6 +183,8 @@ export const listRecordingsPage = (
     expand?: "verdicts";
     /** Only clips this user has judged: an intern's history. Interns may name only themselves. */
     judged_by?: string;
+    /** `true`: only clips with a standing junk flag. */
+    flagged?: boolean;
     limit?: number;
     offset?: number;
   } = {},
@@ -205,6 +208,8 @@ export type ApiRecordingSummary = {
   awaiting_in_bank: number;
   /** Awaiting a verdict on an intern's desk. */
   awaiting_on_desks: number;
+  /** Clips with a standing junk flag: a part of `by_status.rejected`. */
+  junk_flagged: number;
   /** Every reason, in the rule's order; sums to `by_status.rejected`. */
   rejection_reasons: { reason: ApiRejectionReason; count: number }[];
   /** Approved or rejected clips by who decided them, most first. */

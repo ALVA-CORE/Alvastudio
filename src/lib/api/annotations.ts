@@ -59,6 +59,8 @@ export type ApiSegment = {
   start_token: number;
   end_token: number;
   language_spans: ApiLanguageSpan[];
+  /** `[]` on segments saved before 27 Nov. */
+  manner_spans: { start_token: number; end_token: number; manner: string }[];
   disfluencies: unknown[];
   untranscribable_spans: unknown[];
   non_speech_events: unknown[];

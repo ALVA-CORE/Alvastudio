@@ -39,7 +39,11 @@ import type { ApiRecordingSort } from "@/lib/api/recordings";
 import { reportApiError } from "@/lib/api/reportApiError";
 import { NO_VALUE } from "@/lib/no-value";
 
-type StatusFilter = RecordingStatus | "all";
+/* `junk` is not a status: a standing junk flag, listed with `flagged=true`. */
+type StatusFilter = RecordingStatus | "all" | "junk";
+
+const FILTER_LABEL = (value: Exclude<StatusFilter, "all">) =>
+  value === "junk" ? "Flagged as junk" : RECORDING_STATUS_LABELS[value];
 
 const STATUS_TONE: Record<RecordingStatus, PillTone> = {
   approved: "good",
@@ -50,7 +54,7 @@ const STATUS_TONE: Record<RecordingStatus, PillTone> = {
 };
 
 const STATUSES: StatusFilter[] = [
-  "all", "submitted", "in_review", "approved", "rejected", "flagged",
+  "all", "submitted", "in_review", "approved", "rejected", "junk", "flagged",
 ];
 
 /* Reds and ambers — every slice here is a loss, so none of them should read
@@ -98,7 +102,8 @@ export default function AdminReviewsPage() {
 
   const { rows, total, summary, isLoading, isFetching, error, reload, reassign } =
     useAdminReviews({
-      status: status === "all" ? undefined : status,
+      status: status === "all" || status === "junk" ? undefined : status,
+      junk: status === "junk",
       q: query,
       judgedBy,
       sessionType,
@@ -127,8 +132,8 @@ export default function AdminReviewsPage() {
   const recordings = summary?.total ?? 0;
   const approved = summary?.by_status.approved ?? 0;
   const rejected = summary?.by_status.rejected ?? 0;
-  /* Junk flags are rejections (21 Nov), counted among the reasons. */
-  const junk = summary?.rejection_reasons.find((entry) => entry.reason === "flagged")?.count ?? 0;
+  /* A part of `rejected`, not beside it. */
+  const junk = summary?.junk_flagged ?? 0;
   const pending = (summary?.awaiting_in_bank ?? 0) + (summary?.awaiting_on_desks ?? 0);
   /* Through the shared function, so this and the dashboard cannot drift into
      two different answers under the same heading again. */
@@ -215,15 +220,16 @@ export default function AdminReviewsPage() {
       serverFilter: {
         options: STATUSES.filter((value) => value !== "all").map((value) => ({
           value,
-          label: RECORDING_STATUS_LABELS[value as RecordingStatus],
+          label: FILTER_LABEL(value as Exclude<StatusFilter, "all">),
         })),
         value: status === "all" ? null : status,
         onChange: (value: string | null) => showStatus((value as StatusFilter) ?? "all"),
       },
-      /* A junk flag is a rejection; said as one so it can be found. */
+      /* A junk flag is a rejection, even one made after approval; said as
+         one so it can be found. */
       render: (row: AdminRecording) => (
-        <AdminStatusPill tone={STATUS_TONE[row.status]}>
-          {row.rejectionReason === "Flagged as junk" ? "Flagged as junk" : RECORDING_STATUS_LABELS[row.status]}
+        <AdminStatusPill tone={row.flag ? "bad" : STATUS_TONE[row.status]}>
+          {row.flag ? "Flagged as junk" : RECORDING_STATUS_LABELS[row.status]}
         </AdminStatusPill>
       ),
     },
@@ -443,7 +449,7 @@ export default function AdminReviewsPage() {
                   onCheckedChange={() => showStatus(value)}
                   onSelect={(event) => event.preventDefault()}
                 >
-                  {value === "all" ? "All statuses" : RECORDING_STATUS_LABELS[value]}
+                  {value === "all" ? "All statuses" : FILTER_LABEL(value)}
                 </DropdownMenuCheckboxItem>
               ))}
             </>

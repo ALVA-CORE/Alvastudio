@@ -27,6 +27,7 @@ const segment = (id: string, extra: Record<string, unknown>) => ({
   start_token: 0,
   end_token: 1,
   language_spans: [],
+  manner_spans: [],
   disfluencies: [],
   untranscribable_spans: [],
   non_speech_events: [],

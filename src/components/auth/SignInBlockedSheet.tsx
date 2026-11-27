@@ -107,9 +107,8 @@ const COPY: Record<
 };
 
 /**
- * Why an account was turned off, as the sign-in refusal will say it
- * (asked in endpoints-needed #30). Until then every one is "Inactive
- * account" with no `code`, and reads as `suspended`.
+ * Why an account was closed: a `code` on the "Inactive account" 403
+ * (27 Nov). None means an admin turned it off by hand: `suspended`.
  */
 const CLOSED_BY_CODE: Record<string, SignInBlock> = {
   account_closed_duplicate: "closedDuplicate",

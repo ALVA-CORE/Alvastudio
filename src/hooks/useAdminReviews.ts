@@ -34,6 +34,8 @@ const MODE: Record<string, AdminRecording["mode"]> = {
 export type ReviewsView = {
   /** Omitted for every status. */
   status?: ApiRecordingStatus;
+  /** Only clips with a standing junk flag. */
+  junk?: boolean;
   /** Blank for no search. */
   q: string;
   /** Only clips this person has judged. */
@@ -58,7 +60,7 @@ export type ReviewsView = {
  * verdict where it wanted the newest and lost rows to uploads mid-load.
  */
 export function useAdminReviews(view: ReviewsView) {
-  const { status, q, judgedBy, sessionType, sort, page, pageSize } = view;
+  const { status, junk, q, judgedBy, sessionType, sort, page, pageSize } = view;
   const [rows, setRows] = useState<AdminRecording[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<ApiRecordingSummary | null>(null);
@@ -87,6 +89,7 @@ export function useAdminReviews(view: ReviewsView) {
           offset: (page - 1) * pageSize,
           expand: "verdicts",
           ...(status ? { status } : {}),
+          ...(junk ? { flagged: true } : {}),
           ...(q ? { q } : {}),
           ...(judgedBy ? { judged_by: judgedBy } : {}),
           ...(sessionType ? { session_type: sessionType } : {}),
@@ -116,7 +119,7 @@ export function useAdminReviews(view: ReviewsView) {
       });
 
     return () => controller.abort();
-  }, [status, q, judgedBy, sessionType, sortKey, sortOrder, page, pageSize, attempt]);
+  }, [status, junk, q, judgedBy, sessionType, sortKey, sortOrder, page, pageSize, attempt]);
 
   /** The page and the counts again, as after a reassign or a reopen. */
   const reload = useCallback(() => {
@@ -137,7 +140,7 @@ export function useAdminReviews(view: ReviewsView) {
 
 /** The four answers, in the order the rubric asks them. */
 function toRubric(verdict: ApiRecordingVerdict): RubricEntry[] {
-  const answers: Record<string, RubricAnswer> = {
+  const answers: Record<string, RubricAnswer | null> = {
     noiseFree: verdict.q_noise_free,
     audible: verdict.q_clear_audible,
     matchesPrompt: verdict.q_matches_prompt,
@@ -185,6 +188,7 @@ function toAdminRecording(api: ApiRecording): AdminRecording {
     /* The reviewer's real answers, or nothing. Null is not "all yes": it is
        "nobody has judged this", and the panel says so. */
     rubric: latest ? toRubric(latest) : null,
+    flag: api.flag ?? null,
     reviewNotes: latest?.notes ?? null,
   };
 }

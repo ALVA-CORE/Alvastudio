@@ -8,7 +8,7 @@ import { NON_SPEECH_OPTIONS } from "./tags";
  * goes in and out of this module, and nothing else parses brackets.
  */
 
-/* Each API type's bracket word. The lead's other markers wait on ask #29. */
+/* Each API type's bracket word, where it is not the type with `-` for `_`. */
 const WORDS: Record<string, string> = {
   throat_clear: "throat-clear",
   lip_smack: "lip-smack",

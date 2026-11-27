@@ -39,6 +39,8 @@ const SCHEMA_ENUMS = {
     "too_fast",
     "other",
   ],
+  /* The API's `MannerType` (27 Nov). */
+  manner: ["whisper", "shout", "laughing", "sung", "imitating"],
   pcm_construction: [
     "serial_verb",
     "subjunctive_make",
@@ -68,6 +70,11 @@ const SCHEMA_NON_SPEECH = [
   "dtmf_or_beep",
   "non_lexical_hesitation",
   "other",
+  /* The lead's markers, in the API's `NonSpeechEventType` since 27 Nov. */
+  "kiss_teeth", "hiss", "sigh", "tsk", "sniff", "yawn", "swallow", "gasp", "groan",
+  "chuckle", "whistle", "hum", "cry", "pause_short", "pause_med", "pause_long",
+  "bg_speech", "phone", "generator", "traffic", "clap", "door", "horn", "rain", "wind",
+  "child", "tv", "clip", "plosive", "mic_bump", "dropout", "bleed", "chair_creak",
 ];
 
 const SCHEMA_DIFFICULTY = [

@@ -123,6 +123,8 @@ export type ApiInternDashboard = {
   quality_in_window: ApiQualityRadar;
   participants_in_window: number;
   hours_in_window: number;
+  /** The 365 days before the window, for the 12-month trend. */
+  previous_year: { sessions: number; participants: number; hours: number };
 };
 
 export const contributorDashboard = () =>
@@ -192,6 +194,7 @@ export type ApiTagBreakdown = {
   by_disfluency: Record<string, number>;
   by_untranscribable_reason: Record<string, number>;
   by_non_speech_event: Record<string, number>;
+  by_manner: Record<string, number>;
 };
 
 export type ApiAnnotatorDashboard = {
@@ -223,6 +226,18 @@ export type ApiAnnotatorDashboard = {
   speaker_demographics: ApiDemographicBreakdown;
   /** 365 days, zero-filled, oldest first, `YYYY-MM-DD` in Africa/Lagos. */
   daily_activity: ApiDailyActivity[];
+  /** The same 365 days, every card's measure: each series sums to its card. */
+  daily_work: ({ date: string } & ApiAnnotatorTotals)[];
+  /** The 365 days before, for the 12-month trend. */
+  previous_year: ApiAnnotatorTotals;
+};
+
+type ApiAnnotatorTotals = {
+  segments: number;
+  tags: number;
+  sessions: number;
+  narrations: number;
+  hours: number;
 };
 
 export const annotatorDashboard = () =>

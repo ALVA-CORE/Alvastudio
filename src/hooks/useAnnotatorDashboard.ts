@@ -4,7 +4,7 @@ import { useApiResource } from "@/hooks/useApiResource";
 import type { HeatmapColumn } from "@/components/charts/heatmap";
 import { NO_VALUE } from "@/lib/no-value";
 import type { DashboardTimeRange } from "@/data/internDashboard";
-import { toDemographicSpeakers } from "@/data/internDashboard";
+import { periodTrend, RANGE_DAYS, RANGE_LABEL, toDemographicSpeakers } from "@/data/internDashboard";
 import type { ApiTagBreakdown } from "@/lib/api/dashboard";
 import type { SunburstNode } from "@/components/charts/sunburst-data";
 import type { SpanKind } from "@/lib/annotation/tags";
@@ -55,19 +55,6 @@ function toHeatmapColumns(daily: ApiDailyActivity[]): HeatmapColumn[] {
   return columns;
 }
 
-/** Whole-number metric, or an em dash when there is genuinely nothing. */
-function count(value: number | undefined) {
-  return value == null ? NO_VALUE : value.toLocaleString();
-}
-
-/** How many days of `daily_activity` each filter shows. */
-const RANGE_DAYS: Record<DashboardTimeRange, number> = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90,
-  "12m": 365,
-};
-
 /**
  * `tag_breakdown` → the sunburst's two rings.
  *
@@ -85,6 +72,7 @@ function toTagSunburst(breakdown: ApiTagBreakdown | undefined): SunburstNode {
     { kind: "language", counts: breakdown?.by_language ?? {} },
     { kind: "disfluency", counts: breakdown?.by_disfluency ?? {} },
     { kind: "untranscribable", counts: breakdown?.by_untranscribable_reason ?? {} },
+    { kind: "manner", counts: breakdown?.by_manner ?? {} },
   ];
 
   const children: SunburstNode[] = families
@@ -119,9 +107,8 @@ function toTagSunburst(breakdown: ApiTagBreakdown | undefined): SunburstNode {
 export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
   const { data, isLoading, error, reload } = useApiResource(annotatorDashboard, []);
 
-  /* `daily_activity` is the full 365 days in one response, so the filter is a
-   * slice rather than a refetch. The totals beside it have no window at the
-   * API, which is why they do not move with it. */
+  /* `daily_activity` and `daily_work` are the full 365 days in one response,
+   * so the filter is a slice rather than a refetch. */
   const activity = useMemo(
     () =>
       data
@@ -130,19 +117,29 @@ export function useAnnotatorDashboard(range: DashboardTimeRange = "30d") {
     [data, range]
   );
 
-  const metrics = useMemo(
-    () => ({
-      clipsAnnotated: count(data?.segments_created),
-      hoursAnnotated: data ? `${data.hours_annotated.toFixed(1)}h` : NO_VALUE,
-      tagsApplied: count(data?.tags_applied),
-      sessionsAnnotated: count(data?.sessions_annotated),
-      queueAvailable: count(data?.queue_available),
-      /* No trends: the endpoint returns current totals, not a
-       * period-over-period comparison, so there is no honest arrow to draw. */
-      periodLabel: "",
-    }),
-    [data]
-  );
+  /* Each card over the window, against the same span before it; 12 months
+   * against `previous_year`, since 365 days can't hold the year before. */
+  const metrics = useMemo(() => {
+    if (!data) {
+      return { clipsAnnotated: NO_VALUE, hoursAnnotated: NO_VALUE, tagsApplied: NO_VALUE, periodLabel: "" };
+    }
+    const days = RANGE_DAYS[range];
+    const before = data.daily_work.length >= days * 2 ? data.daily_work.slice(-days * 2, -days) : null;
+    const window = data.daily_work.slice(-days);
+    const sum = (rows: typeof window, key: "segments" | "tags" | "hours") =>
+      rows.reduce((total, day) => total + day[key], 0);
+    const trend = (key: "segments" | "tags" | "hours") =>
+      periodTrend(sum(window, key), before ? sum(before, key) : data.previous_year[key]);
+    return {
+      clipsAnnotated: sum(window, "segments").toLocaleString(),
+      hoursAnnotated: `${sum(window, "hours").toFixed(1)}h`,
+      tagsApplied: sum(window, "tags").toLocaleString(),
+      clipsTrend: trend("segments"),
+      hoursTrend: trend("hours"),
+      tagsTrend: trend("tags"),
+      periodLabel: RANGE_LABEL[range],
+    };
+  }, [data, range]);
 
   /* Numbers, for the narrations chart: done by this annotator, and in the pool. */
   const narrations = useMemo(

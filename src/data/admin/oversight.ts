@@ -3,7 +3,7 @@ import {
 } from "./shared";
 import type { SunburstNode } from "@/components/charts/sunburst-data";
 import type { SankeyFlow } from "./corpus";
-import type { ApiRejectionReason } from "@/lib/api/recordings";
+import type { ApiRecording, ApiRejectionReason } from "@/lib/api/recordings";
 import type { ApiAnnotationKind } from "@/lib/api/annotations";
 import { ANNOTATION_STATUS_COLORS, PERSON_COLORS } from "./statusColors";
 
@@ -59,6 +59,8 @@ export type AdminRecording = {
    * showed a full set of answers under the heading "Reviewer answers".
    */
   rubric: RubricEntry[] | null;
+  /** A standing junk flag, made with the verdict or after approval. */
+  flag?: ApiRecording["flag"];
   /** What the reviewer wrote, if anything. */
   reviewNotes?: string | null;
 };
@@ -83,7 +85,8 @@ export const RUBRIC_LABELS: Record<RubricAnswer, string> = {
 export type RubricEntry = {
   id: (typeof RUBRIC_QUESTIONS)[number]["id"];
   label: string;
-  answer: RubricAnswer;
+  /** Null when a flag left it unanswered. */
+  answer: RubricAnswer | null;
 };
 
 export type RejectionReason =
