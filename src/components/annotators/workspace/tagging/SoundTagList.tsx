@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import CheckCircle from "@solar-icons/react/ui/CheckCircle";
 import Magnifier from "@solar-icons/react/search/Magnifier";
 import { NON_SPEECH_COLOR } from "@/lib/annotation/tags";
@@ -16,6 +17,7 @@ export function SoundTagList({
   highlight = -1,
   onPick,
   search,
+  typed,
   footer,
 }: {
   /** Already filtered (`findSoundTags`). */
@@ -27,8 +29,16 @@ export function SoundTagList({
   onPick: (type: string) => void;
   /** A search box at the top, where there is no typing to search by. */
   search?: { value: string; onChange: (value: string) => void };
+  /** The `[` list: what is typed after the `[`, shown as its search. */
+  typed?: string;
   footer?: React.ReactNode;
 }) {
+  /* The arrow keys move past the visible rows; keep the picked one in view. */
+  const listRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" });
+  }, [highlight, tags]);
+
   return (
     <div className="w-56 overflow-hidden rounded-xl border border-alva-border bg-alva-card shadow-lg">
       {search ? (
@@ -44,7 +54,18 @@ export function SoundTagList({
           />
         </label>
       ) : null}
-      <ul role="listbox" aria-label="Sound tags" className="max-h-64 overflow-y-auto py-1">
+      {typed !== undefined ? (
+        <div className="flex items-center gap-2 border-b border-alva-border px-3 py-2 text-xs">
+          <Magnifier size={14} weight="Linear" className="shrink-0 text-muted-foreground" />
+          {typed ? (
+            <span className="min-w-0 flex-1 truncate text-foreground">{typed}</span>
+          ) : (
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">Keep typing to search</span>
+          )}
+          <span className="shrink-0 tabular-nums text-muted-foreground">{tags.length}</span>
+        </div>
+      ) : null}
+      <ul ref={listRef} role="listbox" aria-label="Sound tags" className="max-h-64 overflow-y-auto py-1">
         {tags.length === 0 ? <li className="px-3 py-2 text-xs text-muted-foreground">No sound by that name</li> : null}
         {tags.map((tag, index) => (
           <li

@@ -14,7 +14,10 @@ import {
   getEmptyDashboardDataset,
   toCaptureTrend,
   periodTrend,
+  RANGE_DAYS,
+  RANGE_LABEL,
   toDemographicSpeakers,
+  trendOf,
   toQualityRadar,
   toWeeklySessions,
   type DashboardTimeRange,
@@ -24,28 +27,6 @@ import { NO_VALUE } from "@/lib/no-value";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useInternReviewCount } from "@/hooks/useInternReviewCount";
 import { internDashboard } from "@/lib/api/dashboard";
-
-/** How many days of `daily_activity` each filter shows. */
-const RANGE_DAYS: Record<DashboardTimeRange, number> = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90,
-  "12m": 365,
-};
-
-const RANGE_LABEL: Record<DashboardTimeRange, string> = {
-  "7d": "Last 7 days",
-  "30d": "Last 30 days",
-  "90d": "Last 90 days",
-  "12m": "Last 12 months",
-};
-
-/** "New" and a rise read as good; "0%" as neither. */
-const trendOf = (label: string) => ({
-  label,
-  positive: label.startsWith("+") || label === "New",
-  neutral: label === "0%",
-});
 
 export default function InternDashboard() {
   const { user } = useAuth();
@@ -81,11 +62,12 @@ export default function InternDashboard() {
             0
           );
           const hours = window.reduce((total, day) => total + day.hours, 0);
-          /* The API's 365 days hold the window before 7, 30 and 90 days, not 12 months. */
+          /* The API's 365 days hold the window before 7, 30 and 90 days;
+             12 months compares with `previous_year`. */
           const before =
             live.daily_activity.length >= days * 2 ? live.daily_activity.slice(-days * 2, -days) : null;
           const sum = (key: "sessions" | "participants" | "hours") =>
-            before ? before.reduce((total, day) => total + day[key], 0) : null;
+            before ? before.reduce((total, day) => total + day[key], 0) : live.previous_year[key];
 
           const radar = toQualityRadar(live.quality_in_window);
           const pyramid = toDemographicSpeakers(live.demographics.by_gender_age);

@@ -7,10 +7,11 @@ export type ApiReview = {
   id: string;
   recording_id: string;
   reviewer_id: string;
-  q_noise_free: ApiQualityAnswer;
-  q_clear_audible: ApiQualityAnswer;
-  q_matches_prompt: ApiQualityAnswer;
-  q_natural_intelligible: ApiQualityAnswer;
+  /* Null only on a flag, for a question left unanswered (ask #26). */
+  q_noise_free: ApiQualityAnswer | null;
+  q_clear_audible: ApiQualityAnswer | null;
+  q_matches_prompt: ApiQualityAnswer | null;
+  q_natural_intelligible: ApiQualityAnswer | null;
   verdict: ApiVerdict;
   notes: string | null;
   created_at: string;

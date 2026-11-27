@@ -96,6 +96,7 @@ export function AnnotationDetailPanel({
             (total, segment) =>
               total +
               segment.language_spans.length +
+              segment.manner_spans.length +
               segment.disfluencies.length +
               segment.untranscribable_spans.length +
               segment.non_speech_events.length,

@@ -157,7 +157,7 @@ function rangesFor(doc: TranscriptDoc) {
   return ranges;
 }
 
-/** Our one flat span array, split back into the four the API keeps. */
+/** Our one flat span array, split back into the five the API keeps. */
 function spansForSegment(
   spans: AnnotationSpan[],
   nonSpeech: TranscriptDoc["nonSpeech"],
@@ -176,6 +176,13 @@ function spansForSegment(
            this far is already a member of the enum. */
         language: span.value as ApiAnnotationLanguage,
         span_source: span.spanSource ?? "annotator_added",
+      })),
+    manner_spans: spans
+      .filter((span) => span.kind === "manner" && inside(span.startToken, span.endToken))
+      .map((span) => ({
+        start_token: span.startToken,
+        end_token: span.endToken,
+        manner: span.value,
       })),
     disfluencies: spans
       .filter((span) => span.kind === "disfluency" && inside(span.startToken, span.endToken))

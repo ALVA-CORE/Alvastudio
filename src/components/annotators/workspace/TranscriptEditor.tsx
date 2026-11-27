@@ -48,6 +48,10 @@ const ESTIMATED_ROW_HEIGHT = 140;
 /** Past this distance (px) a scroll jumps instead of animating. */
 const SMOOTH_SCROLL_LIMIT = 1200;
 
+/** Where a click keeps the highlighted words: everywhere they get tagged from. */
+const KEEPS_HIGHLIGHT =
+  "[data-tag-addon], [data-tag-panel], [data-radix-popper-content-wrapper], [role='listbox'], [role='menu']";
+
 export type TranscriptEditorProps = {
   /**
    * Moves the audio element. Provided by whoever owns the media, because the
@@ -127,6 +131,20 @@ export function TranscriptEditor({
   const raisedSegmentId = textSelection
     ? tokenIndex.tokens[textSelection.start]?.segmentId
     : selectedSegmentId;
+
+  /* A click anywhere lets go of the highlight, except where it is used: the
+     tag button under it, the side panel, and the menus they open. Not on the
+     selection collapsing, since opening a menu collapses it. */
+  const hasTextSelection = textSelection !== null;
+  useEffect(() => {
+    if (!hasTextSelection) return;
+    const release = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest(KEEPS_HIGHLIGHT)) return;
+      actions.setTextSelection(null);
+    };
+    document.addEventListener("pointerdown", release);
+    return () => document.removeEventListener("pointerdown", release);
+  }, [hasTextSelection, actions]);
 
   const handleApplyTag = useCallback(
     (kind: SpanKind, value: string, range: { start: number; end: number }) => {

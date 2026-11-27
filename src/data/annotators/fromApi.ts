@@ -109,6 +109,16 @@ function toSpans(segments: ApiSegment[]): AnnotationSpan[] {
       });
     }
 
+    for (const [index, span] of segment.manner_spans.entries()) {
+      spans.push({
+        id: `${segment.id}-manner-${index}`,
+        kind: "manner",
+        value: span.manner,
+        startToken: span.start_token,
+        endToken: span.end_token,
+      });
+    }
+
     /* `disfluencies` and `untranscribable_spans` are typed `unknown[]` in the
      * generated client because the API documents them as bare arrays. They
      * carry the same three fields as a language span, so they are read

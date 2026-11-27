@@ -45,6 +45,7 @@ function apiDoc() {
         language_spans: [
           { start_token: 0, end_token: 1, language: "pcm", span_source: "annotator_added" },
         ],
+        manner_spans: [],
         disfluencies: [],
         untranscribable_spans: [],
         non_speech_events: [],

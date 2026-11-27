@@ -3,7 +3,8 @@
  *
  * Every value here is transcribed from `alva_schema_v2.json` — the enums in
  * `languageSpan`, `disfluency`, `untranscribableSpan`, `pcmConstructionTag`,
- * `nonSpeechEvent` and `asrPayload.difficulty_flags`. Nothing is invented: a
+ * `nonSpeechEvent` and `asrPayload.difficulty_flags`, and the API's
+ * `MannerType` and the lead's sound markers (27 Nov). Nothing is invented: a
  * value the annotator can pick that the schema rejects is a row that fails
  * validation on export, which is worse than not offering it.
  *
@@ -18,6 +19,7 @@ export type SpanKind =
   | "language"
   | "disfluency"
   | "untranscribable"
+  | "manner"
   | "pcm_construction";
 
 /** `languageSpan.span_source` — how the span got there. */
@@ -78,6 +80,15 @@ const UNTRANSCRIBABLE_OPTIONS: TagOption[] = [
   { value: "other", label: "Other" },
 ];
 
+/** `MannerType`: how a stretch of speech was said (27 Nov). */
+const MANNER_OPTIONS: TagOption[] = [
+  { value: "whisper", label: "Whispered" },
+  { value: "shout", label: "Shouted" },
+  { value: "laughing", label: "Laughing while speaking" },
+  { value: "sung", label: "Sung" },
+  { value: "imitating", label: "Imitating someone" },
+];
+
 /**
  * `pcmConstructionTag` — a CLOSED taxonomy, deliberately separate from lexical
  * language spans. The schema notes these starter values await ratification by a
@@ -124,6 +135,13 @@ export const SPAN_FAMILIES: TagFamily[] = [
     shortLabel: "Unclear",
     color: "#FF6B8A",
     options: UNTRANSCRIBABLE_OPTIONS,
+  },
+  {
+    kind: "manner",
+    label: "Manner",
+    shortLabel: "Manner",
+    color: "#5CE1E6",
+    options: MANNER_OPTIONS,
   },
   {
     kind: "pcm_construction",
@@ -188,6 +206,40 @@ export const NON_SPEECH_OPTIONS: TagOption[] = [
   { value: "dtmf_or_beep", label: "Tone or beep" },
   { value: "non_lexical_hesitation", label: "Non-lexical hesitation" },
   { value: "other", label: "Other" },
+  /* The lead's markers, added to the API on 27 Nov. */
+  { value: "kiss_teeth", label: "Kiss teeth" },
+  { value: "hiss", label: "Hiss" },
+  { value: "sigh", label: "Sigh" },
+  { value: "tsk", label: "Tsk" },
+  { value: "sniff", label: "Sniff" },
+  { value: "yawn", label: "Yawn" },
+  { value: "swallow", label: "Swallow" },
+  { value: "gasp", label: "Gasp" },
+  { value: "groan", label: "Groan" },
+  { value: "chuckle", label: "Chuckle" },
+  { value: "whistle", label: "Whistle" },
+  { value: "hum", label: "Hum" },
+  { value: "cry", label: "Cry" },
+  { value: "pause_short", label: "Short pause" },
+  { value: "pause_med", label: "Medium pause" },
+  { value: "pause_long", label: "Long pause" },
+  { value: "bg_speech", label: "Background speech" },
+  { value: "phone", label: "Phone" },
+  { value: "generator", label: "Generator" },
+  { value: "traffic", label: "Traffic" },
+  { value: "clap", label: "Clap" },
+  { value: "door", label: "Door" },
+  { value: "horn", label: "Horn" },
+  { value: "rain", label: "Rain" },
+  { value: "wind", label: "Wind" },
+  { value: "child", label: "Child" },
+  { value: "tv", label: "TV" },
+  { value: "clip", label: "Clipping" },
+  { value: "plosive", label: "Plosive" },
+  { value: "mic_bump", label: "Mic bump" },
+  { value: "dropout", label: "Dropout" },
+  { value: "bleed", label: "Bleed" },
+  { value: "chair_creak", label: "Chair creak" },
 ];
 
 /* Yellow: no tag family or speaker uses it, so a marker stands out in the text. */

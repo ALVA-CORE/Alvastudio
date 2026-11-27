@@ -13,7 +13,7 @@ import { AlvaMetricGridSkeleton } from "@/components/shared/states/AlvaMetricGri
 import {
   getEmptyAnnotatorDataset,
 } from "@/data/annotators/dashboard";
-import type { DashboardTimeRange } from "@/data/internDashboard";
+import { trendOf, type DashboardTimeRange } from "@/data/internDashboard";
 import { useAnnotatorDashboard } from "@/hooks/useAnnotatorDashboard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth/context";
@@ -46,13 +46,6 @@ export default function AnnotatorDashboardPage() {
   const base = getEmptyAnnotatorDataset(timeRange);
 
   const dataset = { ...base, activity, tagBreakdown, demographicHours: demographics };
-
-  const cards = {
-    clipsAnnotated: metrics.clipsAnnotated,
-    hoursAnnotated: metrics.hoursAnnotated,
-    tagsApplied: metrics.tagsApplied,
-    periodLabel: metrics.periodLabel,
-  };
 
   const firstName = user?.fullName?.split(" ")[0] ?? "there";
 
@@ -100,20 +93,23 @@ export default function AnnotatorDashboardPage() {
             <MetricCard
               variant="accent"
               title="Clips annotated"
-              value={cards.clipsAnnotated}
-              period={cards.periodLabel}
+              value={metrics.clipsAnnotated}
+              period={metrics.periodLabel}
+              trend={metrics.clipsTrend ? trendOf(metrics.clipsTrend) : undefined}
               icon={ClipboardCheck}
             />
             <MetricCard
               title="Hours annotated"
-              value={cards.hoursAnnotated}
-              period={cards.periodLabel}
+              value={metrics.hoursAnnotated}
+              period={metrics.periodLabel}
+              trend={metrics.hoursTrend ? trendOf(metrics.hoursTrend) : undefined}
               icon={ClockCircle}
             />
             <MetricCard
               title="Tags applied"
-              value={cards.tagsApplied}
-              period={cards.periodLabel}
+              value={metrics.tagsApplied}
+              period={metrics.periodLabel}
+              trend={metrics.tagsTrend ? trendOf(metrics.tagsTrend) : undefined}
               icon={TagHorizontal}
             />
           </div>

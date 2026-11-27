@@ -110,10 +110,10 @@ export function useReviewItem(id: string | undefined) {
           draft: latest
             ? {
                 answers: {
-                  noiseFree: latest.q_noise_free,
-                  audible: latest.q_clear_audible,
-                  matchesPrompt: latest.q_matches_prompt,
-                  natural: latest.q_natural_intelligible,
+                  noiseFree: latest.q_noise_free ?? "",
+                  audible: latest.q_clear_audible ?? "",
+                  matchesPrompt: latest.q_matches_prompt ?? "",
+                  natural: latest.q_natural_intelligible ?? "",
                   /* Same three values either side, so this is a rename not a guess. */
                   verdict: latest.verdict,
                 },

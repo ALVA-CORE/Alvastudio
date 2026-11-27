@@ -354,11 +354,6 @@ function TranscriptSegmentRowImpl({
                 spans={spans}
                 marks={marks}
                 onMarkChange={(id, type) => (type ? changeNonSpeechMark(id, type) : removeNonSpeechMark(id))}
-                onDropTag={(tag, target) =>
-                  "sound" in tag
-                    ? onAddNonSpeech(tag.sound, target.end)
-                    : onApplyTag(tag.kind, tag.value, target)
-                }
                 isActive={isActive}
                 onSelectRange={setSelection}
                 onSelectionDone={() => setTagMenuOpen(true)}

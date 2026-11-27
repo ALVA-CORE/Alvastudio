@@ -248,6 +248,28 @@ export function getEmptyDashboardDataset(
   };
 }
 
+/** How many days of a 365-day daily series each filter shows. */
+export const RANGE_DAYS: Record<DashboardTimeRange, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "12m": 365,
+};
+
+export const RANGE_LABEL: Record<DashboardTimeRange, string> = {
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
+  "90d": "Last 90 days",
+  "12m": "Last 12 months",
+};
+
+/** A card's trend from `periodTrend`: "New" and a rise read as good; "0%" as neither. */
+export const trendOf = (label: string) => ({
+  label,
+  positive: label.startsWith("+") || label === "New",
+  neutral: label === "0%",
+});
+
 /**
  * This window against the one before it, as a card's trend: "+12%", "-5%",
  * "0%", "New" when there was nothing before, a dash when the one before

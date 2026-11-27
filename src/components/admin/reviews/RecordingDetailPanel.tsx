@@ -12,7 +12,7 @@ import { AdminStatusPill, type PillTone } from "@/components/admin/shared/AdminS
 import { useAuditLog } from "@/hooks/useAuditLog";
 import { ClipPlayer } from "@/components/admin/shared/ClipPlayer";
 import { ClipPlayerSkeleton } from "@/components/admin/shared/ClipPlayerSkeleton";
-import { getRecording, recordingAudioUrl, type ApiRecording } from "@/lib/api/recordings";
+import { recordingAudioUrl } from "@/lib/api/recordings";
 import {
   AuditTimeline,
   DetailField,
@@ -90,8 +90,6 @@ export function RecordingDetailPanel({
   const [confirmReopen, setConfirmReopen] = useState(false);
   const [dialog, setDialog] = useState<"flag" | "report" | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-  /* Lists never carry the flag; the clip's own answer does. */
-  const [flag, setFlag] = useState<ApiRecording["flag"]>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   /** Distinguishes "still fetching" from "this clip has no audio". */
   const [audioLoading, setAudioLoading] = useState(false);
@@ -118,21 +116,10 @@ export function RecordingDetailPanel({
     };
   }, [open, recording]);
 
-  useEffect(() => {
-    if (!open || !recording) return;
-    let cancelled = false;
-    setFlag(null);
-    getRecording(recording.id)
-      .then((row) => !cancelled && setFlag(row.flag ?? null))
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [open, recording]);
-
   const { entries: audit } = useAuditLog("recording", recording?.id, open);
 
   if (!recording) return null;
+  const flag = recording.flag;
 
   const isDecided =
     recording.status !== "submitted" && recording.status !== "in_review";
@@ -271,7 +258,7 @@ export function RecordingDetailPanel({
                           entry.answer === "no" && "text-red-400"
                         )}
                       >
-                        {RUBRIC_LABELS[entry.answer]}
+                        {entry.answer ? RUBRIC_LABELS[entry.answer] : "Not answered"}
                       </dd>
                     </div>
                   ))}
